@@ -428,23 +428,37 @@ export function Historico() {
                   <strong>{selecionada.responsavel || "—"}</strong>
                 </div>
 
-                {selecionada.dataOcorrencia > 0 &&
-                  !isNaN(selecionada.dataOcorrencia) && (
-                    <div>
-                      <span>Data da ocorrência</span>
-                      <strong>
-                        {new Date(
-                          selecionada.dataOcorrencia,
-                        ).toLocaleDateString("pt-BR")}{" "}
-                        {new Date(
-                          selecionada.dataOcorrencia,
-                        ).toLocaleTimeString("pt-BR", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </strong>
-                    </div>
-                  )}
+                <div>
+                  <span>Data da ocorrência</span>
+                  <strong>
+                    {new Date(
+                      selecionada.createdAt ?? selecionada.dataOcorrencia ?? Date.now()
+                    ).toLocaleDateString("pt-BR")}{" "}
+                    {new Date(
+                      selecionada.createdAt ?? selecionada.dataOcorrencia ?? Date.now()
+                    ).toLocaleTimeString("pt-BR", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </strong>
+                </div>
+
+                {selecionada.createdAt && selecionada.dataOcorrencia > 0 && (
+                  <div>
+                    <span>Data do agendamento</span>
+                    <strong>
+                      {new Date(
+                        selecionada.dataOcorrencia,
+                      ).toLocaleDateString("pt-BR")}{" "}
+                      {new Date(
+                        selecionada.dataOcorrencia,
+                      ).toLocaleTimeString("pt-BR", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </strong>
+                  </div>
+                )}
 
                 {selecionada.temaOcorrencia &&
                   selecionada.temaOcorrencia.length > 0 && (

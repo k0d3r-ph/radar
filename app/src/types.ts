@@ -30,6 +30,8 @@ export type Empresa = {
   decisor?: string;
 
   localizacao?: string;
+
+  dataFinalizacao?: string;
 };
 
 export type Ocorrencia = {

@@ -2,6 +2,7 @@ export function calcularDiasNaEsteira(
   dataEntrada?: string,
   progresso?: number,
   dataUltimoTreinamento?: number,
+  dataFinalizacao?: string,
 ) {
   if (!dataEntrada) return 0;
 
@@ -11,10 +12,16 @@ export function calcularDiasNaEsteira(
 
   if (isNaN(entrada.getTime())) return 0;
 
-  const fim =
-    progresso !== undefined && progresso >= 100 && dataUltimoTreinamento
-      ? new Date(dataUltimoTreinamento)
-      : new Date();
+  let fim: Date;
+  if (dataFinalizacao) {
+    const [fYear, fMonth, fDay] = dataFinalizacao.split("-").map(Number);
+    fim = new Date(fYear, fMonth - 1, fDay);
+  } else {
+    fim =
+      progresso !== undefined && progresso >= 100 && dataUltimoTreinamento
+        ? new Date(dataUltimoTreinamento)
+        : new Date();
+  }
 
   return Math.floor(
     (fim.getTime() - entrada.getTime()) / (1000 * 60 * 60 * 24),

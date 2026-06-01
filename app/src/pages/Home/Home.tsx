@@ -58,6 +58,7 @@ export default function Home() {
     persona: "",
     decisor: "",
     localizacao: "",
+    dataFinalizacao: "",
   };
 
   const [clienteForm, setClienteForm] = useState<Empresa>(EMPTY_CLIENTE);
@@ -196,7 +197,12 @@ export default function Home() {
         tme,
         progresso,
         farol,
-        dias: calcularDiasNaEsteira(empresa.dataEntrada, progresso, dataBase),
+        dias: calcularDiasNaEsteira(
+          empresa.dataEntrada,
+          progresso,
+          dataBase,
+          empresa.dataFinalizacao,
+        ),
       };
     });
   }, [empresas, historico]);
@@ -480,6 +486,21 @@ export default function Home() {
                   {clienteSelecionado.localizacao || "-"}
                 </span>
               </div>
+              {(() => {
+                const totalFasesSel = calcularTotalFases(clienteSelecionado.temaText);
+                const progressoSel = calcularProgressoPorFases(
+                  clienteSelecionado.currentPhase,
+                  totalFasesSel,
+                );
+                return (progressoSel >= 100 || clienteSelecionado.dataFinalizacao) ? (
+                  <div className="info-item full-width">
+                    <span className="info-label">Data de Finalização</span>
+                    <span className="info-value">
+                      {formatarData(clienteSelecionado.dataFinalizacao)}
+                    </span>
+                  </div>
+                ) : null;
+              })()}
             </div>
 
             <div className="cliente-modal-actions">
@@ -687,6 +708,29 @@ export default function Home() {
                 }
               />
             </div>
+
+            {(() => {
+              const totalFasesForm = calcularTotalFases(clienteForm.temaText);
+              const progressoForm = calcularProgressoPorFases(
+                clienteForm.currentPhase,
+                totalFasesForm,
+              );
+              return progressoForm >= 100 && (
+                <div className="form-group">
+                  <label>Data de finalização</label>
+                  <input
+                    type="date"
+                    value={clienteForm.dataFinalizacao || ""}
+                    onChange={(e) =>
+                      setClienteForm({
+                        ...clienteForm,
+                        dataFinalizacao: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+              );
+            })()}
 
             <div className="form-group">
               <label>Alerta</label>

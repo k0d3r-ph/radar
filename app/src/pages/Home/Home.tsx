@@ -56,7 +56,7 @@ export default function Home() {
     comercialResponsavel: "",
     telefone: "",
     persona: "",
-    decisor: "",
+    contato: "",
     localizacao: "",
     dataFinalizacao: "",
   };
@@ -343,17 +343,17 @@ export default function Home() {
           filtroResponsavel ||
           filtroTipo ||
           filtroProgresso) && (
-            <button
-              onClick={() => {
-                setFiltroCliente("");
-                setFiltroResponsavel("");
-                setFiltroTipo("");
-                setFiltroProgresso("");
-              }}
-            >
-              Limpar filtros
-            </button>
-          )}
+          <button
+            onClick={() => {
+              setFiltroCliente("");
+              setFiltroResponsavel("");
+              setFiltroTipo("");
+              setFiltroProgresso("");
+            }}
+          >
+            Limpar filtros
+          </button>
+        )}
       </div>
 
       <table>
@@ -475,9 +475,9 @@ export default function Home() {
                 </span>
               </div>
               <div className="info-item">
-                <span className="info-label">Decisor</span>
+                <span className="info-label">contato</span>
                 <span className="info-value">
-                  {clienteSelecionado.decisor || "-"}
+                  {clienteSelecionado.contato || "-"}
                 </span>
               </div>
               <div className="info-item full-width">
@@ -487,12 +487,15 @@ export default function Home() {
                 </span>
               </div>
               {(() => {
-                const totalFasesSel = calcularTotalFases(clienteSelecionado.temaText);
+                const totalFasesSel = calcularTotalFases(
+                  clienteSelecionado.temaText,
+                );
                 const progressoSel = calcularProgressoPorFases(
                   clienteSelecionado.currentPhase,
                   totalFasesSel,
                 );
-                return (progressoSel >= 100 || clienteSelecionado.dataFinalizacao) ? (
+                return progressoSel >= 100 ||
+                  clienteSelecionado.dataFinalizacao ? (
                   <div className="info-item full-width">
                     <span className="info-label">Data de Finalização</span>
                     <span className="info-value">
@@ -682,13 +685,13 @@ export default function Home() {
               </div>
 
               <div className="form-group">
-                <label>Decisor</label>
+                <label>contato</label>
                 <input
-                  value={clienteForm.decisor || ""}
+                  value={clienteForm.contato || ""}
                   onChange={(e) =>
                     setClienteForm({
                       ...clienteForm,
-                      decisor: e.target.value,
+                      contato: e.target.value,
                     })
                   }
                 />
@@ -715,20 +718,22 @@ export default function Home() {
                 clienteForm.currentPhase,
                 totalFasesForm,
               );
-              return progressoForm >= 100 && (
-                <div className="form-group">
-                  <label>Data de finalização</label>
-                  <input
-                    type="date"
-                    value={clienteForm.dataFinalizacao || ""}
-                    onChange={(e) =>
-                      setClienteForm({
-                        ...clienteForm,
-                        dataFinalizacao: e.target.value,
-                      })
-                    }
-                  />
-                </div>
+              return (
+                progressoForm >= 100 && (
+                  <div className="form-group">
+                    <label>Data de finalização</label>
+                    <input
+                      type="date"
+                      value={clienteForm.dataFinalizacao || ""}
+                      onChange={(e) =>
+                        setClienteForm({
+                          ...clienteForm,
+                          dataFinalizacao: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                )
               );
             })()}
 

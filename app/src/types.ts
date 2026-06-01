@@ -27,7 +27,7 @@ export type Empresa = {
 
   persona?: string;
 
-  decisor?: string;
+  contato?: string;
 
   localizacao?: string;
 

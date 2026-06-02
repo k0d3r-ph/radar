@@ -23,7 +23,6 @@ import {
   obterUltimoTreinamento,
 } from "../../utils/monitoramento";
 import type { Empresa, Ocorrencia } from "../../types";
-import { toast } from "sonner";
 
 export default function Home() {
   const navigate = useNavigate();
@@ -34,8 +33,9 @@ export default function Home() {
 
   const [filtroCliente, setFiltroCliente] = useState("");
   const [filtroResponsavel, setFiltroResponsavel] = useState("");
-  const [filtroTipo, setFiltroTipo] = useState("");
   const [filtroProgresso, setFiltroProgresso] = useState("");
+  const [filtroCardStatus, setFiltroCardStatus] = useState<"concluidos" | "andamento" | "">("");
+  const [filtroCardTipo, setFiltroCardTipo] = useState<"safety" | "fast" | "">("");
 
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
 
@@ -52,13 +52,6 @@ export default function Home() {
     dataText: "",
     currentPhase: 0,
     updatedAt: 0,
-    csResponsavel: "",
-    comercialResponsavel: "",
-    telefone: "",
-    persona: "",
-    contato: "",
-    localizacao: "",
-    dataFinalizacao: "",
   };
 
   const [clienteForm, setClienteForm] = useState<Empresa>(EMPTY_CLIENTE);
@@ -115,18 +108,6 @@ export default function Home() {
 
   async function salvarCliente() {
     if (!clienteForm.nomeEmpresa.trim()) {
-      return;
-    }
-
-    const nomeTrimmed = clienteForm.nomeEmpresa.trim().toLowerCase();
-    const duplicado = empresas.some(
-      (e) =>
-        e.nomeEmpresa.trim().toLowerCase() === nomeTrimmed &&
-        e.id !== editandoClienteId,
-    );
-
-    if (duplicado) {
-      toast.error("Cliente já existente.");
       return;
     }
 
@@ -197,12 +178,7 @@ export default function Home() {
         tme,
         progresso,
         farol,
-        dias: calcularDiasNaEsteira(
-          empresa.dataEntrada,
-          progresso,
-          dataBase,
-          empresa.dataFinalizacao,
-        ),
+        dias: calcularDiasNaEsteira(empresa.dataEntrada, progresso, dataBase),
       };
     });
   }, [empresas, historico]);
@@ -213,8 +189,18 @@ export default function Home() {
     const emAndamento = dados.filter(
       (e) => e.progresso > 0 && e.progresso < 100,
     ).length;
-    return { total, concluidos, emAndamento };
+    const safety = dados.filter((e) => e.tipo === "Safety").length;
+    const fast = dados.filter((e) => e.tipo === "Fast").length;
+    return { total, concluidos, emAndamento, safety, fast };
   }, [dados]);
+
+  const handleStatusCardClick = (status: "concluidos" | "andamento") => {
+    setFiltroCardStatus((prev) => (prev === status ? "" : status));
+  };
+
+  const handleTipoCardClick = (tipo: "safety" | "fast") => {
+    setFiltroCardTipo((prev) => (prev === tipo ? "" : tipo));
+  };
 
   const dadosFiltrados = useMemo(() => {
     return dados
@@ -224,7 +210,6 @@ export default function Home() {
           e.nomeEmpresa.toLowerCase().includes(filtroCliente.toLowerCase());
         const responsavelOk =
           !filtroResponsavel || e.responsavel === filtroResponsavel;
-        const tipoOk = !filtroTipo || e.tipo === filtroTipo;
         const progressoOk =
           !filtroProgresso ||
           (filtroProgresso === "0-25" && e.progresso <= 25) ||
@@ -236,7 +221,17 @@ export default function Home() {
             e.progresso <= 75) ||
           (filtroProgresso === "76-100" && e.progresso > 75);
 
-        return clienteOk && responsavelOk && tipoOk && progressoOk;
+        const statusCardOk =
+          !filtroCardStatus ||
+          (filtroCardStatus === "concluidos" && e.progresso >= 100) ||
+          (filtroCardStatus === "andamento" && e.progresso > 0 && e.progresso < 100);
+
+        const tipoCardOk =
+          !filtroCardTipo ||
+          (filtroCardTipo === "safety" && e.tipo === "Safety") ||
+          (filtroCardTipo === "fast" && e.tipo === "Fast");
+
+        return clienteOk && responsavelOk && progressoOk && statusCardOk && tipoCardOk;
       })
       .sort((a, b) => {
         const ordem = { vermelho: 0, amarelo: 1, verde: 2, none: 3 };
@@ -244,7 +239,7 @@ export default function Home() {
         if (farolDiff !== 0) return farolDiff; // ← primeiro ordena por farol
         return a.nomeEmpresa.localeCompare(b.nomeEmpresa, "pt-BR"); // ← depois alfabético
       });
-  }, [dados, filtroCliente, filtroResponsavel, filtroTipo, filtroProgresso]);
+  }, [dados, filtroCliente, filtroResponsavel, filtroProgresso, filtroCardStatus, filtroCardTipo]);
 
   return (
     <div className="monitoramento-page">
@@ -261,7 +256,13 @@ export default function Home() {
       </div>
 
       <div className="home-stats">
-        <div className="stat-card">
+        <div
+          className={`stat-card clickable ${filtroCardStatus === "" && filtroCardTipo === "" ? "active-total" : ""}`}
+          onClick={() => {
+            setFiltroCardStatus("");
+            setFiltroCardTipo("");
+          }}
+        >
           <div className="stat-card-texto">
             <div className="stat-value-row">
               <h3 className="stat-value">{stats.total}</h3>
@@ -271,26 +272,62 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="stat-card">
+        <div
+          className={`stat-card clickable ${filtroCardStatus === "concluidos" ? "active-concluidos" : ""}`}
+          onClick={() => handleStatusCardClick("concluidos")}
+        >
           <div className="stat-card-texto">
             <div className="stat-value-row">
               <h3 className="stat-value">{stats.concluidos}</h3>
               <p className="stat-label">Concluídos</p>
             </div>
             <p className="stat-sub">
-              {((stats.concluidos / stats.total) * 100).toFixed(1)}% do total
+              {stats.total > 0 ? ((stats.concluidos / stats.total) * 100).toFixed(1) : "0.0"}% do total
             </p>
           </div>
         </div>
 
-        <div className="stat-card">
+        <div
+          className={`stat-card clickable ${filtroCardStatus === "andamento" ? "active-andamento" : ""}`}
+          onClick={() => handleStatusCardClick("andamento")}
+        >
           <div className="stat-card-texto">
             <div className="stat-value-row">
               <h3 className="stat-value">{stats.emAndamento}</h3>
               <p className="stat-label">Em andamento</p>
             </div>
             <p className="stat-sub">
-              {((stats.emAndamento / stats.total) * 100).toFixed(1)}% do total
+              {stats.total > 0 ? ((stats.emAndamento / stats.total) * 100).toFixed(1) : "0.0"}% do total
+            </p>
+          </div>
+        </div>
+
+        <div
+          className={`stat-card clickable ${filtroCardTipo === "safety" ? "active-safety" : ""}`}
+          onClick={() => handleTipoCardClick("safety")}
+        >
+          <div className="stat-card-texto">
+            <div className="stat-value-row">
+              <h3 className="stat-value">{stats.safety}</h3>
+              <p className="stat-label">Clientes Safety</p>
+            </div>
+            <p className="stat-sub">
+              {stats.total > 0 ? ((stats.safety / stats.total) * 100).toFixed(1) : "0.0"}% do total
+            </p>
+          </div>
+        </div>
+
+        <div
+          className={`stat-card clickable ${filtroCardTipo === "fast" ? "active-fast" : ""}`}
+          onClick={() => handleTipoCardClick("fast")}
+        >
+          <div className="stat-card-texto">
+            <div className="stat-value-row">
+              <h3 className="stat-value">{stats.fast}</h3>
+              <p className="stat-label">Clientes Fast</p>
+            </div>
+            <p className="stat-sub">
+              {stats.total > 0 ? ((stats.fast / stats.total) * 100).toFixed(1) : "0.0"}% do total
             </p>
           </div>
         </div>
@@ -320,15 +357,6 @@ export default function Home() {
         </select>
 
         <select
-          value={filtroTipo}
-          onChange={(e) => setFiltroTipo(e.target.value)}
-        >
-          <option value="">Todos os tipos</option>
-          <option value="Fast">Fast</option>
-          <option value="Safety">Safety</option>
-        </select>
-
-        <select
           value={filtroProgresso}
           onChange={(e) => setFiltroProgresso(e.target.value)}
         >
@@ -341,19 +369,21 @@ export default function Home() {
 
         {(filtroCliente ||
           filtroResponsavel ||
-          filtroTipo ||
-          filtroProgresso) && (
-          <button
-            onClick={() => {
-              setFiltroCliente("");
-              setFiltroResponsavel("");
-              setFiltroTipo("");
-              setFiltroProgresso("");
-            }}
-          >
-            Limpar filtros
-          </button>
-        )}
+          filtroProgresso ||
+          filtroCardStatus ||
+          filtroCardTipo) && (
+            <button
+              onClick={() => {
+                setFiltroCliente("");
+                setFiltroResponsavel("");
+                setFiltroProgresso("");
+                setFiltroCardStatus("");
+                setFiltroCardTipo("");
+              }}
+            >
+              Limpar filtros
+            </button>
+          )}
       </div>
 
       <table>

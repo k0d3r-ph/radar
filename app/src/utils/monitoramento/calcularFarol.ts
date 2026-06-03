@@ -20,7 +20,7 @@ export function calcularFarol({
   if (!finalizado) {
     if (tme < 0) return "verde";
 
-    if (tme > 4) {
+    if (tme >= 4) {
       return "vermelho";
     }
 

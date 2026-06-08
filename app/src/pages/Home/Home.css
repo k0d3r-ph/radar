@@ -55,6 +55,11 @@
   font-size: 0.95rem;
 }
 
+.monitoramento-page td.td-progresso {
+  overflow: visible;
+}
+
+
 .monitoramento-page tbody tr {
   transition: background 0.2s ease;
 }

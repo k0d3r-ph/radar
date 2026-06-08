@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import "./ProgressBar.css";
 
 interface Props {
   value: number;
@@ -22,24 +23,14 @@ export default function ProgressBar({ value }: Props) {
   }, [clamped]);
 
   return (
-    <div
-      style={{
-        width: "100%",
-        height: "8px",
-        borderRadius: "999px",
-        background: "rgba(255,255,255,0.1)",
-      }}
-    >
-      <div
-        ref={fillRef}
-        style={{
-          width: "0%",
-          height: "100%",
-          borderRadius: "999px",
-          background: "#2ecc71",
-          transition: "width 1.5s ease",
-        }}
-      />
+    <div className="progress-container">
+      <div className="progress-bar-wrapper">
+        <div ref={fillRef} className="progress-fill" />
+        <span className="progress-tooltip">
+          {Math.round(value)}%
+        </span>
+      </div>
     </div>
   );
 }
+

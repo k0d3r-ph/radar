@@ -413,7 +413,7 @@ export default function Home() {
 
             <th>TME</th>
 
-            <th>Progresso</th>
+            <th className="td-progresso">Progresso</th>
           </tr>
         </thead>
 
@@ -460,7 +460,7 @@ export default function Home() {
 
                 <td>{empresa.tme !== null ? `${empresa.tme} dias` : "-"}</td>
 
-                <td>
+                <td className="td-progresso">
                   <ProgressBar value={empresa.progresso} />
                 </td>
               </tr>

@@ -33,6 +33,7 @@ export default function Home() {
 
   const [filtroCliente, setFiltroCliente] = useState("");
   const [filtroResponsavel, setFiltroResponsavel] = useState("");
+  const [filtroCs, setFiltroCs] = useState("");
   const [filtroProgresso, setFiltroProgresso] = useState("");
   const [filtroCardStatus, setFiltroCardStatus] = useState<"concluidos" | "andamento" | "">("");
   const [filtroCardTipo, setFiltroCardTipo] = useState<"safety" | "fast" | "">("");
@@ -210,6 +211,7 @@ export default function Home() {
           e.nomeEmpresa.toLowerCase().includes(filtroCliente.toLowerCase());
         const responsavelOk =
           !filtroResponsavel || e.responsavel === filtroResponsavel;
+        const csOk = !filtroCs || e.csResponsavel === filtroCs;
         const progressoOk =
           !filtroProgresso ||
           (filtroProgresso === "0-25" && e.progresso <= 25) ||
@@ -231,7 +233,7 @@ export default function Home() {
           (filtroCardTipo === "safety" && e.tipo === "Safety") ||
           (filtroCardTipo === "fast" && e.tipo === "Fast");
 
-        return clienteOk && responsavelOk && progressoOk && statusCardOk && tipoCardOk;
+        return clienteOk && responsavelOk && csOk && progressoOk && statusCardOk && tipoCardOk;
       })
       .sort((a, b) => {
         const ordem = { vermelho: 0, amarelo: 1, verde: 2, none: 3 };
@@ -239,7 +241,7 @@ export default function Home() {
         if (farolDiff !== 0) return farolDiff; // ← primeiro ordena por farol
         return a.nomeEmpresa.localeCompare(b.nomeEmpresa, "pt-BR"); // ← depois alfabético
       });
-  }, [dados, filtroCliente, filtroResponsavel, filtroProgresso, filtroCardStatus, filtroCardTipo]);
+  }, [dados, filtroCliente, filtroResponsavel, filtroCs, filtroProgresso, filtroCardStatus, filtroCardTipo]);
 
   return (
     <div className="monitoramento-page">
@@ -345,13 +347,27 @@ export default function Home() {
           value={filtroResponsavel}
           onChange={(e) => setFiltroResponsavel(e.target.value)}
         >
-          <option value="">Todos os responsáveis</option>
+          <option value="">Treinador responsável</option>
           {[...new Set(dados.map((e) => e.responsavel))]
             .filter(Boolean)
             .sort()
             .map((r) => (
               <option key={r} value={r}>
                 {r}
+              </option>
+            ))}
+        </select>
+
+        <select
+          value={filtroCs}
+          onChange={(e) => setFiltroCs(e.target.value)}
+        >
+          <option value="">CS responsável</option>
+          {["Jeferson", "Rafaela", "Luiz", "João", "Eduarda", "Clarice", "Lucas"]
+            .sort()
+            .map((c) => (
+              <option key={c} value={c}>
+                {c}
               </option>
             ))}
         </select>
@@ -369,6 +385,7 @@ export default function Home() {
 
         {(filtroCliente ||
           filtroResponsavel ||
+          filtroCs ||
           filtroProgresso ||
           filtroCardStatus ||
           filtroCardTipo) && (
@@ -376,6 +393,7 @@ export default function Home() {
               onClick={() => {
                 setFiltroCliente("");
                 setFiltroResponsavel("");
+                setFiltroCs("");
                 setFiltroProgresso("");
                 setFiltroCardStatus("");
                 setFiltroCardTipo("");
@@ -642,16 +660,24 @@ export default function Home() {
             <div className="form-grid-2">
               <div className="form-group">
                 <label>CS responsável</label>
-                <input
-                  placeholder="Ex: Clarice"
+                <select
                   value={clienteForm.csResponsavel || ""}
                   onChange={(e) =>
                     setClienteForm({
                       ...clienteForm,
-                      csResponsavel: e.target.value,
+                      csResponsavel: e.target.value as Empresa["csResponsavel"],
                     })
                   }
-                />
+                >
+                  <option value="">Selecione...</option>
+                  <option value="Jeferson">Jeferson</option>
+                  <option value="Rafaela">Rafaela</option>
+                  <option value="Luiz">Luiz</option>
+                  <option value="João">João</option>
+                  <option value="Eduarda">Eduarda</option>
+                  <option value="Clarice">Clarice</option>
+                  <option value="Lucas">Lucas</option>
+                </select>
               </div>
 
               <div className="form-group">

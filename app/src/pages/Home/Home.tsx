@@ -404,87 +404,95 @@ export default function Home() {
           )}
       </div>
 
-      <table>
-        <colgroup>
-          <col style={{ width: "1.5%" }} />
-          <col style={{ width: "5%" }} />
-          <col style={{ width: "5%" }} />
-          <col style={{ width: "5%" }} />
-          <col style={{ width: "5%" }} />
-          <col style={{ width: "5%" }} />
-          <col style={{ width: "5%" }} />
-          <col style={{ width: "5%" }} />
-        </colgroup>
-        <thead>
-          <tr>
-            <th>Status</th>
+      <div className="table-wrapper">
+        <table>
+          <colgroup>
+            <col style={{ width: "1.5%" }} />
+            <col style={{ width: "5%" }} />
+            <col style={{ width: "5%" }} />
+            <col style={{ width: "5%" }} />
+            <col style={{ width: "5%" }} />
+            <col style={{ width: "5%" }} />
+            <col style={{ width: "5%" }} />
+            <col style={{ width: "5%" }} />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>Status</th>
 
-            <th>Cliente</th>
+              <th>Cliente</th>
 
-            <th>Responsável</th>
+              <th>Responsável</th>
 
-            <th>Tipo</th>
+              <th>Tipo</th>
 
-            <th>Data de entrada</th>
+              <th>Data de entrada</th>
 
-            <th>Dias</th>
+              <th>Dias</th>
 
-            <th>TME</th>
+              <th>TME</th>
 
-            <th className="td-progresso">Progresso</th>
-          </tr>
-        </thead>
+              <th className="td-progresso">Progresso</th>
+            </tr>
+          </thead>
 
-        <tbody>
-          {!loading &&
-            dadosFiltrados.map((empresa) => (
-              <tr
-                key={empresa.id}
-                className="linha-cliente"
-                onClick={() => abrirCliente(empresa)}
-              >
-                <td>
-                  <StatusFarol status={empresa.farol} />
-                </td>
+          <tbody>
+            {!loading &&
+              dadosFiltrados.map((empresa) => (
+                <tr
+                  key={empresa.id}
+                  className="linha-cliente"
+                  onClick={() => abrirCliente(empresa)}
+                >
+                  <td>
+                    <StatusFarol status={empresa.farol} />
+                  </td>
 
-                <td>
-                  {empresa.nomeEmpresa}
-                  {empresa.alerta && " 🔥"}
-                </td>
+                  <td>
+                    {empresa.nomeEmpresa}
+                    {empresa.alerta && " 🔥"}
+                  </td>
 
-                <td>{empresa.responsavel}</td>
+                  <td>{empresa.responsavel}</td>
 
-                <td>
-                  {empresa.tipo && (
-                    <span
-                      style={{
-                        padding: "2px 10px",
-                        borderRadius: "999px",
-                        fontSize: "0.8rem",
-                        fontWeight: 600,
-                        background:
-                          empresa.tipo === "Fast" ? "#16a34a" : "#dc2626",
-                        color: "white",
-                      }}
-                    >
-                      {empresa.tipo}
-                    </span>
-                  )}
-                </td>
+                  <td>
+                    {empresa.tipo && (
+                      <span
+                        style={{
+                          padding: "2px 10px",
+                          borderRadius: "999px",
+                          fontSize: "0.8rem",
+                          fontWeight: 600,
+                          background:
+                            empresa.tipo === "Fast" ? "#16a34a" : "#dc2626",
+                          color: "white",
+                        }}
+                      >
+                        {empresa.tipo}
+                      </span>
+                    )}
+                  </td>
 
-                <td>{formatarData(empresa.dataEntrada)}</td>
+                  <td>{formatarData(empresa.dataEntrada)}</td>
 
-                <td>{empresa.dias}</td>
+                  <td>{empresa.dias}</td>
 
-                <td>{empresa.tme !== null ? `${empresa.tme} dias` : "-"}</td>
+                  <td>{empresa.tme !== null ? `${empresa.tme} dias` : "-"}</td>
 
-                <td className="td-progresso">
-                  <ProgressBar value={empresa.progresso} />
-                </td>
-              </tr>
-            ))}
-        </tbody>
-      </table>
+                  <td className="td-progresso">
+                    <ProgressBar value={empresa.progresso} />
+                  </td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+
+        <div className="table-footer">
+          <span>
+            Mostrando <strong>{dadosFiltrados.length}</strong> de <strong>{dados.length}</strong> {dados.length === 1 ? "cliente" : "clientes"}
+          </span>
+        </div>
+      </div>
 
       {clienteSelecionado && (
         <div

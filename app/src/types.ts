@@ -1,3 +1,5 @@
+export type CS = "Jeferson" | "Rafaela" | "Luiz" | "João" | "Eduarda" | "Clarice" | "Lucas" | "";
+
 export type Empresa = {
   id?: string;
 
@@ -19,7 +21,7 @@ export type Empresa = {
 
   updatedAt: number;
 
-  csResponsavel?: string;
+  csResponsavel?: CS;
 
   comercialResponsavel?: string;
 

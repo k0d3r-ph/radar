@@ -188,6 +188,22 @@
   color: #6ee7b7;
 }
 
+/* Active Alerta Card */
+.stat-card.active-alerta {
+  background: linear-gradient(135deg, #7f1d1d, #ef4444);
+  border-color: #f87171;
+  box-shadow: 0 8px 24px rgba(239, 68, 68, 0.35);
+}
+.stat-card.active-alerta .stat-value {
+  color: #ffffff;
+}
+.stat-card.active-alerta .stat-label {
+  color: #fecaca;
+}
+.stat-card.active-alerta .stat-sub {
+  color: #fca5a5;
+}
+
 .stat-icon {
   font-size: 2rem;
   line-height: 1;

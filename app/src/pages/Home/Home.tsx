@@ -31,12 +31,13 @@ export default function Home() {
     null,
   );
 
-  const [filtroCliente, setFiltroCliente] = useState("");
-  const [filtroResponsavel, setFiltroResponsavel] = useState("");
-  const [filtroCs, setFiltroCs] = useState("");
-  const [filtroProgresso, setFiltroProgresso] = useState("");
-  const [filtroCardStatus, setFiltroCardStatus] = useState<"concluidos" | "andamento" | "">("");
-  const [filtroCardTipo, setFiltroCardTipo] = useState<"safety" | "fast" | "">("");
+  const [filtroCliente, setFiltroCliente] = useState(() => sessionStorage.getItem("filtroCliente") || "");
+  const [filtroResponsavel, setFiltroResponsavel] = useState(() => sessionStorage.getItem("filtroResponsavel") || "");
+  const [filtroCs, setFiltroCs] = useState(() => sessionStorage.getItem("filtroCs") || "");
+  const [filtroProgresso, setFiltroProgresso] = useState(() => sessionStorage.getItem("filtroProgresso") || "");
+  const [filtroCardStatus, setFiltroCardStatus] = useState<"concluidos" | "andamento" | "">(() => (sessionStorage.getItem("filtroCardStatus") as any) || "");
+  const [filtroCardTipo, setFiltroCardTipo] = useState<"safety" | "fast" | "">(() => (sessionStorage.getItem("filtroCardTipo") as any) || "");
+  const [filtroCardAlerta, setFiltroCardAlerta] = useState<"alerta" | "">(() => (sessionStorage.getItem("filtroCardAlerta") as any) || "");
 
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
 
@@ -149,6 +150,16 @@ export default function Home() {
     carregarDados();
   }, []);
 
+  useEffect(() => {
+    sessionStorage.setItem("filtroCliente", filtroCliente);
+    sessionStorage.setItem("filtroResponsavel", filtroResponsavel);
+    sessionStorage.setItem("filtroCs", filtroCs);
+    sessionStorage.setItem("filtroProgresso", filtroProgresso);
+    sessionStorage.setItem("filtroCardStatus", filtroCardStatus);
+    sessionStorage.setItem("filtroCardTipo", filtroCardTipo);
+    sessionStorage.setItem("filtroCardAlerta", filtroCardAlerta);
+  }, [filtroCliente, filtroResponsavel, filtroCs, filtroProgresso, filtroCardStatus, filtroCardTipo, filtroCardAlerta]);
+
   const dados = useMemo(() => {
     return empresas.map((empresa) => {
       const ultimoTreinamento = obterUltimoTreinamento(
@@ -192,7 +203,8 @@ export default function Home() {
     ).length;
     const safety = dados.filter((e) => e.tipo === "Safety").length;
     const fast = dados.filter((e) => e.tipo === "Fast").length;
-    return { total, concluidos, emAndamento, safety, fast };
+    const alerta = dados.filter((e) => e.alerta).length;
+    return { total, concluidos, emAndamento, safety, fast, alerta };
   }, [dados]);
 
   const handleStatusCardClick = (status: "concluidos" | "andamento") => {
@@ -201,6 +213,10 @@ export default function Home() {
 
   const handleTipoCardClick = (tipo: "safety" | "fast") => {
     setFiltroCardTipo((prev) => (prev === tipo ? "" : tipo));
+  };
+
+  const handleAlertaCardClick = () => {
+    setFiltroCardAlerta((prev) => (prev === "alerta" ? "" : "alerta"));
   };
 
   const dadosFiltrados = useMemo(() => {
@@ -233,7 +249,11 @@ export default function Home() {
           (filtroCardTipo === "safety" && e.tipo === "Safety") ||
           (filtroCardTipo === "fast" && e.tipo === "Fast");
 
-        return clienteOk && responsavelOk && csOk && progressoOk && statusCardOk && tipoCardOk;
+        const alertaCardOk =
+          !filtroCardAlerta ||
+          (filtroCardAlerta === "alerta" && e.alerta);
+
+        return clienteOk && responsavelOk && csOk && progressoOk && statusCardOk && tipoCardOk && alertaCardOk;
       })
       .sort((a, b) => {
         const ordem = { vermelho: 0, amarelo: 1, verde: 2, none: 3 };
@@ -241,7 +261,7 @@ export default function Home() {
         if (farolDiff !== 0) return farolDiff; // ← primeiro ordena por farol
         return a.nomeEmpresa.localeCompare(b.nomeEmpresa, "pt-BR"); // ← depois alfabético
       });
-  }, [dados, filtroCliente, filtroResponsavel, filtroCs, filtroProgresso, filtroCardStatus, filtroCardTipo]);
+  }, [dados, filtroCliente, filtroResponsavel, filtroCs, filtroProgresso, filtroCardStatus, filtroCardTipo, filtroCardAlerta]);
 
   return (
     <div className="monitoramento-page">
@@ -259,10 +279,11 @@ export default function Home() {
 
       <div className="home-stats">
         <div
-          className={`stat-card clickable ${filtroCardStatus === "" && filtroCardTipo === "" ? "active-total" : ""}`}
+          className={`stat-card clickable ${filtroCardStatus === "" && filtroCardTipo === "" && filtroCardAlerta === "" ? "active-total" : ""}`}
           onClick={() => {
             setFiltroCardStatus("");
             setFiltroCardTipo("");
+            setFiltroCardAlerta("");
           }}
         >
           <div className="stat-card-texto">
@@ -333,6 +354,19 @@ export default function Home() {
             </p>
           </div>
         </div>
+
+        <div
+          className={`stat-card clickable ${filtroCardAlerta === "alerta" ? "active-alerta" : ""}`}
+          onClick={handleAlertaCardClick}
+        >
+          <div className="stat-card-texto">
+            <div className="stat-value-row">
+              <h3 className="stat-value">{stats.alerta}</h3>
+              <p className="stat-label">Clientes em Alerta</p>
+            </div>
+            <p className="stat-sub">Necessitam atenção 🔥</p>
+          </div>
+        </div>
       </div>
 
       <div className="home-filtros">
@@ -388,7 +422,8 @@ export default function Home() {
           filtroCs ||
           filtroProgresso ||
           filtroCardStatus ||
-          filtroCardTipo) && (
+          filtroCardTipo ||
+          filtroCardAlerta) && (
             <button
               onClick={() => {
                 setFiltroCliente("");
@@ -397,6 +432,7 @@ export default function Home() {
                 setFiltroProgresso("");
                 setFiltroCardStatus("");
                 setFiltroCardTipo("");
+                setFiltroCardAlerta("");
               }}
             >
               Limpar filtros

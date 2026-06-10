@@ -93,6 +93,10 @@ export function Historico() {
 
   const empresaFiltro = searchParams.get("empresa") || "";
 
+  const temAusenteOuCancelado = form.temaOcorrencia?.some(t => t === "Ausente" || t === "Cancelado") ?? false;
+  const temOutrosTemas = form.temaOcorrencia?.some(t => t !== "Ausente" && t !== "Cancelado") ?? false;
+  const temTemaValido = temOutrosTemas && !temAusenteOuCancelado;
+
   async function carregar() {
     setLoading(true);
     const lista = await listarOcorrencias();
@@ -165,10 +169,6 @@ export function Historico() {
   useEffect(() => {
     if (editandoId) return;
 
-    const temAusenteOuCancelado = form.temaOcorrencia?.some(t => t === "Ausente" || t === "Cancelado") ?? false;
-    const temOutrosTemas = form.temaOcorrencia?.some(t => t !== "Ausente" && t !== "Cancelado") ?? false;
-    const temTemaValido = temOutrosTemas && !temAusenteOuCancelado;
-
     if (form.tipo === "Treinamento" && temTemaValido) {
       if (usarTemplate && !form.descricao.trim()) {
         setForm(f => ({ ...f, descricao: TEMPLATE_TREINAMENTO }));
@@ -178,7 +178,7 @@ export function Historico() {
         setForm(f => ({ ...f, descricao: "" }));
       }
     }
-  }, [form.tipo, form.temaOcorrencia, form.descricao, editandoId, usarTemplate]);
+  }, [form.tipo, temTemaValido, form.descricao, editandoId, usarTemplate]);
 
   useEffect(() => {
     if (editandoId) return;
@@ -752,7 +752,7 @@ export function Historico() {
             <div className="hist-campo">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
                 <label style={{ marginBottom: 0 }}>Descrição *</label>
-                {form.tipo === "Treinamento" && !editandoId && form.descricao !== TEMPLATE_TREINAMENTO && (
+                {form.tipo === "Treinamento" && !editandoId && temTemaValido && form.descricao !== TEMPLATE_TREINAMENTO && (
                   <button
                     type="button"
                     className="btn-link-template"

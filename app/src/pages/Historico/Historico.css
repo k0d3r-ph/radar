@@ -875,3 +875,23 @@
   color: #ff4444 !important;
   font-weight: 600 !important;
 }
+
+.btn-link-template {
+  background: none;
+  border: none;
+  color: #1e90ff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-link-template:hover {
+  background: #f0f4ff;
+  color: #0f2a5e;
+}

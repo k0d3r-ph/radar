@@ -61,6 +61,8 @@ const TIPO_CLASS: Record<string, string> = {
   Checkpoint: "tipo--checkpoint",
 };
 
+const TEMPLATE_TREINAMENTO = `Participantes: \nNOTA: \n\nRelatório de treinamento:\n• Cliente se manteve atento? \n• Cliente absorveu o conteúdo aplicado?\n• Cliente foi participativo?\n• Houve alguma interrupção?\n• Ambiente favorável (Som)?\n• Manifestou alguma insatisfação?\n• Treinamento foi gravado?\n\nRelatório do atendimento:\n\nE-mail: \nNota:\nTexto: `;
+
 const EMPTY: OcorrenciaForm = {
   empresa: "",
   tipo: "",
@@ -85,6 +87,7 @@ export function Historico() {
   const [loading, setLoading] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [painelAberto, setPainelAberto] = useState(false);
+  const [usarTemplate, setUsarTemplate] = useState(true);
 
   const [searchParams] = useSearchParams();
 
@@ -159,6 +162,32 @@ export function Historico() {
     };
   }, [selecionada]);
 
+  useEffect(() => {
+    if (editandoId) return;
+
+    const temAusenteOuCancelado = form.temaOcorrencia?.some(t => t === "Ausente" || t === "Cancelado") ?? false;
+    const temOutrosTemas = form.temaOcorrencia?.some(t => t !== "Ausente" && t !== "Cancelado") ?? false;
+    const temTemaValido = temOutrosTemas && !temAusenteOuCancelado;
+
+    if (form.tipo === "Treinamento" && temTemaValido) {
+      if (usarTemplate && !form.descricao.trim()) {
+        setForm(f => ({ ...f, descricao: TEMPLATE_TREINAMENTO }));
+      }
+    } else {
+      if (form.descricao === TEMPLATE_TREINAMENTO) {
+        setForm(f => ({ ...f, descricao: "" }));
+      }
+    }
+  }, [form.tipo, form.temaOcorrencia, form.descricao, editandoId, usarTemplate]);
+
+  useEffect(() => {
+    if (editandoId) return;
+
+    if (form.tipo !== "Treinamento") {
+      setUsarTemplate(true);
+    }
+  }, [form.tipo, editandoId]);
+
   function set(campo: keyof typeof EMPTY, valor: string) {
     setForm((f) => ({ ...f, [campo]: valor }));
   }
@@ -166,6 +195,7 @@ export function Historico() {
   function abrirNovo() {
     setForm({ ...EMPTY, empresa: empresaFiltro || "" });
     setEditandoId(null);
+    setUsarTemplate(true);
     setPainelAberto(true);
   }
 
@@ -200,6 +230,7 @@ export function Historico() {
     setPainelAberto(false);
     setForm({ ...EMPTY });
     setEditandoId(null);
+    setUsarTemplate(true);
   }
 
   function normalizar(str: string) {
@@ -719,15 +750,35 @@ export function Historico() {
             )}
 
             <div className="hist-campo">
-              <label>Descrição *</label>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                <label style={{ marginBottom: 0 }}>Descrição *</label>
+                {form.tipo === "Treinamento" && !editandoId && form.descricao !== TEMPLATE_TREINAMENTO && (
+                  <button
+                    type="button"
+                    className="btn-link-template"
+                    onClick={() => {
+                      setUsarTemplate(true);
+                      setForm(f => ({ ...f, descricao: TEMPLATE_TREINAMENTO }));
+                    }}
+                  >
+                    ✨ Usar template de treinamento
+                  </button>
+                )}
+              </div>
               <textarea
                 value={form.descricao}
-                onChange={(e) =>
-                  !editandoId && set("descricao", e.target.value)
-                }
+                onChange={(e) => {
+                  if (!editandoId) {
+                    const val = e.target.value;
+                    set("descricao", val);
+                    if (!val.trim()) {
+                      setUsarTemplate(false);
+                    }
+                  }
+                }}
                 readOnly={!!editandoId}
                 placeholder="Descreva a ocorrência com detalhes..."
-                rows={5}
+                rows={Math.max(6, form.descricao.split("\n").length + 2)}
                 style={
                   editandoId
                     ? { opacity: 0.5, cursor: "not-allowed", resize: "none" }

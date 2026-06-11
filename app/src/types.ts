@@ -51,6 +51,8 @@ export type Ocorrencia = {
   updatedAt?: number;
   temaOcorrencia?: string[];
   atualizacoes?: Atualizacao[];
+  scoreCalculado?: number;
+  scoreAnswers?: any;
 };
 
 export type OcorrenciaForm = {

@@ -465,6 +465,8 @@ export function Historico() {
       descricao: ocorrenciaOriginal?.descricao ?? form.descricao,
       dataOcorrencia: timestamp,
       atualizacoes,
+      scoreCalculado: calculoScoreResult ? calculoScoreResult.score : ocorrenciaOriginal?.scoreCalculado,
+      scoreAnswers: calculoScoreResult ? respostasScore : ocorrenciaOriginal?.scoreAnswers,
     };
 
     setSalvando(true);
@@ -484,11 +486,12 @@ export function Historico() {
         updatedAt: Date.now()
       });
 
-      // Sempre gera uma ocorrência se houver mudança, independente se é ou não o primeiro cálculo
+      // Gera a ocorrência se for o primeiro cálculo OU se o tipo mudou.
       const isPrimeiroCalculo = typeof antigoScore !== "number";
-      const scoreMudou = isPrimeiroCalculo || antigoScore !== novoScore || antigoTipo !== novoTipo;
+      const tipoMudou = antigoTipo !== novoTipo;
+      const deveGerarOcorrencia = isPrimeiroCalculo || tipoMudou;
 
-      if (scoreMudou) {
+      if (deveGerarOcorrencia) {
         let descMudanca = "";
         if (isPrimeiroCalculo) {
           const marcadas = descreverRespostas(respostasScore);
@@ -517,7 +520,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
           descricao: descMudanca,
           responsavel: form.responsavel,
           departamento: form.departamento || "CS",
-          dataOcorrencia: Date.now()
+          dataOcorrencia: 0
         });
       }
     }
@@ -536,6 +539,26 @@ Score atual: ${novoScore}${mudancasTexto}`;
       action: {
         label: "Excluir",
         onClick: async () => {
+          const oc = ocorrencias.find((o) => o.id === id);
+          if (oc) {
+            const ehMudancaScore = oc.tipo === "Mudança de score";
+            const temScore = oc.scoreCalculado !== undefined;
+
+            if (ehMudancaScore || temScore) {
+              const empresaObjeto = empresasList.find(
+                (e) => normalizar(e.nomeEmpresa) === normalizar(oc.empresa)
+              );
+              if (empresaObjeto) {
+                await salvarEmpresas({
+                  ...empresaObjeto,
+                  score: null as any,
+                  scoreAnswers: null as any,
+                  tipo: "",
+                  updatedAt: Date.now()
+                });
+              }
+            }
+          }
           await removerOcorrencia(id);
           await carregar();
           toast.success("Ocorrência removida.");

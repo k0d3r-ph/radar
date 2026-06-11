@@ -59,6 +59,7 @@ export default function Home() {
   const [clienteForm, setClienteForm] = useState<Empresa>(EMPTY_CLIENTE);
 
   const [modalClienteAberto, setModalClienteAberto] = useState(false);
+  const [confirmarExclusaoAberto, setConfirmarExclusaoAberto] = useState(false);
 
   const [editandoClienteId, setEditandoClienteId] = useState<string | null>(
     null,
@@ -626,9 +627,44 @@ export default function Home() {
 
               <button
                 className="btn-excluir"
-                onClick={() => excluirCliente(clienteSelecionado.id!)}
+                onClick={() => setConfirmarExclusaoAberto(true)}
               >
                 Excluir cliente
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmarExclusaoAberto && clienteSelecionado && (
+        <div
+          className="confirm-overlay"
+          onClick={() => setConfirmarExclusaoAberto(false)}
+        >
+          <div className="confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="confirm-modal-header">
+              <span className="confirm-modal-icon">⚠️</span>
+              <h2>Confirmar Exclusão</h2>
+            </div>
+            <p className="confirm-modal-text">
+              Deseja realmente excluir o cliente <strong>{clienteSelecionado.nomeEmpresa}</strong>?
+              Esta ação não poderá ser desfeita.
+            </p>
+            <div className="confirm-modal-actions">
+              <button
+                className="btn-excluir-confirm"
+                onClick={async () => {
+                  await excluirCliente(clienteSelecionado.id!);
+                  setConfirmarExclusaoAberto(false);
+                }}
+              >
+                Sim, excluir
+              </button>
+              <button
+                className="btn-cancelar-confirm"
+                onClick={() => setConfirmarExclusaoAberto(false)}
+              >
+                Cancelar
               </button>
             </div>
           </div>

@@ -181,6 +181,48 @@ function descreverMudancas(antigo: ScoreFormAnswers, novo: ScoreFormAnswers): st
   return mudancas;
 }
 
+function descreverRespostas(respostas: ScoreFormAnswers): string[] {
+  const descreverSimNao = (val: string) => {
+    if (val === "Sim") return "Sim";
+    if (val === "Não") return "Não";
+    return "Não respondido";
+  };
+
+  const descreverFacilContato = (val: string) => {
+    if (val === "Sim") return "Contato fácil";
+    if (val === "Não") return "Difícil contato";
+    return "Não respondido";
+  };
+
+  const descreverEntraComputador = (val: string) => {
+    if (val === "Sim") return "Entra pelo computador";
+    if (val === "Não") return "Não entra pelo computador";
+    return "Não respondido";
+  };
+
+  const descreverFaltouDoisDias = (val: string) => {
+    if (val === "Sim") return "Faltou 2 dias seguidos";
+    if (val === "Não") return "Não faltou 2 dias seguidos";
+    return "Não respondido";
+  };
+
+  const descreverEstrutura = (val: string) => {
+    if (val === "Sim") return "Possui estrutura necessária";
+    if (val === "Não") return "Não possui estrutura necessária";
+    return "Não respondido";
+  };
+
+  return [
+    `- Contato com o cliente: "${descreverFacilContato(respostas.facilContato)}"`,
+    `- Cliente entra pelo computador: "${descreverEntraComputador(respostas.entraComputador)}"`,
+    `- Cliente compartilha a tela: "${descreverSimNao(respostas.compartilhaTela)}"`,
+    `- Cliente faz perguntas: "${descreverSimNao(respostas.fazPerguntas)}"`,
+    `- Cliente se recorda de temas anteriores: "${descreverSimNao(respostas.recordaTemas)}"`,
+    `- Cliente faltou 2 dias seguidos: "${descreverFaltouDoisDias(respostas.faltouDoisDias)}"`,
+    `- Cliente possui estrutura necessária: "${descreverEstrutura(respostas.estruturaNecessaria)}"`
+  ];
+}
+
 export function Historico() {
   const [modalScoreAberto, setModalScoreAberto] = useState(false);
   const [respostasScore, setRespostasScore] = useState<ScoreFormAnswers>({ ...INITIAL_SCORE_ANSWERS });
@@ -442,20 +484,32 @@ export function Historico() {
         updatedAt: Date.now()
       });
 
-      // Se já possuía score cadastrado, possuía um tipo definido e mudou de tipo
-      if (antigoScore !== undefined && antigoTipo && antigoTipo !== novoTipo) {
-        let mudancasTexto = "";
-        if (empresaObjeto.scoreAnswers) {
-          const mudancas = descreverMudancas(empresaObjeto.scoreAnswers, respostasScore);
-          if (mudancas.length > 0) {
-            mudancasTexto = "\n\nAlterações detalhadas:\n" + mudancas.join("\n");
-          }
-        }
+      // Sempre gera uma ocorrência se houver mudança, independente se é ou não o primeiro cálculo
+      const isPrimeiroCalculo = typeof antigoScore !== "number";
+      const scoreMudou = isPrimeiroCalculo || antigoScore !== novoScore || antigoTipo !== novoTipo;
 
-        const descMudanca = `Mudança de tipo de ${antigoTipo || "Sem tipo"} para ${novoTipo}
+      if (scoreMudou) {
+        let descMudanca = "";
+        if (isPrimeiroCalculo) {
+          const marcadas = descreverRespostas(respostasScore);
+          const marcadasTexto = marcadas.length > 0 ? "\n\nRespostas marcadas:\n" + marcadas.join("\n") : "";
+          descMudanca = `Cálculo inicial de score: ${novoTipo}
+
+Score atual: ${novoScore}${marcadasTexto}`;
+        } else {
+          let mudancasTexto = "";
+          if (empresaObjeto.scoreAnswers) {
+            const mudancas = descreverMudancas(empresaObjeto.scoreAnswers, respostasScore);
+            if (mudancas.length > 0) {
+              mudancasTexto = "\n\nAlterações detalhadas:\n" + mudancas.join("\n");
+            }
+          }
+
+          descMudanca = `Mudança de score de ${antigoTipo || "Sem tipo"} para ${novoTipo}
 
 Score antigo: ${antigoScore}
 Score atual: ${novoScore}${mudancasTexto}`;
+        }
 
         await salvarOcorrencia({
           empresa: form.empresa,

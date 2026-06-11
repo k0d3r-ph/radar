@@ -34,6 +34,9 @@ export type Empresa = {
   localizacao?: string;
 
   dataFinalizacao?: string;
+
+  score?: number;
+  scoreAnswers?: any;
 };
 
 export type Ocorrencia = {

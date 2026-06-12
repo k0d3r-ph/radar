@@ -439,7 +439,7 @@ export function Historico() {
       return;
     }
 
-    if ((form.tipo === "Informativa" || form.tipo === "Treinamento") && !calculoScoreResult) {
+    if (!editandoId && (form.tipo === "Informativa" || form.tipo === "Treinamento") && !calculoScoreResult) {
       toast.error("O cálculo de score é obrigatório para ocorrências do tipo Informativa ou Treinamento.");
       return;
     }
@@ -1064,7 +1064,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
               </select>
             </div>
 
-            {(form.tipo === "Informativa" || form.tipo === "Treinamento") && (
+            {!editandoId && (form.tipo === "Informativa" || form.tipo === "Treinamento") && (
               <div className="hist-campo score-btn-container">
                 <button
                   type="button"

@@ -84,6 +84,7 @@ interface ScoreFormAnswers {
   recordaTemas: "Sim" | "Não" | "";
   faltouDoisDias: "Sim" | "Não" | "";
   estruturaNecessaria: "Sim" | "Não" | "";
+  clienteReclamante: "Sim" | "Não" | "";
 }
 
 const INITIAL_SCORE_ANSWERS: ScoreFormAnswers = {
@@ -94,6 +95,7 @@ const INITIAL_SCORE_ANSWERS: ScoreFormAnswers = {
   recordaTemas: "",
   faltouDoisDias: "",
   estruturaNecessaria: "",
+  clienteReclamante: "",
 };
 
 function calcularPontuacao(respostas: ScoreFormAnswers): { score: number; tipo: "Fast" | "Safety" } {
@@ -107,9 +109,9 @@ function calcularPontuacao(respostas: ScoreFormAnswers): { score: number; tipo: 
     score -= 1.0;
   }
 
-  if (respostas.compartilhaTela === "Sim") score += 1.5;
-  if (respostas.fazPerguntas === "Sim") score += 2.0;
-  if (respostas.recordaTemas === "Sim") score += 3.0;
+  if (respostas.compartilhaTela === "Sim") score += 1.0;
+  if (respostas.fazPerguntas === "Sim") score += 1.5;
+  if (respostas.recordaTemas === "Sim") score += 2.0;
 
   if (respostas.faltouDoisDias === "Sim") {
     score -= 1.0;
@@ -118,6 +120,12 @@ function calcularPontuacao(respostas: ScoreFormAnswers): { score: number; tipo: 
   }
 
   if (respostas.estruturaNecessaria === "Sim") score += 1.0;
+
+  if (respostas.clienteReclamante === "Sim") {
+    score -= 3.0;
+  } else if (respostas.clienteReclamante === "Não") {
+    score += 2.0;
+  }
 
   const tipo = score >= 6 ? "Fast" : "Safety";
   return { score, tipo };
@@ -156,6 +164,12 @@ function descreverMudancas(antigo: ScoreFormAnswers, novo: ScoreFormAnswers): st
     return "Não respondido";
   };
 
+  const descreverReclamante = (val: string) => {
+    if (val === "Sim") return "Cliente é reclamante";
+    if (val === "Não") return "Cliente não é reclamante";
+    return "Não respondido";
+  };
+
   if (antigo.facilContato !== novo.facilContato) {
     mudancas.push(`- Contato com o cliente: de "${descreverFacilContato(antigo.facilContato)}" para "${descreverFacilContato(novo.facilContato)}"`);
   }
@@ -176,6 +190,9 @@ function descreverMudancas(antigo: ScoreFormAnswers, novo: ScoreFormAnswers): st
   }
   if (antigo.estruturaNecessaria !== novo.estruturaNecessaria) {
     mudancas.push(`- Cliente possui estrutura necessária: de "${descreverEstrutura(antigo.estruturaNecessaria)}" para "${descreverEstrutura(novo.estruturaNecessaria)}"`);
+  }
+  if (antigo.clienteReclamante !== novo.clienteReclamante) {
+    mudancas.push(`- Cliente é reclamante: de "${descreverReclamante(antigo.clienteReclamante)}" para "${descreverReclamante(novo.clienteReclamante)}"`);
   }
 
   return mudancas;
@@ -212,6 +229,12 @@ function descreverRespostas(respostas: ScoreFormAnswers): string[] {
     return "Não respondido";
   };
 
+  const descreverReclamante = (val: string) => {
+    if (val === "Sim") return "Cliente é reclamante";
+    if (val === "Não") return "Cliente não é reclamante";
+    return "Não respondido";
+  };
+
   return [
     `- Contato com o cliente: "${descreverFacilContato(respostas.facilContato)}"`,
     `- Cliente entra pelo computador: "${descreverEntraComputador(respostas.entraComputador)}"`,
@@ -219,7 +242,8 @@ function descreverRespostas(respostas: ScoreFormAnswers): string[] {
     `- Cliente faz perguntas: "${descreverSimNao(respostas.fazPerguntas)}"`,
     `- Cliente se recorda de temas anteriores: "${descreverSimNao(respostas.recordaTemas)}"`,
     `- Cliente faltou 2 dias seguidos: "${descreverFaltouDoisDias(respostas.faltouDoisDias)}"`,
-    `- Cliente possui estrutura necessária: "${descreverEstrutura(respostas.estruturaNecessaria)}"`
+    `- Cliente possui estrutura necessária: "${descreverEstrutura(respostas.estruturaNecessaria)}"`,
+    `- Cliente é reclamante: "${descreverReclamante(respostas.clienteReclamante)}"`
   ];
 }
 
@@ -1257,7 +1281,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
 
               {/* Pergunta 3 */}
               <div className="score-pergunta">
-                <label>Cliente compartilha a tela? <span className="score-hint">(Sim = +1.5 / Não = 0)</span></label>
+                <label>Cliente compartilha a tela? <span className="score-hint">(Sim = +1.0 / Não = 0)</span></label>
                 <div className="radio-group-score">
                   <label>
                     <input
@@ -1284,7 +1308,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
 
               {/* Pergunta 4 */}
               <div className="score-pergunta">
-                <label>Cliente faz perguntas? <span className="score-hint">(Sim = +2.0 / Não = 0)</span></label>
+                <label>Cliente faz perguntas? <span className="score-hint">(Sim = +1.5 / Não = 0)</span></label>
                 <div className="radio-group-score">
                   <label>
                     <input
@@ -1311,7 +1335,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
 
               {/* Pergunta 5 */}
               <div className="score-pergunta">
-                <label>Cliente se recorda de temas anteriores? <span className="score-hint">(Sim = +3.0 / Não = 0)</span></label>
+                <label>Cliente se recorda de temas anteriores? <span className="score-hint">(Sim = +2.0 / Não = 0)</span></label>
                 <div className="radio-group-score">
                   <label>
                     <input
@@ -1389,6 +1413,33 @@ Score atual: ${novoScore}${mudancasTexto}`;
                   </label>
                 </div>
               </div>
+
+              {/* Pergunta 8 */}
+              <div className="score-pergunta">
+                <label>Cliente é reclamante? <span className="score-hint">(Sim = -3.0 / Não = +2.0)</span></label>
+                <div className="radio-group-score">
+                  <label>
+                    <input
+                      type="radio"
+                      name="clienteReclamante"
+                      value="Sim"
+                      checked={respostasScore.clienteReclamante === "Sim"}
+                      onChange={() => setRespostasScore(prev => ({ ...prev, clienteReclamante: "Sim" }))}
+                    />
+                    Sim
+                  </label>
+                  <label>
+                    <input
+                      type="radio"
+                      name="clienteReclamante"
+                      value="Não"
+                      checked={respostasScore.clienteReclamante === "Não"}
+                      onChange={() => setRespostasScore(prev => ({ ...prev, clienteReclamante: "Não" }))}
+                    />
+                    Não
+                  </label>
+                </div>
+              </div>
             </div>
 
             <div className="score-modal-footer">
@@ -1412,7 +1463,8 @@ Score atual: ${novoScore}${mudancasTexto}`;
                   respostasScore.fazPerguntas === "" ||
                   respostasScore.recordaTemas === "" ||
                   respostasScore.faltouDoisDias === "" ||
-                  respostasScore.estruturaNecessaria === ""
+                  respostasScore.estruturaNecessaria === "" ||
+                  respostasScore.clienteReclamante === ""
                 }
                 onClick={() => {
                   const res = calcularPontuacao(respostasScore);

@@ -474,7 +474,7 @@ export function Historico() {
 
     const novaDescricao = form.descricao.trim();
     const descricaoMudou =
-      ocorrenciaOriginal && novaDescricao !== ocorrenciaOriginal.descricao;
+      ocorrenciaOriginal && novaDescricao !== ocorrenciaOriginal.descricao.trim();
 
     const atualizacoesAntigas = ocorrenciaOriginal?.atualizacoes ?? [];
 
@@ -491,8 +491,9 @@ export function Historico() {
 
     const base = {
       ...form,
+      empresa: form.empresa.trim(),
       // mantém a descrição original intacta
-      descricao: ocorrenciaOriginal?.descricao ?? form.descricao,
+      descricao: ocorrenciaOriginal?.descricao.trim() ?? novaDescricao,
       responsavel: responsavelFinal,
       dataOcorrencia: timestamp,
       atualizacoes,

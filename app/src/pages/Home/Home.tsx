@@ -23,9 +23,12 @@ import {
   obterUltimoTreinamento,
 } from "../../utils/monitoramento";
 import type { Empresa, Ocorrencia } from "../../types";
+import { useAuth } from "../../context/AuthContext";
+import { formatarNome } from "../../utils/formatarNome";
 
 export default function Home() {
   const navigate = useNavigate();
+  const { role } = useAuth();
 
   const [clienteSelecionado, setClienteSelecionado] = useState<Empresa | null>(
     null,
@@ -114,13 +117,15 @@ export default function Home() {
       return;
     }
 
+    const comercialFormatted = clienteForm.comercialResponsavel
+      ? formatarNome(clienteForm.comercialResponsavel)
+      : "";
+
     await salvarEmpresas({
       ...clienteForm,
-
       nomeEmpresa: clienteForm.nomeEmpresa.trim(),
-
+      comercialResponsavel: comercialFormatted,
       id: editandoClienteId || undefined,
-
       updatedAt: Date.now(),
     });
 
@@ -227,7 +232,7 @@ export default function Home() {
           !filtroCliente ||
           e.nomeEmpresa.toLowerCase().includes(filtroCliente.toLowerCase());
         const responsavelOk =
-          !filtroResponsavel || e.responsavel === filtroResponsavel;
+          !filtroResponsavel || formatarNome(e.responsavel) === filtroResponsavel;
         const csOk = !filtroCs || e.csResponsavel === filtroCs;
         const progressoOk =
           !filtroProgresso ||
@@ -272,11 +277,13 @@ export default function Home() {
         <p>Acompanhe o progresso dos clientes na esteira de capacitação.</p>
       </header>
 
-      <div className="home-actions">
-        <button className="btn-primary" onClick={novoCliente}>
-          + Novo cliente
-        </button>
-      </div>
+      {role === "treinador" && (
+        <div className="home-actions">
+          <button className="btn-primary" onClick={novoCliente}>
+            + Novo cliente
+          </button>
+        </div>
+      )}
 
       <div className="home-stats">
         <div
@@ -383,7 +390,7 @@ export default function Home() {
           onChange={(e) => setFiltroResponsavel(e.target.value)}
         >
           <option value="">Treinador responsável</option>
-          {[...new Set(dados.map((e) => e.responsavel))]
+          {[...new Set(dados.map((e) => formatarNome(e.responsavel)))]
             .filter(Boolean)
             .sort()
             .map((r) => (
@@ -490,7 +497,7 @@ export default function Home() {
                     {empresa.alerta && " 🔥"}
                   </td>
 
-                  <td>{empresa.responsavel}</td>
+                  <td>{formatarNome(empresa.responsavel)}</td>
 
                   <td>
                     {empresa.tipo && (
@@ -546,13 +553,13 @@ export default function Home() {
               <div className="info-item">
                 <span className="info-label">CS Responsável</span>
                 <span className="info-value">
-                  {clienteSelecionado.csResponsavel || "-"}
+                  {formatarNome(clienteSelecionado.csResponsavel) || "-"}
                 </span>
               </div>
               <div className="info-item">
                 <span className="info-label">Comercial Responsável</span>
                 <span className="info-value">
-                  {clienteSelecionado.comercialResponsavel || "-"}
+                  {formatarNome(clienteSelecionado.comercialResponsavel) || "-"}
                 </span>
               </div>
               <div className="info-item">
@@ -600,12 +607,14 @@ export default function Home() {
             </div>
 
             <div className="cliente-modal-actions">
-              <button
-                className="btn-editar"
-                onClick={() => editarCliente(clienteSelecionado)}
-              >
-                Editar cliente
-              </button>
+              {role === "treinador" && (
+                <button
+                  className="btn-editar"
+                  onClick={() => editarCliente(clienteSelecionado)}
+                >
+                  Editar cliente
+                </button>
+              )}
 
               <button
                 className="btn-esteira"
@@ -625,12 +634,14 @@ export default function Home() {
                 Ver ocorrências
               </button>
 
-              <button
-                className="btn-excluir"
-                onClick={() => setConfirmarExclusaoAberto(true)}
-              >
-                Excluir cliente
-              </button>
+              {role === "treinador" && (
+                <button
+                  className="btn-excluir"
+                  onClick={() => setConfirmarExclusaoAberto(true)}
+                >
+                  Excluir cliente
+                </button>
+              )}
             </div>
           </div>
         </div>

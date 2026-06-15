@@ -9,6 +9,7 @@ import {
 import FakeSelect from "../../components/FakeSelect";
 import { toast } from "sonner";
 import { useParams } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 
 function normalizarNome(nome: string) {
   return nome
@@ -21,6 +22,9 @@ function normalizarNome(nome: string) {
 
 function Esteira() {
   const { id } = useParams();
+  const { role } = useAuth();
+  const isTreinador = role === "treinador";
+
   const [empresaId, setEmpresaId] = useState("");
   const [empresas, setEmpresas] = useState<
     Array<{
@@ -205,6 +209,7 @@ function Esteira() {
             value={nomeEmpresa}
             onChange={(e) => setNomeEmpresa(e.target.value)}
             placeholder="Digite o nome da empresa"
+            disabled={!isTreinador}
           />
         </div>
 
@@ -216,6 +221,7 @@ function Esteira() {
               value={temaText}
               onChange={(e) => setTemaText(e.target.value)}
               rows={12}
+              disabled={!isTreinador}
             />
           </div>
 
@@ -226,98 +232,103 @@ function Esteira() {
               value={dataText}
               onChange={(e) => setDataText(e.target.value)}
               rows={12}
+              disabled={!isTreinador}
             />
           </div>
         </div>
 
         <div className="download-row">
-          <button
-            className="btn-primary"
-            onClick={async () => {
-              if (!nomeEmpresa.trim()) {
-                toast.error("Digite o nome da empresa.");
-                return;
-              }
+          {isTreinador && (
+            <button
+              className="btn-primary"
+              onClick={async () => {
+                if (!nomeEmpresa.trim()) {
+                  toast.error("Digite o nome da empresa.");
+                  return;
+                }
 
-              const nomeDuplicado = empresas.some(
-                (e) =>
-                  normalizarNome(e.nomeEmpresa) ===
-                    normalizarNome(nomeEmpresa) && String(e.id) !== empresaId,
-              );
+                const nomeDuplicado = empresas.some(
+                  (e) =>
+                    normalizarNome(e.nomeEmpresa) ===
+                      normalizarNome(nomeEmpresa) && String(e.id) !== empresaId,
+                );
 
-              if (nomeDuplicado) {
-                toast.error("Já existe uma empresa com este nome.");
-                return;
-              }
+                if (nomeDuplicado) {
+                  toast.error("Já existe uma empresa com este nome.");
+                  return;
+                }
 
-              const novoId = await salvarEmpresas({
-                ...(empresaId ? { id: empresaId } : {}),
-                nomeEmpresa,
-                temaText,
-                dataText,
-                currentPhase,
-                updatedAt: Date.now(),
-              });
+                const novoId = await salvarEmpresas({
+                  ...(empresaId ? { id: empresaId } : {}),
+                  nomeEmpresa,
+                  temaText,
+                  dataText,
+                  currentPhase,
+                  updatedAt: Date.now(),
+                });
 
-              if (novoId) {
-                setEmpresaId(String(novoId));
-              }
+                if (novoId) {
+                  setEmpresaId(String(novoId));
+                }
 
-              const lista = await listarEmpresas();
-              setEmpresas(lista);
+                const lista = await listarEmpresas();
+                setEmpresas(lista);
 
-              toast.success("Empresa salva com sucesso!", {
-                duration: 2000,
-              });
+                toast.success("Empresa salva com sucesso!", {
+                  duration: 2000,
+                });
 
-              setEmpresaId("");
-              setNomeEmpresa("");
-              setTemaText("");
-              setDataText("");
-              setCurrentPhase(0);
-            }}
-          >
-            Salvar empresa
-          </button>
+                setEmpresaId("");
+                setNomeEmpresa("");
+                setTemaText("");
+                setDataText("");
+                setCurrentPhase(0);
+              }}
+            >
+              Salvar empresa
+            </button>
+          )}
 
-          <button
-            className="btn-danger"
-            onClick={async () => {
-              if (!empresaId) {
-                toast.warning("Selecione uma empresa");
-                return;
-              }
+          {isTreinador && (
+            <button
+              className="btn-danger"
+              onClick={async () => {
+                if (!empresaId) {
+                  toast.warning("Selecione uma empresa");
+                  return;
+                }
 
-              toast("Deseja realmente excluir esta empresa?", {
-                action: {
-                  label: "Excluir",
-                  onClick: async () => {
-                    await removerEmpresa(empresaId);
+                toast("Deseja realmente excluir esta empresa?", {
+                  action: {
+                    label: "Excluir",
+                    onClick: async () => {
+                      await removerEmpresa(empresaId);
 
-                    setEmpresaId("");
-                    setNomeEmpresa("");
-                    setTemaText("");
-                    setDataText("");
-                    setCurrentPhase(0);
+                      setEmpresaId("");
+                      setNomeEmpresa("");
+                      setTemaText("");
+                      setDataText("");
+                      setCurrentPhase(0);
 
-                    const lista = await listarEmpresas();
-                    setEmpresas(lista);
+                      const lista = await listarEmpresas();
+                      setEmpresas(lista);
 
-                    toast.success("Empresa removida com sucesso!");
+                      toast.success("Empresa removida com sucesso!");
+                    },
                   },
-                },
 
-                cancel: {
-                  label: "Cancelar",
-                  onClick: () => {},
-                },
+                  cancel: {
+                    label: "Cancelar",
+                    onClick: () => {},
+                  },
 
-                duration: 10000,
-              });
-            }}
-          >
-            Excluir empresa
-          </button>
+                  duration: 10000,
+                });
+              }}
+            >
+              Excluir empresa
+            </button>
+          )}
 
           <button
             className="btn-primary"
@@ -443,6 +454,7 @@ function Esteira() {
             <button
               onClick={() => setCurrentPhase((p) => Math.max(0, p - 1))}
               className="btn-small"
+              disabled={!isTreinador}
             >
               ‹
             </button>
@@ -453,6 +465,7 @@ function Esteira() {
               max={Math.max(0, temas.length - 1)}
               value={currentPhase}
               onChange={(e) => setCurrentPhase(Number(e.target.value))}
+              disabled={!isTreinador}
             />
 
             <button
@@ -460,6 +473,7 @@ function Esteira() {
                 setCurrentPhase((p) => Math.min(temas.length - 1, p + 1))
               }
               className="btn-small"
+              disabled={!isTreinador}
             >
               ›
             </button>

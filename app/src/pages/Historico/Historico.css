@@ -650,6 +650,12 @@
   border: 1px solid #bae6fd;
 }
 
+.tipo--tecnica {
+  background: #e2e8f0;
+  color: #334155;
+  border-color: #cbd5e1;
+}
+
 .departamento-suporte {
   background: #fef3c7;
   color: #92400e;

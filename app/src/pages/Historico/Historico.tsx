@@ -9,6 +9,8 @@ import {
 import { listarEmpresas, salvarEmpresas } from "../../services/empresas";
 import type { Ocorrencia, Empresa, OcorrenciaForm } from "../../types";
 import "./Historico.css";
+import { useAuth } from "../../context/AuthContext";
+import { formatarNome } from "../../utils/formatarNome";
 import {
   Star,
   GraduationCap,
@@ -22,6 +24,7 @@ const TIPOS = [
   "Informativa",
   "Financeira",
   "Comercial",
+  "Técnica",
   "Treinamento",
   "Checkpoint",
   "Mudança de score",
@@ -33,7 +36,6 @@ const DEPARTAMENTO = [
   "Suporte",
   "Hardware",
   "Comercial",
-  "Desenvolvimento",
 ];
 
 const DEPARTAMENTO_CLASS: Record<string, string> = {
@@ -42,7 +44,6 @@ const DEPARTAMENTO_CLASS: Record<string, string> = {
   Suporte: "departamento-suporte",
   Hardware: "departamento-hardware",
   Comercial: "departamento-comercial",
-  Desenvolvimento: "departamento-desenvolvimento",
 };
 
 const DEPARTAMENTO_ICONES: Record<string, React.ReactNode> = {
@@ -51,13 +52,13 @@ const DEPARTAMENTO_ICONES: Record<string, React.ReactNode> = {
   Suporte: <Wrench size={14} />,
   Hardware: <Cpu size={14} />,
   Comercial: <TrendingUp size={14} />,
-  Desenvolvimento: <Code size={14} />,
 };
 
 const TIPO_CLASS: Record<string, string> = {
   Informativa: "tipo--informativa",
   Financeira: "tipo--financeira",
   Comercial: "tipo--comercial",
+  Técnica: "tipo--tecnica",
   Treinamento: "tipo--treinamento",
   Checkpoint: "tipo--checkpoint",
   "Mudança de score": "tipo--mudanca-score",
@@ -248,6 +249,8 @@ function descreverRespostas(respostas: ScoreFormAnswers): string[] {
 }
 
 export function Historico() {
+  const { role, userName, user } = useAuth();
+  const isTreinador = role === "treinador";
   const [modalScoreAberto, setModalScoreAberto] = useState(false);
   const [respostasScore, setRespostasScore] = useState<ScoreFormAnswers>({ ...INITIAL_SCORE_ANSWERS });
   const [calculoScoreResult, setCalculoScoreResult] = useState<{ score: number; tipo: "Fast" | "Safety" } | null>(null);
@@ -289,8 +292,8 @@ export function Historico() {
   }
 
   async function salvarNovaAtualizacao() {
-    if (!novaDescricaoAtual.trim() || !novoResponsavelAtual.trim()) {
-      toast.error("Preencha a descrição e o responsável da atualização.");
+    if (!novaDescricaoAtual.trim()) {
+      toast.error("Preencha a descrição da atualização.");
       return;
     }
 
@@ -302,7 +305,7 @@ export function Historico() {
         {
           descricao: novaDescricaoAtual.trim(),
           updatedAt: Date.now(),
-          responsavel: novoResponsavelAtual.trim(),
+          responsavel: formatarNome(userName),
         },
       ],
     };
@@ -377,7 +380,9 @@ export function Historico() {
   }
 
   function abrirNovo() {
-    setForm({ ...EMPTY, empresa: empresaFiltro || "" });
+    const deptos = getAllowedDepartments();
+    const deptoPadrao = deptos.length === 1 ? deptos[0] : "";
+    setForm({ ...EMPTY, empresa: empresaFiltro || "", responsavel: userName, departamento: deptoPadrao });
     setEditandoId(null);
     setUsarTemplate(true);
     setCalculoScoreResult(null);
@@ -428,18 +433,19 @@ export function Historico() {
   }
 
   async function salvar() {
+    const responsavelFinal = formatarNome(editandoId ? form.responsavel : userName);
+
     if (
       !form.empresa.trim() ||
       !form.tipo ||
       !form.departamento ||
-      !form.descricao.trim() ||
-      !form.responsavel.trim()
+      !form.descricao.trim()
     ) {
-      toast.error("Preencha empresa, tipo, departamento, descrição e responsável.");
+      toast.error("Preencha empresa, tipo, departamento e descrição.");
       return;
     }
 
-    if (!editandoId && (form.tipo === "Informativa" || form.tipo === "Treinamento") && !calculoScoreResult) {
+    if (isTreinador && !editandoId && (form.tipo === "Informativa" || form.tipo === "Treinamento") && !calculoScoreResult) {
       toast.error("O cálculo de score é obrigatório para ocorrências do tipo Informativa ou Treinamento.");
       return;
     }
@@ -478,7 +484,7 @@ export function Historico() {
         {
           descricao: novaDescricao,
           updatedAt: Date.now(),
-          responsavel: form.responsavel || undefined,
+          responsavel: responsavelFinal || undefined,
         },
       ]
       : atualizacoesAntigas;
@@ -487,6 +493,7 @@ export function Historico() {
       ...form,
       // mantém a descrição original intacta
       descricao: ocorrenciaOriginal?.descricao ?? form.descricao,
+      responsavel: responsavelFinal,
       dataOcorrencia: timestamp,
       atualizacoes,
       scoreCalculado: calculoScoreResult ? calculoScoreResult.score : ocorrenciaOriginal?.scoreCalculado,
@@ -542,7 +549,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
           empresa: form.empresa,
           tipo: "Mudança de score",
           descricao: descMudanca,
-          responsavel: form.responsavel,
+          responsavel: responsavelFinal,
           departamento: form.departamento || "CS",
           dataOcorrencia: 0
         });
@@ -592,6 +599,44 @@ Score atual: ${novoScore}${mudancasTexto}`;
       duration: 10000,
     });
   }
+
+  const getAllowedTypes = () => {
+    if (role === "treinador") {
+      return TIPOS.filter((t) => t !== "Mudança de score");
+    }
+    if (role === "suporte" || role === "hardware") {
+      return ["Informativa", "Técnica"];
+    }
+    if (role === "comercial") {
+      return ["Comercial", "Informativa"];
+    }
+    if (role === "financeiro") {
+      return ["Financeira", "Informativa"];
+    }
+    if (role === "crc") {
+      return ["Informativa", "Financeira", "Comercial", "Técnica"];
+    }
+    return [];
+  };
+
+  const getAllowedDepartments = () => {
+    if (role === "treinador") {
+      return DEPARTAMENTO;
+    }
+    if (role === "crc") {
+      return ["CS"];
+    }
+    if (role === "suporte") {
+      return ["Suporte"];
+    }
+    if (role === "hardware") {
+      return ["Hardware"];
+    }
+    if (role === "comercial") {
+      return ["Comercial"];
+    }
+    return DEPARTAMENTO;
+  };
 
   const filtradas = ocorrencias.filter((o) => {
     const texto = busca.toLowerCase();
@@ -783,7 +828,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
                       </span>
                     </td>
 
-                    <td>👤 {o.responsavel || "—"}</td>
+                    <td>👤 {formatarNome(o.responsavel) || "—"}</td>
 
                     <td className="hist-arrow-cell">
                       <span className="hist-arrow">›</span>
@@ -828,7 +873,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
 
                 <div>
                   <span>Responsável</span>
-                  <strong>{selecionada.responsavel || "—"}</strong>
+                  <strong>{formatarNome(selecionada.responsavel) || "—"}</strong>
                 </div>
 
                 <div>
@@ -900,7 +945,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
                             hour: "2-digit",
                             minute: "2-digit",
                           })}
-                          {at.responsavel ? ` · ${at.responsavel}` : ""}
+                          {at.responsavel ? ` · ${formatarNome(at.responsavel)}` : ""}
                         </span>
                         <p style={{ whiteSpace: "pre-wrap" }}>{at.descricao}</p>
                       </div>
@@ -920,14 +965,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
                       placeholder="Descreva a atualização..."
                     />
                   </div>
-                  <div className="hist-campo">
-                    <label>Responsável *</label>
-                    <input
-                      value={novoResponsavelAtual}
-                      onChange={(e) => setNovoResponsavelAtual(e.target.value)}
-                      placeholder="Nome do responsável"
-                    />
-                  </div>
+
                   <div className="botoes">
                     <button
                       className="btn-ghost btn-small"
@@ -950,8 +988,8 @@ Score atual: ${novoScore}${mudancasTexto}`;
                 </div>
               )}
 
-              <div className="botoes">
-                {!novaAtualizacaoAberta && (
+               <div className="botoes">
+                {!novaAtualizacaoAberta && (role === "treinador" || (selecionada.responsavel && selecionada.responsavel.toLowerCase() === userName.toLowerCase())) && (
                   <button
                     className="btn-secondary btn-small"
                     onClick={() => setNovaAtualizacaoAberta(true)}
@@ -960,25 +998,29 @@ Score atual: ${novoScore}${mudancasTexto}`;
                   </button>
                 )}
 
-                <button
-                  className="btn-secondary btn-small"
-                  onClick={() => {
-                    fecharDetalhe();
-                    abrirEdicao(selecionada);
-                  }}
-                >
-                  Editar
-                </button>
+                {(role === "treinador" || (selecionada.responsavel && selecionada.responsavel.toLowerCase() === userName.toLowerCase())) && (
+                  <button
+                    className="btn-secondary btn-small"
+                    onClick={() => {
+                      fecharDetalhe();
+                      abrirEdicao(selecionada);
+                    }}
+                  >
+                    Editar
+                  </button>
+                )}
 
-                <button
-                  className="btn-danger"
-                  onClick={() => {
-                    fecharDetalhe();
-                    excluir(selecionada.id!);
-                  }}
-                >
-                  Excluir
-                </button>
+                {(role === "treinador" || (selecionada.responsavel && selecionada.responsavel.toLowerCase() === userName.toLowerCase())) && (
+                  <button
+                    className="btn-danger"
+                    onClick={() => {
+                      fecharDetalhe();
+                      excluir(selecionada.id!);
+                    }}
+                  >
+                    Excluir
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -1022,32 +1064,34 @@ Score atual: ${novoScore}${mudancasTexto}`;
               </datalist>
             </div>
 
-            <div className="hist-campo hist-campo-row">
-              <div>
-                <label>Data do agendamento (não obrigatório)</label>
-                <input
-                  type="date"
-                  value={form.dataOcorrencia}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      dataOcorrencia: e.target.value,
-                    })
-                  }
-                />
-              </div>
+            {role === "treinador" && (
+              <div className="hist-campo hist-campo-row">
+                <div>
+                  <label>Data do agendamento (não obrigatório)</label>
+                  <input
+                    type="date"
+                    value={form.dataOcorrencia}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        dataOcorrencia: e.target.value,
+                      })
+                    }
+                  />
+                </div>
 
-              <div>
-                <label>Hora (não obrigatório)</label>
-                <input
-                  type="time"
-                  value={form.horaOcorrencia ?? ""}
-                  onChange={(e) =>
-                    setForm({ ...form, horaOcorrencia: e.target.value })
-                  }
-                />
+                <div>
+                  <label>Hora (não obrigatório)</label>
+                  <input
+                    type="time"
+                    value={form.horaOcorrencia ?? ""}
+                    onChange={(e) =>
+                      setForm({ ...form, horaOcorrencia: e.target.value })
+                    }
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="hist-campo hist-campo-row">
               <label>Tipo de ocorrência *</label>
@@ -1056,7 +1100,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
                 onChange={(e) => set("tipo", e.target.value)}
               >
                 <option value="">Selecione...</option>
-                {TIPOS.filter((t) => t !== "Mudança de score").map((t) => (
+                {getAllowedTypes().map((t) => (
                   <option key={t} value={t}>
                     {t}
                   </option>
@@ -1064,7 +1108,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
               </select>
             </div>
 
-            {!editandoId && (form.tipo === "Informativa" || form.tipo === "Treinamento") && (
+            {!editandoId && role === "treinador" && (form.tipo === "Informativa" || form.tipo === "Treinamento") && (
               <div className="hist-campo score-btn-container">
                 <button
                   type="button"
@@ -1086,9 +1130,10 @@ Score atual: ${novoScore}${mudancasTexto}`;
               <select
                 value={form.departamento}
                 onChange={(e) => set("departamento", e.target.value)}
+                disabled={!isTreinador && getAllowedDepartments().length === 1}
               >
                 <option value="">Selecione...</option>
-                {DEPARTAMENTO.map((t) => (
+                {getAllowedDepartments().map((t) => (
                   <option key={t} value={t}>
                     {t}
                   </option>
@@ -1182,20 +1227,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
               )}
             </div>
 
-            <div className="hist-campo">
-              <label>Responsável *</label>
-              <input
-                value={form.responsavel}
-                onChange={(e) =>
-                  !editandoId && set("responsavel", e.target.value)
-                }
-                readOnly={!!editandoId}
-                placeholder="Nome do responsável"
-                style={
-                  editandoId ? { opacity: 0.5, cursor: "not-allowed" } : {}
-                }
-              />
-            </div>
+
 
             <div className="hist-painel-actions">
               <button className="btn-ghost" onClick={cancelar}>

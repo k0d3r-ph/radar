@@ -86,6 +86,7 @@ interface ScoreFormAnswers {
   faltouDoisDias: "Sim" | "Não" | "";
   estruturaNecessaria: "Sim" | "Não" | "";
   clienteReclamante: "Sim" | "Não" | "";
+  clienteSumido: "Sim" | "Não" | "";
 }
 
 const INITIAL_SCORE_ANSWERS: ScoreFormAnswers = {
@@ -97,6 +98,7 @@ const INITIAL_SCORE_ANSWERS: ScoreFormAnswers = {
   faltouDoisDias: "",
   estruturaNecessaria: "",
   clienteReclamante: "",
+  clienteSumido: "",
 };
 
 function calcularPontuacao(respostas: ScoreFormAnswers): { score: number; tipo: "Fast" | "Safety" } {
@@ -127,6 +129,8 @@ function calcularPontuacao(respostas: ScoreFormAnswers): { score: number; tipo: 
   } else if (respostas.clienteReclamante === "Não") {
     score += 2.0;
   }
+
+  if (respostas.clienteSumido === "Sim") score -= 5.0;
 
   const tipo = score >= 6 ? "Fast" : "Safety";
   return { score, tipo };
@@ -171,6 +175,12 @@ function descreverMudancas(antigo: ScoreFormAnswers, novo: ScoreFormAnswers): st
     return "Não respondido";
   };
 
+  const descreverSumico = (val: string) => {
+    if (val === "Sim") return "Cliente sumiu";
+    if (val === "Não") return "Cliente não sumiu";
+    return "Não respondido";
+  };
+
   if (antigo.facilContato !== novo.facilContato) {
     mudancas.push(`- Contato com o cliente: de "${descreverFacilContato(antigo.facilContato)}" para "${descreverFacilContato(novo.facilContato)}"`);
   }
@@ -194,6 +204,9 @@ function descreverMudancas(antigo: ScoreFormAnswers, novo: ScoreFormAnswers): st
   }
   if (antigo.clienteReclamante !== novo.clienteReclamante) {
     mudancas.push(`- Cliente é reclamante: de "${descreverReclamante(antigo.clienteReclamante)}" para "${descreverReclamante(novo.clienteReclamante)}"`);
+  }
+  if (antigo.clienteSumido !== novo.clienteSumido) {
+    mudancas.push(`- Cliente sumiu: de "${descreverSumico(antigo.clienteSumido)}" para "${descreverSumico(novo.clienteSumido)}"`);
   }
 
   return mudancas;
@@ -236,6 +249,12 @@ function descreverRespostas(respostas: ScoreFormAnswers): string[] {
     return "Não respondido";
   };
 
+  const descreverSumico = (val: string) => {
+    if (val === "Sim") return "Cliente sumiu";
+    if (val === "Não") return "Cliente não sumiu";
+    return "Não respondido";
+  };
+
   return [
     `- Contato com o cliente: "${descreverFacilContato(respostas.facilContato)}"`,
     `- Cliente entra pelo computador: "${descreverEntraComputador(respostas.entraComputador)}"`,
@@ -244,7 +263,8 @@ function descreverRespostas(respostas: ScoreFormAnswers): string[] {
     `- Cliente se recorda de temas anteriores: "${descreverSimNao(respostas.recordaTemas)}"`,
     `- Cliente faltou 2 dias seguidos: "${descreverFaltouDoisDias(respostas.faltouDoisDias)}"`,
     `- Cliente possui estrutura necessária: "${descreverEstrutura(respostas.estruturaNecessaria)}"`,
-    `- Cliente é reclamante: "${descreverReclamante(respostas.clienteReclamante)}"`
+    `- Cliente é reclamante: "${descreverReclamante(respostas.clienteReclamante)}"`,
+    `- Cliente sumiu: "${descreverSumico(respostas.clienteSumido)}"`
   ];
 }
 
@@ -989,7 +1009,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
                 </div>
               )}
 
-               <div className="botoes">
+              <div className="botoes">
                 {!novaAtualizacaoAberta && (role === "treinador" || (selecionada.responsavel && selecionada.responsavel.toLowerCase() === userName.toLowerCase())) && (
                   <button
                     className="btn-secondary btn-small"
@@ -1260,7 +1280,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
             <div className="score-modal-body">
               {/* Pergunta 1 */}
               <div className="score-pergunta">
-                <label>Contato com o cliente é fácil? <span className="score-hint">(Sim = +0.5 / Não = 0)</span></label>
+                <label>Contato com o cliente é fácil? * <span className="score-hint">(Sim = +0.5 / Não = 0)</span></label>
                 <div className="radio-group-score">
                   <label>
                     <input
@@ -1287,7 +1307,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
 
               {/* Pergunta 2 */}
               <div className="score-pergunta">
-                <label>Cliente entra pelo computador? <span className="score-hint">(Sim = +1.0 / Não = -1.0)</span></label>
+                <label>Cliente entra pelo computador? * <span className="score-hint">(Sim = +1.0 / Não = -1.0)</span></label>
                 <div className="radio-group-score">
                   <label>
                     <input
@@ -1314,7 +1334,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
 
               {/* Pergunta 3 */}
               <div className="score-pergunta">
-                <label>Cliente compartilha a tela? <span className="score-hint">(Sim = +1.0 / Não = 0)</span></label>
+                <label>Cliente compartilha a tela? * <span className="score-hint">(Sim = +1.0 / Não = 0)</span></label>
                 <div className="radio-group-score">
                   <label>
                     <input
@@ -1341,7 +1361,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
 
               {/* Pergunta 4 */}
               <div className="score-pergunta">
-                <label>Cliente faz perguntas? <span className="score-hint">(Sim = +1.5 / Não = 0)</span></label>
+                <label>Cliente faz perguntas? * <span className="score-hint">(Sim = +1.5 / Não = 0)</span></label>
                 <div className="radio-group-score">
                   <label>
                     <input
@@ -1368,7 +1388,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
 
               {/* Pergunta 5 */}
               <div className="score-pergunta">
-                <label>Cliente se recorda de temas anteriores? <span className="score-hint">(Sim = +2.0 / Não = 0)</span></label>
+                <label>Cliente se recorda de temas anteriores? * <span className="score-hint">(Sim = +2.0 / Não = 0)</span></label>
                 <div className="radio-group-score">
                   <label>
                     <input
@@ -1395,7 +1415,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
 
               {/* Pergunta 6 */}
               <div className="score-pergunta">
-                <label>Cliente faltou 2 dias seguidos? <span className="score-hint">(Sim = -1.0 / Não = +1.0)</span></label>
+                <label>Cliente faltou 2 dias seguidos? * <span className="score-hint">(Sim = -1.0 / Não = +1.0)</span></label>
                 <div className="radio-group-score">
                   <label>
                     <input
@@ -1422,7 +1442,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
 
               {/* Pergunta 7 */}
               <div className="score-pergunta">
-                <label>Cliente possui estrutura necessária? <span className="score-hint">(Sim = +1.0 / Não = 0)</span></label>
+                <label>Cliente possui estrutura necessária? * <span className="score-hint">(Sim = +1.0 / Não = 0)</span></label>
                 <div className="radio-group-score">
                   <label>
                     <input
@@ -1449,7 +1469,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
 
               {/* Pergunta 8 */}
               <div className="score-pergunta">
-                <label>Cliente é reclamante? <span className="score-hint">(Sim = -3.0 / Não = +2.0)</span></label>
+                <label>Cliente é reclamante? * <span className="score-hint">(Sim = -3.0 / Não = +2.0)</span></label>
                 <div className="radio-group-score">
                   <label>
                     <input
@@ -1473,6 +1493,33 @@ Score atual: ${novoScore}${mudancasTexto}`;
                   </label>
                 </div>
               </div>
+
+              {/* Pergunta 9 */}
+              <div className="score-pergunta">
+                <label>Cliente sumiu? * <span className="score-hint">(Sim = -5.0 / Não = 0)</span></label>
+                <div className="radio-group-score">
+                  <label>
+                    <input
+                      type="radio"
+                      name="clienteSumido"
+                      value="Sim"
+                      checked={respostasScore.clienteSumido === "Sim"}
+                      onChange={() => setRespostasScore(prev => ({ ...prev, clienteSumido: "Sim" }))}
+                    />
+                    Sim
+                  </label>
+                  <label>
+                    <input
+                      type="radio"
+                      name="clienteSumido"
+                      value="Não"
+                      checked={respostasScore.clienteSumido === "Não"}
+                      onChange={() => setRespostasScore(prev => ({ ...prev, clienteSumido: "Não" }))}
+                    />
+                    Não
+                  </label>
+                </div>
+              </div>
             </div>
 
             <div className="score-modal-footer">
@@ -1489,17 +1536,23 @@ Score atual: ${novoScore}${mudancasTexto}`;
               <button
                 type="button"
                 className="btn-primary"
-                disabled={
-                  respostasScore.facilContato === "" ||
-                  respostasScore.entraComputador === "" ||
-                  respostasScore.compartilhaTela === "" ||
-                  respostasScore.fazPerguntas === "" ||
-                  respostasScore.recordaTemas === "" ||
-                  respostasScore.faltouDoisDias === "" ||
-                  respostasScore.estruturaNecessaria === "" ||
-                  respostasScore.clienteReclamante === ""
-                }
                 onClick={() => {
+                  const possuiPerguntasNaoRespondidas =
+                    respostasScore.facilContato === "" ||
+                    respostasScore.entraComputador === "" ||
+                    respostasScore.compartilhaTela === "" ||
+                    respostasScore.fazPerguntas === "" ||
+                    respostasScore.recordaTemas === "" ||
+                    respostasScore.faltouDoisDias === "" ||
+                    respostasScore.estruturaNecessaria === "" ||
+                    respostasScore.clienteReclamante === "" ||
+                    respostasScore.clienteSumido === "";
+
+                  if (possuiPerguntasNaoRespondidas) {
+                    toast.error("Por favor, responda a todas as perguntas para confirmar o cálculo do score.");
+                    return;
+                  }
+
                   const res = calcularPontuacao(respostasScore);
                   setCalculoScoreResult(res);
                   setModalScoreAberto(false);

@@ -79,7 +79,7 @@ export interface UsuarioDocument {
   createdAt?: number;
 }
 
-export async function criarNovoUsuario(email: string, senhaTemp: string, role: string): Promise<void> {
+export async function criarNovoUsuario(email: string, senhaTemp: string, role: string, nome: string): Promise<void> {
   const tempAppName = `temp-register-${Date.now()}`;
   const tempApp = initializeApp(firebaseConfig, tempAppName);
   const tempAuth = getAuth(tempApp);
@@ -92,7 +92,7 @@ export async function criarNovoUsuario(email: string, senhaTemp: string, role: s
       email,
       role,
       needsPasswordChange: true,
-      nome: "",
+      nome,
       createdAt: Date.now()
     });
 

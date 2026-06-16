@@ -17,8 +17,7 @@ const ROLE_DISPLAY: Record<string, string> = {
 };
 
 export const AlterarSenha: React.FC = () => {
-  const { user, role, setNeedsPasswordChange, setRole, setUserName, logout } = useAuth();
-  const [nome, setNome] = useState("");
+  const { user, role, setNeedsPasswordChange, setRole, userName, setUserName, logout } = useAuth();
   const [novaSenha, setNovaSenha] = useState("");
   const [confirmarSenha, setConfirmarSenha] = useState("");
   const [loading, setLoading] = useState(false);
@@ -29,11 +28,6 @@ export const AlterarSenha: React.FC = () => {
 
   const handleAlterarSenha = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!nome.trim()) {
-      toast.error("Por favor, preencha o seu nome.");
-      return;
-    }
 
     if (!novaSenha || !confirmarSenha) {
       toast.error("Por favor, preencha todos os campos.");
@@ -59,15 +53,12 @@ export const AlterarSenha: React.FC = () => {
     try {
       // 1. Atualiza a senha no Firebase Auth
       await atualizarSenhaUsuario(user, novaSenha);
-      
-      const nomeCapitalizado = formatarNome(nome);
 
       // 2. Cria/atualiza o documento no Firestore para registrar que a senha foi definida, com nome e role
-      await registrarSenhaDefinida(user.uid, user.email || "", userRole, nomeCapitalizado);
+      await registrarSenhaDefinida(user.uid, user.email || "", userRole, userName);
 
       // 3. Atualiza o estado no contexto local
       setRole(userRole);
-      setUserName(nomeCapitalizado);
       setNeedsPasswordChange(false);
 
       toast.success("Senha pessoal cadastrada com sucesso!");
@@ -100,7 +91,7 @@ export const AlterarSenha: React.FC = () => {
             <KeyRound className="alterar-senha-logo-icon" size={36} />
           </div>
           <h1>Primeiro Acesso</h1>
-          <p>Você entrou com uma senha temporária. Defina sua senha pessoal definitiva para continuar.</p>
+          <p>Olá, <strong>{userName}</strong>! Você entrou com uma senha temporária. Defina sua senha pessoal definitiva para continuar.</p>
         </div>
 
         <div className="senha-rules">
@@ -121,22 +112,6 @@ export const AlterarSenha: React.FC = () => {
         </div>
 
         <form onSubmit={handleAlterarSenha} className="alterar-senha-form">
-          <div className="input-group">
-            <label htmlFor="nome">Nome Completo</label>
-            <div className="input-wrapper">
-              <UserIcon className="input-icon" size={20} />
-              <input
-                id="nome"
-                type="text"
-                placeholder="Seu nome (ex: Pedro, Clarice)"
-                value={nome}
-                onChange={(e) => setNome(e.target.value)}
-                required
-                disabled={loading}
-              />
-            </div>
-          </div>
-
           <div className="input-group">
             <label htmlFor="perfil">Perfil de Acesso</label>
             <div className="input-wrapper">

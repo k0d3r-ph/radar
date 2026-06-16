@@ -8,6 +8,7 @@ import {
   KeyRound,
   AlertTriangle,
   UserCheck,
+  User,
 } from "lucide-react";
 import {
   criarNovoUsuario,
@@ -29,6 +30,7 @@ const ROLE_DISPLAY: Record<string, string> = {
 
 export const Usuarios: React.FC = () => {
   const [users, setUsers] = useState<UsuarioDocument[]>([]);
+  const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [senhaTemp, setSenhaTemp] = useState("");
   const [role, setRole] = useState("suporte");
@@ -66,7 +68,7 @@ export const Usuarios: React.FC = () => {
   const handleCadastrar = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!email.trim() || !senhaTemp.trim() || !role) {
+    if (!nome.trim() || !email.trim() || !senhaTemp.trim() || !role) {
       toast.error("Preencha todos os campos obrigatórios.");
       return;
     }
@@ -78,8 +80,9 @@ export const Usuarios: React.FC = () => {
 
     setSubmitting(true);
     try {
-      await criarNovoUsuario(email.trim(), senhaTemp.trim(), role);
+      await criarNovoUsuario(email.trim(), senhaTemp.trim(), role, nome.trim());
       toast.success("Usuário pré-cadastrado com sucesso!");
+      setNome("");
       setEmail("");
       setSenhaTemp("");
       setRole("suporte");
@@ -134,6 +137,22 @@ export const Usuarios: React.FC = () => {
             Cadastrar Novo Usuário
           </h2>
           <form onSubmit={handleCadastrar} className="cadastro-form">
+            <div className="input-group">
+              <label htmlFor="nome">Nome Completo</label>
+              <div className="input-wrapper">
+                <User className="input-icon" size={18} />
+                <input
+                  id="nome"
+                  type="text"
+                  placeholder="Nome do usuário"
+                  value={nome}
+                  onChange={(e) => setNome(e.target.value)}
+                  required
+                  disabled={submitting}
+                />
+              </div>
+            </div>
+
             <div className="input-group">
               <label htmlFor="email">E-mail Corporativo</label>
               <div className="input-wrapper">

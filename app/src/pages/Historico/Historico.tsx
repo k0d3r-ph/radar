@@ -362,6 +362,7 @@ export function Historico() {
     carregar();
   }, []);
 
+
   useEffect(() => {
     if (selecionada) {
       document.body.style.overflow = "hidden";
@@ -623,7 +624,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
 
   const getAllowedTypes = () => {
     if (role === "treinador") {
-      return TIPOS.filter((t) => t !== "Mudança de score");
+      return ["Informativa", "Treinamento", "Checkpoint"];
     }
     if (role === "suporte" || role === "hardware") {
       return ["Informativa", "Técnica"];
@@ -642,7 +643,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
 
   const getAllowedDepartments = () => {
     if (role === "treinador") {
-      return DEPARTAMENTO;
+      return ["Treinamento"];
     }
     if (role === "crc") {
       return ["CS"];
@@ -901,10 +902,10 @@ Score atual: ${novoScore}${mudancasTexto}`;
                   <span>Data da ocorrência</span>
                   <strong>
                     {new Date(
-                      selecionada.createdAt ?? selecionada.dataOcorrencia ?? Date.now()
+                      selecionada.createdAt ?? selecionada.dataOcorrencia ?? 0
                     ).toLocaleDateString("pt-BR")}{" "}
                     {new Date(
-                      selecionada.createdAt ?? selecionada.dataOcorrencia ?? Date.now()
+                      selecionada.createdAt ?? selecionada.dataOcorrencia ?? 0
                     ).toLocaleTimeString("pt-BR", {
                       hour: "2-digit",
                       minute: "2-digit",
@@ -1151,7 +1152,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
               <select
                 value={form.departamento}
                 onChange={(e) => set("departamento", e.target.value)}
-                disabled={!isTreinador && getAllowedDepartments().length === 1}
+                disabled={getAllowedDepartments().length === 1}
               >
                 <option value="">Selecione...</option>
                 {getAllowedDepartments().map((t) => (

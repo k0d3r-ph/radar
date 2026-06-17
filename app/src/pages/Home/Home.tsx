@@ -174,7 +174,7 @@ export default function Home() {
       );
 
       const dataBase =
-        ultimoTreinamento?.dataOcorrencia ?? ultimoTreinamento?.createdAt;
+        ultimoTreinamento?.dataOcorrencia || ultimoTreinamento?.createdAt;
 
       const tme = calcularTME(dataBase);
 

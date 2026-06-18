@@ -377,7 +377,7 @@ export function Historico() {
   useEffect(() => {
     if (editandoId) return;
 
-    if (form.tipo === "Treinamento" && temTemaValido) {
+    if (form.tipo === "Treinamento") {
       if (usarTemplate && !form.descricao.trim()) {
         setForm(f => ({ ...f, descricao: TEMPLATE_TREINAMENTO }));
       }
@@ -386,7 +386,7 @@ export function Historico() {
         setForm(f => ({ ...f, descricao: "" }));
       }
     }
-  }, [form.tipo, temTemaValido, form.descricao, editandoId, usarTemplate]);
+  }, [form.tipo, form.descricao, editandoId, usarTemplate]);
 
   useEffect(() => {
     if (editandoId) return;
@@ -1214,7 +1214,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
             <div className="hist-campo">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
                 <label style={{ marginBottom: 0 }}>Descrição *</label>
-                {form.tipo === "Treinamento" && !editandoId && temTemaValido && form.descricao !== TEMPLATE_TREINAMENTO && (
+                {form.tipo === "Treinamento" && !editandoId && form.descricao !== TEMPLATE_TREINAMENTO && (
                   <button
                     type="button"
                     className="btn-link-template"

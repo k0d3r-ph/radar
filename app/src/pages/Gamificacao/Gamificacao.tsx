@@ -14,6 +14,7 @@ import {
   FileText,
   Settings,
   AlertOctagon,
+  Edit2,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { formatarNome } from "../../utils/formatarNome";
@@ -23,6 +24,7 @@ import {
   listarLancamentosPontos,
   removerLancamentoPonto,
   salvarLancamentoPonto,
+  atualizarLancamentoPonto,
 } from "../../services/gamificacao";
 import type { LancamentoPonto } from "../../types";
 import "./Gamificacao.css";
@@ -91,6 +93,44 @@ export const Gamificacao: React.FC = () => {
   >("treinamento");
   const [descricao, setDescricao] = useState("");
 
+  // Treinamento extra states
+  const [treinamentoEmpresa, setTreinamentoEmpresa] = useState("");
+  const [treinamentoTema, setTreinamentoTema] = useState("");
+  const [treinamentoDataSolicitacao, setTreinamentoDataSolicitacao] = useState("");
+  const [treinamentoDataRealizacao, setTreinamentoDataRealizacao] = useState("");
+  const [treinamentoTempoAgenda, setTreinamentoTempoAgenda] = useState("");
+  const [treinamentoSolicitante, setTreinamentoSolicitante] = useState("CS");
+  const [treinamentoNotas, setTreinamentoNotas] = useState<string[]>([]);
+
+  // Edit states
+  const [editingEntry, setEditingEntry] = useState<LancamentoPonto | null>(null);
+  const [editEmpresa, setEditEmpresa] = useState("");
+  const [editTema, setEditTema] = useState("");
+  const [editDataSolicitacao, setEditDataSolicitacao] = useState("");
+  const [editDataRealizacao, setEditDataRealizacao] = useState("");
+  const [editTempoAgenda, setEditTempoAgenda] = useState("");
+  const [editSolicitante, setEditSolicitante] = useState("CS");
+  const [editNotas, setEditNotas] = useState<string[]>([]);
+  const [editDescricao, setEditDescricao] = useState("");
+
+  // Helper functions for dynamic notes (Create)
+  const handleAddNota = () => setTreinamentoNotas([...treinamentoNotas, ""]);
+  const handleUpdateNota = (index: number, val: string) => {
+    const copy = [...treinamentoNotas];
+    copy[index] = val;
+    setTreinamentoNotas(copy);
+  };
+  const handleRemoveNota = (index: number) => setTreinamentoNotas(treinamentoNotas.filter((_, i) => i !== index));
+
+  // Helper functions for dynamic notes (Edit)
+  const handleAddEditNota = () => setEditNotas([...editNotas, ""]);
+  const handleUpdateEditNota = (index: number, val: string) => {
+    const copy = [...editNotas];
+    copy[index] = val;
+    setEditNotas(copy);
+  };
+  const handleRemoveEditNota = (index: number) => setEditNotas(editNotas.filter((_, i) => i !== index));
+
   // Delete modal state
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmarExclusaoId, setConfirmarExclusaoId] = useState<string | null>(null);
@@ -132,16 +172,44 @@ export const Gamificacao: React.FC = () => {
   const rankedTrainers = useMemo(() => {
     return trainers
       .map((t) => {
-        const score = entries
-          .filter((e) => e.treinadorId === t.uid)
-          .reduce((acc, curr) => acc + curr.pontos, 0);
+        const trainerEntries = entries.filter((e) => e.treinadorId === t.uid);
+        const baseScore = trainerEntries.reduce((acc, curr) => acc + curr.pontos, 0);
 
-        const qtdAcoes = entries.filter((e) => e.treinadorId === t.uid).length;
+        // Filter realized trainings (excluding canceled/absent)
+        const realizedTrainings = trainerEntries.filter(
+          (e) =>
+            e.tipoAcao === "treinamento" &&
+            e.treinamentoTema &&
+            e.treinamentoTema.toLowerCase() !== "cancelado" &&
+            e.treinamentoTema.toLowerCase() !== "ausente"
+        );
+
+        // Count realized trainings that have CSAT responses
+        const answeredTrainings = realizedTrainings.filter(
+          (e) => e.treinamentoNotas && e.treinamentoNotas.length > 0
+        );
+
+        const totalTrainingsCount = realizedTrainings.length;
+        const answeredTrainingsCount = answeredTrainings.length;
+        const taxaResposta = totalTrainingsCount > 0 ? answeredTrainingsCount / totalTrainingsCount : 0;
+
+        let bonus = 0;
+        if (taxaResposta >= 0.90) bonus = 0.30;
+        else if (taxaResposta >= 0.80) bonus = 0.20;
+        else if (taxaResposta >= 0.70) bonus = 0.10;
+
+        const score = parseFloat((baseScore * (1 + bonus)).toFixed(1));
+        const qtdAcoes = trainerEntries.length;
 
         return {
           ...t,
+          baseScore,
           score,
           qtdAcoes,
+          totalTrainingsCount,
+          answeredTrainingsCount,
+          taxaResposta,
+          bonusPercentage: Math.round(bonus * 100),
         };
       })
       .sort((a, b) => b.score - a.score || a.nome.localeCompare(b.nome));
@@ -160,6 +228,25 @@ export const Gamificacao: React.FC = () => {
       return;
     }
 
+    if (selectedActionType === "treinamento") {
+      if (!treinamentoEmpresa) {
+        toast.error("Selecione a empresa.");
+        return;
+      }
+      if (!treinamentoTema.trim()) {
+        toast.error("Digite o tema do treinamento.");
+        return;
+      }
+      if (!treinamentoDataSolicitacao || !treinamentoDataRealizacao) {
+        toast.error("Preencha as datas de solicitação e realização.");
+        return;
+      }
+      if (!treinamentoTempoAgenda.trim()) {
+        toast.error("Preencha o tempo de agenda.");
+        return;
+      }
+    }
+
     const trainer = trainers.find((t) => t.uid === selectedTrainerUid);
     const actionConfig = acoesFiltradas.find((a) => a.tipo === selectedActionType);
 
@@ -172,24 +259,218 @@ export const Gamificacao: React.FC = () => {
     try {
       const criadoPorNome = userName || user?.email || "Sistema";
 
+      let finalDescricao = "";
+      let pontosAAplicar = actionConfig.pontos;
+      let validNotas: number[] = [];
+      let computedMedia: number | undefined = undefined;
+
+      if (selectedActionType === "treinamento") {
+        const isZeroPoints =
+          treinamentoTema.trim().toLowerCase() === "cancelado" ||
+          treinamentoTema.trim().toLowerCase() === "ausente";
+
+        if (isZeroPoints) {
+          pontosAAplicar = 0;
+        }
+
+        const formatarDataInput = (dataStr: string) => {
+          if (!dataStr) return "";
+          const [y, m, d] = dataStr.split("-");
+          return `${d}/${m}/${y}`;
+        };
+
+        const dataSol = formatarDataInput(treinamentoDataSolicitacao);
+        const dataReal = formatarDataInput(treinamentoDataRealizacao);
+
+        validNotas = treinamentoNotas
+          .map((n) => parseInt(n, 10))
+          .filter((n) => !isNaN(n));
+
+        if (validNotas.some((n) => n < 0 || n > 10)) {
+          toast.error("As notas devem ser valores inteiros entre 0 e 10.");
+          setSubmitting(false);
+          return;
+        }
+
+        computedMedia = validNotas.length > 0
+          ? parseFloat((validNotas.reduce((sum, n) => sum + n, 0) / validNotas.length).toFixed(2))
+          : undefined;
+
+        finalDescricao = `Empresa: ${treinamentoEmpresa} | Tema: ${treinamentoTema.trim()} | Solicitado: ${dataSol} | Realizado: ${dataReal} | Tempo: ${treinamentoTempoAgenda.trim()} | Solicitante: ${treinamentoSolicitante}`;
+
+        if (validNotas.length > 0) {
+          finalDescricao += ` | Notas: [${validNotas.join(", ")}] (Média: ${computedMedia})`;
+        }
+
+        if (descricao.trim()) {
+          finalDescricao += ` | Obs: ${descricao.trim()}`;
+        }
+      } else {
+        finalDescricao = descricao.trim();
+      }
+
       await salvarLancamentoPonto({
         treinadorId: trainer.uid,
         treinadorNome: formatarNome(trainer.nome) || trainer.email,
         tipoAcao: selectedActionType,
-        pontos: actionConfig.pontos,
-        descricao: descricao.trim(),
+        pontos: pontosAAplicar,
+        descricao: finalDescricao,
         criadoPorId: user?.uid || "",
         criadoPorNome,
+        ...(selectedActionType === "treinamento" ? {
+          treinamentoEmpresa,
+          treinamentoTema: treinamentoTema.trim(),
+          treinamentoDataSolicitacao,
+          treinamentoDataRealizacao,
+          treinamentoTempoAgenda: treinamentoTempoAgenda.trim(),
+          treinamentoSolicitante,
+          treinamentoNotas: validNotas,
+          treinamentoNotaMedia: computedMedia,
+        } : {})
       });
 
       toast.success("Pontuação registrada com sucesso!");
       setDescricao("");
+      setTreinamentoEmpresa("");
+      setTreinamentoTema("");
+      setTreinamentoDataSolicitacao("");
+      setTreinamentoDataRealizacao("");
+      setTreinamentoTempoAgenda("");
+      setTreinamentoSolicitante("CS");
+      setTreinamentoNotas([]);
+      
       // Reload points list
       const novaLista = await listarLancamentosPontos();
       setEntries(novaLista);
     } catch (error: any) {
       console.error("Erro ao registrar lançamento:", error);
       toast.error("Erro ao salvar os pontos.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleStartEdit = (entry: LancamentoPonto) => {
+    setEditingEntry(entry);
+    setEditEmpresa(entry.treinamentoEmpresa || "");
+    setEditTema(entry.treinamentoTema || "");
+    setEditDataSolicitacao(entry.treinamentoDataSolicitacao || "");
+    setEditDataRealizacao(entry.treinamentoDataRealizacao || "");
+    setEditTempoAgenda(entry.treinamentoTempoAgenda || "");
+    setEditSolicitante(entry.treinamentoSolicitante || "CS");
+    setEditNotas(entry.treinamentoNotas ? entry.treinamentoNotas.map(String) : []);
+    
+    let obs = "";
+    if (entry.tipoAcao === "treinamento" && entry.descricao) {
+      const parts = entry.descricao.split(" | Obs: ");
+      if (parts.length > 1) {
+        obs = parts[1];
+      }
+    } else {
+      obs = entry.descricao || "";
+    }
+    setEditDescricao(obs);
+  };
+
+  const handleSalvarEdicao = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingEntry || !editingEntry.id) return;
+
+    setSubmitting(true);
+    try {
+      let finalDescricao = "";
+      let pontosAAplicar = editingEntry.pontos;
+      let extraData: Partial<LancamentoPonto> = {};
+
+      if (editingEntry.tipoAcao === "treinamento") {
+        if (!editEmpresa) {
+          toast.error("Preencha a empresa.");
+          setSubmitting(false);
+          return;
+        }
+        if (!editTema.trim()) {
+          toast.error("Preencha o tema.");
+          setSubmitting(false);
+          return;
+        }
+        if (!editDataSolicitacao || !editDataRealizacao) {
+          toast.error("Preencha as datas.");
+          setSubmitting(false);
+          return;
+        }
+        if (!editTempoAgenda.trim()) {
+          toast.error("Preencha o tempo de agenda.");
+          setSubmitting(false);
+          return;
+        }
+
+        const isZeroPoints =
+          editTema.trim().toLowerCase() === "cancelado" ||
+          editTema.trim().toLowerCase() === "ausente";
+
+        const actionConfig = ACOES_DISPONIVEIS.find((a) => a.tipo === "treinamento");
+        pontosAAplicar = isZeroPoints ? 0 : (actionConfig?.pontos ?? 1);
+
+        const formatarDataInput = (dataStr: string) => {
+          if (!dataStr) return "";
+          const [y, m, d] = dataStr.split("-");
+          return `${d}/${m}/${y}`;
+        };
+
+        const dataSol = formatarDataInput(editDataSolicitacao);
+        const dataReal = formatarDataInput(editDataRealizacao);
+
+        const validNotas = editNotas
+          .map((n) => parseInt(n, 10))
+          .filter((n) => !isNaN(n));
+
+        if (validNotas.some((n) => n < 0 || n > 10)) {
+          toast.error("As notas devem ser valores inteiros entre 0 e 10.");
+          setSubmitting(false);
+          return;
+        }
+
+        const computedMedia = validNotas.length > 0
+          ? parseFloat((validNotas.reduce((sum, n) => sum + n, 0) / validNotas.length).toFixed(2))
+          : undefined;
+
+        finalDescricao = `Empresa: ${editEmpresa} | Tema: ${editTema.trim()} | Solicitado: ${dataSol} | Realizado: ${dataReal} | Tempo: ${editTempoAgenda.trim()} | Solicitante: ${editSolicitante}`;
+
+        if (validNotas.length > 0) {
+          finalDescricao += ` | Notas: [${validNotas.join(", ")}] (Média: ${computedMedia})`;
+        }
+        if (editDescricao.trim()) {
+          finalDescricao += ` | Obs: ${editDescricao.trim()}`;
+        }
+
+        extraData = {
+          treinamentoEmpresa: editEmpresa,
+          treinamentoTema: editTema.trim(),
+          treinamentoDataSolicitacao: editDataSolicitacao,
+          treinamentoDataRealizacao: editDataRealizacao,
+          treinamentoTempoAgenda: editTempoAgenda.trim(),
+          treinamentoSolicitante: editSolicitante,
+          treinamentoNotas: validNotas,
+          treinamentoNotaMedia: computedMedia,
+        };
+      } else {
+        finalDescricao = editDescricao.trim();
+      }
+
+      await atualizarLancamentoPonto(editingEntry.id, {
+        descricao: finalDescricao,
+        pontos: pontosAAplicar,
+        ...extraData,
+      });
+
+      toast.success("Lançamento atualizado com sucesso!");
+      setEditingEntry(null);
+      // Reload points list
+      const novaLista = await listarLancamentosPontos();
+      setEntries(novaLista);
+    } catch (error) {
+      console.error("Erro ao atualizar lançamento:", error);
+      toast.error("Erro ao salvar alterações.");
     } finally {
       setSubmitting(false);
     }
@@ -287,7 +568,19 @@ export const Gamificacao: React.FC = () => {
                           {t.uid === user?.uid && <span className="me-badge">Você</span>}
                         </div>
                         <div className="ranking-sub">
-                          {t.qtdAcoes} {t.qtdAcoes === 1 ? "atividade registrada" : "atividades registradas"}
+                          <div>
+                            {t.qtdAcoes} {t.qtdAcoes === 1 ? "atividade registrada" : "atividades registradas"}
+                          </div>
+                          {t.totalTrainingsCount > 0 && (
+                            <div className="csat-rate-info" style={{ fontSize: "11px", color: "#94a3b8", marginTop: "4px" }}>
+                              CSAT Taxa Resposta: <strong>{Math.round(t.taxaResposta * 100)}%</strong> ({t.answeredTrainingsCount}/{t.totalTrainingsCount})
+                              {t.bonusPercentage > 0 && (
+                                <span className="bonus-pill" style={{ marginLeft: "6px", color: "#34d399", background: "rgba(16, 185, 129, 0.1)", padding: "2px 6px", borderRadius: "4px", fontSize: "10px", fontWeight: "bold" }}>
+                                  +{t.bonusPercentage}% Bônus
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -352,31 +645,161 @@ export const Gamificacao: React.FC = () => {
                       const Icon = acao.icon;
                       const isSelected = selectedActionType === acao.tipo;
                       return (
-                        <label
-                          key={acao.tipo}
-                          className={`acao-radio-card ${isSelected ? "selected" : ""} ${acao.colorClass}`}
-                        >
-                          <input
-                            type="radio"
-                            name="acao-tipo"
-                            value={acao.tipo}
-                            checked={isSelected}
-                            onChange={() => setSelectedActionType(acao.tipo)}
-                            disabled={submitting}
-                          />
-                          <div className="acao-radio-content">
-                            <div className="acao-radio-left">
-                              <Icon className="acao-icon" size={18} />
-                              <div className="acao-radio-text">
-                                <span className="acao-label">{acao.label}</span>
-                                <span className="acao-desc">{acao.descricao}</span>
+                        <React.Fragment key={acao.tipo}>
+                          <label
+                            className={`acao-radio-card ${isSelected ? "selected" : ""} ${acao.colorClass}`}
+                          >
+                            <input
+                              type="radio"
+                              name="acao-tipo"
+                              value={acao.tipo}
+                              checked={isSelected}
+                              onChange={() => setSelectedActionType(acao.tipo)}
+                              disabled={submitting}
+                            />
+                            <div className="acao-radio-content">
+                              <div className="acao-radio-left">
+                                <Icon className="acao-icon" size={18} />
+                                <div className="acao-radio-text">
+                                  <span className="acao-label">{acao.label}</span>
+                                  <span className="acao-desc">{acao.descricao}</span>
+                                </div>
+                              </div>
+                              <span className="acao-points-badge">
+                                {acao.pontos > 0 ? `+${acao.pontos}` : acao.pontos}
+                              </span>
+                            </div>
+                          </label>
+
+                          {isSelected && acao.tipo === "treinamento" && (
+                            <div className="treinamento-subform inline-subform">
+                              <div className="form-grid-2">
+                                <div className="input-group">
+                                  <label htmlFor="treinamento-empresa">Nome da Empresa *</label>
+                                  <input
+                                    type="text"
+                                    id="treinamento-empresa"
+                                    placeholder="Digite o nome da empresa..."
+                                    value={treinamentoEmpresa}
+                                    onChange={(e) => setTreinamentoEmpresa(e.target.value)}
+                                    required
+                                  />
+                                </div>
+
+                                <div className="input-group">
+                                  <label htmlFor="treinamento-tema">Tema *</label>
+                                  <input
+                                    type="text"
+                                    id="treinamento-tema"
+                                    placeholder="Digite o tema (ou Cancelado/Ausente)..."
+                                    value={treinamentoTema}
+                                    onChange={(e) => setTreinamentoTema(e.target.value)}
+                                    required
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="form-grid-2">
+                                <div className="input-group">
+                                  <label htmlFor="treinamento-data-solicitacao">Data de Solicitação *</label>
+                                  <input
+                                    type="date"
+                                    id="treinamento-data-solicitacao"
+                                    value={treinamentoDataSolicitacao}
+                                    onChange={(e) => setTreinamentoDataSolicitacao(e.target.value)}
+                                    required
+                                  />
+                                </div>
+
+                                <div className="input-group">
+                                  <label htmlFor="treinamento-data-realizacao">Data da Realização *</label>
+                                  <input
+                                    type="date"
+                                    id="treinamento-data-realizacao"
+                                    value={treinamentoDataRealizacao}
+                                    onChange={(e) => setTreinamentoDataRealizacao(e.target.value)}
+                                    required
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="form-grid-2">
+                                <div className="input-group">
+                                  <label htmlFor="treinamento-tempo-agenda">Tempo de Agenda *</label>
+                                  <input
+                                    type="time"
+                                    id="treinamento-tempo-agenda"
+                                    value={treinamentoTempoAgenda}
+                                    onChange={(e) => setTreinamentoTempoAgenda(e.target.value)}
+                                    required
+                                  />
+                                </div>
+
+                                <div className="input-group">
+                                  <label htmlFor="treinamento-solicitante">Quem Solicitou *</label>
+                                  <div className="input-wrapper">
+                                    <select
+                                      id="treinamento-solicitante"
+                                      value={treinamentoSolicitante}
+                                      onChange={(e) => setTreinamentoSolicitante(e.target.value)}
+                                      required
+                                    >
+                                      <option value="CS">CS</option>
+                                      <option value="Cliente">Cliente</option>
+                                      <option value="Suporte">Suporte</option>
+                                      <option value="Comercial">Comercial</option>
+                                      <option value="Hardware">Hardware</option>
+                                      <option value="Aplicações">Aplicações</option>
+                                    </select>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="treinamento-notas-section">
+                                <div className="notas-section-header">
+                                  <label>Notas dos Participantes (CSAT Opcional)</label>
+                                  <button
+                                    type="button"
+                                    className="btn-add-nota-icon"
+                                    onClick={handleAddNota}
+                                    title="Adicionar Nota"
+                                  >
+                                    + Adicionar Nota
+                                  </button>
+                                </div>
+                                {treinamentoNotas.length === 0 ? (
+                                  <span className="no-notas-msg">Nenhuma nota registrada (treinamento sem resposta CSAT).</span>
+                                ) : (
+                                  <div className="notas-inputs-grid">
+                                    {treinamentoNotas.map((nota, idx) => (
+                                      <div key={idx} className="nota-input-row">
+                                        <input
+                                          type="number"
+                                          className="nota-input-field"
+                                          placeholder={`Nota ${idx + 1} (0 a 10)`}
+                                          min="0"
+                                          max="10"
+                                          step="1"
+                                          value={nota}
+                                          onChange={(e) => handleUpdateNota(idx, e.target.value)}
+                                          required
+                                        />
+                                        <button
+                                          type="button"
+                                          className="btn-remove-nota-icon"
+                                          onClick={() => handleRemoveNota(idx)}
+                                          title="Remover nota"
+                                        >
+                                          <Trash2 size={14} />
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                             </div>
-                            <span className="acao-points-badge">
-                              {acao.pontos > 0 ? `+${acao.pontos}` : acao.pontos}
-                            </span>
-                          </div>
-                        </label>
+                          )}
+                        </React.Fragment>
                       );
                     })}
                   </div>
@@ -450,15 +873,26 @@ export const Gamificacao: React.FC = () => {
                               </span>
                             </td>
                             <td className="action-col">
-                              {(role === "master" || entry.criadoPorId === user?.uid) && (
-                                <button
-                                  className="btn-delete-entry"
-                                  onClick={() => setConfirmarExclusaoId(entry.id || null)}
-                                  title="Remover lançamento"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-                              )}
+                              <div className="action-buttons-wrapper">
+                                {(role === "master" || (entry.treinadorId === user?.uid && entry.criadoPorId === user?.uid)) && (
+                                  <button
+                                    className="btn-edit-entry"
+                                    onClick={() => handleStartEdit(entry)}
+                                    title="Editar lançamento"
+                                  >
+                                    <Edit2 size={14} />
+                                  </button>
+                                )}
+                                {(role === "master" || entry.criadoPorId === user?.uid) && (
+                                  <button
+                                    className="btn-delete-entry"
+                                    onClick={() => setConfirmarExclusaoId(entry.id || null)}
+                                    title="Remover lançamento"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         );
@@ -501,6 +935,184 @@ export const Gamificacao: React.FC = () => {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Modal de Edição de Lançamento */}
+      {editingEntry && (
+        <div className="confirm-overlay" onClick={() => setEditingEntry(null)}>
+          <form className="edit-modal" onClick={(e) => e.stopPropagation()} onSubmit={handleSalvarEdicao}>
+            <div className="edit-modal-header">
+              <Edit2 className="card-icon" size={22} />
+              <h2>Editar Lançamento</h2>
+            </div>
+            
+            <div className="edit-modal-body">
+              {editingEntry.tipoAcao === "treinamento" ? (
+                <>
+                  <div className="form-grid-2">
+                    <div className="input-group">
+                      <label htmlFor="edit-treinamento-empresa">Nome da Empresa *</label>
+                      <input
+                        type="text"
+                        id="edit-treinamento-empresa"
+                        value={editEmpresa}
+                        onChange={(e) => setEditEmpresa(e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <div className="input-group">
+                      <label htmlFor="edit-treinamento-tema">Tema *</label>
+                      <input
+                        type="text"
+                        id="edit-treinamento-tema"
+                        value={editTema}
+                        onChange={(e) => setEditTema(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-grid-2">
+                    <div className="input-group">
+                      <label htmlFor="edit-treinamento-data-solicitacao">Data de Solicitação *</label>
+                      <input
+                        type="date"
+                        id="edit-treinamento-data-solicitacao"
+                        value={editDataSolicitacao}
+                        onChange={(e) => setEditDataSolicitacao(e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <div className="input-group">
+                      <label htmlFor="edit-treinamento-data-realizacao">Data da Realização *</label>
+                      <input
+                        type="date"
+                        id="edit-treinamento-data-realizacao"
+                        value={editDataRealizacao}
+                        onChange={(e) => setEditDataRealizacao(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-grid-2">
+                    <div className="input-group">
+                      <label htmlFor="edit-treinamento-tempo-agenda">Tempo de Agenda *</label>
+                      <input
+                        type="time"
+                        id="edit-treinamento-tempo-agenda"
+                        value={editTempoAgenda}
+                        onChange={(e) => setEditTempoAgenda(e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <div className="input-group">
+                      <label htmlFor="edit-treinamento-solicitante">Quem Solicitou *</label>
+                      <select
+                        id="edit-treinamento-solicitante"
+                        value={editSolicitante}
+                        onChange={(e) => setEditSolicitante(e.target.value)}
+                        required
+                      >
+                        <option value="CS">CS</option>
+                        <option value="Cliente">Cliente</option>
+                        <option value="Suporte">Suporte</option>
+                        <option value="Comercial">Comercial</option>
+                        <option value="Hardware">Hardware</option>
+                        <option value="Aplicações">Aplicações</option>
+                      </select>
+                    </div>
+                  </div>
+
+                              <div className="treinamento-notas-section">
+                                <div className="notas-section-header">
+                                  <label>Notas dos Participantes (CSAT Opcional)</label>
+                                  <button
+                                    type="button"
+                                    className="btn-add-nota-icon"
+                                    onClick={handleAddEditNota}
+                                    title="Adicionar Nota"
+                                  >
+                                    + Adicionar Nota
+                                  </button>
+                                </div>
+                                {editNotas.length === 0 ? (
+                                  <span className="no-notas-msg">Nenhuma nota registrada (treinamento sem resposta CSAT).</span>
+                                ) : (
+                                  <div className="notas-inputs-grid">
+                                    {editNotas.map((nota, idx) => (
+                                      <div key={idx} className="nota-input-row">
+                                        <input
+                                          type="number"
+                                          className="nota-input-field"
+                                          placeholder={`Nota ${idx + 1} (0 a 10)`}
+                                          min="0"
+                                          max="10"
+                                          step="1"
+                                          value={nota}
+                                          onChange={(e) => handleUpdateEditNota(idx, e.target.value)}
+                                          required
+                                        />
+                                        <button
+                                          type="button"
+                                          className="btn-remove-nota-icon"
+                                          onClick={() => handleRemoveEditNota(idx)}
+                                          title="Remover nota"
+                                        >
+                                          <Trash2 size={14} />
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+
+                  <div className="input-group">
+                    <label htmlFor="edit-descricao-input">Observações (Opcional)</label>
+                    <textarea
+                      id="edit-descricao-input"
+                      placeholder="Ex: Treinamento avançado de APIs..."
+                      value={editDescricao}
+                      onChange={(e) => setEditDescricao(e.target.value)}
+                      maxLength={150}
+                      rows={2}
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="input-group">
+                  <label htmlFor="edit-descricao-geral">Descrição / Detalhes *</label>
+                  <textarea
+                    id="edit-descricao-geral"
+                    placeholder="Ex: Documentação de onboarding revisada..."
+                    value={editDescricao}
+                    onChange={(e) => setEditDescricao(e.target.value)}
+                    required
+                    maxLength={150}
+                    rows={4}
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="edit-modal-actions">
+              <button type="submit" className="btn-edit-confirm" disabled={submitting}>
+                {submitting ? <div className="spinner"></div> : "Salvar Alterações"}
+              </button>
+              <button
+                type="button"
+                className="btn-cancelar-confirm"
+                onClick={() => setEditingEntry(null)}
+                disabled={submitting}
+              >
+                Cancelar
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </div>

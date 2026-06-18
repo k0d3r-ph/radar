@@ -1092,7 +1092,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
               </datalist>
             </div>
 
-            {role === "treinador" && (
+            {isTreinador && (
               <div className="hist-campo hist-campo-row">
                 <div>
                   <label>Data do agendamento (não obrigatório)</label>
@@ -1136,7 +1136,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
               </select>
             </div>
 
-            {!editandoId && role === "treinador" && (form.tipo === "Informativa" || form.tipo === "Treinamento") && (
+            {!editandoId && isTreinador && (form.tipo === "Informativa" || form.tipo === "Treinamento") && (
               <div className="hist-campo score-btn-container">
                 <button
                   type="button"
@@ -1230,7 +1230,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
               <textarea
                 value={form.descricao}
                 onChange={(e) => {
-                  if (!editandoId) {
+                  if (!editandoId || role === "master") {
                     const val = e.target.value;
                     set("descricao", val);
                     if (!val.trim()) {
@@ -1238,16 +1238,16 @@ Score atual: ${novoScore}${mudancasTexto}`;
                     }
                   }
                 }}
-                readOnly={!!editandoId}
+                readOnly={editandoId ? role !== "master" : false}
                 placeholder="Descreva a ocorrência com detalhes..."
                 rows={Math.max(6, form.descricao.split("\n").length + 2)}
                 style={
-                  editandoId
+                  editandoId && role !== "master"
                     ? { opacity: 0.5, cursor: "not-allowed", resize: "none" }
                     : {}
                 }
               />
-              {editandoId && (
+              {editandoId && role !== "master" && (
                 <small style={{ color: "var(--text-muted)" }}>
                   Para adicionar uma nova descrição, use{" "}
                   <b>"Incluir nova atualização"</b> nos detalhes.

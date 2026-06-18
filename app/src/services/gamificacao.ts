@@ -6,6 +6,7 @@ import {
   getDocs,
   query,
   orderBy,
+  updateDoc,
 } from "firebase/firestore";
 import { db } from "./firebase";
 import type { LancamentoPonto } from "../types";
@@ -20,6 +21,14 @@ export async function salvarLancamentoPonto(
     dataLancamento: Date.now(),
   });
   return docRef.id;
+}
+
+export async function atualizarLancamentoPonto(
+  id: string,
+  lancamento: Partial<Omit<LancamentoPonto, "id" | "dataLancamento">>
+): Promise<void> {
+  const docRef = doc(db, COLLECTION, id);
+  await updateDoc(docRef, lancamento);
 }
 
 export async function listarLancamentosPontos(): Promise<LancamentoPonto[]> {

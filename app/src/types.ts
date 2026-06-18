@@ -98,5 +98,14 @@ export interface LancamentoPonto {
   dataLancamento: number;
   criadoPorId: string;
   criadoPorNome: string;
+  // Campos específicos de treinamento para uso em relatórios/gráficos
+  treinamentoEmpresa?: string;
+  treinamentoTema?: string;
+  treinamentoDataSolicitacao?: string;
+  treinamentoDataRealizacao?: string;
+  treinamentoTempoAgenda?: string;
+  treinamentoSolicitante?: string;
+  treinamentoNotas?: number[];
+  treinamentoNotaMedia?: number;
 }
 

@@ -16,8 +16,12 @@ const COLLECTION = "gamificacao_pontos";
 export async function salvarLancamentoPonto(
   lancamento: Omit<LancamentoPonto, "id" | "dataLancamento">
 ): Promise<string> {
+  const dadosLimpos = Object.fromEntries(
+    Object.entries(lancamento).filter(([_, v]) => v !== undefined)
+  );
+
   const docRef = await addDoc(collection(db, COLLECTION), {
-    ...lancamento,
+    ...dadosLimpos,
     dataLancamento: Date.now(),
   });
   return docRef.id;
@@ -28,7 +32,10 @@ export async function atualizarLancamentoPonto(
   lancamento: Partial<Omit<LancamentoPonto, "id" | "dataLancamento">>
 ): Promise<void> {
   const docRef = doc(db, COLLECTION, id);
-  await updateDoc(docRef, lancamento);
+  const dadosLimpos = Object.fromEntries(
+    Object.entries(lancamento).filter(([_, v]) => v !== undefined)
+  );
+  await updateDoc(docRef, dadosLimpos);
 }
 
 export async function listarLancamentosPontos(): Promise<LancamentoPonto[]> {

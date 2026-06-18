@@ -106,6 +106,6 @@ export interface LancamentoPonto {
   treinamentoTempoAgenda?: string;
   treinamentoSolicitante?: string;
   treinamentoNotas?: number[];
-  treinamentoNotaMedia?: number;
+  treinamentoNotaMedia?: number | null;
 }
 

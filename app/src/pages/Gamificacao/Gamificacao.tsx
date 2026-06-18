@@ -262,7 +262,7 @@ export const Gamificacao: React.FC = () => {
       let finalDescricao = "";
       let pontosAAplicar = actionConfig.pontos;
       let validNotas: number[] = [];
-      let computedMedia: number | undefined = undefined;
+      let computedMedia: number | null = null;
 
       if (selectedActionType === "treinamento") {
         const isZeroPoints =
@@ -294,7 +294,7 @@ export const Gamificacao: React.FC = () => {
 
         computedMedia = validNotas.length > 0
           ? parseFloat((validNotas.reduce((sum, n) => sum + n, 0) / validNotas.length).toFixed(2))
-          : undefined;
+          : null;
 
         finalDescricao = `Empresa: ${treinamentoEmpresa} | Tema: ${treinamentoTema.trim()} | Solicitado: ${dataSol} | Realizado: ${dataReal} | Tempo: ${treinamentoTempoAgenda.trim()} | Solicitante: ${treinamentoSolicitante}`;
 
@@ -432,7 +432,7 @@ export const Gamificacao: React.FC = () => {
 
         const computedMedia = validNotas.length > 0
           ? parseFloat((validNotas.reduce((sum, n) => sum + n, 0) / validNotas.length).toFixed(2))
-          : undefined;
+          : null;
 
         finalDescricao = `Empresa: ${editEmpresa} | Tema: ${editTema.trim()} | Solicitado: ${dataSol} | Realizado: ${dataReal} | Tempo: ${editTempoAgenda.trim()} | Solicitante: ${editSolicitante}`;
 

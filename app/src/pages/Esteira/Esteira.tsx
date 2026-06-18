@@ -23,7 +23,7 @@ function normalizarNome(nome: string) {
 function Esteira() {
   const { id } = useParams();
   const { role } = useAuth();
-  const isTreinador = role === "treinador";
+  const isTreinador = role === "treinador" || role === "master";
 
   const [empresaId, setEmpresaId] = useState("");
   const [empresas, setEmpresas] = useState<

@@ -71,11 +71,18 @@ const ACOES_DISPONIVEIS = [
 ] as const;
 
 export const Gamificacao: React.FC = () => {
-  const { user } = useAuth();
+  const { user, userName, role } = useAuth();
   const [trainers, setTrainers] = useState<UsuarioDocument[]>([]);
   const [entries, setEntries] = useState<LancamentoPonto[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+
+  const acoesFiltradas = useMemo(() => {
+    if (role === "treinador") {
+      return ACOES_DISPONIVEIS.filter((a) => a.tipo === "treinamento");
+    }
+    return ACOES_DISPONIVEIS;
+  }, [role]);
 
   // Form states
   const [selectedTrainerUid, setSelectedTrainerUid] = useState("");
@@ -96,14 +103,14 @@ export const Gamificacao: React.FC = () => {
         listarLancamentosPontos(),
       ]);
 
-      // Filter only users with "treinador" role who completed their first access
+      // Filter only users with "treinador" or "master" role who completed their first access
       const apenasTreinadores = listaUsuarios.filter(
-        (u) => u.role === "treinador" && !u.needsPasswordChange
+        (u) => (u.role === "treinador" || u.role === "master") && !u.needsPasswordChange
       );
       setTrainers(apenasTreinadores);
       setEntries(listaPontos);
 
-      // Default the selected trainer in the form to the current user if they are a trainer
+      // Default the selected trainer in the form
       if (user && apenasTreinadores.some((t) => t.uid === user.uid)) {
         setSelectedTrainerUid(user.uid);
       } else if (apenasTreinadores.length > 0) {
@@ -119,7 +126,7 @@ export const Gamificacao: React.FC = () => {
 
   useEffect(() => {
     carregarDados();
-  }, [user]);
+  }, [user, role]);
 
   // Compute scores and rank trainers
   const rankedTrainers = useMemo(() => {
@@ -148,8 +155,13 @@ export const Gamificacao: React.FC = () => {
       return;
     }
 
+    if (role === "treinador" && selectedTrainerUid !== user?.uid) {
+      toast.error("Você só pode lançar pontos para si mesmo.");
+      return;
+    }
+
     const trainer = trainers.find((t) => t.uid === selectedTrainerUid);
-    const actionConfig = ACOES_DISPONIVEIS.find((a) => a.tipo === selectedActionType);
+    const actionConfig = acoesFiltradas.find((a) => a.tipo === selectedActionType);
 
     if (!trainer || !actionConfig) {
       toast.error("Treinador ou ação inválida.");
@@ -158,11 +170,7 @@ export const Gamificacao: React.FC = () => {
 
     setSubmitting(true);
     try {
-      // Find current user's name/email for creadoPor metadata
-      const currentTrainer = trainers.find((t) => t.uid === user?.uid);
-      const criadoPorNome = currentTrainer
-        ? formatarNome(currentTrainer.nome) || currentTrainer.email
-        : user?.email || "Sistema";
+      const criadoPorNome = userName || user?.email || "Sistema";
 
       await salvarLancamentoPonto({
         treinadorId: trainer.uid,
@@ -307,29 +315,40 @@ export const Gamificacao: React.FC = () => {
 
               <form onSubmit={handleLancar} className="lancar-form">
                 <div className="input-group">
-                  <label htmlFor="trainer-select">Treinador</label>
+                  <label htmlFor={role === "master" ? "trainer-select" : "trainer-input"}>Treinador</label>
                   <div className="input-wrapper">
                     <User className="input-icon" size={18} />
-                    <select
-                      id="trainer-select"
-                      value={selectedTrainerUid}
-                      onChange={(e) => setSelectedTrainerUid(e.target.value)}
-                      required
-                      disabled={submitting}
-                    >
-                      {trainers.map((t) => (
-                        <option key={t.uid} value={t.uid}>
-                          {formatarNome(t.nome) || t.email} {t.uid === user?.uid ? "(Você)" : ""}
-                        </option>
-                      ))}
-                    </select>
+                    {role === "master" ? (
+                      <select
+                        id="trainer-select"
+                        value={selectedTrainerUid}
+                        onChange={(e) => setSelectedTrainerUid(e.target.value)}
+                        required
+                        disabled={submitting}
+                      >
+                        {trainers.map((t) => (
+                          <option key={t.uid} value={t.uid}>
+                            {formatarNome(t.nome) || t.email}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        id="trainer-input"
+                        value={userName || user?.email || ""}
+                        readOnly
+                        disabled
+                        className="input-disabled"
+                      />
+                    )}
                   </div>
                 </div>
 
                 <div className="input-group">
                   <label>Ação Realizada</label>
                   <div className="acoes-radio-group">
-                    {ACOES_DISPONIVEIS.map((acao) => {
+                    {acoesFiltradas.map((acao) => {
                       const Icon = acao.icon;
                       const isSelected = selectedActionType === acao.tipo;
                       return (
@@ -431,13 +450,15 @@ export const Gamificacao: React.FC = () => {
                               </span>
                             </td>
                             <td className="action-col">
-                              <button
-                                className="btn-delete-entry"
-                                onClick={() => setConfirmarExclusaoId(entry.id || null)}
-                                title="Remover lançamento"
-                              >
-                                <Trash2 size={14} />
-                              </button>
+                              {(role === "master" || entry.criadoPorId === user?.uid) && (
+                                <button
+                                  className="btn-delete-entry"
+                                  onClick={() => setConfirmarExclusaoId(entry.id || null)}
+                                  title="Remover lançamento"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              )}
                             </td>
                           </tr>
                         );

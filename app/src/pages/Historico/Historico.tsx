@@ -64,7 +64,7 @@ const TIPO_CLASS: Record<string, string> = {
   "Mudança de score": "tipo--mudanca-score",
 };
 
-const TEMPLATE_TREINAMENTO = `Participantes: \nNOTA: \n\nRelatório de treinamento:\n• Cliente se manteve atento? \n• Cliente absorveu o conteúdo aplicado?\n• Cliente foi participativo?\n• Houve alguma interrupção?\n• Ambiente favorável (Som)?\n• Manifestou alguma insatisfação?\n• Treinamento foi gravado?\n\nRelatório do atendimento:\n\nE-mail: \nNota:\nTexto: `;
+const TEMPLATE_TREINAMENTO = `Participantes: \n\nNOTA: \n\nRelatório de treinamento:\n\n• Cliente se manteve atento? \n• Cliente absorveu o conteúdo aplicado?\n• Cliente foi participativo?\n• Houve alguma interrupção?\n• Ambiente favorável (Som)?\n• Manifestou alguma insatisfação?\n• Treinamento foi gravado?\n\nRelatório do atendimento:\n\nE-mail: \nNota:\nTexto: `;
 
 const EMPTY: OcorrenciaForm = {
   empresa: "",
@@ -270,7 +270,7 @@ function descreverRespostas(respostas: ScoreFormAnswers): string[] {
 
 export function Historico() {
   const { role, userName, user } = useAuth();
-  const isTreinador = role === "treinador";
+  const isTreinador = role === "treinador" || role === "master";
   const [modalScoreAberto, setModalScoreAberto] = useState(false);
   const [respostasScore, setRespostasScore] = useState<ScoreFormAnswers>({ ...INITIAL_SCORE_ANSWERS });
   const [calculoScoreResult, setCalculoScoreResult] = useState<{ score: number; tipo: "Fast" | "Safety" } | null>(null);
@@ -623,6 +623,9 @@ Score atual: ${novoScore}${mudancasTexto}`;
   }
 
   const getAllowedTypes = () => {
+    if (role === "master") {
+      return ["Informativa", "Financeira", "Comercial", "Técnica", "Treinamento", "Checkpoint"];
+    }
     if (role === "treinador") {
       return ["Informativa", "Treinamento", "Checkpoint"];
     }
@@ -642,6 +645,9 @@ Score atual: ${novoScore}${mudancasTexto}`;
   };
 
   const getAllowedDepartments = () => {
+    if (role === "master") {
+      return DEPARTAMENTO;
+    }
     if (role === "treinador") {
       return ["Treinamento"];
     }
@@ -1011,7 +1017,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
               )}
 
               <div className="botoes">
-                {!novaAtualizacaoAberta && (role === "treinador" || (selecionada.responsavel && selecionada.responsavel.toLowerCase() === userName.toLowerCase())) && (
+                {!novaAtualizacaoAberta && (role === "treinador" || role === "master" || (selecionada.responsavel && selecionada.responsavel.toLowerCase() === userName.toLowerCase())) && (
                   <button
                     className="btn-secondary btn-small"
                     onClick={() => setNovaAtualizacaoAberta(true)}
@@ -1020,7 +1026,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
                   </button>
                 )}
 
-                {(role === "treinador" || (selecionada.responsavel && selecionada.responsavel.toLowerCase() === userName.toLowerCase())) && (
+                {(role === "treinador" || role === "master" || (selecionada.responsavel && selecionada.responsavel.toLowerCase() === userName.toLowerCase())) && (
                   <button
                     className="btn-secondary btn-small"
                     onClick={() => {
@@ -1032,7 +1038,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
                   </button>
                 )}
 
-                {(role === "treinador" || (selecionada.responsavel && selecionada.responsavel.toLowerCase() === userName.toLowerCase())) && (
+                {role === "master" && (
                   <button
                     className="btn-danger"
                     onClick={() => {

@@ -52,6 +52,7 @@
   gap: 30px;
   position: relative;
   z-index: 1;
+  align-items: start;
 }
 
 @media (max-width: 968px) {
@@ -189,6 +190,12 @@
   border: 1px solid rgba(236, 72, 153, 0.3);
 }
 
+.role-master {
+  background-color: rgba(99, 102, 241, 0.15);
+  color: #818cf8;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
 .status-badge {
   display: inline-flex;
   align-items: center;
@@ -232,9 +239,31 @@
   box-shadow: 0 0 10px rgba(239, 68, 68, 0.1);
 }
 
+/* Edit User Button */
+.btn-edit-user {
+  background: transparent;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  color: #818cf8;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-edit-user:hover {
+  background-color: rgba(99, 102, 241, 0.15);
+  border-color: rgba(99, 102, 241, 0.4);
+  color: #6366f1;
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.1);
+}
+
 .action-col {
   text-align: center;
-  width: 80px;
+  width: 110px;
 }
 
 /* Loader and blank states */

@@ -122,3 +122,8 @@ export async function listarUsuarios(): Promise<UsuarioDocument[]> {
 export async function removerUsuarioFirestore(uid: string): Promise<void> {
   await deleteDoc(doc(db, COLLECTION_USUARIOS, uid));
 }
+
+export async function atualizarRoleUsuario(uid: string, role: string): Promise<void> {
+  const userDocRef = doc(db, COLLECTION_USUARIOS, uid);
+  await setDoc(userDocRef, { role, updatedAt: Date.now() }, { merge: true });
+}

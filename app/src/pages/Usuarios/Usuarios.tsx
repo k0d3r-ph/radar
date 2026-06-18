@@ -9,14 +9,17 @@ import {
   AlertTriangle,
   UserCheck,
   User,
+  Edit2,
 } from "lucide-react";
 import {
   criarNovoUsuario,
   listarUsuarios,
   removerUsuarioFirestore,
+  atualizarRoleUsuario,
 } from "../../services/auth";
 import type { UsuarioDocument } from "../../services/auth";
 import { formatarNome } from "../../utils/formatarNome";
+import { useAuth } from "../../context/AuthContext";
 import "./Usuarios.css";
 
 const ROLE_DISPLAY: Record<string, string> = {
@@ -26,9 +29,11 @@ const ROLE_DISPLAY: Record<string, string> = {
   financeiro: "Financeiro",
   crc: "CRC",
   treinador: "Treinador",
+  master: "Master",
 };
 
 export const Usuarios: React.FC = () => {
+  const { role: currentUserRole } = useAuth();
   const [users, setUsers] = useState<UsuarioDocument[]>([]);
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
@@ -39,6 +44,11 @@ export const Usuarios: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [deletingUid, setDeletingUid] = useState<string | null>(null);
   const [confirmarExclusaoUid, setConfirmarExclusaoUid] = useState<string | null>(null);
+
+  // Edit role states
+  const [editingUser, setEditingUser] = useState<UsuarioDocument | null>(null);
+  const [editingUserRole, setEditingUserRole] = useState("suporte");
+  const [savingRole, setSavingRole] = useState(false);
 
   const carregarUsuarios = async () => {
     try {
@@ -70,6 +80,11 @@ export const Usuarios: React.FC = () => {
 
     if (!nome.trim() || !email.trim() || !senhaTemp.trim() || !role) {
       toast.error("Preencha todos os campos obrigatórios.");
+      return;
+    }
+
+    if (role === "master" && currentUserRole !== "master") {
+      toast.error("Você não tem permissão para cadastrar um perfil Master.");
       return;
     }
 
@@ -115,6 +130,22 @@ export const Usuarios: React.FC = () => {
       toast.error("Erro ao excluir o registro do usuário.");
     } finally {
       setDeletingUid(null);
+    }
+  };
+
+  const handleConfirmarEdicaoRole = async () => {
+    if (!editingUser) return;
+    setSavingRole(true);
+    try {
+      await atualizarRoleUsuario(editingUser.uid, editingUserRole);
+      toast.success("Perfil de acesso atualizado com sucesso!");
+      setEditingUser(null);
+      await carregarUsuarios();
+    } catch (error) {
+      console.error("Erro ao atualizar perfil:", error);
+      toast.error("Erro ao atualizar o perfil de acesso.");
+    } finally {
+      setSavingRole(false);
     }
   };
 
@@ -202,6 +233,9 @@ export const Usuarios: React.FC = () => {
                   <option value="financeiro">Financeiro</option>
                   <option value="crc">CRC</option>
                   <option value="treinador">Treinador</option>
+                  {currentUserRole === "master" && (
+                    <option value="master">Master</option>
+                  )}
                 </select>
               </div>
             </div>
@@ -254,6 +288,19 @@ export const Usuarios: React.FC = () => {
                         </span>
                       </td>
                       <td className="action-col">
+                        {currentUserRole === "master" && (
+                          <button
+                            className="btn-edit-user"
+                            onClick={() => {
+                              setEditingUser(u);
+                              setEditingUserRole(u.role);
+                            }}
+                            title="Editar Perfil"
+                            style={{ marginRight: "8px" }}
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                        )}
                         <button
                           className="btn-delete-user"
                           onClick={() => setConfirmarExclusaoUid(u.uid)}
@@ -295,6 +342,57 @@ export const Usuarios: React.FC = () => {
                 className="btn-cancelar-confirm"
                 onClick={() => setConfirmarExclusaoUid(null)}
                 disabled={deletingUid !== null}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Edição de Perfil */}
+      {editingUser && (
+        <div className="confirm-overlay" onClick={() => setEditingUser(null)}>
+          <div className="confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="confirm-modal-header">
+              <Shield className="confirm-modal-icon" size={24} style={{ color: "#818cf8" }} />
+              <h2>Editar Perfil de Acesso</h2>
+            </div>
+            <p className="confirm-modal-text">
+              Selecione o novo perfil para o usuário <strong>{formatarNome(editingUser.nome) || editingUser.email}</strong>:
+            </p>
+            <div className="input-group" style={{ marginTop: "10px" }}>
+              <div className="input-wrapper">
+                <Shield className="input-icon" size={18} />
+                <select
+                  value={editingUserRole}
+                  onChange={(e) => setEditingUserRole(e.target.value)}
+                  className="role-edit-select"
+                  style={{ width: "100%", paddingLeft: "45px" }}
+                >
+                  <option value="suporte">Suporte</option>
+                  <option value="hardware">Hardware</option>
+                  <option value="comercial">Comercial/Aplicações</option>
+                  <option value="financeiro">Financeiro</option>
+                  <option value="crc">CRC</option>
+                  <option value="treinador">Treinador</option>
+                  <option value="master">Master</option>
+                </select>
+              </div>
+            </div>
+            <div className="confirm-modal-actions">
+              <button
+                className="btn-salvar-confirm"
+                onClick={handleConfirmarEdicaoRole}
+                disabled={savingRole}
+                style={{ background: "#6366f1", color: "white", border: "1px solid #6366f1" }}
+              >
+                {savingRole ? <div className="spinner"></div> : "Salvar"}
+              </button>
+              <button
+                className="btn-cancelar-confirm"
+                onClick={() => setEditingUser(null)}
+                disabled={savingRole}
               >
                 Cancelar
               </button>

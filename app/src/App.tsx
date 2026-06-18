@@ -74,7 +74,7 @@ function AppRoutes() {
           >
             Histórico de Ocorrências
           </NavLink>
-          {role === "treinador" && (
+          {(role === "treinador" || role === "master") && (
             <>
               <NavLink
                 to="/usuarios"
@@ -109,13 +109,13 @@ function AppRoutes() {
 
         <Route path="/home" element={<Home />} />
 
-        {role === "treinador" ? (
+        {role === "treinador" || role === "master" ? (
           <Route path="/usuarios" element={<Usuarios />} />
         ) : (
           <Route path="/usuarios" element={<Navigate to="/home" replace />} />
         )}
 
-        {role === "treinador" ? (
+        {role === "treinador" || role === "master" ? (
           <Route path="/gamificacao" element={<Gamificacao />} />
         ) : (
           <Route path="/gamificacao" element={<Navigate to="/home" replace />} />

@@ -327,6 +327,26 @@
   background-size: 16px;
 }
 
+.input-wrapper input {
+  width: 100%;
+  height: 48px;
+  background-color: rgba(31, 41, 55, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 0 15px 0 45px;
+  font-size: 15px;
+  color: #ffffff;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.input-wrapper input.input-disabled {
+  background-color: rgba(31, 41, 55, 0.2);
+  color: #9ca3af;
+  border-color: rgba(255, 255, 255, 0.05);
+  cursor: not-allowed;
+}
+
 .input-wrapper select:focus {
   border-color: #6366f1;
   box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);

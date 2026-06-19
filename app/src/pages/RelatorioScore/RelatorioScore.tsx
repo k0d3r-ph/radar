@@ -8,7 +8,8 @@ import {
   Users,
   CheckCircle2,
 } from "lucide-react";
-import { listarEmpresas } from "../../services/empresas";
+import { collection, onSnapshot } from "firebase/firestore";
+import { db } from "../../services/firebase";
 import type { Empresa } from "../../types";
 import "./RelatorioScore.css";
 
@@ -49,19 +50,29 @@ export const RelatorioScore: React.FC = () => {
   const [perguntaExpandida, setPerguntaExpandida] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    async function carregarDados() {
-      try {
-        setLoading(true);
-        const lista = await listarEmpresas();
+    const colRef = collection(db, "empresas");
+
+    const unsubscribe = onSnapshot(
+      colRef,
+      (snapshot) => {
+        const lista = snapshot.docs
+          .map((doc) => ({
+            id: doc.id,
+            ...(doc.data() as Omit<Empresa, "id">),
+          }))
+          .filter((empresa) => empresa.id);
+
         setEmpresasList(lista);
-      } catch (error) {
-        console.error("Erro ao buscar empresas:", error);
-        toast.error("Erro ao carregar dados dos clientes.");
-      } finally {
+        setLoading(false);
+      },
+      (error) => {
+        console.error("Erro ao escutar empresas em tempo real:", error);
+        toast.error("Erro ao carregar dados dos clientes em tempo real.");
         setLoading(false);
       }
-    }
-    carregarDados();
+    );
+
+    return () => unsubscribe();
   }, []);
 
   const reportData = useMemo(() => {

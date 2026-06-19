@@ -25,6 +25,7 @@ const ROLE_DISPLAY: Record<string, string> = {
   financeiro: "Financeiro",
   crc: "CRC",
   treinador: "Treinador",
+  master: "Master",
 };
 
 export const Usuarios: React.FC = () => {
@@ -183,6 +184,7 @@ export const Usuarios: React.FC = () => {
                   <option value="financeiro">Financeiro</option>
                   <option value="crc">CRC</option>
                   <option value="treinador">Treinador</option>
+                  <option value="master">Master</option>
                 </select>
               </div>
             </div>

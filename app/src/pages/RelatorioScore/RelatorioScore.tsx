@@ -7,6 +7,7 @@ import {
   BarChart3,
   Users,
   CheckCircle2,
+  UserX,
 } from "lucide-react";
 import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "../../services/firebase";
@@ -48,6 +49,7 @@ export const RelatorioScore: React.FC = () => {
   const [empresasList, setEmpresasList] = useState<Empresa[]>([]);
   const [loading, setLoading] = useState(true);
   const [perguntaExpandida, setPerguntaExpandida] = useState<Record<string, boolean>>({});
+  const [mostrarSemScore, setMostrarSemScore] = useState(false);
 
   useEffect(() => {
     const colRef = collection(db, "empresas");
@@ -79,8 +81,12 @@ export const RelatorioScore: React.FC = () => {
     const empresasComScore = empresasList.filter(
       (e) => e.scoreAnswers && typeof e.score === "number"
     );
+    const empresasSemScore = empresasList.filter(
+      (e) => !e.scoreAnswers || typeof e.score !== "number"
+    );
 
     const totalCalculados = empresasComScore.length;
+    const totalSemScore = empresasSemScore.length;
     const somaScores = empresasComScore.reduce((acc, curr) => acc + (curr.score || 0), 0);
     const mediaScore = totalCalculados > 0 ? somaScores / totalCalculados : 0;
 
@@ -105,13 +111,15 @@ export const RelatorioScore: React.FC = () => {
     return {
       totalClientes: empresasList.length,
       totalCalculados,
+      totalSemScore,
+      clientesSemScore: empresasSemScore.map((e) => e.nomeEmpresa).sort(),
       mediaScore,
       questions: statsPerQuestion,
     };
   }, [empresasList]);
 
   const exportarRelatorioTXT = () => {
-    const { totalClientes, totalCalculados, mediaScore, questions } = reportData;
+    const { totalClientes, totalCalculados, totalSemScore, clientesSemScore, mediaScore, questions } = reportData;
     const now = new Date();
     const dataFormatada = now.toLocaleDateString("pt-BR");
     const horaFormatada = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
@@ -124,6 +132,7 @@ Gerado em: ${dataFormatada} às ${horaFormatada}
 RESUMO GERAL:
 - Total de clientes cadastrados: ${totalClientes}
 - Clientes com score calculado: ${totalCalculados} (${totalClientes > 0 ? ((totalCalculados / totalClientes) * 100).toFixed(1) : 0}%)
+- Clientes sem score calculado: ${totalSemScore} (${totalClientes > 0 ? ((totalSemScore / totalClientes) * 100).toFixed(1) : 0}%)
 - Média dos scores calculados: ${mediaScore.toFixed(2)}
 
 --------------------------------------------------
@@ -158,6 +167,13 @@ ${q.naoClients.length > 0 ? q.naoClients.map(name => `   - ${name}`).join("\n") 
 --------------------------------------------------
 `;
     });
+
+    content += `
+==================================================
+CLIENTES SEM CÁLCULO DE SCORE (${totalSemScore})
+==================================================
+${clientesSemScore.length > 0 ? clientesSemScore.map(name => ` - ${name}`).join("\n") : " (Nenhum cliente)"}
+`;
 
     const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -211,8 +227,18 @@ ${q.naoClients.length > 0 ? q.naoClients.map(name => `   - ${name}`).join("\n") 
                 <BarChart3 size={24} />
               </div>
               <div className="card-data">
-                <span className="card-value">{reportData.mediaScore.toFixed(1)}</span>
+                <span className="card-value">{reportData.mediaScore.toFixed(2)}</span>
                 <span className="card-label">Média de Score</span>
+              </div>
+            </div>
+
+            <div className="relatorio-card summary-card">
+              <div className="card-icon-wrapper">
+                <UserX size={24} />
+              </div>
+              <div className="card-data">
+                <span className="card-value">{reportData.totalSemScore}</span>
+                <span className="card-label">Sem Score</span>
               </div>
             </div>
           </div>
@@ -224,6 +250,37 @@ ${q.naoClients.length > 0 ? q.naoClients.map(name => `   - ${name}`).join("\n") 
               Exportar Relatório Completo (.txt)
             </button>
           </div>
+
+          {/* Seção de Clientes Sem Score */}
+          {reportData.clientesSemScore.length > 0 && (
+            <div className="relatorio-card sem-score-card">
+              <div
+                className="sem-score-header"
+                onClick={() => setMostrarSemScore((prev) => !prev)}
+              >
+                <div className="sem-score-title-wrapper">
+                  <UserX size={20} />
+                  <h3>Clientes sem Score Calculado ({reportData.totalSemScore})</h3>
+                </div>
+                {mostrarSemScore ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+              </div>
+
+              {mostrarSemScore && (
+                <div className="sem-score-content">
+                  <p className="sem-score-desc">
+                    Estes clientes estão cadastrados no sistema, mas ainda não tiveram o cálculo de score realizado (nenhum formulário respondido).
+                  </p>
+                  <div className="sem-score-list">
+                    {reportData.clientesSemScore.map((nome) => (
+                      <span key={nome} className="sem-score-badge">
+                        {nome}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Listagem de Perguntas */}
           <div className="relatorio-questions-grid">

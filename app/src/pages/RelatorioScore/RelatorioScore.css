@@ -101,6 +101,11 @@
   color: #8b5cf6;
 }
 
+.summary-card:nth-child(4) .card-icon-wrapper {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+}
+
 .card-data {
   display: flex;
   flex-direction: column;
@@ -306,6 +311,92 @@
   color: #94a3b8;
   font-style: italic;
   text-align: center;
+}
+
+/* Seção de Clientes Sem Score */
+.sem-score-card {
+  margin-bottom: 24px;
+  border-color: #fed7aa; /* Soft orange border to stand out slightly as warning/info */
+  background: linear-gradient(145deg, #ffffff 0%, #fffbf7 100%);
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.04);
+}
+
+.sem-score-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s ease;
+}
+
+.sem-score-header:hover {
+  background-color: #fffaf0;
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+}
+
+.sem-score-title-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #d97706; /* Darker amber for text/icon */
+}
+
+.sem-score-title-wrapper h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #0f2a5e;
+}
+
+.sem-score-content {
+  padding: 0 24px 24px;
+  border-top: 1px solid #ffedd5;
+  padding-top: 16px;
+  animation: fadeIn 0.25s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.sem-score-desc {
+  margin: 0 0 16px;
+  font-size: 0.9rem;
+  color: #5a6a8a;
+  line-height: 1.5;
+}
+
+.sem-score-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sem-score-badge {
+  background: rgba(245, 158, 11, 0.08);
+  color: #d97706;
+  border: 1.5px solid rgba(245, 158, 11, 0.2);
+  padding: 6px 12px;
+  border-radius: 99px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(245, 158, 11, 0.02);
+  transition: all 0.2s ease;
+}
+
+.sem-score-badge:hover {
+  background: rgba(245, 158, 11, 0.12);
+  transform: translateY(-1px);
 }
 
 /* Responsividade */

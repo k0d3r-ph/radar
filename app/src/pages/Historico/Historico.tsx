@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
@@ -18,8 +18,6 @@ import {
   TrendingUp,
   Code,
   Cpu,
-  ChevronDown,
-  ChevronRight,
 } from "lucide-react";
 
 const TIPOS = [
@@ -270,24 +268,6 @@ function descreverRespostas(respostas: ScoreFormAnswers): string[] {
   ];
 }
 
-interface ScoreQuestionMeta {
-  key: keyof ScoreFormAnswers;
-  label: string;
-  descSim: string;
-  descNao: string;
-}
-
-const SCORE_QUESTIONS: ScoreQuestionMeta[] = [
-  { key: "facilContato", label: "Contato com o cliente é fácil?", descSim: "Contato fácil", descNao: "Difícil contato" },
-  { key: "entraComputador", label: "Cliente entra pelo computador?", descSim: "Entra pelo computador", descNao: "Não entra pelo computador" },
-  { key: "compartilhaTela", label: "Cliente compartilha a tela?", descSim: "Compartilha a tela", descNao: "Não compartilha a tela" },
-  { key: "fazPerguntas", label: "Cliente faz perguntas?", descSim: "Faz perguntas", descNao: "Não faz perguntas" },
-  { key: "recordaTemas", label: "Cliente se recorda de temas anteriores?", descSim: "Se recorda de temas", descNao: "Não se recorda de temas" },
-  { key: "faltouDoisDias", label: "Cliente faltou 2 dias seguidos?", descSim: "Faltou 2 dias seguidos", descNao: "Não faltou 2 dias seguidos" },
-  { key: "estruturaNecessaria", label: "Cliente possui estrutura necessária?", descSim: "Possui estrutura necessária", descNao: "Não possui estrutura necessária" },
-  { key: "clienteReclamante", label: "Cliente é reclamante?", descSim: "Cliente é reclamante", descNao: "Cliente não é reclamante" },
-  { key: "clienteSumido", label: "Cliente sumiu?", descSim: "Cliente sumiu", descNao: "Cliente não sumiu" },
-];
 
 export function Historico() {
   const { role, userName, user } = useAuth();
@@ -295,8 +275,6 @@ export function Historico() {
   const [modalScoreAberto, setModalScoreAberto] = useState(false);
   const [respostasScore, setRespostasScore] = useState<ScoreFormAnswers>({ ...INITIAL_SCORE_ANSWERS });
   const [calculoScoreResult, setCalculoScoreResult] = useState<{ score: number; tipo: "Fast" | "Safety" } | null>(null);
-  const [modalReportAberto, setModalReportAberto] = useState(false);
-  const [perguntaExpandida, setPerguntaExpandida] = useState<Record<string, boolean>>({});
   const [novaAtualizacaoAberta, setNovaAtualizacaoAberta] = useState(false);
   const [novaDescricaoAtual, setNovaDescricaoAtual] = useState("");
   const [novoResponsavelAtual, setNovoResponsavelAtual] = useState("");
@@ -319,98 +297,6 @@ export function Historico() {
 
   const empresaFiltro = searchParams.get("empresa") || "";
 
-  const reportData = useMemo(() => {
-    const empresasComScore = empresasList.filter(
-      (e) => e.scoreAnswers && typeof e.score === "number"
-    );
-
-    const totalCalculados = empresasComScore.length;
-    const somaScores = empresasComScore.reduce((acc, curr) => acc + (curr.score || 0), 0);
-    const mediaScore = totalCalculados > 0 ? somaScores / totalCalculados : 0;
-
-    const statsPerQuestion = SCORE_QUESTIONS.map((q) => {
-      const simList = empresasComScore.filter((e) => e.scoreAnswers[q.key] === "Sim");
-      const naoList = empresasComScore.filter((e) => e.scoreAnswers[q.key] === "Não");
-
-      const pctSim = totalCalculados > 0 ? (simList.length / totalCalculados) * 100 : 0;
-      const pctNao = totalCalculados > 0 ? (naoList.length / totalCalculados) * 100 : 0;
-
-      return {
-        ...q,
-        simCount: simList.length,
-        naoCount: naoList.length,
-        pctSim,
-        pctNao,
-        simClients: simList.map((e) => e.nomeEmpresa).sort(),
-        naoClients: naoList.map((e) => e.nomeEmpresa).sort(),
-      };
-    });
-
-    return {
-      totalClientes: empresasList.length,
-      totalCalculados,
-      mediaScore,
-      questions: statsPerQuestion,
-    };
-  }, [empresasList]);
-
-  const exportarRelatorioTXT = () => {
-    const { totalClientes, totalCalculados, mediaScore, questions } = reportData;
-    const now = new Date();
-    const dataFormatada = now.toLocaleDateString("pt-BR");
-    const horaFormatada = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-
-    let content = `==================================================
-RELATÓRIO GERAL DE SCORES DOS CLIENTES
-Gerado em: ${dataFormatada} às ${horaFormatada}
-==================================================
-
-RESUMO GERAL:
-- Total de clientes cadastrados: ${totalClientes}
-- Clientes com score calculado: ${totalCalculados} (${totalClientes > 0 ? ((totalCalculados / totalClientes) * 100).toFixed(1) : 0}%)
-- Média dos scores calculados: ${mediaScore.toFixed(2)}
-
---------------------------------------------------
-ESTATÍSTICAS POR PERGUNTA:
---------------------------------------------------
-`;
-
-    questions.forEach((q, index) => {
-      content += `
-${index + 1}. ${q.label}
-   - ${q.descSim}: ${q.simCount} cliente(s) (${q.pctSim.toFixed(1)}%)
-   - ${q.descNao}: ${q.naoCount} cliente(s) (${q.pctNao.toFixed(1)}%)
-`;
-    });
-
-    content += `
-==================================================
-LISTAGEM DE CLIENTES POR CATEGORIA
-==================================================
-`;
-
-    questions.forEach((q, index) => {
-      content += `
-${index + 1}. ${q.label}
-
-   [Sim] ${q.descSim} (${q.simCount} cliente(s)):
-${q.simClients.length > 0 ? q.simClients.map(name => `   - ${name}`).join("\n") : "   (Nenhum cliente)"}
-
-   [Não] ${q.descNao} (${q.naoCount} cliente(s)):
-${q.naoClients.length > 0 ? q.naoClients.map(name => `   - ${name}`).join("\n") : "   (Nenhum cliente)"}
-
---------------------------------------------------
-`;
-    });
-
-    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `relatorio_scores_${now.toISOString().split("T")[0]}.txt`;
-    link.click();
-    URL.revokeObjectURL(url);
-  };
 
   const temAusenteOuCancelado = form.temaOcorrencia?.some(t => t === "Ausente" || t === "Cancelado") ?? false;
   const temOutrosTemas = form.temaOcorrencia?.some(t => t !== "Ausente" && t !== "Cancelado") ?? false;
@@ -829,28 +715,9 @@ Score atual: ${novoScore}${mudancasTexto}`;
               Registro e acompanhamento de ocorrências
             </p>
           </div>
-          <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-            {role === "master" && (
-              <button
-                className="btn-secondary"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  background: "#f8fafc",
-                  color: "#0f2a5e",
-                  borderColor: "#dde3ef",
-                  boxShadow: "0 2px 8px rgba(0, 0, 0, 0.05)"
-                }}
-                onClick={() => setModalReportAberto(true)}
-              >
-                📊 Relatório de Scores
-              </button>
-            )}
-            <button className="btn-primary hist-btn-novo" onClick={abrirNovo}>
-              + Nova ocorrência
-            </button>
-          </div>
+          <button className="btn-primary hist-btn-novo" onClick={abrirNovo}>
+            + Nova ocorrência
+          </button>
         </div>
       </header>
 
@@ -1703,135 +1570,6 @@ Score atual: ${novoScore}${mudancasTexto}`;
               >
                 Confirmar Cálculo
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {modalReportAberto && (
-        <div className="report-modal-overlay" onClick={() => setModalReportAberto(false)}>
-          <div className="report-modal-card" onClick={(e) => e.stopPropagation()}>
-            <div className="report-modal-header">
-              <div className="report-modal-title-group">
-                <h2>📊 Relatório Geral de Scores</h2>
-                <p>Estatísticas baseadas no último score calculado dos clientes</p>
-              </div>
-              <button className="report-modal-fechar" onClick={() => setModalReportAberto(false)}>✕</button>
-            </div>
-
-            <div className="report-modal-body">
-              {/* Cards de Resumo */}
-              <div className="report-summary-cards">
-                <div className="report-summary-card">
-                  <span className="report-summary-num">{reportData.totalClientes}</span>
-                  <span className="report-summary-label">Total de Clientes</span>
-                </div>
-                <div className="report-summary-card">
-                  <span className="report-summary-num">{reportData.totalCalculados}</span>
-                  <span className="report-summary-label">Scores Calculados</span>
-                </div>
-                <div className="report-summary-card">
-                  <span className="report-summary-num">{reportData.mediaScore.toFixed(1)}</span>
-                  <span className="report-summary-label">Média de Score</span>
-                </div>
-              </div>
-
-              {/* Botão de Exportação */}
-              <div className="report-export-container">
-                <button className="btn-export-txt" onClick={exportarRelatorioTXT}>
-                  📥 Exportar Relatório Completo (.txt)
-                </button>
-              </div>
-
-              {/* Lista de Perguntas */}
-              <div className="report-questions-list">
-                {reportData.questions.map((q) => {
-                  const isSimExpanded = !!perguntaExpandida[`${q.key}_Sim`];
-                  const isNaoExpanded = !!perguntaExpandida[`${q.key}_Não`];
-
-                  return (
-                    <div key={q.key} className="report-question-card">
-                      <h3 className="report-question-title">{q.label}</h3>
-                      
-                      {/* Barra de Progresso Split */}
-                      <div className="report-split-bar-container">
-                        <div className="report-split-bar">
-                          <div 
-                            className="report-bar-sim" 
-                            style={{ width: `${q.simCount || q.naoCount ? q.pctSim : 50}%` }}
-                          />
-                          <div 
-                            className="report-bar-nao" 
-                            style={{ width: `${q.simCount || q.naoCount ? q.pctNao : 50}%` }}
-                          />
-                        </div>
-                        <div className="report-bar-labels">
-                          <span>{q.pctSim.toFixed(0)}% Sim</span>
-                          <span>{q.pctNao.toFixed(0)}% Não</span>
-                        </div>
-                      </div>
-
-                      {/* Botões de expansão/detalhe */}
-                      <div className="report-toggle-buttons">
-                        <div className="report-toggle-group">
-                          <button 
-                            type="button" 
-                            className={`btn-toggle-clients ${isSimExpanded ? 'active' : ''}`}
-                            onClick={() => setPerguntaExpandida(prev => ({
-                              ...prev,
-                              [`${q.key}_Sim`]: !prev[`${q.key}_Sim`]
-                            }))}
-                          >
-                            <span>🟢 {q.descSim}: <strong>{q.simCount}</strong></span>
-                            {isSimExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                          </button>
-
-                          {isSimExpanded && (
-                            <div className="report-clients-list">
-                              {q.simClients.length > 0 ? (
-                                <ul>
-                                  {q.simClients.map(c => <li key={c}>{c}</li>)}
-                                </ul>
-                              ) : (
-                                <p className="no-clients-text">Nenhum cliente</p>
-                              )}
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="report-toggle-group">
-                          <button 
-                            type="button" 
-                            className={`btn-toggle-clients ${isNaoExpanded ? 'active' : ''}`}
-                            onClick={() => setPerguntaExpandida(prev => ({
-                              ...prev,
-                              [`${q.key}_Não`]: !prev[`${q.key}_Não`]
-                            }))}
-                          >
-                            <span>🔴 {q.descNao}: <strong>{q.naoCount}</strong></span>
-                            {isNaoExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                          </button>
-
-                          {isNaoExpanded && (
-                            <div className="report-clients-list">
-                              {q.naoClients.length > 0 ? (
-                                <ul>
-                                  {q.naoClients.map(c => <li key={c}>{c}</li>)}
-                                </ul>
-                              ) : (
-                                <p className="no-clients-text">Nenhum cliente</p>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="report-modal-footer">
-              <button className="btn-ghost" onClick={() => setModalReportAberto(false)}>Fechar</button>
             </div>
           </div>
         </div>

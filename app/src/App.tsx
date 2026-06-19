@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import { LogOut } from "lucide-react";
 import { Usuarios } from "./pages/Usuarios/Usuarios";
 import { Gamificacao } from "./pages/Gamificacao/Gamificacao";
+import { RelatorioScore } from "./pages/RelatorioScore/RelatorioScore";
 
 function AppRoutes() {
   const { user, loading, needsPasswordChange, role, logout } = useAuth();
@@ -90,6 +91,14 @@ function AppRoutes() {
               </NavLink>
             </>
           )}
+          {role === "master" && (
+            <NavLink
+              to="/relatorio-score"
+              className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
+            >
+              Relatório de Scores
+            </NavLink>
+          )}
         </div>
         <button className="nav-logout-btn" onClick={handleLogout} title="Sair">
           <LogOut size={16} />
@@ -119,6 +128,12 @@ function AppRoutes() {
           <Route path="/gamificacao" element={<Gamificacao />} />
         ) : (
           <Route path="/gamificacao" element={<Navigate to="/home" replace />} />
+        )}
+
+        {role === "master" ? (
+          <Route path="/relatorio-score" element={<RelatorioScore />} />
+        ) : (
+          <Route path="/relatorio-score" element={<Navigate to="/home" replace />} />
         )}
         
         <Route path="*" element={<Navigate to="/home" replace />} />

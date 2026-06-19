@@ -496,30 +496,14 @@ export function Historico() {
       : null;
 
     const novaDescricao = form.descricao.trim();
-    const descricaoMudou =
-      ocorrenciaOriginal && novaDescricao !== ocorrenciaOriginal.descricao.trim();
-
-    const atualizacoesAntigas = ocorrenciaOriginal?.atualizacoes ?? [];
-
-    const atualizacoes = descricaoMudou
-      ? [
-        ...atualizacoesAntigas,
-        {
-          descricao: novaDescricao,
-          updatedAt: Date.now(),
-          responsavel: responsavelFinal || undefined,
-        },
-      ]
-      : atualizacoesAntigas;
 
     const base = {
       ...form,
       empresa: form.empresa.trim(),
-      // mantém a descrição original intacta
-      descricao: ocorrenciaOriginal?.descricao.trim() ?? novaDescricao,
+      descricao: novaDescricao,
       responsavel: responsavelFinal,
       dataOcorrencia: timestamp,
-      atualizacoes,
+      atualizacoes: ocorrenciaOriginal?.atualizacoes ?? [],
       scoreCalculado: calculoScoreResult ? calculoScoreResult.score : ocorrenciaOriginal?.scoreCalculado,
       scoreAnswers: calculoScoreResult ? respostasScore : ocorrenciaOriginal?.scoreAnswers,
     };

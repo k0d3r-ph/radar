@@ -174,7 +174,7 @@ export default function Home() {
       );
 
       const dataBase =
-        ultimoTreinamento?.dataOcorrencia ?? ultimoTreinamento?.createdAt;
+        ultimoTreinamento?.dataOcorrencia || ultimoTreinamento?.createdAt;
 
       const tme = calcularTME(dataBase);
 
@@ -277,7 +277,7 @@ export default function Home() {
         <p>Acompanhe o progresso dos clientes na esteira de capacitação.</p>
       </header>
 
-      {role === "treinador" && (
+      {(role === "treinador" || role === "master") && (
         <div className="home-actions">
           <button className="btn-primary" onClick={novoCliente}>
             + Novo cliente
@@ -607,7 +607,7 @@ export default function Home() {
             </div>
 
             <div className="cliente-modal-actions">
-              {role === "treinador" && (
+              {(role === "treinador" || role === "master") && (
                 <button
                   className="btn-editar"
                   onClick={() => editarCliente(clienteSelecionado)}
@@ -634,7 +634,7 @@ export default function Home() {
                 Ver ocorrências
               </button>
 
-              {role === "treinador" && (
+              {(role === "treinador" || role === "master") && (
                 <button
                   className="btn-excluir"
                   onClick={() => setConfirmarExclusaoAberto(true)}

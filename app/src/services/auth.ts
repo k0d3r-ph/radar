@@ -79,7 +79,7 @@ export interface UsuarioDocument {
   createdAt?: number;
 }
 
-export async function criarNovoUsuario(email: string, senhaTemp: string, role: string): Promise<void> {
+export async function criarNovoUsuario(email: string, senhaTemp: string, role: string, nome: string): Promise<void> {
   const tempAppName = `temp-register-${Date.now()}`;
   const tempApp = initializeApp(firebaseConfig, tempAppName);
   const tempAuth = getAuth(tempApp);
@@ -92,7 +92,7 @@ export async function criarNovoUsuario(email: string, senhaTemp: string, role: s
       email,
       role,
       needsPasswordChange: true,
-      nome: "",
+      nome,
       createdAt: Date.now()
     });
 
@@ -121,4 +121,9 @@ export async function listarUsuarios(): Promise<UsuarioDocument[]> {
 
 export async function removerUsuarioFirestore(uid: string): Promise<void> {
   await deleteDoc(doc(db, COLLECTION_USUARIOS, uid));
+}
+
+export async function atualizarRoleUsuario(uid: string, role: string): Promise<void> {
+  const userDocRef = doc(db, COLLECTION_USUARIOS, uid);
+  await setDoc(userDocRef, { role, updatedAt: Date.now() }, { merge: true });
 }

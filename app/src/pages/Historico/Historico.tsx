@@ -66,7 +66,7 @@ const TIPO_CLASS: Record<string, string> = {
   "Mudança de score": "tipo--mudanca-score",
 };
 
-const TEMPLATE_TREINAMENTO = `Participantes: \nNOTA: \n\nRelatório de treinamento:\n• Cliente se manteve atento? \n• Cliente absorveu o conteúdo aplicado?\n• Cliente foi participativo?\n• Houve alguma interrupção?\n• Ambiente favorável (Som)?\n• Manifestou alguma insatisfação?\n• Treinamento foi gravado?\n\nRelatório do atendimento:\n\nE-mail: \nNota:\nTexto: `;
+const TEMPLATE_TREINAMENTO = `Participantes: \n\nNOTA: \n\nRelatório de treinamento:\n\n• Cliente se manteve atento? \n• Cliente absorveu o conteúdo aplicado?\n• Cliente foi participativo?\n• Houve alguma interrupção?\n• Ambiente favorável (Som)?\n• Manifestou alguma insatisfação?\n• Treinamento foi gravado?\n\nRelatório do atendimento:\n\nE-mail: \nNota:\nTexto: `;
 
 const EMPTY: OcorrenciaForm = {
   empresa: "",
@@ -291,7 +291,7 @@ const SCORE_QUESTIONS: ScoreQuestionMeta[] = [
 
 export function Historico() {
   const { role, userName, user } = useAuth();
-  const isTreinador = role === "treinador";
+  const isTreinador = role === "treinador" || role === "master";
   const [modalScoreAberto, setModalScoreAberto] = useState(false);
   const [respostasScore, setRespostasScore] = useState<ScoreFormAnswers>({ ...INITIAL_SCORE_ANSWERS });
   const [calculoScoreResult, setCalculoScoreResult] = useState<{ score: number; tipo: "Fast" | "Safety" } | null>(null);
@@ -478,6 +478,7 @@ ${q.naoClients.length > 0 ? q.naoClients.map(name => `   - ${name}`).join("\n") 
     carregar();
   }, []);
 
+
   useEffect(() => {
     if (selecionada) {
       document.body.style.overflow = "hidden";
@@ -492,7 +493,7 @@ ${q.naoClients.length > 0 ? q.naoClients.map(name => `   - ${name}`).join("\n") 
   useEffect(() => {
     if (editandoId) return;
 
-    if (form.tipo === "Treinamento" && temTemaValido) {
+    if (form.tipo === "Treinamento") {
       if (usarTemplate && !form.descricao.trim()) {
         setForm(f => ({ ...f, descricao: TEMPLATE_TREINAMENTO }));
       }
@@ -501,7 +502,7 @@ ${q.naoClients.length > 0 ? q.naoClients.map(name => `   - ${name}`).join("\n") 
         setForm(f => ({ ...f, descricao: "" }));
       }
     }
-  }, [form.tipo, temTemaValido, form.descricao, editandoId, usarTemplate]);
+  }, [form.tipo, form.descricao, editandoId, usarTemplate]);
 
   useEffect(() => {
     if (editandoId) return;
@@ -738,8 +739,11 @@ Score atual: ${novoScore}${mudancasTexto}`;
   }
 
   const getAllowedTypes = () => {
+    if (role === "master") {
+      return ["Informativa", "Financeira", "Comercial", "Técnica", "Treinamento", "Checkpoint"];
+    }
     if (role === "treinador") {
-      return TIPOS.filter((t) => t !== "Mudança de score");
+      return ["Informativa", "Treinamento", "Checkpoint"];
     }
     if (role === "suporte" || role === "hardware") {
       return ["Informativa", "Técnica"];
@@ -757,8 +761,11 @@ Score atual: ${novoScore}${mudancasTexto}`;
   };
 
   const getAllowedDepartments = () => {
-    if (role === "treinador") {
+    if (role === "master") {
       return DEPARTAMENTO;
+    }
+    if (role === "treinador") {
+      return ["Treinamento"];
     }
     if (role === "crc") {
       return ["CS"];
@@ -1036,10 +1043,10 @@ Score atual: ${novoScore}${mudancasTexto}`;
                   <span>Data da ocorrência</span>
                   <strong>
                     {new Date(
-                      selecionada.createdAt ?? selecionada.dataOcorrencia ?? Date.now()
+                      selecionada.createdAt ?? selecionada.dataOcorrencia ?? 0
                     ).toLocaleDateString("pt-BR")}{" "}
                     {new Date(
-                      selecionada.createdAt ?? selecionada.dataOcorrencia ?? Date.now()
+                      selecionada.createdAt ?? selecionada.dataOcorrencia ?? 0
                     ).toLocaleTimeString("pt-BR", {
                       hour: "2-digit",
                       minute: "2-digit",
@@ -1145,7 +1152,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
               )}
 
               <div className="botoes">
-                {!novaAtualizacaoAberta && (role === "treinador" || (selecionada.responsavel && selecionada.responsavel.toLowerCase() === userName.toLowerCase())) && (
+                {!novaAtualizacaoAberta && (role === "treinador" || role === "master" || (selecionada.responsavel && selecionada.responsavel.toLowerCase() === userName.toLowerCase())) && (
                   <button
                     className="btn-secondary btn-small"
                     onClick={() => setNovaAtualizacaoAberta(true)}
@@ -1154,7 +1161,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
                   </button>
                 )}
 
-                {(role === "treinador" || (selecionada.responsavel && selecionada.responsavel.toLowerCase() === userName.toLowerCase())) && (
+                {(role === "treinador" || role === "master" || (selecionada.responsavel && selecionada.responsavel.toLowerCase() === userName.toLowerCase())) && (
                   <button
                     className="btn-secondary btn-small"
                     onClick={() => {
@@ -1166,7 +1173,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
                   </button>
                 )}
 
-                {(role === "treinador" || (selecionada.responsavel && selecionada.responsavel.toLowerCase() === userName.toLowerCase())) && (
+                {role === "master" && (
                   <button
                     className="btn-danger"
                     onClick={() => {
@@ -1220,7 +1227,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
               </datalist>
             </div>
 
-            {role === "treinador" && (
+            {isTreinador && (
               <div className="hist-campo hist-campo-row">
                 <div>
                   <label>Data do agendamento (não obrigatório)</label>
@@ -1264,7 +1271,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
               </select>
             </div>
 
-            {!editandoId && role === "treinador" && (form.tipo === "Informativa" || form.tipo === "Treinamento") && (
+            {!editandoId && isTreinador && (form.tipo === "Informativa" || form.tipo === "Treinamento") && (
               <div className="hist-campo score-btn-container">
                 <button
                   type="button"
@@ -1286,7 +1293,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
               <select
                 value={form.departamento}
                 onChange={(e) => set("departamento", e.target.value)}
-                disabled={!isTreinador && getAllowedDepartments().length === 1}
+                disabled={getAllowedDepartments().length === 1}
               >
                 <option value="">Selecione...</option>
                 {getAllowedDepartments().map((t) => (
@@ -1342,7 +1349,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
             <div className="hist-campo">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
                 <label style={{ marginBottom: 0 }}>Descrição *</label>
-                {form.tipo === "Treinamento" && !editandoId && temTemaValido && form.descricao !== TEMPLATE_TREINAMENTO && (
+                {form.tipo === "Treinamento" && !editandoId && form.descricao !== TEMPLATE_TREINAMENTO && (
                   <button
                     type="button"
                     className="btn-link-template"
@@ -1358,7 +1365,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
               <textarea
                 value={form.descricao}
                 onChange={(e) => {
-                  if (!editandoId) {
+                  if (!editandoId || role === "master") {
                     const val = e.target.value;
                     set("descricao", val);
                     if (!val.trim()) {
@@ -1366,16 +1373,16 @@ Score atual: ${novoScore}${mudancasTexto}`;
                     }
                   }
                 }}
-                readOnly={!!editandoId}
+                readOnly={editandoId ? role !== "master" : false}
                 placeholder="Descreva a ocorrência com detalhes..."
                 rows={Math.max(6, form.descricao.split("\n").length + 2)}
                 style={
-                  editandoId
+                  editandoId && role !== "master"
                     ? { opacity: 0.5, cursor: "not-allowed", resize: "none" }
                     : {}
                 }
               />
-              {editandoId && (
+              {editandoId && role !== "master" && (
                 <small style={{ color: "var(--text-muted)" }}>
                   Para adicionar uma nova descrição, use{" "}
                   <b>"Incluir nova atualização"</b> nos detalhes.

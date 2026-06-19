@@ -23,7 +23,7 @@ function normalizarNome(nome: string) {
 function Esteira() {
   const { id } = useParams();
   const { role } = useAuth();
-  const isTreinador = role === "treinador";
+  const isTreinador = role === "treinador" || role === "master";
 
   const [empresaId, setEmpresaId] = useState("");
   const [empresas, setEmpresas] = useState<
@@ -69,6 +69,13 @@ function Esteira() {
 
     carregar();
   }, [id]);
+
+  const aplicarTemplateBasico = () => {
+    setTemaText(
+      "Início\nCadastro de Gateway\nDebug\nCadastro de Rastreador\nCadastro de Veículo\nCadastro de Cliente\nTela Operacional\nSSX Mobile\nRegras\nRelatório\nConclusão"
+    );
+    toast.success("Template Básico aplicado!");
+  };
 
   type TemaItem = {
     tema: string;
@@ -250,7 +257,7 @@ function Esteira() {
                 const nomeDuplicado = empresas.some(
                   (e) =>
                     normalizarNome(e.nomeEmpresa) ===
-                      normalizarNome(nomeEmpresa) && String(e.id) !== empresaId,
+                    normalizarNome(nomeEmpresa) && String(e.id) !== empresaId,
                 );
 
                 if (nomeDuplicado) {
@@ -289,46 +296,6 @@ function Esteira() {
             </button>
           )}
 
-          {isTreinador && (
-            <button
-              className="btn-danger"
-              onClick={async () => {
-                if (!empresaId) {
-                  toast.warning("Selecione uma empresa");
-                  return;
-                }
-
-                toast("Deseja realmente excluir esta empresa?", {
-                  action: {
-                    label: "Excluir",
-                    onClick: async () => {
-                      await removerEmpresa(empresaId);
-
-                      setEmpresaId("");
-                      setNomeEmpresa("");
-                      setTemaText("");
-                      setDataText("");
-                      setCurrentPhase(0);
-
-                      const lista = await listarEmpresas();
-                      setEmpresas(lista);
-
-                      toast.success("Empresa removida com sucesso!");
-                    },
-                  },
-
-                  cancel: {
-                    label: "Cancelar",
-                    onClick: () => {},
-                  },
-
-                  duration: 10000,
-                });
-              }}
-            >
-              Excluir empresa
-            </button>
-          )}
 
           <button
             className="btn-primary"
@@ -446,6 +413,17 @@ function Esteira() {
           >
             Baixar imagem
           </button>
+
+          {isTreinador && (
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={aplicarTemplateBasico}
+            >
+              Template Básico
+            </button>
+          )}
+
         </div>
 
         <div className="control-row">

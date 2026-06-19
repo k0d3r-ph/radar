@@ -19,7 +19,7 @@ export function obterUltimoTreinamento(
 
   return treinamentos.sort(
     (a: Ocorrencia, b: Ocorrencia) =>
-      (b.dataOcorrencia ?? b.createdAt ?? 0) -
-      (a.dataOcorrencia ?? a.createdAt ?? 0),
+      (b.dataOcorrencia || b.createdAt || 0) -
+      (a.dataOcorrencia || a.createdAt || 0),
   )[0];
 }

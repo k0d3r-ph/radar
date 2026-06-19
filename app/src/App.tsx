@@ -7,6 +7,7 @@ import { AlterarSenha } from "./pages/AlterarSenha/AlterarSenha";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { LogOut } from "lucide-react";
 import { Usuarios } from "./pages/Usuarios/Usuarios";
+import { Gamificacao } from "./pages/Gamificacao/Gamificacao";
 
 function AppRoutes() {
   const { user, loading, needsPasswordChange, role, logout } = useAuth();
@@ -73,13 +74,21 @@ function AppRoutes() {
           >
             Histórico de Ocorrências
           </NavLink>
-          {role === "treinador" && (
-            <NavLink
-              to="/usuarios"
-              className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
-            >
-              Usuários
-            </NavLink>
+          {(role === "treinador" || role === "master") && (
+            <>
+              <NavLink
+                to="/usuarios"
+                className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
+              >
+                Usuários
+              </NavLink>
+              <NavLink
+                to="/gamificacao"
+                className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
+              >
+                Gamificação
+              </NavLink>
+            </>
           )}
         </div>
         <button className="nav-logout-btn" onClick={handleLogout} title="Sair">
@@ -100,10 +109,16 @@ function AppRoutes() {
 
         <Route path="/home" element={<Home />} />
 
-        {role === "treinador" ? (
+        {role === "treinador" || role === "master" ? (
           <Route path="/usuarios" element={<Usuarios />} />
         ) : (
           <Route path="/usuarios" element={<Navigate to="/home" replace />} />
+        )}
+
+        {role === "treinador" || role === "master" ? (
+          <Route path="/gamificacao" element={<Gamificacao />} />
+        ) : (
+          <Route path="/gamificacao" element={<Navigate to="/home" replace />} />
         )}
         
         <Route path="*" element={<Navigate to="/home" replace />} />

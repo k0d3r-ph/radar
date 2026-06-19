@@ -87,3 +87,25 @@ export interface Historico {
 
   updatedAt?: number;
 }
+
+export interface LancamentoPonto {
+  id?: string;
+  treinadorId: string;
+  treinadorNome: string;
+  tipoAcao: "treinamento" | "nova_doc" | "att_doc" | "ferramenta_aut" | "chamado_falha";
+  pontos: number;
+  descricao: string;
+  dataLancamento: number;
+  criadoPorId: string;
+  criadoPorNome: string;
+  // Campos específicos de treinamento para uso em relatórios/gráficos
+  treinamentoEmpresa?: string;
+  treinamentoTema?: string;
+  treinamentoDataSolicitacao?: string;
+  treinamentoDataRealizacao?: string;
+  treinamentoTempoAgenda?: string;
+  treinamentoSolicitante?: string;
+  treinamentoNotas?: number[];
+  treinamentoNotaMedia?: number | null;
+}
+

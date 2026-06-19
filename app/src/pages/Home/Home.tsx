@@ -57,6 +57,7 @@ export default function Home() {
     dataText: "",
     currentPhase: 0,
     updatedAt: 0,
+    isOngoing: false,
   };
 
   const [clienteForm, setClienteForm] = useState<Empresa>(EMPTY_CLIENTE);
@@ -67,6 +68,9 @@ export default function Home() {
   const [editandoClienteId, setEditandoClienteId] = useState<string | null>(
     null,
   );
+
+  const [tabelaAtivaAberta, setTabelaAtivaAberta] = useState(true);
+  const [tabelaOngoingAberta, setTabelaOngoingAberta] = useState(true);
 
   async function excluirCliente(id: string) {
     await removerEmpresa(id);
@@ -137,6 +141,23 @@ export default function Home() {
     setClienteSelecionado(null);
   }
 
+  async function toggleOngoing(empresa: Empresa, e?: React.MouseEvent) {
+    if (e) {
+      e.stopPropagation();
+    }
+    const novoStatus = !empresa.isOngoing;
+    await salvarEmpresas({
+      ...empresa,
+      isOngoing: novoStatus,
+      updatedAt: Date.now(),
+    });
+    const lista = await listarEmpresas();
+    setEmpresas(lista);
+    if (clienteSelecionado?.id === empresa.id) {
+      setClienteSelecionado({ ...clienteSelecionado, isOngoing: novoStatus });
+    }
+  }
+
   useEffect(() => {
     async function carregarDados() {
       setLoading(true);
@@ -201,17 +222,25 @@ export default function Home() {
     });
   }, [empresas, historico]);
 
+  const dadosAtivos = useMemo(() => {
+    return dados.filter((e) => !e.isOngoing);
+  }, [dados]);
+
+  const dadosOngoing = useMemo(() => {
+    return dados.filter((e) => !!e.isOngoing);
+  }, [dados]);
+
   const stats = useMemo(() => {
-    const total = dados.length;
-    const concluidos = dados.filter((e) => e.progresso >= 100).length;
-    const emAndamento = dados.filter(
+    const total = dadosAtivos.length;
+    const concluidos = dadosAtivos.filter((e) => e.progresso >= 100).length;
+    const emAndamento = dadosAtivos.filter(
       (e) => e.progresso > 0 && e.progresso < 100,
     ).length;
-    const safety = dados.filter((e) => e.tipo === "Safety").length;
-    const fast = dados.filter((e) => e.tipo === "Fast").length;
-    const alerta = dados.filter((e) => e.alerta).length;
+    const safety = dadosAtivos.filter((e) => e.tipo === "Safety").length;
+    const fast = dadosAtivos.filter((e) => e.tipo === "Fast").length;
+    const alerta = dadosAtivos.filter((e) => e.alerta).length;
     return { total, concluidos, emAndamento, safety, fast, alerta };
-  }, [dados]);
+  }, [dadosAtivos]);
 
   const handleStatusCardClick = (status: "concluidos" | "andamento") => {
     setFiltroCardStatus((prev) => (prev === status ? "" : status));
@@ -225,8 +254,8 @@ export default function Home() {
     setFiltroCardAlerta((prev) => (prev === "alerta" ? "" : "alerta"));
   };
 
-  const dadosFiltrados = useMemo(() => {
-    return dados
+  const dadosAtivosFiltrados = useMemo(() => {
+    return dadosAtivos
       .filter((e) => {
         const clienteOk =
           !filtroCliente ||
@@ -264,10 +293,25 @@ export default function Home() {
       .sort((a, b) => {
         const ordem = { vermelho: 0, amarelo: 1, verde: 2, none: 3 };
         const farolDiff = (ordem[a.farol] ?? 3) - (ordem[b.farol] ?? 3);
-        if (farolDiff !== 0) return farolDiff; // ← primeiro ordena por farol
-        return a.nomeEmpresa.localeCompare(b.nomeEmpresa, "pt-BR"); // ← depois alfabético
+        if (farolDiff !== 0) return farolDiff;
+        return a.nomeEmpresa.localeCompare(b.nomeEmpresa, "pt-BR");
       });
-  }, [dados, filtroCliente, filtroResponsavel, filtroCs, filtroProgresso, filtroCardStatus, filtroCardTipo, filtroCardAlerta]);
+  }, [dadosAtivos, filtroCliente, filtroResponsavel, filtroCs, filtroProgresso, filtroCardStatus, filtroCardTipo, filtroCardAlerta]);
+
+  const dadosOngoingFiltrados = useMemo(() => {
+    return dadosOngoing
+      .filter((e) => {
+        const clienteOk =
+          !filtroCliente ||
+          e.nomeEmpresa.toLowerCase().includes(filtroCliente.toLowerCase());
+        const csOk = !filtroCs || e.csResponsavel === filtroCs;
+        const responsavelOk =
+          !filtroResponsavel || formatarNome(e.responsavel) === filtroResponsavel;
+
+        return clienteOk && csOk && responsavelOk;
+      })
+      .sort((a, b) => a.nomeEmpresa.localeCompare(b.nomeEmpresa, "pt-BR"));
+  }, [dadosOngoing, filtroCliente, filtroCs, filtroResponsavel]);
 
   return (
     <div className="monitoramento-page">
@@ -448,94 +492,214 @@ export default function Home() {
           )}
       </div>
 
-      <div className="table-wrapper">
-        <table>
-          <colgroup>
-            <col style={{ width: "1.5%" }} />
-            <col style={{ width: "5%" }} />
-            <col style={{ width: "5%" }} />
-            <col style={{ width: "5%" }} />
-            <col style={{ width: "5%" }} />
-            <col style={{ width: "5%" }} />
-            <col style={{ width: "5%" }} />
-            <col style={{ width: "5%" }} />
-          </colgroup>
-          <thead>
-            <tr>
-              <th>Status</th>
-
-              <th>Cliente</th>
-
-              <th>Responsável</th>
-
-              <th>Tipo</th>
-
-              <th>Data de entrada</th>
-
-              <th>Dias</th>
-
-              <th>TME</th>
-
-              <th className="td-progresso">Progresso</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {!loading &&
-              dadosFiltrados.map((empresa) => (
-                <tr
-                  key={empresa.id}
-                  className="linha-cliente"
-                  onClick={() => abrirCliente(empresa)}
-                >
-                  <td>
-                    <StatusFarol status={empresa.farol} />
-                  </td>
-
-                  <td>
-                    {empresa.nomeEmpresa}
-                    {empresa.alerta && " 🔥"}
-                  </td>
-
-                  <td>{formatarNome(empresa.responsavel)}</td>
-
-                  <td>
-                    {empresa.tipo && (
-                      <span
-                        style={{
-                          padding: "2px 10px",
-                          borderRadius: "999px",
-                          fontSize: "0.8rem",
-                          fontWeight: 600,
-                          background:
-                            empresa.tipo === "Fast" ? "#16a34a" : "#dc2626",
-                          color: "white",
-                        }}
-                      >
-                        {empresa.tipo}
-                      </span>
-                    )}
-                  </td>
-
-                  <td>{formatarData(empresa.dataEntrada)}</td>
-
-                  <td>{empresa.dias}</td>
-
-                  <td>{empresa.tme !== null ? `${empresa.tme} dias` : "-"}</td>
-
-                  <td className="td-progresso">
-                    <ProgressBar value={empresa.progresso} />
-                  </td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
-
-        <div className="table-footer">
-          <span>
-            Mostrando <strong>{dadosFiltrados.length}</strong> de <strong>{dados.length}</strong> {dados.length === 1 ? "cliente" : "clientes"}
+      {/* Tabela de Clientes Ativos */}
+      <div className="collapsible-section">
+        <div
+          className="collapsible-header"
+          onClick={() => setTabelaAtivaAberta((prev) => !prev)}
+        >
+          <div className="collapsible-title-wrapper">
+            <h2>Esteira Atual ⚡</h2>
+            <span className="collapsible-count-badge">
+              {dadosAtivosFiltrados.length}
+            </span>
+          </div>
+          <span className="collapsible-arrow">
+            {tabelaAtivaAberta ? "▼" : "▶"}
           </span>
         </div>
+
+        {!loading && tabelaAtivaAberta && (
+          <div className="table-wrapper">
+            <table>
+              <colgroup>
+                <col style={{ width: "1.5%" }} />
+                <col style={{ width: "5%" }} />
+                <col style={{ width: "5%" }} />
+                <col style={{ width: "5%" }} />
+                <col style={{ width: "5%" }} />
+                <col style={{ width: "5%" }} />
+                <col style={{ width: "5%" }} />
+                <col style={{ width: "5%" }} />
+                <col style={{ width: "3%" }} />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>Status</th>
+                  <th>Cliente</th>
+                  <th>Responsável</th>
+                  <th>Tipo</th>
+                  <th>Data de entrada</th>
+                  <th>Dias</th>
+                  <th>TME</th>
+                  <th className="td-progresso">Progresso</th>
+                  <th style={{ textAlign: "center" }}>Ongoing</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {dadosAtivosFiltrados.map((empresa) => (
+                  <tr
+                    key={empresa.id}
+                    className="linha-cliente"
+                    onClick={() => abrirCliente(empresa)}
+                  >
+                    <td>
+                      <StatusFarol status={empresa.farol} />
+                    </td>
+
+                    <td>
+                      {empresa.nomeEmpresa}
+                      {empresa.alerta && " 🔥"}
+                    </td>
+
+                    <td>{formatarNome(empresa.responsavel)}</td>
+
+                    <td>
+                      {empresa.tipo && (
+                        <span
+                          style={{
+                            padding: "2px 10px",
+                            borderRadius: "999px",
+                            fontSize: "0.8rem",
+                            fontWeight: 600,
+                            background:
+                              empresa.tipo === "Fast" ? "#16a34a" : "#dc2626",
+                            color: "white",
+                          }}
+                        >
+                          {empresa.tipo}
+                        </span>
+                      )}
+                    </td>
+
+                    <td>{formatarData(empresa.dataEntrada)}</td>
+
+                    <td>{empresa.dias}</td>
+
+                    <td>{empresa.tme !== null ? `${empresa.tme} dias` : "-"}</td>
+
+                    <td className="td-progresso">
+                      <ProgressBar value={empresa.progresso} />
+                    </td>
+
+                    <td
+                      style={{ textAlign: "center" }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={empresa.isOngoing ?? false}
+                        onChange={() => toggleOngoing(empresa)}
+                        style={{ cursor: "pointer", width: "16px", height: "16px", accentColor: "#3b82f6" }}
+                      />
+                    </td>
+                  </tr>
+                ))}
+                {dadosAtivosFiltrados.length === 0 && (
+                  <tr>
+                    <td colSpan={9} style={{ textAlign: "center", color: "#64748b", padding: "2rem" }}>
+                      Nenhum cliente ativo encontrado.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+
+            <div className="table-footer">
+              <span>
+                Mostrando <strong>{dadosAtivosFiltrados.length}</strong> de <strong>{dadosAtivos.length}</strong> {dadosAtivos.length === 1 ? "cliente" : "clientes"}
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Tabela de Clientes Ongoing */}
+      <div className="collapsible-section" style={{ marginTop: "2rem" }}>
+        <div
+          className="collapsible-header"
+          onClick={() => setTabelaOngoingAberta((prev) => !prev)}
+        >
+          <div className="collapsible-title-wrapper">
+            <h2>Clientes Ongoing 🔄</h2>
+            <span className="collapsible-count-badge" style={{ background: "rgba(16, 185, 129, 0.2)", color: "#34d399" }}>
+              {dadosOngoingFiltrados.length}
+            </span>
+          </div>
+          <span className="collapsible-arrow">
+            {tabelaOngoingAberta ? "▼" : "▶"}
+          </span>
+        </div>
+
+        {!loading && tabelaOngoingAberta && (
+          <div className="table-wrapper">
+            <table>
+              <colgroup>
+                <col style={{ width: "5%" }} />
+                <col style={{ width: "5%" }} />
+                <col style={{ width: "5%" }} />
+                <col style={{ width: "5%" }} />
+                <col style={{ width: "2%" }} />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>Cliente</th>
+                  <th>Contato</th>
+                  <th>CS Responsável</th>
+                  <th>Comercial Responsável</th>
+                  <th style={{ textAlign: "center" }}>Ongoing</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {dadosOngoingFiltrados.map((empresa) => (
+                  <tr
+                    key={empresa.id}
+                    className="linha-cliente"
+                    onClick={() => abrirCliente(empresa)}
+                  >
+                    <td>
+                      {empresa.nomeEmpresa}
+                      {empresa.alerta && " 🔥"}
+                    </td>
+
+                    <td>{empresa.contato || "-"}</td>
+
+                    <td>{formatarNome(empresa.csResponsavel) || "-"}</td>
+
+                    <td>{formatarNome(empresa.comercialResponsavel) || "-"}</td>
+
+                    <td
+                      style={{ textAlign: "center" }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={empresa.isOngoing ?? false}
+                        onChange={() => toggleOngoing(empresa)}
+                        style={{ cursor: "pointer", width: "16px", height: "16px", accentColor: "#10b981" }}
+                      />
+                    </td>
+                  </tr>
+                ))}
+                {dadosOngoingFiltrados.length === 0 && (
+                  <tr>
+                    <td colSpan={5} style={{ textAlign: "center", color: "#64748b", padding: "2rem" }}>
+                      Nenhum cliente em acompanhamento contínuo (Ongoing).
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+
+            <div className="table-footer">
+              <span>
+                Mostrando <strong>{dadosOngoingFiltrados.length}</strong> de <strong>{dadosOngoing.length}</strong> {dadosOngoing.length === 1 ? "cliente" : "clientes"}
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
       {clienteSelecionado && (
@@ -895,6 +1059,20 @@ export default function Home() {
                   }
                 />
                 Cliente em alerta 🔥
+              </label>
+            </div>
+
+            <div className="form-group">
+              <label>Status</label>
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={clienteForm.isOngoing ?? false}
+                  onChange={(e) =>
+                    setClienteForm({ ...clienteForm, isOngoing: e.target.checked })
+                  }
+                />
+                Cliente Ongoing 🔄
               </label>
             </div>
 

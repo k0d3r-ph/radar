@@ -670,3 +670,57 @@
   border-color: rgba(255, 255, 255, 0.15) !important;
   transform: translateY(-1px);
 }
+
+/* Estilos para Seções Colapsáveis na Home */
+.collapsible-section {
+  margin-bottom: 1.5rem;
+}
+
+.collapsible-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1.25rem;
+  background: rgba(30, 41, 59, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  cursor: pointer;
+  user-select: none;
+  margin-bottom: 0.75rem;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.collapsible-header:hover {
+  background: rgba(51, 65, 85, 0.5);
+  border-color: rgba(255, 255, 255, 0.16);
+  transform: translateY(-1px);
+}
+
+.collapsible-title-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.collapsible-title-wrapper h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #e2e8f0;
+}
+
+.collapsible-count-badge {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  padding: 2px 10px;
+  border-radius: 99px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.collapsible-arrow {
+  color: #94a3b8;
+  font-size: 0.8rem;
+  transition: transform 0.2s ease;
+}

@@ -72,7 +72,7 @@ function Esteira() {
 
   const aplicarTemplateBasico = () => {
     setTemaText(
-      "Início\nCadastro de Gateway\nDebug\nCadastro de Rastreador\nCadastro de Veículo\nCadastro de Cliente\nTela Operacional\nSSX Mobile\nRegras\nRelatório\nConclusão"
+      "Início\nCadastro de Gateway\nDebug\nCadastro de Rastreador\nCadastro de Veículo\nCadastro de Cliente\nTela Operacional\nPessoas\nSSX Mobile\nRegras\nRelatório\nConclusão"
     );
     toast.success("Template Básico aplicado!");
   };

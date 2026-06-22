@@ -123,8 +123,8 @@ const TEMAS_GAMIFICACAO = [
 ];
 
 interface SearchableSelectProps {
-  value: string;
-  onChange: (value: string) => void;
+  value: string[];
+  onChange: (value: string[]) => void;
   options: string[];
   placeholder: string;
   disabled?: boolean;
@@ -167,6 +167,14 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
     );
   }, [options, searchTerm]);
 
+  const handleToggleOption = (opt: string) => {
+    if (value.includes(opt)) {
+      onChange(value.filter((val) => val !== opt));
+    } else {
+      onChange([...value, opt]);
+    }
+  };
+
   return (
     <div className="searchable-select-container" ref={containerRef}>
       <button
@@ -179,11 +187,28 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
           }
         }}
         disabled={disabled}
+        style={{ height: "auto", minHeight: "48px", padding: "6px 12px" }}
       >
-        <span className={value ? "selected-value" : "placeholder-value"}>
-          {value || placeholder}
-        </span>
-        <span className={`select-arrow ${isOpen ? "open" : ""}`}>▼</span>
+        <div className="searchable-select-selected-wrapper">
+          {value.length > 0 ? (
+            value.map((val) => (
+              <span
+                key={val}
+                className="selected-pill"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleToggleOption(val);
+                }}
+              >
+                {val}
+                <span className="remove-pill-x">×</span>
+              </span>
+            ))
+          ) : (
+            <span className="placeholder-value">{placeholder}</span>
+          )}
+        </div>
+        <span className={`select-arrow ${isOpen ? "open" : ""}`} style={{ alignSelf: "center" }}>▼</span>
       </button>
 
       {isOpen && (
@@ -200,21 +225,25 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
           </div>
           <div className="searchable-select-options-list">
             {filteredOptions.length > 0 ? (
-              filteredOptions.map((opt) => (
-                <div
-                  key={opt}
-                  className={`searchable-select-option ${
-                    value === opt ? "selected" : ""
-                  }`}
-                  onClick={() => {
-                    onChange(opt);
-                    setIsOpen(false);
-                    setSearchTerm("");
-                  }}
-                >
-                  {opt}
-                </div>
-              ))
+              filteredOptions.map((opt) => {
+                const isSelected = value.includes(opt);
+                return (
+                  <div
+                    key={opt}
+                    className={`searchable-select-option ${
+                      isSelected ? "selected" : ""
+                    }`}
+                    onClick={() => {
+                      handleToggleOption(opt);
+                    }}
+                  >
+                    <span>{opt}</span>
+                    {isSelected && (
+                      <span className="selected-check">✓</span>
+                    )}
+                  </div>
+                );
+              })
             ) : (
               <div className="searchable-select-no-options">
                 Nenhum tema encontrado
@@ -246,11 +275,12 @@ export const Gamificacao: React.FC = () => {
   const [selectedActionType, setSelectedActionType] = useState<
     "treinamento" | "nova_doc" | "att_doc" | "ferramenta_aut" | "chamado_falha"
   >("treinamento");
+
   const [descricao, setDescricao] = useState("");
 
   // Treinamento extra states
   const [treinamentoEmpresa, setTreinamentoEmpresa] = useState("");
-  const [treinamentoTema, setTreinamentoTema] = useState("");
+  const [treinamentoTemas, setTreinamentoTemas] = useState<string[]>([]);
   const [treinamentoDataSolicitacao, setTreinamentoDataSolicitacao] = useState("");
   const [treinamentoDataRealizacao, setTreinamentoDataRealizacao] = useState("");
   const [treinamentoTempoAgenda, setTreinamentoTempoAgenda] = useState("");
@@ -260,7 +290,7 @@ export const Gamificacao: React.FC = () => {
   // Edit states
   const [editingEntry, setEditingEntry] = useState<LancamentoPonto | null>(null);
   const [editEmpresa, setEditEmpresa] = useState("");
-  const [editTema, setEditTema] = useState("");
+  const [editTemas, setEditTemas] = useState<string[]>([]);
   const [editDataSolicitacao, setEditDataSolicitacao] = useState("");
   const [editDataRealizacao, setEditDataRealizacao] = useState("");
   const [editTempoAgenda, setEditTempoAgenda] = useState("");
@@ -331,13 +361,11 @@ export const Gamificacao: React.FC = () => {
         const baseScore = trainerEntries.reduce((acc, curr) => acc + curr.pontos, 0);
 
         // Filter realized trainings (excluding canceled/absent)
-        const realizedTrainings = trainerEntries.filter(
-          (e) =>
-            e.tipoAcao === "treinamento" &&
-            e.treinamentoTema &&
-            e.treinamentoTema.toLowerCase() !== "cancelado" &&
-            e.treinamentoTema.toLowerCase() !== "ausente"
-        );
+        const realizedTrainings = trainerEntries.filter((e) => {
+          if (e.tipoAcao !== "treinamento" || !e.treinamentoTema) return false;
+          const themes = e.treinamentoTema.split(",").map((theme) => theme.trim().toLowerCase());
+          return !themes.includes("cancelado") && !themes.includes("ausente");
+        });
 
         // Count realized trainings that have CSAT responses
         const answeredTrainings = realizedTrainings.filter(
@@ -388,8 +416,8 @@ export const Gamificacao: React.FC = () => {
         toast.error("Selecione a empresa.");
         return;
       }
-      if (!treinamentoTema.trim()) {
-        toast.error("Digite o tema do treinamento.");
+      if (treinamentoTemas.length === 0) {
+        toast.error("Selecione pelo menos um tema do treinamento.");
         return;
       }
       if (!treinamentoDataSolicitacao || !treinamentoDataRealizacao) {
@@ -420,9 +448,10 @@ export const Gamificacao: React.FC = () => {
       let computedMedia: number | null = null;
 
       if (selectedActionType === "treinamento") {
+        const normalizedTemas = treinamentoTemas.map(t => t.trim().toLowerCase());
         const isZeroPoints =
-          treinamentoTema.trim().toLowerCase() === "cancelado" ||
-          treinamentoTema.trim().toLowerCase() === "ausente";
+          normalizedTemas.includes("cancelado") ||
+          normalizedTemas.includes("ausente");
 
         if (isZeroPoints) {
           pontosAAplicar = 0;
@@ -451,7 +480,7 @@ export const Gamificacao: React.FC = () => {
           ? parseFloat((validNotas.reduce((sum, n) => sum + n, 0) / validNotas.length).toFixed(2))
           : null;
 
-        finalDescricao = `Empresa: ${treinamentoEmpresa} | Tema: ${treinamentoTema.trim()} | Solicitado: ${dataSol} | Realizado: ${dataReal} | Tempo: ${treinamentoTempoAgenda.trim()} | Solicitante: ${treinamentoSolicitante}`;
+        finalDescricao = `Empresa: ${treinamentoEmpresa} | Tema: ${treinamentoTemas.join(", ")} | Solicitado: ${dataSol} | Realizado: ${dataReal} | Tempo: ${treinamentoTempoAgenda.trim()} | Solicitante: ${treinamentoSolicitante}`;
 
         if (validNotas.length > 0) {
           finalDescricao += ` | Notas: [${validNotas.join(", ")}] (Média: ${computedMedia})`;
@@ -474,7 +503,7 @@ export const Gamificacao: React.FC = () => {
         criadoPorNome,
         ...(selectedActionType === "treinamento" ? {
           treinamentoEmpresa,
-          treinamentoTema: treinamentoTema.trim(),
+          treinamentoTema: treinamentoTemas.join(", "),
           treinamentoDataSolicitacao,
           treinamentoDataRealizacao,
           treinamentoTempoAgenda: treinamentoTempoAgenda.trim(),
@@ -487,7 +516,7 @@ export const Gamificacao: React.FC = () => {
       toast.success("Pontuação registrada com sucesso!");
       setDescricao("");
       setTreinamentoEmpresa("");
-      setTreinamentoTema("");
+      setTreinamentoTemas([]);
       setTreinamentoDataSolicitacao("");
       setTreinamentoDataRealizacao("");
       setTreinamentoTempoAgenda("");
@@ -508,7 +537,7 @@ export const Gamificacao: React.FC = () => {
   const handleStartEdit = (entry: LancamentoPonto) => {
     setEditingEntry(entry);
     setEditEmpresa(entry.treinamentoEmpresa || "");
-    setEditTema(entry.treinamentoTema || "");
+    setEditTemas(entry.treinamentoTema ? entry.treinamentoTema.split(",").map(t => t.trim()) : []);
     setEditDataSolicitacao(entry.treinamentoDataSolicitacao || "");
     setEditDataRealizacao(entry.treinamentoDataRealizacao || "");
     setEditTempoAgenda(entry.treinamentoTempoAgenda || "");
@@ -543,8 +572,8 @@ export const Gamificacao: React.FC = () => {
           setSubmitting(false);
           return;
         }
-        if (!editTema.trim()) {
-          toast.error("Preencha o tema.");
+        if (editTemas.length === 0) {
+          toast.error("Selecione pelo menos um tema.");
           setSubmitting(false);
           return;
         }
@@ -559,9 +588,10 @@ export const Gamificacao: React.FC = () => {
           return;
         }
 
+        const normalizedEditTemas = editTemas.map(t => t.trim().toLowerCase());
         const isZeroPoints =
-          editTema.trim().toLowerCase() === "cancelado" ||
-          editTema.trim().toLowerCase() === "ausente";
+          normalizedEditTemas.includes("cancelado") ||
+          normalizedEditTemas.includes("ausente");
 
         const actionConfig = ACOES_DISPONIVEIS.find((a) => a.tipo === "treinamento");
         pontosAAplicar = isZeroPoints ? 0 : (actionConfig?.pontos ?? 1);
@@ -589,7 +619,7 @@ export const Gamificacao: React.FC = () => {
           ? parseFloat((validNotas.reduce((sum, n) => sum + n, 0) / validNotas.length).toFixed(2))
           : null;
 
-        finalDescricao = `Empresa: ${editEmpresa} | Tema: ${editTema.trim()} | Solicitado: ${dataSol} | Realizado: ${dataReal} | Tempo: ${editTempoAgenda.trim()} | Solicitante: ${editSolicitante}`;
+        finalDescricao = `Empresa: ${editEmpresa} | Tema: ${editTemas.join(", ")} | Solicitado: ${dataSol} | Realizado: ${dataReal} | Tempo: ${editTempoAgenda.trim()} | Solicitante: ${editSolicitante}`;
 
         if (validNotas.length > 0) {
           finalDescricao += ` | Notas: [${validNotas.join(", ")}] (Média: ${computedMedia})`;
@@ -600,7 +630,7 @@ export const Gamificacao: React.FC = () => {
 
         extraData = {
           treinamentoEmpresa: editEmpresa,
-          treinamentoTema: editTema.trim(),
+          treinamentoTema: editTemas.join(", "),
           treinamentoDataSolicitacao: editDataSolicitacao,
           treinamentoDataRealizacao: editDataRealizacao,
           treinamentoTempoAgenda: editTempoAgenda.trim(),
@@ -842,12 +872,12 @@ export const Gamificacao: React.FC = () => {
                                 </div>
 
                                 <div className="input-group">
-                                  <label>Tema *</label>
+                                  <label>Temas *</label>
                                   <SearchableSelect
-                                    value={treinamentoTema}
-                                    onChange={setTreinamentoTema}
+                                    value={treinamentoTemas}
+                                    onChange={setTreinamentoTemas}
                                     options={TEMAS_GAMIFICACAO}
-                                    placeholder="Selecione ou pesquise o tema..."
+                                    placeholder="Selecione ou pesquise os temas..."
                                     disabled={submitting}
                                   />
                                 </div>
@@ -1117,12 +1147,12 @@ export const Gamificacao: React.FC = () => {
                     </div>
 
                     <div className="input-group">
-                      <label>Tema *</label>
+                      <label>Temas *</label>
                       <SearchableSelect
-                        value={editTema}
-                        onChange={setEditTema}
+                        value={editTemas}
+                        onChange={setEditTemas}
                         options={TEMAS_GAMIFICACAO}
-                        placeholder="Selecione ou pesquise o tema..."
+                        placeholder="Selecione ou pesquise os temas..."
                         disabled={submitting}
                       />
                     </div>

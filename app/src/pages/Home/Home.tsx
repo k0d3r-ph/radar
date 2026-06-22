@@ -206,14 +206,43 @@ export default function Home() {
         totalFases,
       );
 
+      // Encontra a ocorrência mais recente da empresa que define ou resolve um alerta
+      const ultimaOcorrenciaAlerta = historico
+        .filter(
+          (o) =>
+            o.empresa.trim().toLowerCase() === empresa.nomeEmpresa.trim().toLowerCase() &&
+            (o.alerta === true || o.retirarAlerta === true)
+        )
+        .sort(
+          (a, b) =>
+            (b.createdAt ?? b.dataOcorrencia ?? 0) -
+            (a.createdAt ?? a.dataOcorrencia ?? 0)
+        )[0];
+
+      let temAlerta = false;
+      let ocorrenciaAlertaId = undefined;
+
+      if (ultimaOcorrenciaAlerta) {
+        if (ultimaOcorrenciaAlerta.alerta === true) {
+          temAlerta = true;
+          ocorrenciaAlertaId = ultimaOcorrenciaAlerta.id;
+        } else {
+          temAlerta = false;
+        }
+      } else {
+        temAlerta = !!empresa.alerta;
+      }
+
       const farol = calcularFarol({
         progresso,
         tme,
-        alerta: empresa.alerta,
+        alerta: temAlerta,
       });
 
       return {
         ...empresa,
+        alerta: temAlerta,
+        ocorrenciaAlertaId: ocorrenciaAlertaId,
         tme,
         progresso,
         farol,
@@ -550,7 +579,29 @@ export default function Home() {
 
                     <td>
                       {empresa.nomeEmpresa}
-                      {empresa.alerta && " 🔥"}
+                      {empresa.alerta && (
+                        <span
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (empresa.ocorrenciaAlertaId) {
+                              navigate(`/historico?empresa=${encodeURIComponent(empresa.nomeEmpresa)}&ocorrencia=${empresa.ocorrenciaAlertaId}`);
+                            } else {
+                              navigate(`/historico?empresa=${encodeURIComponent(empresa.nomeEmpresa)}`);
+                            }
+                          }}
+                          style={{
+                            color: "#dc2626",
+                            fontWeight: "bold",
+                            marginLeft: "8px",
+                            fontSize: "0.85rem",
+                            textDecoration: "underline",
+                            cursor: "pointer",
+                          }}
+                          title="Ver ocorrência de alerta"
+                        >
+                          [Alerta]
+                        </span>
+                      )}
                     </td>
 
                     <td>{formatarNome(empresa.responsavel)}</td>
@@ -661,7 +712,29 @@ export default function Home() {
                   >
                     <td>
                       {empresa.nomeEmpresa}
-                      {empresa.alerta && " 🔥"}
+                      {empresa.alerta && (
+                        <span
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (empresa.ocorrenciaAlertaId) {
+                              navigate(`/historico?empresa=${encodeURIComponent(empresa.nomeEmpresa)}&ocorrencia=${empresa.ocorrenciaAlertaId}`);
+                            } else {
+                              navigate(`/historico?empresa=${encodeURIComponent(empresa.nomeEmpresa)}`);
+                            }
+                          }}
+                          style={{
+                            color: "#dc2626",
+                            fontWeight: "bold",
+                            marginLeft: "8px",
+                            fontSize: "0.85rem",
+                            textDecoration: "underline",
+                            cursor: "pointer",
+                          }}
+                          title="Ver ocorrência de alerta"
+                        >
+                          [Alerta]
+                        </span>
+                      )}
                     </td>
 
                     <td>{empresa.contato || "-"}</td>
@@ -1048,19 +1121,7 @@ export default function Home() {
               );
             })()}
 
-            <div className="form-group">
-              <label>Alerta</label>
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={clienteForm.alerta ?? false}
-                  onChange={(e) =>
-                    setClienteForm({ ...clienteForm, alerta: e.target.checked })
-                  }
-                />
-                Cliente em alerta 🔥
-              </label>
-            </div>
+
 
             <div className="form-group">
               <label>Status</label>

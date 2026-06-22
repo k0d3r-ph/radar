@@ -54,6 +54,10 @@ export type Ocorrencia = {
   atualizacoes?: Atualizacao[];
   scoreCalculado?: number;
   scoreAnswers?: any;
+  alerta?: boolean;
+  retirarAlerta?: boolean;
+  alertaResolvidoPorId?: string;
+  alertaOriginalId?: string;
 };
 
 export type OcorrenciaForm = {
@@ -65,6 +69,10 @@ export type OcorrenciaForm = {
   dataOcorrencia: string;
   horaOcorrencia?: string;
   temaOcorrencia?: string[];
+  alerta?: boolean;
+  retirarAlerta?: boolean;
+  alertaResolvidoPorId?: string;
+  alertaOriginalId?: string;
 };
 
 export type Atualizacao = {

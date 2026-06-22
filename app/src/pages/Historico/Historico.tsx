@@ -75,6 +75,10 @@ const EMPTY: OcorrenciaForm = {
   dataOcorrencia: "",
   horaOcorrencia: "",
   temaOcorrencia: [],
+  alerta: false,
+  retirarAlerta: false,
+  alertaResolvidoPorId: "",
+  alertaOriginalId: "",
 };
 
 interface ScoreFormAnswers {
@@ -296,6 +300,17 @@ export function Historico() {
   const [searchParams] = useSearchParams();
 
   const empresaFiltro = searchParams.get("empresa") || "";
+  const ocorrenciaIdFiltro = searchParams.get("ocorrencia") || "";
+
+  useEffect(() => {
+    if (!loading && ocorrenciaIdFiltro && ocorrencias.length > 0) {
+      const encontrada = ocorrencias.find((o) => o.id === ocorrenciaIdFiltro);
+      if (encontrada) {
+        setSelecionada(encontrada);
+      }
+    }
+  }, [loading, ocorrenciaIdFiltro, ocorrencias]);
+
 
 
   const temAusenteOuCancelado = form.temaOcorrencia?.some(t => t === "Ausente" || t === "Cancelado") ?? false;
@@ -435,6 +450,10 @@ export function Historico() {
       dataOcorrencia: dataFormatada,
       horaOcorrencia: hora,
       temaOcorrencia: o.temaOcorrencia ?? [],
+      alerta: o.alerta ?? false,
+      retirarAlerta: o.retirarAlerta ?? false,
+      alertaResolvidoPorId: o.alertaResolvidoPorId || "",
+      alertaOriginalId: o.alertaOriginalId || "",
     });
     setEditandoId(o.id ?? null);
     setCalculoScoreResult(null);
@@ -564,7 +583,61 @@ Score atual: ${novoScore}${mudancasTexto}`;
       }
     }
 
-    await salvarOcorrencia(editandoId ? { ...base, id: editandoId } : base);
+    // Se a ocorrência foi desmarcada como retirarAlerta mas tinha um alertaOriginalId vinculado
+    if (editandoId && !form.retirarAlerta && ocorrenciaOriginal?.alertaOriginalId) {
+      const origDoc = ocorrencias.find((o) => o.id === ocorrenciaOriginal.alertaOriginalId);
+      if (origDoc) {
+        await salvarOcorrencia({
+          ...origDoc,
+          alertaResolvidoPorId: "",
+        });
+      }
+      base.alertaOriginalId = "";
+    }
+
+    // Se a ocorrência foi desmarcada como alerta mas tinha um alertaResolvidoPorId vinculado
+    if (editandoId && !form.alerta && ocorrenciaOriginal?.alertaResolvidoPorId) {
+      const resDoc = ocorrencias.find((o) => o.id === ocorrenciaOriginal.alertaResolvidoPorId);
+      if (resDoc) {
+        await salvarOcorrencia({
+          ...resDoc,
+          alertaOriginalId: "",
+        });
+      }
+      base.alertaResolvidoPorId = "";
+    }
+
+    const savedId = await salvarOcorrencia(editandoId ? { ...base, id: editandoId } : base);
+
+    // Vincula a ocorrência de resolução ao último alerta ativo da empresa (funciona para novo ou edição se ainda não vinculado)
+    if (form.retirarAlerta && !base.alertaOriginalId) {
+      const alertaOriginal = ocorrencias
+        .filter(
+          (o) =>
+            normalizar(o.empresa) === normalizar(form.empresa) &&
+            o.alerta === true &&
+            !o.alertaResolvidoPorId &&
+            o.id !== savedId
+        )
+        .sort((a, b) => (b.createdAt ?? b.dataOcorrencia ?? 0) - (a.createdAt ?? a.dataOcorrencia ?? 0))[0];
+
+      if (alertaOriginal) {
+        // Atualiza a ocorrência de alerta original para apontar para esta resolução
+        await salvarOcorrencia({
+          ...alertaOriginal,
+          alertaResolvidoPorId: savedId,
+        });
+
+        // Atualiza esta ocorrência de resolução para apontar para o alerta original
+        const resolutionOcorrencia = {
+          ...base,
+          id: savedId,
+          alertaOriginalId: alertaOriginal.id,
+        };
+        await salvarOcorrencia(resolutionOcorrencia);
+      }
+    }
+
     await carregar();
     setSalvando(false);
     cancelar();
@@ -594,6 +667,28 @@ Score atual: ${novoScore}${mudancasTexto}`;
                   scoreAnswers: null as any,
                   tipo: "",
                   updatedAt: Date.now()
+                });
+              }
+            }
+
+            // Se for um alerta com resolução vinculada, limpa a referência na resolução
+            if (oc.alerta && oc.alertaResolvidoPorId) {
+              const resDoc = ocorrencias.find((o) => o.id === oc.alertaResolvidoPorId);
+              if (resDoc) {
+                await salvarOcorrencia({
+                  ...resDoc,
+                  alertaOriginalId: "",
+                });
+              }
+            }
+
+            // Se for uma resolução de alerta, limpa a referência no alerta original
+            if (oc.retirarAlerta && oc.alertaOriginalId) {
+              const origDoc = ocorrencias.find((o) => o.id === oc.alertaOriginalId);
+              if (origDoc) {
+                await salvarOcorrencia({
+                  ...origDoc,
+                  alertaResolvidoPorId: "",
                 });
               }
             }
@@ -810,7 +905,46 @@ Score atual: ${novoScore}${mudancasTexto}`;
                     className="hist-row-click"
                     onClick={() => setSelecionada(o)}
                   >
-                    <td>{o.empresa}</td>
+                    <td>
+                      {o.empresa}
+                      {o.alerta && (
+                        o.alertaResolvidoPorId ? (
+                          <span
+                            style={{
+                              color: "#16a34a",
+                              fontWeight: "bold",
+                              marginLeft: "6px",
+                            }}
+                            title="Alerta Solucionado"
+                          >
+                            ✅🚨
+                          </span>
+                        ) : (
+                          <span
+                            style={{
+                              color: "#dc2626",
+                              fontWeight: "bold",
+                              marginLeft: "6px",
+                            }}
+                            title="Alerta Ativo"
+                          >
+                            🚨
+                          </span>
+                        )
+                      )}
+                      {o.retirarAlerta && (
+                        <span
+                          style={{
+                            color: "#16a34a",
+                            fontWeight: "bold",
+                            marginLeft: "6px",
+                          }}
+                          title="Ocorrência de resolução de alerta"
+                        >
+                          ✅
+                        </span>
+                      )}
+                    </td>
 
                     <td>{data ? data.toLocaleDateString("pt-BR") : "—"}</td>
                     <td>
@@ -866,6 +1000,77 @@ Score atual: ${novoScore}${mudancasTexto}`;
               </div>
 
               <div className="hist-detail-grid">
+                {(() => {
+                  if (selecionada.alerta) {
+                    if (selecionada.alertaResolvidoPorId) {
+                      const resDoc = ocorrencias.find((o) => o.id === selecionada.alertaResolvidoPorId);
+                      return (
+                        <div style={{ gridColumn: "span 2", marginBottom: "10px" }}>
+                          <span style={{ color: "#16a34a", fontWeight: "bold", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                            ✅🚨 Alerta Solucionado {resDoc ? `em ${new Date(resDoc.createdAt ?? resDoc.dataOcorrencia ?? 0).toLocaleDateString("pt-BR")}` : ""}.
+                            {resDoc && (
+                              <button
+                                style={{
+                                  textDecoration: "underline",
+                                  color: "#2563eb",
+                                  background: "none",
+                                  border: "none",
+                                  padding: 0,
+                                  cursor: "pointer",
+                                  fontWeight: "bold",
+                                  fontSize: "0.85rem",
+                                  marginLeft: "5px",
+                                }}
+                                onClick={() => setSelecionada(resDoc)}
+                              >
+                                Ver ocorrência de resolução
+                              </button>
+                            )}
+                          </span>
+                        </div>
+                      );
+                    } else {
+                      return (
+                        <div style={{ gridColumn: "span 2", marginBottom: "10px" }}>
+                          <span style={{ color: "#dc2626", fontWeight: "bold", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "6px" }}>
+                            🚨 Ocorrência marcada como Alerta Ativo
+                          </span>
+                        </div>
+                      );
+                    }
+                  }
+                  if (selecionada.retirarAlerta) {
+                    const origDoc = ocorrencias.find((o) => o.id === selecionada.alertaOriginalId);
+                    return (
+                      <div style={{ gridColumn: "span 2", marginBottom: "10px" }}>
+                        <span style={{ color: "#16a34a", fontWeight: "bold", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                          ✅ Ocorrência marcada como Resolução de Alerta.
+                          {origDoc && (
+                            <span style={{ color: "#475569", display: "flex", alignItems: "center", gap: "5px", flexWrap: "wrap" }}>
+                              Resolução do alerta criado em {new Date(origDoc.createdAt ?? origDoc.dataOcorrencia ?? 0).toLocaleDateString("pt-BR")}.
+                              <button
+                                style={{
+                                  textDecoration: "underline",
+                                  color: "#2563eb",
+                                  background: "none",
+                                  border: "none",
+                                  padding: 0,
+                                  cursor: "pointer",
+                                  fontWeight: "bold",
+                                  fontSize: "0.85rem",
+                                }}
+                                onClick={() => setSelecionada(origDoc)}
+                              >
+                                Ver ocorrência do alerta original
+                              </button>
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
                 <div>
                   <span>Empresa</span>
                   <strong>{selecionada.empresa}</strong>
@@ -1196,6 +1401,32 @@ Score atual: ${novoScore}${mudancasTexto}`;
                 </div>
               </div>
             )}
+
+            <div className="hist-campo hist-campo-row">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={form.alerta ?? false}
+                  disabled={form.retirarAlerta ?? false}
+                  onChange={(e) =>
+                    setForm({ ...form, alerta: e.target.checked })
+                  }
+                />
+                Definir como alerta 🔥
+              </label>
+
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={form.retirarAlerta ?? false}
+                  disabled={form.alerta ?? false}
+                  onChange={(e) =>
+                    setForm({ ...form, retirarAlerta: e.target.checked })
+                  }
+                />
+                Retirar do alerta ✅
+              </label>
+            </div>
 
             <div className="hist-campo">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>

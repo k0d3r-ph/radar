@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import { toast } from "sonner";
 import {
   Trophy,
@@ -71,6 +71,161 @@ const ACOES_DISPONIVEIS = [
     colorClass: "ponto-negativo",
   },
 ] as const;
+
+const TEMAS_GAMIFICACAO = [
+  "Cancelado",
+  "Ausente",
+  "Follow-Up",
+  "Visão Geral de Rastreamento",
+  "Cadastrar Gateway",
+  "Debug",
+  "Cadastrar Rastreador",
+  "Cadastrar Cliente",
+  "Cadastrar Veículo",
+  "Tela operacional",
+  "Calculadora",
+  "Cadastrar Pessoas",
+  "Cadastrar APN e SIM cards",
+  "Template de Cliente",
+  "Template de perfis de acesso",
+  "Perfis de acesso administrador",
+  "Template de Rastreador",
+  "Áreas e Rotas",
+  "Regras",
+  "Template de Regras",
+  "BI Viewer",
+  "Velocidade na Via",
+  "Jornada de Trabalho",
+  "Gestão de Multas",
+  "Videotelemetria",
+  "Performance",
+  "Logistics",
+  "Fretamento",
+  "Abastecimento",
+  "Manutenção",
+  "Relatórios",
+  "Identificação de mototista",
+  "Bloqueio Agendado",
+  "SSX Mobile",
+  "Check List",
+  "Tratamento de alerta",
+  "Home",
+  "Embarque de Motoristas",
+  "Unidade Organizacional",
+  "SSX Onboard",
+  "Cobrança SSX",
+  "Comunicado aos clientes",
+  "Quick Service",
+  "Rastreamento mobile",
+  "Importação de arquivo",
+  "Configurações de rastreador",
+  "Configurações do menu Geral"
+];
+
+interface SearchableSelectProps {
+  value: string;
+  onChange: (value: string) => void;
+  options: string[];
+  placeholder: string;
+  disabled?: boolean;
+}
+
+const SearchableSelect: React.FC<SearchableSelectProps> = ({
+  value,
+  onChange,
+  options,
+  placeholder,
+  disabled
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const containerRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (isOpen && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [isOpen]);
+
+  const filteredOptions = useMemo(() => {
+    return options.filter((opt) =>
+      opt.toLowerCase().includes(searchTerm.toLowerCase().trim())
+    );
+  }, [options, searchTerm]);
+
+  return (
+    <div className="searchable-select-container" ref={containerRef}>
+      <button
+        type="button"
+        className={`searchable-select-trigger ${isOpen ? "active" : ""}`}
+        onClick={() => {
+          if (!disabled) {
+            setIsOpen(!isOpen);
+            setSearchTerm("");
+          }
+        }}
+        disabled={disabled}
+      >
+        <span className={value ? "selected-value" : "placeholder-value"}>
+          {value || placeholder}
+        </span>
+        <span className={`select-arrow ${isOpen ? "open" : ""}`}>▼</span>
+      </button>
+
+      {isOpen && (
+        <div className="searchable-select-dropdown">
+          <div className="searchable-select-search-wrapper">
+            <input
+              ref={searchInputRef}
+              type="text"
+              className="searchable-select-search-input"
+              placeholder="Pesquisar tema..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div className="searchable-select-options-list">
+            {filteredOptions.length > 0 ? (
+              filteredOptions.map((opt) => (
+                <div
+                  key={opt}
+                  className={`searchable-select-option ${
+                    value === opt ? "selected" : ""
+                  }`}
+                  onClick={() => {
+                    onChange(opt);
+                    setIsOpen(false);
+                    setSearchTerm("");
+                  }}
+                >
+                  {opt}
+                </div>
+              ))
+            ) : (
+              <div className="searchable-select-no-options">
+                Nenhum tema encontrado
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const Gamificacao: React.FC = () => {
   const { user, userName, role } = useAuth();
@@ -687,14 +842,13 @@ export const Gamificacao: React.FC = () => {
                                 </div>
 
                                 <div className="input-group">
-                                  <label htmlFor="treinamento-tema">Tema *</label>
-                                  <input
-                                    type="text"
-                                    id="treinamento-tema"
-                                    placeholder="Digite o tema (ou Cancelado/Ausente)..."
+                                  <label>Tema *</label>
+                                  <SearchableSelect
                                     value={treinamentoTema}
-                                    onChange={(e) => setTreinamentoTema(e.target.value)}
-                                    required
+                                    onChange={setTreinamentoTema}
+                                    options={TEMAS_GAMIFICACAO}
+                                    placeholder="Selecione ou pesquise o tema..."
+                                    disabled={submitting}
                                   />
                                 </div>
                               </div>
@@ -963,13 +1117,13 @@ export const Gamificacao: React.FC = () => {
                     </div>
 
                     <div className="input-group">
-                      <label htmlFor="edit-treinamento-tema">Tema *</label>
-                      <input
-                        type="text"
-                        id="edit-treinamento-tema"
+                      <label>Tema *</label>
+                      <SearchableSelect
                         value={editTema}
-                        onChange={(e) => setEditTema(e.target.value)}
-                        required
+                        onChange={setEditTema}
+                        options={TEMAS_GAMIFICACAO}
+                        placeholder="Selecione ou pesquise o tema..."
+                        disabled={submitting}
                       />
                     </div>
                   </div>

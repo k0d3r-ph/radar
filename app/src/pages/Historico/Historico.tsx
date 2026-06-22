@@ -487,17 +487,19 @@ export function Historico() {
       return;
     }
 
-    if (isTreinador && !editandoId && (form.tipo === "Informativa" || form.tipo === "Treinamento") && !calculoScoreResult) {
-      toast.error("O cálculo de score é obrigatório para ocorrências do tipo Informativa ou Treinamento.");
-      return;
-    }
-
     const empresaObjeto = empresasList.find(
       (e) => normalizar(e.nomeEmpresa) === normalizar(form.empresa)
     );
 
     if (!empresaObjeto) {
       toast.error("A empresa especificada não foi encontrada. Selecione uma empresa cadastrada válida.");
+      return;
+    }
+
+    const isOngoing = empresaObjeto.isOngoing ?? false;
+
+    if (isTreinador && !editandoId && (form.tipo === "Informativa" || form.tipo === "Treinamento") && !calculoScoreResult && !isOngoing) {
+      toast.error("O cálculo de score é obrigatório para ocorrências do tipo Informativa ou Treinamento.");
       return;
     }
 
@@ -783,6 +785,12 @@ Score atual: ${novoScore}${mudancasTexto}`;
 
     return bateBusca && empresaOk && tipoOk && deptoOk && dataOk;
   });
+
+  const selectedEmpresaObj = empresasList.find(
+    (e) => normalizar(e.nomeEmpresa) === normalizar(form.empresa)
+  );
+  const isSelectedEmpresaOngoing = selectedEmpresaObj?.isOngoing ?? false;
+
   return (
     <div className="hist-shell">
       {/* Header */}
@@ -1327,7 +1335,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
               </select>
             </div>
 
-            {!editandoId && isTreinador && (form.tipo === "Informativa" || form.tipo === "Treinamento") && (
+            {!editandoId && isTreinador && (form.tipo === "Informativa" || form.tipo === "Treinamento") && !isSelectedEmpresaOngoing && (
               <div className="hist-campo score-btn-container">
                 <button
                   type="button"

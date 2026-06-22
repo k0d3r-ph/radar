@@ -62,7 +62,7 @@ export const RelatorioScore: React.FC = () => {
             id: doc.id,
             ...(doc.data() as Omit<Empresa, "id">),
           }))
-          .filter((empresa) => empresa.id);
+          .filter((empresa) => empresa.id && !empresa.isOngoing);
 
         setEmpresasList(lista);
         setLoading(false);

@@ -29,6 +29,8 @@ const TIPOS = [
   "Treinamento",
   "Checkpoint",
   "Mudança de score",
+  "Dúvida",
+  "Problema",
 ];
 
 const DEPARTAMENTO = [
@@ -63,6 +65,8 @@ const TIPO_CLASS: Record<string, string> = {
   Treinamento: "tipo--treinamento",
   Checkpoint: "tipo--checkpoint",
   "Mudança de score": "tipo--mudanca-score",
+  Dúvida: "tipo--duvida",
+  Problema: "tipo--problema",
 };
 
 const TEMPLATE_TREINAMENTO = `Participantes: \n\nNOTA: \n\nRelatório de treinamento:\n\n• Cliente se manteve atento? \n• Cliente absorveu o conteúdo aplicado?\n• Cliente foi participativo?\n• Houve alguma interrupção?\n• Ambiente favorável (Som)?\n• Manifestou alguma insatisfação?\n• Treinamento foi gravado?\n\nRelatório do atendimento:\n\nE-mail: \nNota:\nTexto: `;
@@ -556,7 +560,7 @@ export function Historico() {
       const deveGerarOcorrencia = isPrimeiroCalculo || tipoMudou;
 
       if (deveGerarOcorrencia) {
-        let descMudanca = "";
+        let descMudanca: string;
         if (isPrimeiroCalculo) {
           const marcadas = descreverRespostas(respostasScore);
           const marcadasTexto = marcadas.length > 0 ? "\n\nRespostas marcadas:\n" + marcadas.join("\n") : "";
@@ -711,12 +715,15 @@ Score atual: ${novoScore}${mudancasTexto}`;
 
   const getAllowedTypes = () => {
     if (role === "master") {
-      return ["Informativa", "Financeira", "Comercial", "Técnica", "Treinamento", "Checkpoint"];
+      return ["Informativa", "Financeira", "Comercial", "Técnica", "Treinamento", "Checkpoint", "Dúvida", "Problema"];
     }
     if (role === "treinador") {
       return ["Informativa", "Treinamento", "Checkpoint"];
     }
-    if (role === "suporte" || role === "hardware") {
+    if (role === "suporte") {
+      return ["Informativa", "Dúvida", "Problema"];
+    }
+    if (role === "hardware") {
       return ["Informativa", "Técnica"];
     }
     if (role === "comercial") {

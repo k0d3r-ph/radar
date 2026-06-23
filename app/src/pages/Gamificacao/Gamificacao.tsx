@@ -230,9 +230,8 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
                 return (
                   <div
                     key={opt}
-                    className={`searchable-select-option ${
-                      isSelected ? "selected" : ""
-                    }`}
+                    className={`searchable-select-option ${isSelected ? "selected" : ""
+                      }`}
                     onClick={() => {
                       handleToggleOption(opt);
                     }}
@@ -401,6 +400,11 @@ export const Gamificacao: React.FC = () => {
   const handleLancar = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    const CanceladoOuAusente = treinamentoTemas.some((t) =>
+      t.trim().toLocaleLowerCase() === "cancelado" || t.trim().toLocaleLowerCase() === "ausente"
+    );
+
+
     if (!selectedTrainerUid || !selectedActionType) {
       toast.error("Preencha todos os campos do lançamento.");
       return;
@@ -424,7 +428,7 @@ export const Gamificacao: React.FC = () => {
         toast.error("Preencha as datas de solicitação e realização.");
         return;
       }
-      if (!treinamentoTempoAgenda.trim()) {
+      if (!CanceladoOuAusente && !treinamentoTempoAgenda.trim()) {
         toast.error("Preencha o tempo de agenda.");
         return;
       }
@@ -522,7 +526,7 @@ export const Gamificacao: React.FC = () => {
       setTreinamentoTempoAgenda("");
       setTreinamentoSolicitante("CS");
       setTreinamentoNotas([]);
-      
+
       // Reload points list
       const novaLista = await listarLancamentosPontos();
       setEntries(novaLista);
@@ -543,7 +547,7 @@ export const Gamificacao: React.FC = () => {
     setEditTempoAgenda(entry.treinamentoTempoAgenda || "");
     setEditSolicitante(entry.treinamentoSolicitante || "CS");
     setEditNotas(entry.treinamentoNotas ? entry.treinamentoNotas.map(String) : []);
-    
+
     let obs = "";
     if (entry.tipoAcao === "treinamento" && entry.descricao) {
       const parts = entry.descricao.split(" | Obs: ");
@@ -558,6 +562,10 @@ export const Gamificacao: React.FC = () => {
 
   const handleSalvarEdicao = async (e: React.FormEvent) => {
     e.preventDefault();
+    const CanceladoOuAusente = editTemas.some((t) =>
+      t.trim().toLocaleLowerCase() === "cancelado" || t.trim().toLocaleLowerCase() === "ausente"
+    );
+
     if (!editingEntry || !editingEntry.id) return;
 
     setSubmitting(true);
@@ -582,7 +590,7 @@ export const Gamificacao: React.FC = () => {
           setSubmitting(false);
           return;
         }
-        if (!editTempoAgenda.trim()) {
+        if (!CanceladoOuAusente && !editTempoAgenda.trim()) {
           toast.error("Preencha o tempo de agenda.");
           setSubmitting(false);
           return;
@@ -909,15 +917,26 @@ export const Gamificacao: React.FC = () => {
 
                               <div className="form-grid-2">
                                 <div className="input-group">
-                                  <label htmlFor="treinamento-tempo-agenda">Tempo de Agenda *</label>
+                                  <label htmlFor="treinamento-tempo-agenda">
+                                    Tempo de Agenda {
+                                      treinamentoTemas.some(
+                                        (t) => t.trim().toLowerCase() === "cancelado" || t.trim().toLowerCase() === "ausente"
+                                      ) ? "" : "*"
+                                    }
+                                  </label>
                                   <input
                                     type="time"
                                     id="treinamento-tempo-agenda"
                                     value={treinamentoTempoAgenda}
                                     onChange={(e) => setTreinamentoTempoAgenda(e.target.value)}
-                                    required
+                                    required={
+                                      !treinamentoTemas.some(
+                                        (t) => t.trim().toLowerCase() === "cancelado" || t.trim().toLowerCase() === "ausente"
+                                      )
+                                    }
                                   />
                                 </div>
+
 
                                 <div className="input-group">
                                   <label htmlFor="treinamento-solicitante">Quem Solicitou *</label>
@@ -1049,9 +1068,8 @@ export const Gamificacao: React.FC = () => {
                             <td className="date-cell">{formatarData(entry.dataLancamento)}</td>
                             <td className="points-cell">
                               <span
-                                className={`points-tag ${
-                                  entry.pontos > 0 ? "tag-positive" : "tag-negative"
-                                }`}
+                                className={`points-tag ${entry.pontos > 0 ? "tag-positive" : "tag-negative"
+                                  }`}
                               >
                                 {entry.pontos > 0 ? `+${entry.pontos}` : entry.pontos}
                               </span>
@@ -1130,7 +1148,7 @@ export const Gamificacao: React.FC = () => {
               <Edit2 className="card-icon" size={22} />
               <h2>Editar Lançamento</h2>
             </div>
-            
+
             <div className="edit-modal-body">
               {editingEntry.tipoAcao === "treinamento" ? (
                 <>
@@ -1184,13 +1202,23 @@ export const Gamificacao: React.FC = () => {
 
                   <div className="form-grid-2">
                     <div className="input-group">
-                      <label htmlFor="edit-treinamento-tempo-agenda">Tempo de Agenda *</label>
+                      <label htmlFor="edit-treinamento-tempo-agenda">
+                        Tempo de Agenda {
+                          editTemas.some(
+                            (t) => t.trim().toLowerCase() === "cancelado" || t.trim().toLowerCase() === "ausente"
+                          ) ? "" : "*"
+                        }
+                      </label>
                       <input
                         type="time"
                         id="edit-treinamento-tempo-agenda"
                         value={editTempoAgenda}
                         onChange={(e) => setEditTempoAgenda(e.target.value)}
-                        required
+                        required={
+                          !editTemas.some(
+                            (t) => t.trim().toLowerCase() === "cancelado" || t.trim().toLowerCase() === "ausente"
+                          )
+                        }
                       />
                     </div>
 
@@ -1212,48 +1240,48 @@ export const Gamificacao: React.FC = () => {
                     </div>
                   </div>
 
-                              <div className="treinamento-notas-section">
-                                <div className="notas-section-header">
-                                  <label>Notas dos Participantes (CSAT Opcional)</label>
-                                  <button
-                                    type="button"
-                                    className="btn-add-nota-icon"
-                                    onClick={handleAddEditNota}
-                                    title="Adicionar Nota"
-                                  >
-                                    + Adicionar Nota
-                                  </button>
-                                </div>
-                                {editNotas.length === 0 ? (
-                                  <span className="no-notas-msg">Nenhuma nota registrada (treinamento sem resposta CSAT).</span>
-                                ) : (
-                                  <div className="notas-inputs-grid">
-                                    {editNotas.map((nota, idx) => (
-                                      <div key={idx} className="nota-input-row">
-                                        <input
-                                          type="number"
-                                          className="nota-input-field"
-                                          placeholder={`Nota ${idx + 1} (0 a 10)`}
-                                          min="0"
-                                          max="10"
-                                          step="1"
-                                          value={nota}
-                                          onChange={(e) => handleUpdateEditNota(idx, e.target.value)}
-                                          required
-                                        />
-                                        <button
-                                          type="button"
-                                          className="btn-remove-nota-icon"
-                                          onClick={() => handleRemoveEditNota(idx)}
-                                          title="Remover nota"
-                                        >
-                                          <Trash2 size={14} />
-                                        </button>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
+                  <div className="treinamento-notas-section">
+                    <div className="notas-section-header">
+                      <label>Notas dos Participantes (CSAT Opcional)</label>
+                      <button
+                        type="button"
+                        className="btn-add-nota-icon"
+                        onClick={handleAddEditNota}
+                        title="Adicionar Nota"
+                      >
+                        + Adicionar Nota
+                      </button>
+                    </div>
+                    {editNotas.length === 0 ? (
+                      <span className="no-notas-msg">Nenhuma nota registrada (treinamento sem resposta CSAT).</span>
+                    ) : (
+                      <div className="notas-inputs-grid">
+                        {editNotas.map((nota, idx) => (
+                          <div key={idx} className="nota-input-row">
+                            <input
+                              type="number"
+                              className="nota-input-field"
+                              placeholder={`Nota ${idx + 1} (0 a 10)`}
+                              min="0"
+                              max="10"
+                              step="1"
+                              value={nota}
+                              onChange={(e) => handleUpdateEditNota(idx, e.target.value)}
+                              required
+                            />
+                            <button
+                              type="button"
+                              className="btn-remove-nota-icon"
+                              onClick={() => handleRemoveEditNota(idx)}
+                              title="Remover nota"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
 
                   <div className="input-group">
                     <label htmlFor="edit-descricao-input">Observações (Opcional)</label>

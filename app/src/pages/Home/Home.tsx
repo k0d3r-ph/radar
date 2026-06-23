@@ -6,7 +6,7 @@ import "./Home.css";
 import ProgressBar from "../../components/ProgressBar";
 import StatusFarol from "../../components/StatusFarol";
 
-import { listarOcorrencias } from "../../services/ocorrencias";
+import { listarOcorrencias, salvarOcorrencia } from "../../services/ocorrencias";
 
 import {
   listarEmpresas,
@@ -125,17 +125,56 @@ export default function Home() {
       ? formatarNome(clienteForm.comercialResponsavel)
       : "";
 
+    let nomeFinal = clienteForm.nomeEmpresa.trim();
+    let idNumericToSave = clienteForm.idNumeric;
+
+    const matchTypedId = nomeFinal.match(/\(#(\d+)\)/);
+    if (matchTypedId) {
+      idNumericToSave = parseInt(matchTypedId[1], 10);
+      nomeFinal = nomeFinal.replace(/\s*\(#\d+\)/, "").trim();
+    }
+
+    if (typeof idNumericToSave !== "number") {
+      let highest = 0;
+      empresas.forEach(e => {
+        if (e.idNumeric && e.idNumeric > highest) {
+          highest = e.idNumeric;
+        }
+      });
+      idNumericToSave = highest + 1;
+    }
+
+    const antigoNome = editandoClienteId 
+      ? empresas.find(e => e.id === editandoClienteId)?.nomeEmpresa
+      : null;
+
     await salvarEmpresas({
       ...clienteForm,
-      nomeEmpresa: clienteForm.nomeEmpresa.trim(),
+      nomeEmpresa: nomeFinal,
+      idNumeric: idNumericToSave,
       comercialResponsavel: comercialFormatted,
       id: editandoClienteId || undefined,
       updatedAt: Date.now(),
     });
 
-    const lista = await listarEmpresas();
+    if (antigoNome && antigoNome.trim().toLowerCase() !== nomeFinal.trim().toLowerCase()) {
+      const ocsParaAtualizar = historico.filter(o => o.empresa.trim().toLowerCase() === antigoNome.trim().toLowerCase());
+      for (let j = 0; j < ocsParaAtualizar.length; j++) {
+        const oc = ocsParaAtualizar[j];
+        await salvarOcorrencia({
+          ...oc,
+          empresa: nomeFinal,
+        });
+      }
+    }
+
+    const [lista, ocsLista] = await Promise.all([
+      listarEmpresas(),
+      listarOcorrencias(),
+    ]);
 
     setEmpresas(lista);
+    setHistorico(ocsLista);
 
     setModalClienteAberto(false);
     setClienteSelecionado(null);
@@ -162,15 +201,68 @@ export default function Home() {
     async function carregarDados() {
       setLoading(true);
 
-      const [empresasLista, ocorrenciasLista] = await Promise.all([
+      let [empresasLista, ocorrenciasLista] = await Promise.all([
         listarEmpresas(),
         listarOcorrencias(),
       ]);
 
+      let mudouAlguma = false;
+
+      let highest = 0;
+      empresasLista.forEach(e => {
+        if (e.idNumeric && e.idNumeric > highest) {
+          highest = e.idNumeric;
+        }
+        const match = e.nomeEmpresa.match(/\(#(\d+)\)/);
+        if (match) {
+          const val = parseInt(match[1], 10);
+          if (val > highest) highest = val;
+        }
+      });
+
+      for (let i = 0; i < empresasLista.length; i++) {
+        const empresa = empresasLista[i];
+        const match = empresa.nomeEmpresa.match(/\(#(\d+)\)/);
+
+        if (match) {
+          const idNum = parseInt(match[1], 10);
+          const antigoNome = empresa.nomeEmpresa;
+          const novoNome = antigoNome.replace(/\s*\(#\d+\)/, "").trim();
+
+          await salvarEmpresas({
+            ...empresa,
+            nomeEmpresa: novoNome,
+            idNumeric: idNum,
+          });
+          mudouAlguma = true;
+
+          const ocsParaAtualizar = ocorrenciasLista.filter(o => o.empresa.trim().toLowerCase() === antigoNome.trim().toLowerCase());
+          for (let j = 0; j < ocsParaAtualizar.length; j++) {
+            const oc = ocsParaAtualizar[j];
+            await salvarOcorrencia({
+              ...oc,
+              empresa: novoNome,
+            });
+          }
+        } else if (typeof empresa.idNumeric !== "number") {
+          highest++;
+          await salvarEmpresas({
+            ...empresa,
+            idNumeric: highest,
+          });
+          mudouAlguma = true;
+        }
+      }
+
+      if (mudouAlguma) {
+        [empresasLista, ocorrenciasLista] = await Promise.all([
+          listarEmpresas(),
+          listarOcorrencias(),
+        ]);
+      }
+
       setEmpresas(empresasLista);
-
       setHistorico(ocorrenciasLista);
-
       setLoading(false);
     }
 
@@ -787,6 +879,12 @@ export default function Home() {
             </div>
 
             <div className="cliente-info-details">
+              <div className="info-item">
+                <span className="info-label">ID do Cliente</span>
+                <span className="info-value" style={{ fontWeight: "bold", color: "#1e90ff" }}>
+                  {clienteSelecionado.idNumeric ? `#${clienteSelecionado.idNumeric}` : "Sem ID"}
+                </span>
+              </div>
               <div className="info-item">
                 <span className="info-label">CS Responsável</span>
                 <span className="info-value">

@@ -11,6 +11,7 @@ import type { Ocorrencia, Empresa, OcorrenciaForm } from "../../types";
 import "./Historico.css";
 import { useAuth } from "../../context/AuthContext";
 import { formatarNome } from "../../utils/formatarNome";
+import { atribuirIdsOcorrencias } from "../../utils/empresaUtils";
 import {
   Star,
   GraduationCap,
@@ -323,9 +324,11 @@ export function Historico() {
       listarOcorrencias(),
       listarEmpresas(),
     ]);
-    setOcorrencias(ocLista);
+    const enriquecidas = atribuirIdsOcorrencias(ocLista, empLista);
+    setOcorrencias(enriquecidas);
     setEmpresasList(empLista);
     setLoading(false);
+    return enriquecidas;
   }
 
   async function salvarNovaAtualizacao() {
@@ -349,12 +352,13 @@ export function Historico() {
 
     setSalvando(true);
     await salvarOcorrencia(atualizado);
-    await carregar();
+    const novasOcs = await carregar();
     setSalvando(false);
     setNovaAtualizacaoAberta(false);
     setNovaDescricaoAtual("");
     setNovoResponsavelAtual("");
-    setSelecionada(atualizado); // atualiza o modal com os novos dados
+    const updatedSelected = novasOcs.find(o => o.id === selecionada!.id);
+    setSelecionada(updatedSelected || atualizado);
     toast.success("Atualização incluída!");
   }
 
@@ -366,16 +370,6 @@ export function Historico() {
   }
 
   useEffect(() => {
-    async function carregar() {
-      setLoading(true);
-      const [ocLista, empLista] = await Promise.all([
-        listarOcorrencias(),
-        listarEmpresas(),
-      ]);
-      setOcorrencias(ocLista);
-      setEmpresasList(empLista);
-      setLoading(false);
-    }
     carregar();
   }, []);
 
@@ -766,7 +760,8 @@ Score atual: ${novoScore}${mudancasTexto}`;
       normalizar(o.empresa).includes(normalizar(texto)) ||
       o.tipo.toLowerCase().includes(texto) ||
       o.descricao.toLowerCase().includes(texto) ||
-      o.responsavel.toLowerCase().includes(texto);
+      o.responsavel.toLowerCase().includes(texto) ||
+      (o.idSeqFormatted && o.idSeqFormatted.toLowerCase().includes(texto));
 
     const empresaOk =
       !empresaFiltro || normalizar(o.empresa) === normalizar(empresaFiltro);
@@ -907,7 +902,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
               <th>Departamento</th>
               <th>Tipo de registro</th>
               <th>Responsável</th>
-              <th>Ações</th>
+              <th>ID</th>
             </tr>
           </thead>
 
@@ -996,8 +991,8 @@ Score atual: ${novoScore}${mudancasTexto}`;
 
                     <td>👤 {formatarNome(o.responsavel) || "—"}</td>
 
-                    <td className="hist-arrow-cell">
-                      <span className="hist-arrow">›</span>
+                    <td style={{ fontWeight: "600", color: "#64748b" }}>
+                      {o.idSeqFormatted || "—"}
                     </td>
                   </tr>
                 );
@@ -1012,7 +1007,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
               onClick={(e) => e.stopPropagation()}
             >
               <div className="hist-detail-header">
-                <h2>Detalhes da interação</h2>
+                <h2>Detalhes da interação {selecionada.idSeqFormatted ? `(${selecionada.idSeqFormatted})` : ""}</h2>
 
                 <button onClick={() => fecharDetalhe()}>✕</button>
               </div>

@@ -925,7 +925,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
                             }}
                             title="Alerta Solucionado"
                           >
-                            ✅🚨
+                            🚨
                           </span>
                         ) : (
                           <span
@@ -1015,7 +1015,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
                       return (
                         <div style={{ gridColumn: "span 2", marginBottom: "10px" }}>
                           <span style={{ color: "#16a34a", fontWeight: "bold", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-                            ✅🚨 Alerta Solucionado {resDoc ? `em ${new Date(resDoc.createdAt ?? resDoc.dataOcorrencia ?? 0).toLocaleDateString("pt-BR")}` : ""}.
+                            🚨 Alerta Solucionado {resDoc ? `em ${new Date(resDoc.createdAt ?? resDoc.dataOcorrencia ?? 0).toLocaleDateString("pt-BR")}` : ""}.
                             {resDoc && (
                               <button
                                 style={{

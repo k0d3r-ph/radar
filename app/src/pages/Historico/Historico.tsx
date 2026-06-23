@@ -756,12 +756,32 @@ Score atual: ${novoScore}${mudancasTexto}`;
   const filtradas = ocorrencias.filter((o) => {
     const texto = busca.toLowerCase();
 
-    const bateBusca =
+    const textoSemEspacos = texto.trim();
+    const matchesText =
       normalizar(o.empresa).includes(normalizar(texto)) ||
       o.tipo.toLowerCase().includes(texto) ||
       o.descricao.toLowerCase().includes(texto) ||
-      o.responsavel.toLowerCase().includes(texto) ||
-      (o.idSeqFormatted && o.idSeqFormatted.toLowerCase().includes(texto));
+      o.responsavel.toLowerCase().includes(texto);
+
+    let matchesId = false;
+    if (o.idSeqFormatted) {
+      const idLower = o.idSeqFormatted.toLowerCase();
+      if (idLower === textoSemEspacos || idLower.replace("#", "") === textoSemEspacos) {
+        matchesId = true;
+      }
+      if (textoSemEspacos.startsWith("#")) {
+        const queryNum = textoSemEspacos.replace("#", "");
+        const cleanId = idLower.replace("#", "");
+        if (cleanId.length > 2) {
+          const companyPrefix = cleanId.substring(0, cleanId.length - 2);
+          if (companyPrefix === queryNum) {
+            matchesId = true;
+          }
+        }
+      }
+    }
+
+    const bateBusca = matchesText || matchesId;
 
     const empresaOk =
       !empresaFiltro || normalizar(o.empresa) === normalizar(empresaFiltro);

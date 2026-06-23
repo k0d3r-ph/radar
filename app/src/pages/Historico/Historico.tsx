@@ -296,6 +296,7 @@ export function Historico() {
   const [salvando, setSalvando] = useState(false);
   const [painelAberto, setPainelAberto] = useState(false);
   const [usarTemplate, setUsarTemplate] = useState(true);
+  const [temaOcorrenciaOngoingText, setTemaOcorrenciaOngoingText] = useState("");
 
   const [searchParams] = useSearchParams();
 
@@ -310,7 +311,6 @@ export function Historico() {
       }
     }
   }, [loading, ocorrenciaIdFiltro, ocorrencias]);
-
 
 
   const temAusenteOuCancelado = form.temaOcorrencia?.some(t => t === "Ausente" || t === "Cancelado") ?? false;
@@ -414,13 +414,21 @@ export function Historico() {
   }, [form.tipo, editandoId]);
 
   function set(campo: keyof typeof EMPTY, valor: string) {
-    setForm((f) => ({ ...f, [campo]: valor }));
+    setForm((f) => {
+      const next = { ...f, [campo]: valor };
+      if (campo === "empresa") {
+        next.temaOcorrencia = [];
+        setTemaOcorrenciaOngoingText("");
+      }
+      return next;
+    });
   }
 
   function abrirNovo() {
     const deptos = getAllowedDepartments();
     const deptoPadrao = deptos.length === 1 ? deptos[0] : "";
     setForm({ ...EMPTY, empresa: empresaFiltro || "", responsavel: userName, departamento: deptoPadrao });
+    setTemaOcorrenciaOngoingText("");
     setEditandoId(null);
     setUsarTemplate(true);
     setCalculoScoreResult(null);
@@ -455,6 +463,7 @@ export function Historico() {
       alertaResolvidoPorId: o.alertaResolvidoPorId || "",
       alertaOriginalId: o.alertaOriginalId || "",
     });
+    setTemaOcorrenciaOngoingText(o.temaOcorrencia?.join(", ") ?? "");
     setEditandoId(o.id ?? null);
     setCalculoScoreResult(null);
     setRespostasScore({ ...INITIAL_SCORE_ANSWERS });
@@ -464,6 +473,7 @@ export function Historico() {
   function cancelar() {
     setPainelAberto(false);
     setForm({ ...EMPTY });
+    setTemaOcorrenciaOngoingText("");
     setEditandoId(null);
     setUsarTemplate(true);
     setCalculoScoreResult(null);
@@ -1371,42 +1381,62 @@ Score atual: ${novoScore}${mudancasTexto}`;
             {form.tipo === "Treinamento" && (
               <div className="hist-campo">
                 <label>Temas abordados</label>
-                <div className="temas-lista">
-                  {[
-                    "Ausente",
-                    "Cancelado",
-                    ...(() => {
-                      const empresa = empresasList.find(
-                        (e) =>
-                          normalizar(e.nomeEmpresa) ===
-                          normalizar(form.empresa),
-                      );
-                      return empresa?.temaText
-                        ? empresa.temaText
-                          .trim()
-                          .split(/\s{2,}|\n/)
-                          .filter(Boolean)
-                        : [];
-                    })(),
-                  ].map((tema) => (
-                    <label key={tema} className="tema-opcao">
-                      <input
-                        type="checkbox"
-                        checked={form.temaOcorrencia?.includes(tema) ?? false}
-                        onChange={(e) => {
-                          const atual = form.temaOcorrencia ?? [];
-                          setForm({
-                            ...form,
-                            temaOcorrencia: e.target.checked
+                {isSelectedEmpresaOngoing ? (
+                  <input
+                    type="text"
+                    value={temaOcorrenciaOngoingText}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setTemaOcorrenciaOngoingText(val);
+                      setForm((f) => ({
+                        ...f,
+                        temaOcorrencia: val
+                          ? val.split(",").map((t) => t.trim()).filter(Boolean)
+                          : [],
+                      }));
+                    }}
+                    placeholder="Digite os temas separados por vírgula..."
+                  />
+                ) : (
+                  <div className="temas-lista">
+                    {[
+                      "Ausente",
+                      "Cancelado",
+                      ...(() => {
+                        const empresa = empresasList.find(
+                          (e) =>
+                            normalizar(e.nomeEmpresa) ===
+                            normalizar(form.empresa),
+                        );
+                        return empresa?.temaText
+                          ? empresa.temaText
+                            .trim()
+                            .split(/\s{2,}|\n/)
+                            .filter(Boolean)
+                          : [];
+                      })(),
+                    ].map((tema) => (
+                      <label key={tema} className="tema-opcao">
+                        <input
+                          type="checkbox"
+                          checked={form.temaOcorrencia?.includes(tema) ?? false}
+                          onChange={(e) => {
+                            const atual = form.temaOcorrencia ?? [];
+                            const novoTema = e.target.checked
                               ? [...atual, tema]
-                              : atual.filter((t) => t !== tema),
-                          });
-                        }}
-                      />
-                      {tema}
-                    </label>
-                  ))}
-                </div>
+                              : atual.filter((t) => t !== tema);
+                            setForm({
+                              ...form,
+                              temaOcorrencia: novoTema,
+                            });
+                            setTemaOcorrenciaOngoingText(novoTema.join(", "));
+                          }}
+                        />
+                        {tema}
+                      </label>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 

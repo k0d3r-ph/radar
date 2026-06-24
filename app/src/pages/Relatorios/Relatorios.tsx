@@ -23,6 +23,7 @@ import type { Empresa, Ocorrencia } from "../../types";
 import { formatarNome } from "../../utils/formatarNome";
 import "./Relatorios.css";
 import { RelatorioScore } from "../RelatorioScore/RelatorioScore";
+import { useNavigate } from "react-router-dom";
 
 type DecorredEmpresa = Empresa & {
   alerta: boolean;
@@ -33,6 +34,7 @@ type DecorredEmpresa = Empresa & {
 };
 
 export const Relatorios: React.FC = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<"esteira" | "score">("esteira");
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [ocorrencias, setOcorrencias] = useState<Ocorrencia[]>([]);
@@ -134,9 +136,15 @@ export const Relatorios: React.FC = () => {
         alerta: temAlerta,
       });
 
+      let ocorrenciaAlertaId = (empresa as any).ocorrenciaAlertaId;
+      if (ultimaOcorrenciaAlerta && ultimaOcorrenciaAlerta.alerta === true) {
+        ocorrenciaAlertaId = ultimaOcorrenciaAlerta.id;
+      }
+
       return {
         ...empresa,
         alerta: temAlerta,
+        ocorrenciaAlertaId,
         tme,
         progresso,
         farol,
@@ -499,7 +507,34 @@ ${riscoChurn.length > 0
                       <tbody>
                         {selectedKpi.lista.map((e) => (
                           <tr key={e.id}>
-                            <td style={{ fontWeight: 600 }}>{e.nomeEmpresa}</td>
+                            <td style={{ fontWeight: 600 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                                <span>{e.nomeEmpresa}</span>
+                                {e.alerta && (e as any).ocorrenciaAlertaId && (
+                                  <button
+                                    className="relatorio-alert-badge"
+                                    onClick={() => navigate(`/historico?empresa=${encodeURIComponent(e.nomeEmpresa)}&ocorrencia=${(e as any).ocorrenciaAlertaId}`)}
+                                    title="Clique para ver a ocorrência de alerta"
+                                    style={{
+                                      background: "rgba(239, 68, 68, 0.2)",
+                                      color: "#f87171",
+                                      border: "1px solid rgba(239, 68, 68, 0.4)",
+                                      borderRadius: "6px",
+                                      padding: "2px 6px",
+                                      fontSize: "0.75rem",
+                                      fontWeight: 600,
+                                      cursor: "pointer",
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: "4px"
+                                    }}
+                                  >
+                                    <AlertCircle size={12} />
+                                    Ver Ocorrência
+                                  </button>
+                                )}
+                              </div>
+                            </td>
                             <td>{formatarNome(e.responsavel) || "—"}</td>
                             <td>{formatarNome(e.csResponsavel) || "—"}</td>
                             {kpiSelecionado === 2 ? (

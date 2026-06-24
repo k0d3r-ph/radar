@@ -173,7 +173,7 @@ export const Relatorios: React.FC = () => {
   const ativosNoFimDeSemana = useMemo(() => {
     if (!limitesSemana) return [];
     const { inicio, fim } = limitesSemana;
-    const empresasNomes = new Set<string>();
+    const suporteStats = new Map<string, { duvidas: number; problemas: number }>();
 
     ocorrencias.forEach((o) => {
       if (o.departamento === "Suporte") {
@@ -181,15 +181,33 @@ export const Relatorios: React.FC = () => {
         if (t >= inicio.getTime() && t <= fim.getTime()) {
           const dia = new Date(t).getDay();
           if (dia === 0 || dia === 6) {
-            empresasNomes.add(o.empresa.trim().toLowerCase());
+            const key = o.empresa.trim().toLowerCase();
+            const stats = suporteStats.get(key) || { duvidas: 0, problemas: 0 };
+            
+            const tipoLower = (o.tipo || "").toLowerCase();
+            if (tipoLower.includes("duvida") || tipoLower.includes("dúvida")) {
+              stats.duvidas += 1;
+            } else if (tipoLower.includes("problema")) {
+              stats.problemas += 1;
+            } else {
+              stats.problemas += 1;
+            }
+            suporteStats.set(key, stats);
           }
         }
       }
     });
 
-    return dadosEmpresas.filter((e) =>
-      !e.isOngoing && empresasNomes.has(e.nomeEmpresa.trim().toLowerCase())
-    );
+    return dadosEmpresas
+      .filter((e) => !e.isOngoing && suporteStats.has(e.nomeEmpresa.trim().toLowerCase()))
+      .map((e) => {
+        const stats = suporteStats.get(e.nomeEmpresa.trim().toLowerCase())!;
+        return {
+          ...e,
+          qtdDuvidas: stats.duvidas,
+          qtdProblemas: stats.problemas,
+        };
+      });
   }, [dadosEmpresas, ocorrencias, limitesSemana]);
 
   const semProximoPasso = useMemo(() => {
@@ -315,7 +333,7 @@ ${
     ? ativosNoFimDeSemana
         .map(
           (e) =>
-            ` - ${e.nomeEmpresa}\n   Treinador: ${formatarNome(e.responsavel) || "-"}\n   CS: ${formatarNome(e.csResponsavel) || "-"}\n   Valor do Contrato: ${e.valorContrato !== undefined ? `R$ ${e.valorContrato.toFixed(2)}` : "—"}\n`
+            ` - ${e.nomeEmpresa}\n   Treinador: ${formatarNome(e.responsavel) || "-"}\n   CS: ${formatarNome(e.csResponsavel) || "-"}\n   Dúvidas: ${(e as any).qtdDuvidas}\n   Problemas: ${(e as any).qtdProblemas}\n   Valor do Contrato: ${e.valorContrato !== undefined ? `R$ ${e.valorContrato.toFixed(2)}` : "—"}\n`
         )
         .join("\n")
     : " - Nenhum atendimento de suporte no fim de semana registrado nesta semana.\n"
@@ -440,14 +458,25 @@ ${
               {selectedKpi.lista.length > 0 ? (
                 <table className="relatorios-table">
                   <thead>
-                    <tr>
-                      <th>Cliente</th>
-                      <th>Treinador</th>
-                      <th>CS Responsável</th>
-                      <th>Progresso</th>
-                      <th>Dias na Esteira</th>
-                      <th style={{ textAlign: "right" }}>Valor de Contrato</th>
-                    </tr>
+                    {kpiSelecionado === 2 ? (
+                      <tr>
+                        <th>Cliente</th>
+                        <th>Treinador</th>
+                        <th>CS Responsável</th>
+                        <th style={{ textAlign: "center" }}>Dúvidas</th>
+                        <th style={{ textAlign: "center" }}>Problemas</th>
+                        <th style={{ textAlign: "right" }}>Valor de Contrato</th>
+                      </tr>
+                    ) : (
+                      <tr>
+                        <th>Cliente</th>
+                        <th>Treinador</th>
+                        <th>CS Responsável</th>
+                        <th>Progresso</th>
+                        <th>Dias na Esteira</th>
+                        <th style={{ textAlign: "right" }}>Valor de Contrato</th>
+                      </tr>
+                    )}
                   </thead>
                   <tbody>
                     {selectedKpi.lista.map((e) => (
@@ -455,12 +484,25 @@ ${
                         <td style={{ fontWeight: 600 }}>{e.nomeEmpresa}</td>
                         <td>{formatarNome(e.responsavel) || "—"}</td>
                         <td>{formatarNome(e.csResponsavel) || "—"}</td>
-                        <td>
-                          <span style={{ fontWeight: 600, color: e.progresso >= 100 ? "#10b981" : "#f59e0b" }}>
-                            {e.progresso}%
-                          </span>
-                        </td>
-                        <td>{e.dias} dias</td>
+                        {kpiSelecionado === 2 ? (
+                          <>
+                            <td style={{ textAlign: "center", fontWeight: 600 }}>
+                              {(e as any).qtdDuvidas}
+                            </td>
+                            <td style={{ textAlign: "center", fontWeight: 600 }}>
+                              {(e as any).qtdProblemas}
+                            </td>
+                          </>
+                        ) : (
+                          <>
+                            <td>
+                              <span style={{ fontWeight: 600, color: e.progresso >= 100 ? "#10b981" : "#f59e0b" }}>
+                                {e.progresso}%
+                              </span>
+                            </td>
+                            <td>{e.dias} dias</td>
+                          </>
+                        )}
                         <td style={{ textAlign: "right", fontWeight: 600 }}>
                           {e.valorContrato !== undefined && e.valorContrato !== null
                             ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(e.valorContrato)

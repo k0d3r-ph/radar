@@ -39,6 +39,7 @@ export type Empresa = {
   scoreAnswers?: any;
   isOngoing?: boolean;
   valorContrato?: number;
+  idNumeric?: number;
 };
 
 export type Ocorrencia = {
@@ -52,6 +53,7 @@ export type Ocorrencia = {
   dataOcorrencia: number;
   updatedAt?: number;
   temaOcorrencia?: string[];
+  idSeqFormatted?: string;
   atualizacoes?: Atualizacao[];
   scoreCalculado?: number;
   scoreAnswers?: any;

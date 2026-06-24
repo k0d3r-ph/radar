@@ -11,6 +11,7 @@ import type { Ocorrencia, Empresa, OcorrenciaForm } from "../../types";
 import "./Historico.css";
 import { useAuth } from "../../context/AuthContext";
 import { formatarNome } from "../../utils/formatarNome";
+import { atribuirIdsOcorrencias } from "../../utils/empresaUtils";
 import {
   Star,
   GraduationCap,
@@ -305,6 +306,7 @@ export function Historico() {
   const [salvando, setSalvando] = useState(false);
   const [painelAberto, setPainelAberto] = useState(false);
   const [usarTemplate, setUsarTemplate] = useState(true);
+  const [temaOcorrenciaOngoingText, setTemaOcorrenciaOngoingText] = useState("");
 
   const [searchParams] = useSearchParams();
 
@@ -321,7 +323,6 @@ export function Historico() {
   }, [loading, ocorrenciaIdFiltro, ocorrencias]);
 
 
-
   const temAusenteOuCancelado = form.temaOcorrencia?.some(t => t === "Ausente" || t === "Cancelado") ?? false;
   const temOutrosTemas = form.temaOcorrencia?.some(t => t !== "Ausente" && t !== "Cancelado") ?? false;
   const temTemaValido = temOutrosTemas && !temAusenteOuCancelado;
@@ -332,9 +333,11 @@ export function Historico() {
       listarOcorrencias(),
       listarEmpresas(),
     ]);
-    setOcorrencias(ocLista);
+    const enriquecidas = atribuirIdsOcorrencias(ocLista, empLista);
+    setOcorrencias(enriquecidas);
     setEmpresasList(empLista);
     setLoading(false);
+    return enriquecidas;
   }
 
   async function salvarNovaAtualizacao() {
@@ -358,12 +361,13 @@ export function Historico() {
 
     setSalvando(true);
     await salvarOcorrencia(atualizado);
-    await carregar();
+    const novasOcs = await carregar();
     setSalvando(false);
     setNovaAtualizacaoAberta(false);
     setNovaDescricaoAtual("");
     setNovoResponsavelAtual("");
-    setSelecionada(atualizado); // atualiza o modal com os novos dados
+    const updatedSelected = novasOcs.find(o => o.id === selecionada!.id);
+    setSelecionada(updatedSelected || atualizado);
     toast.success("Atualização incluída!");
   }
 
@@ -375,16 +379,6 @@ export function Historico() {
   }
 
   useEffect(() => {
-    async function carregar() {
-      setLoading(true);
-      const [ocLista, empLista] = await Promise.all([
-        listarOcorrencias(),
-        listarEmpresas(),
-      ]);
-      setOcorrencias(ocLista);
-      setEmpresasList(empLista);
-      setLoading(false);
-    }
     carregar();
   }, []);
 
@@ -423,13 +417,21 @@ export function Historico() {
   }, [form.tipo, editandoId]);
 
   function set(campo: keyof typeof EMPTY, valor: string) {
-    setForm((f) => ({ ...f, [campo]: valor }));
+    setForm((f) => {
+      const next = { ...f, [campo]: valor };
+      if (campo === "empresa") {
+        next.temaOcorrencia = [];
+        setTemaOcorrenciaOngoingText("");
+      }
+      return next;
+    });
   }
 
   function abrirNovo() {
     const deptos = getAllowedDepartments();
     const deptoPadrao = deptos.length === 1 ? deptos[0] : "";
     setForm({ ...EMPTY, empresa: empresaFiltro || "", responsavel: userName, departamento: deptoPadrao });
+    setTemaOcorrenciaOngoingText("");
     setEditandoId(null);
     setUsarTemplate(true);
     setCalculoScoreResult(null);
@@ -464,6 +466,7 @@ export function Historico() {
       alertaResolvidoPorId: o.alertaResolvidoPorId || "",
       alertaOriginalId: o.alertaOriginalId || "",
     });
+    setTemaOcorrenciaOngoingText(o.temaOcorrencia?.join(", ") ?? "");
     setEditandoId(o.id ?? null);
     setCalculoScoreResult(null);
     setRespostasScore({ ...INITIAL_SCORE_ANSWERS });
@@ -473,6 +476,7 @@ export function Historico() {
   function cancelar() {
     setPainelAberto(false);
     setForm({ ...EMPTY });
+    setTemaOcorrenciaOngoingText("");
     setEditandoId(null);
     setUsarTemplate(true);
     setCalculoScoreResult(null);
@@ -561,7 +565,7 @@ export function Historico() {
       const deveGerarOcorrencia = isPrimeiroCalculo || tipoMudou;
 
       if (deveGerarOcorrencia) {
-        let descMudanca = "";
+        let descMudanca: string;
         if (isPrimeiroCalculo) {
           const marcadas = descreverRespostas(respostasScore);
           const marcadasTexto = marcadas.length > 0 ? "\n\nRespostas marcadas:\n" + marcadas.join("\n") : "";
@@ -761,11 +765,32 @@ Score atual: ${novoScore}${mudancasTexto}`;
   const filtradas = ocorrencias.filter((o) => {
     const texto = busca.toLowerCase();
 
-    const bateBusca =
+    const textoSemEspacos = texto.trim();
+    const matchesText =
       normalizar(o.empresa).includes(normalizar(texto)) ||
       o.tipo.toLowerCase().includes(texto) ||
       o.descricao.toLowerCase().includes(texto) ||
       o.responsavel.toLowerCase().includes(texto);
+
+    let matchesId = false;
+    if (o.idSeqFormatted) {
+      const idLower = o.idSeqFormatted.toLowerCase();
+      if (idLower === textoSemEspacos || idLower.replace("#", "") === textoSemEspacos) {
+        matchesId = true;
+      }
+      if (textoSemEspacos.startsWith("#")) {
+        const queryNum = textoSemEspacos.replace("#", "");
+        const cleanId = idLower.replace("#", "");
+        if (cleanId.length > 2) {
+          const companyPrefix = cleanId.substring(0, cleanId.length - 2);
+          if (companyPrefix === queryNum) {
+            matchesId = true;
+          }
+        }
+      }
+    }
+
+    const bateBusca = matchesText || matchesId;
 
     const empresaOk =
       !empresaFiltro || normalizar(o.empresa) === normalizar(empresaFiltro);
@@ -906,7 +931,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
               <th>Departamento</th>
               <th>Tipo de registro</th>
               <th>Responsável</th>
-              <th>Ações</th>
+              <th>ID</th>
             </tr>
           </thead>
 
@@ -934,7 +959,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
                             }}
                             title="Alerta Solucionado"
                           >
-                            ✅🚨
+                            🚨
                           </span>
                         ) : (
                           <span
@@ -995,8 +1020,8 @@ Score atual: ${novoScore}${mudancasTexto}`;
 
                     <td>👤 {formatarNome(o.responsavel) || "—"}</td>
 
-                    <td className="hist-arrow-cell">
-                      <span className="hist-arrow">›</span>
+                    <td style={{ fontWeight: "600", color: "#64748b" }}>
+                      {o.idSeqFormatted || "—"}
                     </td>
                   </tr>
                 );
@@ -1011,7 +1036,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
               onClick={(e) => e.stopPropagation()}
             >
               <div className="hist-detail-header">
-                <h2>Detalhes da interação</h2>
+                <h2>Detalhes da interação {selecionada.idSeqFormatted ? `(${selecionada.idSeqFormatted})` : ""}</h2>
 
                 <button onClick={() => fecharDetalhe()}>✕</button>
               </div>
@@ -1384,42 +1409,62 @@ Score atual: ${novoScore}${mudancasTexto}`;
             {form.tipo === "Treinamento" && (
               <div className="hist-campo">
                 <label>Temas abordados</label>
-                <div className="temas-lista">
-                  {[
-                    "Ausente",
-                    "Cancelado",
-                    ...(() => {
-                      const empresa = empresasList.find(
-                        (e) =>
-                          normalizar(e.nomeEmpresa) ===
-                          normalizar(form.empresa),
-                      );
-                      return empresa?.temaText
-                        ? empresa.temaText
-                          .trim()
-                          .split(/\s{2,}|\n/)
-                          .filter(Boolean)
-                        : [];
-                    })(),
-                  ].map((tema) => (
-                    <label key={tema} className="tema-opcao">
-                      <input
-                        type="checkbox"
-                        checked={form.temaOcorrencia?.includes(tema) ?? false}
-                        onChange={(e) => {
-                          const atual = form.temaOcorrencia ?? [];
-                          setForm({
-                            ...form,
-                            temaOcorrencia: e.target.checked
+                {isSelectedEmpresaOngoing ? (
+                  <input
+                    type="text"
+                    value={temaOcorrenciaOngoingText}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setTemaOcorrenciaOngoingText(val);
+                      setForm((f) => ({
+                        ...f,
+                        temaOcorrencia: val
+                          ? val.split(",").map((t) => t.trim()).filter(Boolean)
+                          : [],
+                      }));
+                    }}
+                    placeholder="Digite os temas separados por vírgula..."
+                  />
+                ) : (
+                  <div className="temas-lista">
+                    {[
+                      "Ausente",
+                      "Cancelado",
+                      ...(() => {
+                        const empresa = empresasList.find(
+                          (e) =>
+                            normalizar(e.nomeEmpresa) ===
+                            normalizar(form.empresa),
+                        );
+                        return empresa?.temaText
+                          ? empresa.temaText
+                            .trim()
+                            .split(/\s{2,}|\n/)
+                            .filter(Boolean)
+                          : [];
+                      })(),
+                    ].map((tema) => (
+                      <label key={tema} className="tema-opcao">
+                        <input
+                          type="checkbox"
+                          checked={form.temaOcorrencia?.includes(tema) ?? false}
+                          onChange={(e) => {
+                            const atual = form.temaOcorrencia ?? [];
+                            const novoTema = e.target.checked
                               ? [...atual, tema]
-                              : atual.filter((t) => t !== tema),
-                          });
-                        }}
-                      />
-                      {tema}
-                    </label>
-                  ))}
-                </div>
+                              : atual.filter((t) => t !== tema);
+                            setForm({
+                              ...form,
+                              temaOcorrencia: novoTema,
+                            });
+                            setTemaOcorrenciaOngoingText(novoTema.join(", "));
+                          }}
+                        />
+                        {tema}
+                      </label>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 

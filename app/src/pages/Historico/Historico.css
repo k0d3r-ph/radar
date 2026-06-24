@@ -664,6 +664,18 @@
   border: 1px solid rgba(13, 148, 136, 0.3);
 }
 
+.tipo--duvida {
+  background: #ecfeff;
+  color: #0891b2;
+  border-color: #cffafe;
+}
+
+.tipo--problema {
+  background: #fef2f2;
+  color: #dc2626;
+  border-color: #fee2e2;
+}
+
 .departamento-suporte {
   background: #fef3c7;
   color: #92400e;

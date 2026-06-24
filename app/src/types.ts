@@ -38,6 +38,7 @@ export type Empresa = {
   score?: number;
   scoreAnswers?: any;
   isOngoing?: boolean;
+  isSuspended?: boolean;
   valorContrato?: number;
   idNumeric?: number;
 };

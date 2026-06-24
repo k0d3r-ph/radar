@@ -166,7 +166,7 @@ export const Relatorios: React.FC = () => {
     const { inicio, fim } = limitesSemana;
     return dadosEmpresas.filter((e) => {
       const dataEntradaDate = parseDataLocal(e.dataEntrada);
-      return !e.isOngoing && dataEntradaDate && dataEntradaDate >= inicio && dataEntradaDate <= fim;
+      return !e.isOngoing && !e.isSuspended && dataEntradaDate && dataEntradaDate >= inicio && dataEntradaDate <= fim;
     });
   }, [dadosEmpresas, limitesSemana]);
 
@@ -176,7 +176,7 @@ export const Relatorios: React.FC = () => {
     return dadosEmpresas.filter((e) => {
       if (!e.dataFinalizacao) return false;
       const dataFinalizacaoDate = parseDataLocal(e.dataFinalizacao);
-      return !e.isOngoing && dataFinalizacaoDate && dataFinalizacaoDate >= inicio && dataFinalizacaoDate <= fim;
+      return !e.isOngoing && !e.isSuspended && dataFinalizacaoDate && dataFinalizacaoDate >= inicio && dataFinalizacaoDate <= fim;
     });
   }, [dadosEmpresas, limitesSemana]);
 
@@ -209,7 +209,7 @@ export const Relatorios: React.FC = () => {
     });
 
     return dadosEmpresas
-      .filter((e) => !e.isOngoing && suporteStats.has(e.nomeEmpresa.trim().toLowerCase()))
+      .filter((e) => !e.isOngoing && !e.isSuspended && suporteStats.has(e.nomeEmpresa.trim().toLowerCase()))
       .map((e) => {
         const stats = suporteStats.get(e.nomeEmpresa.trim().toLowerCase())!;
         return {
@@ -224,6 +224,7 @@ export const Relatorios: React.FC = () => {
     return dadosEmpresas.filter(
       (e) =>
         !e.isOngoing &&
+        !e.isSuspended &&
         e.farol === "vermelho" &&
         ((e.progresso > 0 && e.progresso < 100) || e.alerta === true)
     );
@@ -231,12 +232,12 @@ export const Relatorios: React.FC = () => {
 
   const acimaDoPrazo = useMemo(() => {
     return dadosEmpresas.filter(
-      (e) => !e.isOngoing && e.progresso > 0 && e.progresso < 100 && e.dias > 60
+      (e) => !e.isOngoing && !e.isSuspended && e.progresso > 0 && e.progresso < 100 && e.dias > 60
     );
   }, [dadosEmpresas]);
 
   const riscoChurn = useMemo(() => {
-    return dadosEmpresas.filter((e) => !e.isOngoing && e.alerta === true);
+    return dadosEmpresas.filter((e) => !e.isOngoing && !e.isSuspended && e.alerta === true);
   }, [dadosEmpresas]);
 
   const kpis = [

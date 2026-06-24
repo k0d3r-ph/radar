@@ -59,6 +59,7 @@ export default function Home() {
     currentPhase: 0,
     updatedAt: 0,
     isOngoing: false,
+    isSuspended: false,
     valorContrato: undefined,
   };
 
@@ -73,6 +74,7 @@ export default function Home() {
 
   const [tabelaAtivaAberta, setTabelaAtivaAberta] = useState(true);
   const [tabelaOngoingAberta, setTabelaOngoingAberta] = useState(true);
+  const [tabelaSuspensaAberta, setTabelaSuspensaAberta] = useState(false);
 
   async function excluirCliente(id: string) {
     await removerEmpresa(id);
@@ -347,11 +349,15 @@ export default function Home() {
   }, [empresas, historico]);
 
   const dadosAtivos = useMemo(() => {
-    return dados.filter((e) => !e.isOngoing);
+    return dados.filter((e) => !e.isOngoing && !e.isSuspended);
   }, [dados]);
 
   const dadosOngoing = useMemo(() => {
-    return dados.filter((e) => !!e.isOngoing);
+    return dados.filter((e) => !!e.isOngoing && !e.isSuspended);
+  }, [dados]);
+
+  const dadosSuspensos = useMemo(() => {
+    return dados.filter((e) => !!e.isSuspended);
   }, [dados]);
 
   const stats = useMemo(() => {
@@ -450,6 +456,29 @@ export default function Home() {
         return a.nomeEmpresa.localeCompare(b.nomeEmpresa, "pt-BR");
       });
   }, [dadosOngoing, filtroCliente, filtroCs, filtroResponsavel, ordenacaoContrato]);
+
+  const dadosSuspensosFiltrados = useMemo(() => {
+    return dadosSuspensos
+      .filter((e) => {
+        const clienteOk =
+          !filtroCliente ||
+          e.nomeEmpresa.toLowerCase().includes(filtroCliente.toLowerCase());
+        const csOk = !filtroCs || e.csResponsavel === filtroCs;
+        const responsavelOk =
+          !filtroResponsavel || formatarNome(e.responsavel) === filtroResponsavel;
+
+        return clienteOk && csOk && responsavelOk;
+      })
+      .sort((a, b) => {
+        if (ordenacaoContrato === "maior") {
+          return (b.valorContrato ?? 0) - (a.valorContrato ?? 0);
+        }
+        if (ordenacaoContrato === "menor") {
+          return (a.valorContrato ?? 0) - (b.valorContrato ?? 0);
+        }
+        return a.nomeEmpresa.localeCompare(b.nomeEmpresa, "pt-BR");
+      });
+  }, [dadosSuspensos, filtroCliente, filtroCs, filtroResponsavel, ordenacaoContrato]);
 
   return (
     <div className="monitoramento-page">
@@ -881,6 +910,108 @@ export default function Home() {
         )}
       </div>
 
+      {/* Tabela de Clientes Suspensos */}
+      <div className="collapsible-section" style={{ marginTop: "2rem" }}>
+        <div
+          className="collapsible-header"
+          onClick={() => setTabelaSuspensaAberta((prev) => !prev)}
+        >
+          <div className="collapsible-title-wrapper">
+            <h2>Clientes Suspensos ⏸️</h2>
+            <span className="collapsible-count-badge" style={{ background: "rgba(245, 158, 11, 0.2)", color: "#f59e0b" }}>
+              {dadosSuspensosFiltrados.length}
+            </span>
+          </div>
+          <span className="collapsible-arrow">
+            {tabelaSuspensaAberta ? "▼" : "▶"}
+          </span>
+        </div>
+
+        {!loading && tabelaSuspensaAberta && (
+          <div className="table-wrapper">
+            <table>
+              <colgroup>
+                <col style={{ width: "5%" }} />
+                <col style={{ width: "5%" }} />
+                <col style={{ width: "5%" }} />
+                <col style={{ width: "5%" }} />
+                <col style={{ width: "5%" }} />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>Cliente</th>
+                  <th>Contato</th>
+                  <th>CS Responsável</th>
+                  <th>Comercial Responsável</th>
+                  <th style={{ textAlign: "right" }}>Valor Contrato</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {dadosSuspensosFiltrados.map((empresa) => (
+                  <tr
+                    key={empresa.id}
+                    className="linha-cliente"
+                    onClick={() => abrirCliente(empresa)}
+                  >
+                    <td>
+                      {empresa.nomeEmpresa}
+                      {empresa.alerta && (
+                        <span
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (empresa.ocorrenciaAlertaId) {
+                              navigate(`/historico?empresa=${encodeURIComponent(empresa.nomeEmpresa)}&ocorrencia=${empresa.ocorrenciaAlertaId}`);
+                            } else {
+                              navigate(`/historico?empresa=${encodeURIComponent(empresa.nomeEmpresa)}`);
+                            }
+                          }}
+                          style={{
+                            color: "#dc2626",
+                            fontWeight: "bold",
+                            marginLeft: "8px",
+                            fontSize: "0.85rem",
+                            textDecoration: "underline",
+                            cursor: "pointer",
+                          }}
+                          title="Ver ocorrência de alerta"
+                        >
+                          [Alerta]
+                        </span>
+                      )}
+                    </td>
+
+                    <td>{empresa.contato || "-"}</td>
+
+                    <td>{formatarNome(empresa.csResponsavel) || "-"}</td>
+
+                    <td>{formatarNome(empresa.comercialResponsavel) || "-"}</td>
+                    <td style={{ textAlign: "right", fontWeight: 600 }}>
+                      {empresa.valorContrato !== undefined && empresa.valorContrato !== null
+                        ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(empresa.valorContrato)
+                        : "—"}
+                    </td>
+                  </tr>
+                ))}
+                {dadosSuspensosFiltrados.length === 0 && (
+                  <tr>
+                    <td colSpan={5} style={{ textAlign: "center", color: "#64748b", padding: "2rem" }}>
+                      Nenhum cliente temporariamente suspenso.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+
+            <div className="table-footer">
+              <span>
+                Mostrando <strong>{dadosSuspensosFiltrados.length}</strong> de <strong>{dadosSuspensos.length}</strong> {dadosSuspensos.length === 1 ? "cliente" : "clientes"}
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+
       {clienteSelecionado && (
         <div className="cliente-overlay">
           <div className="cliente-modal">
@@ -964,6 +1095,16 @@ export default function Home() {
                   {clienteSelecionado.valorContrato !== undefined && clienteSelecionado.valorContrato !== null
                     ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(clienteSelecionado.valorContrato)
                     : "—"}
+                </span>
+              </div>
+              <div className="info-item">
+                <span className="info-label">Status Temporário</span>
+                <span className="info-value">
+                  {clienteSelecionado.isSuspended ? (
+                    <span style={{ color: "#f59e0b", fontWeight: "bold" }}>⏸️ Suspenso Temporariamente</span>
+                  ) : (
+                    <span style={{ color: "#10b981", fontWeight: "bold" }}>▶️ Ativo</span>
+                  )}
                 </span>
               </div>
               {(() => {
@@ -1307,16 +1448,28 @@ export default function Home() {
 
             <div className="form-group">
               <label>Status</label>
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={clienteForm.isOngoing ?? false}
-                  onChange={(e) =>
-                    setClienteForm({ ...clienteForm, isOngoing: e.target.checked })
-                  }
-                />
-                Cliente Ongoing 🔄
-              </label>
+              <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap" }}>
+                <label className="checkbox-label" style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={clienteForm.isOngoing ?? false}
+                    onChange={(e) =>
+                      setClienteForm({ ...clienteForm, isOngoing: e.target.checked })
+                    }
+                  />
+                  Cliente Ongoing 🔄
+                </label>
+                <label className="checkbox-label" style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={clienteForm.isSuspended ?? false}
+                    onChange={(e) =>
+                      setClienteForm({ ...clienteForm, isSuspended: e.target.checked })
+                    }
+                  />
+                  Suspenso Temporariamente ⏸️
+                </label>
+              </div>
             </div>
 
             <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.5rem" }}>

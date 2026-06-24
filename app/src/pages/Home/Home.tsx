@@ -41,6 +41,7 @@ export default function Home() {
   const [filtroCardStatus, setFiltroCardStatus] = useState<"concluidos" | "andamento" | "">(() => (sessionStorage.getItem("filtroCardStatus") as any) || "");
   const [filtroCardTipo, setFiltroCardTipo] = useState<"safety" | "fast" | "">(() => (sessionStorage.getItem("filtroCardTipo") as any) || "");
   const [filtroCardAlerta, setFiltroCardAlerta] = useState<"alerta" | "">(() => (sessionStorage.getItem("filtroCardAlerta") as any) || "");
+  const [ordenacaoContrato, setOrdenacaoContrato] = useState<"" | "maior" | "menor">(() => (sessionStorage.getItem("ordenacaoContrato") as any) || "");
 
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
 
@@ -58,6 +59,7 @@ export default function Home() {
     currentPhase: 0,
     updatedAt: 0,
     isOngoing: false,
+    valorContrato: undefined,
   };
 
   const [clienteForm, setClienteForm] = useState<Empresa>(EMPTY_CLIENTE);
@@ -185,7 +187,8 @@ export default function Home() {
     sessionStorage.setItem("filtroCardStatus", filtroCardStatus);
     sessionStorage.setItem("filtroCardTipo", filtroCardTipo);
     sessionStorage.setItem("filtroCardAlerta", filtroCardAlerta);
-  }, [filtroCliente, filtroResponsavel, filtroCs, filtroProgresso, filtroCardStatus, filtroCardTipo, filtroCardAlerta]);
+    sessionStorage.setItem("ordenacaoContrato", ordenacaoContrato);
+  }, [filtroCliente, filtroResponsavel, filtroCs, filtroProgresso, filtroCardStatus, filtroCardTipo, filtroCardAlerta, ordenacaoContrato]);
 
   const dados = useMemo(() => {
     return empresas.map((empresa) => {
@@ -320,12 +323,18 @@ export default function Home() {
         return clienteOk && responsavelOk && csOk && progressoOk && statusCardOk && tipoCardOk && alertaCardOk;
       })
       .sort((a, b) => {
+        if (ordenacaoContrato === "maior") {
+          return (b.valorContrato ?? 0) - (a.valorContrato ?? 0);
+        }
+        if (ordenacaoContrato === "menor") {
+          return (a.valorContrato ?? 0) - (b.valorContrato ?? 0);
+        }
         const ordem = { vermelho: 0, amarelo: 1, verde: 2, none: 3 };
         const farolDiff = (ordem[a.farol] ?? 3) - (ordem[b.farol] ?? 3);
         if (farolDiff !== 0) return farolDiff;
         return a.nomeEmpresa.localeCompare(b.nomeEmpresa, "pt-BR");
       });
-  }, [dadosAtivos, filtroCliente, filtroResponsavel, filtroCs, filtroProgresso, filtroCardStatus, filtroCardTipo, filtroCardAlerta]);
+  }, [dadosAtivos, filtroCliente, filtroResponsavel, filtroCs, filtroProgresso, filtroCardStatus, filtroCardTipo, filtroCardAlerta, ordenacaoContrato]);
 
   const dadosOngoingFiltrados = useMemo(() => {
     return dadosOngoing
@@ -339,8 +348,16 @@ export default function Home() {
 
         return clienteOk && csOk && responsavelOk;
       })
-      .sort((a, b) => a.nomeEmpresa.localeCompare(b.nomeEmpresa, "pt-BR"));
-  }, [dadosOngoing, filtroCliente, filtroCs, filtroResponsavel]);
+      .sort((a, b) => {
+        if (ordenacaoContrato === "maior") {
+          return (b.valorContrato ?? 0) - (a.valorContrato ?? 0);
+        }
+        if (ordenacaoContrato === "menor") {
+          return (a.valorContrato ?? 0) - (b.valorContrato ?? 0);
+        }
+        return a.nomeEmpresa.localeCompare(b.nomeEmpresa, "pt-BR");
+      });
+  }, [dadosOngoing, filtroCliente, filtroCs, filtroResponsavel, ordenacaoContrato]);
 
   return (
     <div className="monitoramento-page">
@@ -498,13 +515,23 @@ export default function Home() {
           <option value="76-100">76% – 100%</option>
         </select>
 
+        <select
+          value={ordenacaoContrato}
+          onChange={(e) => setOrdenacaoContrato(e.target.value as any)}
+        >
+          <option value="">Ordenar contrato: Padrão</option>
+          <option value="maior">Ordenar contrato: Maior valor</option>
+          <option value="menor">Ordenar contrato: Menor valor</option>
+        </select>
+ 
         {(filtroCliente ||
           filtroResponsavel ||
           filtroCs ||
           filtroProgresso ||
           filtroCardStatus ||
           filtroCardTipo ||
-          filtroCardAlerta) && (
+          filtroCardAlerta ||
+          ordenacaoContrato) && (
             <button
               onClick={() => {
                 setFiltroCliente("");
@@ -514,6 +541,7 @@ export default function Home() {
                 setFiltroCardStatus("");
                 setFiltroCardTipo("");
                 setFiltroCardAlerta("");
+                setOrdenacaoContrato("");
               }}
             >
               Limpar filtros
@@ -550,7 +578,6 @@ export default function Home() {
                 <col style={{ width: "5%" }} />
                 <col style={{ width: "5%" }} />
                 <col style={{ width: "5%" }} />
-                <col style={{ width: "3%" }} />
               </colgroup>
               <thead>
                 <tr>
@@ -560,12 +587,11 @@ export default function Home() {
                   <th>Tipo</th>
                   <th>Data de entrada</th>
                   <th>Dias</th>
-                  <th>TME</th>
+                  <th>Agendamento</th>
                   <th className="td-progresso">Progresso</th>
-                  <th style={{ textAlign: "center" }}>Ongoing</th>
                 </tr>
               </thead>
-
+ 
               <tbody>
                 {dadosAtivosFiltrados.map((empresa) => (
                   <tr
@@ -633,23 +659,11 @@ export default function Home() {
                     <td className="td-progresso">
                       <ProgressBar value={empresa.progresso} />
                     </td>
-
-                    <td
-                      style={{ textAlign: "center" }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={empresa.isOngoing ?? false}
-                        onChange={() => toggleOngoing(empresa)}
-                        style={{ cursor: "pointer", width: "16px", height: "16px", accentColor: "#3b82f6" }}
-                      />
-                    </td>
                   </tr>
                 ))}
                 {dadosAtivosFiltrados.length === 0 && (
                   <tr>
-                    <td colSpan={9} style={{ textAlign: "center", color: "#64748b", padding: "2rem" }}>
+                    <td colSpan={8} style={{ textAlign: "center", color: "#64748b", padding: "2rem" }}>
                       Nenhum cliente ativo encontrado.
                     </td>
                   </tr>
@@ -691,7 +705,6 @@ export default function Home() {
                 <col style={{ width: "5%" }} />
                 <col style={{ width: "5%" }} />
                 <col style={{ width: "5%" }} />
-                <col style={{ width: "2%" }} />
               </colgroup>
               <thead>
                 <tr>
@@ -699,7 +712,6 @@ export default function Home() {
                   <th>Contato</th>
                   <th>CS Responsável</th>
                   <th>Comercial Responsável</th>
-                  <th style={{ textAlign: "center" }}>Ongoing</th>
                 </tr>
               </thead>
 
@@ -742,23 +754,11 @@ export default function Home() {
                     <td>{formatarNome(empresa.csResponsavel) || "-"}</td>
 
                     <td>{formatarNome(empresa.comercialResponsavel) || "-"}</td>
-
-                    <td
-                      style={{ textAlign: "center" }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={empresa.isOngoing ?? false}
-                        onChange={() => toggleOngoing(empresa)}
-                        style={{ cursor: "pointer", width: "16px", height: "16px", accentColor: "#10b981" }}
-                      />
-                    </td>
                   </tr>
                 ))}
                 {dadosOngoingFiltrados.length === 0 && (
                   <tr>
-                    <td colSpan={5} style={{ textAlign: "center", color: "#64748b", padding: "2rem" }}>
+                    <td colSpan={4} style={{ textAlign: "center", color: "#64748b", padding: "2rem" }}>
                       Nenhum cliente em acompanhamento contínuo (Ongoing).
                     </td>
                   </tr>
@@ -776,12 +776,35 @@ export default function Home() {
       </div>
 
       {clienteSelecionado && (
-        <div
-          className="cliente-overlay"
-          onClick={() => setClienteSelecionado(null)}
-        >
-          <div className="cliente-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="cliente-modal-header">
+        <div className="cliente-overlay">
+          <div className="cliente-modal">
+            <div className="cliente-modal-header" style={{ position: "relative" }}>
+              <button
+                onClick={() => setClienteSelecionado(null)}
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  right: 0,
+                  background: "none",
+                  border: "none",
+                  fontSize: "1.1rem",
+                  color: "#94a3b8",
+                  cursor: "pointer",
+                  padding: "4px",
+                  lineHeight: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: "28px",
+                  height: "28px",
+                  borderRadius: "50%",
+                  transition: "background 0.2s, color 0.2s"
+                }}
+                className="btn-fechar-modal"
+                title="Fechar"
+              >
+                ✕
+              </button>
               <span className="cliente-modal-icon">🏢</span>
               <h2>{clienteSelecionado.nomeEmpresa}</h2>
             </div>
@@ -821,6 +844,14 @@ export default function Home() {
                 <span className="info-label">Localização</span>
                 <span className="info-value">
                   {clienteSelecionado.localizacao || "-"}
+                </span>
+              </div>
+              <div className="info-item full-width">
+                <span className="info-label">Valor do Contrato</span>
+                <span className="info-value">
+                  {clienteSelecionado.valorContrato !== undefined && clienteSelecionado.valorContrato !== null
+                    ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(clienteSelecionado.valorContrato)
+                    : "—"}
                 </span>
               </div>
               {(() => {
@@ -920,12 +951,35 @@ export default function Home() {
       )}
 
       {modalClienteAberto && (
-        <div
-          className="cliente-overlay"
-          onClick={() => setModalClienteAberto(false)}
-        >
-          <div className="cliente-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="cliente-modal-header">
+        <div className="cliente-overlay">
+          <div className="cliente-modal">
+            <div className="cliente-modal-header" style={{ position: "relative" }}>
+              <button
+                onClick={() => setModalClienteAberto(false)}
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  right: 0,
+                  background: "none",
+                  border: "none",
+                  fontSize: "1.1rem",
+                  color: "#94a3b8",
+                  cursor: "pointer",
+                  padding: "4px",
+                  lineHeight: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: "28px",
+                  height: "28px",
+                  borderRadius: "50%",
+                  transition: "background 0.2s, color 0.2s"
+                }}
+                className="btn-fechar-modal"
+                title="Fechar"
+              >
+                ✕
+              </button>
               <span className="cliente-modal-icon">
                 {editandoClienteId ? "✏️" : "🏢"}
               </span>
@@ -1095,6 +1149,22 @@ export default function Home() {
                 }
               />
             </div>
+ 
+            <div className="form-group">
+              <label>Valor do contrato (R$)</label>
+              <input
+                type="number"
+                step="0.01"
+                placeholder="Ex: 1500.00"
+                value={clienteForm.valorContrato ?? ""}
+                onChange={(e) =>
+                  setClienteForm({
+                    ...clienteForm,
+                    valorContrato: e.target.value ? Number(e.target.value) : undefined,
+                  })
+                }
+              />
+            </div>
 
             {(() => {
               const totalFasesForm = calcularTotalFases(clienteForm.temaText);
@@ -1137,9 +1207,34 @@ export default function Home() {
               </label>
             </div>
 
-            <button className="btn-primary" onClick={salvarCliente}>
-              Salvar cliente
-            </button>
+            <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.5rem" }}>
+              <button
+                type="button"
+                className="btn-cancelar-modal"
+                onClick={() => setModalClienteAberto(false)}
+                style={{
+                  flex: 1,
+                  padding: "0.85rem",
+                  borderRadius: "10px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  border: "1px solid rgba(255, 255, 255, 0.08)",
+                  background: "#1e293b",
+                  color: "#cbd5e1",
+                  fontSize: "0.95rem",
+                  transition: "0.2s ease"
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                className="btn-primary"
+                onClick={salvarCliente}
+                style={{ flex: 1, marginTop: 0 }}
+              >
+                Salvar cliente
+              </button>
+            </div>
           </div>
         </div>
       )}

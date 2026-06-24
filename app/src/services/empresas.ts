@@ -13,21 +13,25 @@ import type { Empresa } from "../types";
 const COLLECTION = "empresas";
 
 export async function salvarEmpresas(empresa: Partial<Empresa>) {
-  if (empresa.id) {
-    const ref = doc(db, COLLECTION, empresa.id);
+  const { id, tme, progresso, farol, dias, ocorrenciaAlertaId, ...dados } = empresa as any;
+
+  const dadosLimpos = Object.fromEntries(
+    Object.entries(dados).filter(([_, v]) => v !== undefined)
+  );
+
+  if (id) {
+    const ref = doc(db, COLLECTION, id);
 
     await updateDoc(ref, {
-      ...empresa,
+      ...dadosLimpos,
       updatedAt: Date.now(),
     });
 
-    return empresa.id;
+    return id;
   }
 
-  const { id, ...dados } = empresa;
-
   const docRef = await addDoc(collection(db, COLLECTION), {
-    ...dados,
+    ...dadosLimpos,
     updatedAt: Date.now(),
   });
 

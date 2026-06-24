@@ -263,6 +263,10 @@ export const Gamificacao: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
+  // Filtro de data
+  const [filtroDataInicio, setFiltroDataInicio] = useState("");
+  const [filtroDataFim, setFiltroDataFim] = useState("");
+
   const acoesFiltradas = useMemo(() => {
     if (role === "treinador") {
       return ACOES_DISPONIVEIS.filter((a) => a.tipo === "treinamento");
@@ -353,11 +357,26 @@ export const Gamificacao: React.FC = () => {
     carregarDados();
   }, [user, role]);
 
+  // Filtro de lançamentos por período
+  const filteredEntries = useMemo(() => {
+    return entries.filter((entry) => {
+      if (filtroDataInicio) {
+        const startTimestamp = new Date(filtroDataInicio + "T00:00:00").getTime();
+        if (entry.dataLancamento < startTimestamp) return false;
+      }
+      if (filtroDataFim) {
+        const endTimestamp = new Date(filtroDataFim + "T23:59:59.999").getTime();
+        if (entry.dataLancamento > endTimestamp) return false;
+      }
+      return true;
+    });
+  }, [entries, filtroDataInicio, filtroDataFim]);
+
   // Compute scores and rank trainers
   const rankedTrainers = useMemo(() => {
     return trainers
       .map((t) => {
-        const trainerEntries = entries.filter((e) => e.treinadorId === t.uid);
+        const trainerEntries = filteredEntries.filter((e) => e.treinadorId === t.uid);
         const baseScore = trainerEntries.reduce((acc, curr) => acc + curr.pontos, 0);
 
         // Filter realized trainings (excluding canceled/absent)
@@ -396,7 +415,7 @@ export const Gamificacao: React.FC = () => {
         };
       })
       .sort((a, b) => b.score - a.score || a.nome.localeCompare(b.nome));
-  }, [trainers, entries]);
+  }, [trainers, filteredEntries]);
 
   const handleLancar = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -705,7 +724,47 @@ export const Gamificacao: React.FC = () => {
           <p>Carregando dados da gamificação...</p>
         </div>
       ) : (
-        <div className="gamificacao-grid">
+        <>
+          {/* Barra de Filtros de Período */}
+          <div className="gamificacao-filtros-bar">
+            <div className="filtro-titulo-wrapper">
+              <h3>Filtrar por Período</h3>
+            </div>
+            <div className="filtro-inputs-wrapper">
+              <div className="filtros-data-grupo">
+                <label htmlFor="filtro-data-inicio">De</label>
+                <input
+                  id="filtro-data-inicio"
+                  type="date"
+                  value={filtroDataInicio}
+                  onChange={(e) => setFiltroDataInicio(e.target.value)}
+                />
+              </div>
+              <div className="filtros-data-grupo">
+                <label htmlFor="filtro-data-fim">Até</label>
+                <input
+                  id="filtro-data-fim"
+                  type="date"
+                  value={filtroDataFim}
+                  onChange={(e) => setFiltroDataFim(e.target.value)}
+                />
+              </div>
+              {(filtroDataInicio || filtroDataFim) && (
+                <button
+                  type="button"
+                  className="btn-limpar-filtros"
+                  onClick={() => {
+                    setFiltroDataInicio("");
+                    setFiltroDataFim("");
+                  }}
+                >
+                  Limpar Filtros
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="gamificacao-grid">
           {/* Coluna da Esquerda: Ranking */}
           <section className="gamificacao-card ranking-section">
             <div className="section-header">
@@ -1017,8 +1076,12 @@ export const Gamificacao: React.FC = () => {
                 </h2>
               </div>
 
-              {entries.length === 0 ? (
-                <p className="no-data-msg">Nenhum lançamento de pontos registrado ainda.</p>
+              {filteredEntries.length === 0 ? (
+                <p className="no-data-msg">
+                  {entries.length === 0
+                    ? "Nenhum lançamento de pontos registrado ainda."
+                    : "Nenhum lançamento encontrado para o período selecionado."}
+                </p>
               ) : (
                 <div className="table-responsive">
                   <table className="gamificacao-table">
@@ -1033,7 +1096,7 @@ export const Gamificacao: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {entries.map((entry) => {
+                      {filteredEntries.map((entry) => {
                         const actionConfig = ACOES_DISPONIVEIS.find((a) => a.tipo === entry.tipoAcao);
                         return (
                           <tr key={entry.id}>
@@ -1088,6 +1151,7 @@ export const Gamificacao: React.FC = () => {
             </section>
           </div>
         </div>
+        </>
       )}
 
       {/* Modal de Confirmação de Exclusão de Lançamento */}

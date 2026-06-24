@@ -724,3 +724,13 @@
   font-size: 0.8rem;
   transition: transform 0.2s ease;
 }
+
+.btn-fechar-modal:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: white !important;
+}
+
+.btn-cancelar-modal:hover {
+  background: #334155 !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}

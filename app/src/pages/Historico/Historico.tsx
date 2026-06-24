@@ -24,10 +24,11 @@ const TIPOS = [
   "Informativa",
   "Financeira",
   "Comercial",
-  "Técnica",
   "Treinamento",
   "Checkpoint",
   "Mudança de score",
+  "Problema",
+  "Dúvida",
 ];
 
 const DEPARTAMENTO = [
@@ -58,11 +59,19 @@ const TIPO_CLASS: Record<string, string> = {
   Informativa: "tipo--informativa",
   Financeira: "tipo--financeira",
   Comercial: "tipo--comercial",
-  Técnica: "tipo--tecnica",
   Treinamento: "tipo--treinamento",
   Checkpoint: "tipo--checkpoint",
   "Mudança de score": "tipo--mudanca-score",
+  Problema: "tipo--problema",
+  Dúvida: "tipo--duvida",
 };
+
+function getOcorrenciaTimestamp(o: Ocorrencia): number {
+  if ((o.tipo === "Problema" || o.tipo === "Dúvida") && o.dataOcorrencia && o.dataOcorrencia > 0) {
+    return o.dataOcorrencia;
+  }
+  return o.createdAt ?? o.dataOcorrencia ?? 0;
+}
 
 const TEMPLATE_TREINAMENTO = `Participantes: \n\nNOTA: \n\nRelatório de treinamento:\n\n• Cliente se manteve atento? \n• Cliente absorveu o conteúdo aplicado?\n• Cliente foi participativo?\n• Houve alguma interrupção?\n• Ambiente favorável (Som)?\n• Manifestou alguma insatisfação?\n• Treinamento foi gravado?\n\nRelatório do atendimento:\n\nE-mail: \nNota:\nTexto: `;
 
@@ -707,22 +716,22 @@ Score atual: ${novoScore}${mudancasTexto}`;
 
   const getAllowedTypes = () => {
     if (role === "master") {
-      return ["Informativa", "Financeira", "Comercial", "Técnica", "Treinamento", "Checkpoint"];
+      return ["Informativa", "Financeira", "Comercial", "Treinamento", "Checkpoint", "Problema", "Dúvida"];
     }
     if (role === "treinador") {
-      return ["Informativa", "Treinamento", "Checkpoint"];
+      return ["Informativa", "Treinamento", "Checkpoint", "Problema", "Dúvida"];
     }
     if (role === "suporte" || role === "hardware") {
-      return ["Informativa", "Técnica"];
+      return ["Informativa", "Problema", "Dúvida"];
     }
     if (role === "comercial") {
-      return ["Comercial", "Informativa"];
+      return ["Comercial", "Informativa", "Problema", "Dúvida"];
     }
     if (role === "financeiro") {
-      return ["Financeira", "Informativa"];
+      return ["Financeira", "Informativa", "Problema", "Dúvida"];
     }
     if (role === "crc") {
-      return ["Informativa", "Financeira", "Comercial", "Técnica"];
+      return ["Informativa", "Financeira", "Comercial", "Problema", "Dúvida"];
     }
     return [];
   };
@@ -764,7 +773,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
     const tipoOk = !filtroTipo || o.tipo === filtroTipo;
     const deptoOk = !filtroDepto || o.departamento === filtroDepto;
 
-    const timestamp = o.createdAt ?? o.dataOcorrencia ?? 0;
+    const timestamp = getOcorrenciaTimestamp(o);
     let dataOk = true;
 
     if (dataInicio && timestamp > 0) {
@@ -904,7 +913,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
           <tbody>
             {!loading &&
               filtradas.map((o) => {
-                const timestamp = o.createdAt ?? o.dataOcorrencia ?? 0;
+                const timestamp = getOcorrenciaTimestamp(o);
                 const data = timestamp ? new Date(timestamp) : null;
 
                 return (
@@ -1015,7 +1024,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
                       return (
                         <div style={{ gridColumn: "span 2", marginBottom: "10px" }}>
                           <span style={{ color: "#16a34a", fontWeight: "bold", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-                            ✅🚨 Alerta Solucionado {resDoc ? `em ${new Date(resDoc.createdAt ?? resDoc.dataOcorrencia ?? 0).toLocaleDateString("pt-BR")}` : ""}.
+                            ✅🚨 Alerta Solucionado {resDoc ? `em ${new Date(getOcorrenciaTimestamp(resDoc)).toLocaleDateString("pt-BR")}` : ""}.
                             {resDoc && (
                               <button
                                 style={{
@@ -1055,7 +1064,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
                           ✅ Ocorrência marcada como Resolução de Alerta.
                           {origDoc && (
                             <span style={{ color: "#475569", display: "flex", alignItems: "center", gap: "5px", flexWrap: "wrap" }}>
-                              Resolução do alerta criado em {new Date(origDoc.createdAt ?? origDoc.dataOcorrencia ?? 0).toLocaleDateString("pt-BR")}.
+                              Resolução do alerta criado em {new Date(getOcorrenciaTimestamp(origDoc)).toLocaleDateString("pt-BR")}.
                               <button
                                 style={{
                                   textDecoration: "underline",
@@ -1107,10 +1116,10 @@ Score atual: ${novoScore}${mudancasTexto}`;
                   <span>Data da ocorrência</span>
                   <strong>
                     {new Date(
-                      selecionada.createdAt ?? selecionada.dataOcorrencia ?? 0
+                      getOcorrenciaTimestamp(selecionada)
                     ).toLocaleDateString("pt-BR")}{" "}
                     {new Date(
-                      selecionada.createdAt ?? selecionada.dataOcorrencia ?? 0
+                      getOcorrenciaTimestamp(selecionada)
                     ).toLocaleTimeString("pt-BR", {
                       hour: "2-digit",
                       minute: "2-digit",
@@ -1118,7 +1127,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
                   </strong>
                 </div>
 
-                {selecionada.createdAt && selecionada.dataOcorrencia > 0 && (
+                {selecionada.createdAt && selecionada.dataOcorrencia > 0 && selecionada.tipo !== "Problema" && selecionada.tipo !== "Dúvida" && (
                   <div>
                     <span>Data do agendamento</span>
                     <strong>
@@ -1263,8 +1272,8 @@ Score atual: ${novoScore}${mudancasTexto}`;
 
       {/* Painel lateral de formulário */}
       {painelAberto && (
-        <div className="hist-overlay" onClick={cancelar}>
-          <div className="hist-painel" onClick={(e) => e.stopPropagation()}>
+        <div className="hist-overlay">
+          <div className="hist-painel">
             <div className="hist-painel-header">
               <h2>{editandoId ? "Editar ocorrência" : "Nova ocorrência"}</h2>
               <button className="hist-fechar" onClick={cancelar}>
@@ -1291,10 +1300,14 @@ Score atual: ${novoScore}${mudancasTexto}`;
               </datalist>
             </div>
 
-            {isTreinador && (
+            {(isTreinador || form.tipo === "Problema" || form.tipo === "Dúvida") && (
               <div className="hist-campo hist-campo-row">
                 <div>
-                  <label>Data do agendamento (não obrigatório)</label>
+                  <label>
+                    {form.tipo === "Problema" || form.tipo === "Dúvida"
+                      ? "Data da ocorrência (não obrigatório)"
+                      : "Data do agendamento (não obrigatório)"}
+                  </label>
                   <input
                     type="date"
                     value={form.dataOcorrencia}

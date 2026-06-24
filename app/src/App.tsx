@@ -9,6 +9,7 @@ import { LogOut } from "lucide-react";
 import { Usuarios } from "./pages/Usuarios/Usuarios";
 import { Gamificacao } from "./pages/Gamificacao/Gamificacao";
 import { RelatorioScore } from "./pages/RelatorioScore/RelatorioScore";
+import { Relatorios } from "./pages/Relatorios/Relatorios";
 
 function AppRoutes() {
   const { user, loading, needsPasswordChange, role, logout } = useAuth();
@@ -92,12 +93,20 @@ function AppRoutes() {
             </>
           )}
           {role === "master" && (
-            <NavLink
-              to="/relatorio-score"
-              className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
-            >
-              Relatório de Scores
-            </NavLink>
+            <>
+              <NavLink
+                to="/relatorio-score"
+                className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
+              >
+                Relatório de Scores
+              </NavLink>
+              <NavLink
+                to="/relatorios"
+                className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
+              >
+                Relatórios
+              </NavLink>
+            </>
           )}
         </div>
         <button className="nav-logout-btn" onClick={handleLogout} title="Sair">
@@ -131,9 +140,15 @@ function AppRoutes() {
         )}
 
         {role === "master" ? (
-          <Route path="/relatorio-score" element={<RelatorioScore />} />
+          <>
+            <Route path="/relatorio-score" element={<RelatorioScore />} />
+            <Route path="/relatorios" element={<Relatorios />} />
+          </>
         ) : (
-          <Route path="/relatorio-score" element={<Navigate to="/home" replace />} />
+          <>
+            <Route path="/relatorio-score" element={<Navigate to="/home" replace />} />
+            <Route path="/relatorios" element={<Navigate to="/home" replace />} />
+          </>
         )}
         
         <Route path="*" element={<Navigate to="/home" replace />} />

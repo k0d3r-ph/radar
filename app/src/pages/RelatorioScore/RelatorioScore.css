@@ -60,16 +60,16 @@
 
 /* Cards Premium */
 .relatorio-card {
-  background: white;
+  background: #1e293b;
   border-radius: 16px;
-  border: 1.5px solid #e2e8f0;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .relatorio-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
 }
 
 .summary-card {
@@ -114,7 +114,7 @@
 .card-value {
   font-size: 2.2rem;
   font-weight: 800;
-  color: #0f2a5e;
+  color: #ffffff;
   line-height: 1.1;
 }
 
@@ -122,7 +122,7 @@
   font-size: 0.82rem;
   font-weight: 700;
   text-transform: uppercase;
-  color: #64748b;
+  color: #94a3b8;
   margin-top: 4px;
   letter-spacing: 0.5px;
 }
@@ -177,7 +177,7 @@
 .question-title {
   margin: 0;
   font-size: 1.1rem;
-  color: #0f2a5e;
+  color: #f1f5f9;
   font-weight: 700;
   line-height: 1.4;
 }
@@ -239,9 +239,9 @@
 }
 
 .btn-expander {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  color: #334155;
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
   padding: 10px 14px;
   border-radius: 8px;
   font-size: 0.88rem;
@@ -254,13 +254,13 @@
 }
 
 .btn-expander:hover {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
+  background: #273549;
+  border-color: rgba(255, 255, 255, 0.16);
 }
 
 .btn-expander.active {
-  background: #eef2f6;
-  border-color: #94a3b8;
+  background: #334155;
+  border-color: rgba(255, 255, 255, 0.24);
   font-weight: 600;
 }
 
@@ -272,8 +272,8 @@
 
 /* Lista de Clientes */
 .clients-list-container {
-  background: #fafafa;
-  border: 1.5px solid #eef2f6;
+  background: #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 8px;
   padding: 12px 16px;
   max-height: 140px;
@@ -286,7 +286,7 @@
 }
 
 .clients-list-container::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #334155;
   border-radius: 99px;
 }
 
@@ -297,7 +297,7 @@
 
 .clients-list-container li {
   font-size: 0.85rem;
-  color: #475569;
+  color: #cbd5e1;
   margin-bottom: 6px;
 }
 
@@ -316,9 +316,9 @@
 /* Seção de Clientes Sem Score */
 .sem-score-card {
   margin-bottom: 24px;
-  border-color: #fed7aa; /* Soft orange border to stand out slightly as warning/info */
-  background: linear-gradient(145deg, #ffffff 0%, #fffbf7 100%);
-  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.04);
+  border-color: rgba(245, 158, 11, 0.25); /* Soft orange border */
+  background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
 }
 
 .sem-score-header {
@@ -332,7 +332,7 @@
 }
 
 .sem-score-header:hover {
-  background-color: #fffaf0;
+  background-color: rgba(245, 158, 11, 0.05);
   border-top-left-radius: 16px;
   border-top-right-radius: 16px;
 }
@@ -341,19 +341,19 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  color: #d97706; /* Darker amber for text/icon */
+  color: #f59e0b; /* Amber */
 }
 
 .sem-score-title-wrapper h3 {
   margin: 0;
   font-size: 1.1rem;
   font-weight: 700;
-  color: #0f2a5e;
+  color: #f1f5f9;
 }
 
 .sem-score-content {
   padding: 0 24px 24px;
-  border-top: 1px solid #ffedd5;
+  border-top: 1px solid rgba(245, 158, 11, 0.1);
   padding-top: 16px;
   animation: fadeIn 0.25s ease-out;
 }
@@ -372,7 +372,7 @@
 .sem-score-desc {
   margin: 0 0 16px;
   font-size: 0.9rem;
-  color: #5a6a8a;
+  color: #94a3b8;
   line-height: 1.5;
 }
 
@@ -383,19 +383,19 @@
 }
 
 .sem-score-badge {
-  background: rgba(245, 158, 11, 0.08);
-  color: #d97706;
-  border: 1.5px solid rgba(245, 158, 11, 0.2);
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
   padding: 6px 12px;
   border-radius: 99px;
   font-size: 0.85rem;
   font-weight: 600;
-  box-shadow: 0 2px 4px rgba(245, 158, 11, 0.02);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
   transition: all 0.2s ease;
 }
 
 .sem-score-badge:hover {
-  background: rgba(245, 158, 11, 0.12);
+  background: rgba(245, 158, 11, 0.25);
   transform: translateY(-1px);
 }
 

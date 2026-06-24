@@ -185,14 +185,7 @@ ${clientesSemScore.length > 0 ? clientesSemScore.map(name => ` - ${name}`).join(
   };
 
   return (
-    <div className="relatorio-score-page">
-      <div className="relatorio-score-glow"></div>
-
-      <header className="relatorio-score-header">
-        <h1>Relatório Geral de Scores</h1>
-        <p>Estatísticas consolidadas e listagem de clientes baseadas no último cálculo de score.</p>
-      </header>
-
+    <div className="relatorio-score-container">
       {loading ? (
         <div className="relatorio-loader">
           <div className="spinner"></div>

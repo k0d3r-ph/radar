@@ -22,6 +22,7 @@ import {
 import type { Empresa, Ocorrencia } from "../../types";
 import { formatarNome } from "../../utils/formatarNome";
 import "./Relatorios.css";
+import { RelatorioScore } from "../RelatorioScore/RelatorioScore";
 
 type DecorredEmpresa = Empresa & {
   alerta: boolean;
@@ -32,6 +33,7 @@ type DecorredEmpresa = Empresa & {
 };
 
 export const Relatorios: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<"esteira" | "score">("esteira");
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [ocorrencias, setOcorrencias] = useState<Ocorrencia[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,19 +71,19 @@ export const Relatorios: React.FC = () => {
     if (!dataReferencia) return null;
     const [y, m, d] = dataReferencia.split("-").map(Number);
     const dataRef = new Date(y, m - 1, d);
-    
+
     const diaDaSemana = dataRef.getDay(); // 0 = Domingo, 6 = Sábado
-    
+
     // Começo da semana (Domingo 00:00:00)
     const inicio = new Date(dataRef);
     inicio.setDate(dataRef.getDate() - diaDaSemana);
     inicio.setHours(0, 0, 0, 0);
-    
+
     // Fim da semana (Sábado 23:59:59)
     const fim = new Date(inicio);
     fim.setDate(inicio.getDate() + 6);
     fim.setHours(23, 59, 59, 999);
-    
+
     return { inicio, fim };
   }, [dataReferencia]);
 
@@ -183,7 +185,7 @@ export const Relatorios: React.FC = () => {
           if (dia === 0 || dia === 6) {
             const key = o.empresa.trim().toLowerCase();
             const stats = suporteStats.get(key) || { duvidas: 0, problemas: 0 };
-            
+
             const tipoLower = (o.tipo || "").toLowerCase();
             if (tipoLower.includes("duvida") || tipoLower.includes("dúvida")) {
               stats.duvidas += 1;
@@ -247,7 +249,7 @@ export const Relatorios: React.FC = () => {
       ehSazonal: true,
     },
     {
-      titulo: "Ativos no Fim de Semana",
+      titulo: "Ativos fora do expediente",
       valor: ativosNoFimDeSemana.length,
       desc: "Suporte no FdS",
       icone: <Clock size={22} />,
@@ -296,7 +298,7 @@ Semana de Referência: ${semanaStr}
 RESUMO DOS INDICADORES:
 1. Clientes que entraram na esteira na semana: ${entraramNaSemana.length}
 2. Clientes que concluíram a esteira na semana: ${concluidosNaSemana.length}
-3. Clientes ativos no fim de semana (atendimento Suporte): ${ativosNoFimDeSemana.length}
+3. Clientes fora do expediente (atendimento Suporte): ${ativosNoFimDeSemana.length}
 4. Clientes sem próximo passo (farol vermelho): ${semProximoPasso.length}
 5. Clientes acima do prazo de onboarding (> 60 dias): ${acimaDoPrazo.length}
 6. Casos com risco de churn (Clientes em Alerta): ${riscoChurn.length}
@@ -306,71 +308,65 @@ DETALHAMENTO DOS INDICADORES:
 ==================================================
 
 1. CLIENTES QUE ENTRARAM NA ESTEIRA NA SEMANA (${entraramNaSemana.length})
-${
-  entraramNaSemana.length > 0
-    ? entraramNaSemana
-        .map(
-          (e) =>
-            ` - ${e.nomeEmpresa}\n   Treinador: ${formatarNome(e.responsavel) || "-"}\n   CS: ${formatarNome(e.csResponsavel) || "-"}\n   Data de Entrada: ${e.dataEntrada || "-"}\n   Valor do Contrato: ${e.valorContrato !== undefined ? `R$ ${e.valorContrato.toFixed(2)}` : "—"}\n`
-        )
-        .join("\n")
-    : " - Nenhum cliente registrado nesta semana.\n"
-}
+${entraramNaSemana.length > 0
+        ? entraramNaSemana
+          .map(
+            (e) =>
+              ` - ${e.nomeEmpresa}\n   Treinador: ${formatarNome(e.responsavel) || "-"}\n   CS: ${formatarNome(e.csResponsavel) || "-"}\n   Data de Entrada: ${e.dataEntrada || "-"}\n   Valor do Contrato: ${e.valorContrato !== undefined ? `R$ ${e.valorContrato.toFixed(2)}` : "—"}\n`
+          )
+          .join("\n")
+        : " - Nenhum cliente registrado nesta semana.\n"
+      }
 2. CLIENTES QUE CONCLUÍRAM A ESTEIRA NA SEMANA (${concluidosNaSemana.length})
-${
-  concluidosNaSemana.length > 0
-    ? concluidosNaSemana
-        .map(
-          (e) =>
-            ` - ${e.nomeEmpresa}\n   Treinador: ${formatarNome(e.responsavel) || "-"}\n   CS: ${formatarNome(e.csResponsavel) || "-"}\n   Data de Entrada: ${e.dataEntrada || "-"}\n   Data de Finalização: ${e.dataFinalizacao || "-"}\n   Valor do Contrato: ${e.valorContrato !== undefined ? `R$ ${e.valorContrato.toFixed(2)}` : "—"}\n`
-        )
-        .join("\n")
-    : " - Nenhum cliente concluído nesta semana.\n"
-}
-3. CLIENTES ATIVOS NO FIM DE SEMANA (${ativosNoFimDeSemana.length})
-${
-  ativosNoFimDeSemana.length > 0
-    ? ativosNoFimDeSemana
-        .map(
-          (e) =>
-            ` - ${e.nomeEmpresa}\n   Treinador: ${formatarNome(e.responsavel) || "-"}\n   CS: ${formatarNome(e.csResponsavel) || "-"}\n   Dúvidas: ${(e as any).qtdDuvidas}\n   Problemas: ${(e as any).qtdProblemas}\n   Valor do Contrato: ${e.valorContrato !== undefined ? `R$ ${e.valorContrato.toFixed(2)}` : "—"}\n`
-        )
-        .join("\n")
-    : " - Nenhum atendimento de suporte no fim de semana registrado nesta semana.\n"
-}
+${concluidosNaSemana.length > 0
+        ? concluidosNaSemana
+          .map(
+            (e) =>
+              ` - ${e.nomeEmpresa}\n   Treinador: ${formatarNome(e.responsavel) || "-"}\n   CS: ${formatarNome(e.csResponsavel) || "-"}\n   Data de Entrada: ${e.dataEntrada || "-"}\n   Data de Finalização: ${e.dataFinalizacao || "-"}\n   Valor do Contrato: ${e.valorContrato !== undefined ? `R$ ${e.valorContrato.toFixed(2)}` : "—"}\n`
+          )
+          .join("\n")
+        : " - Nenhum cliente concluído nesta semana.\n"
+      }
+3. CLIENTES FORA DO EXPEDIENTE (${ativosNoFimDeSemana.length})
+${ativosNoFimDeSemana.length > 0
+        ? ativosNoFimDeSemana
+          .map(
+            (e) =>
+              ` - ${e.nomeEmpresa}\n   Treinador: ${formatarNome(e.responsavel) || "-"}\n   CS: ${formatarNome(e.csResponsavel) || "-"}\n   Dúvidas: ${(e as any).qtdDuvidas}\n   Problemas: ${(e as any).qtdProblemas}\n   Valor do Contrato: ${e.valorContrato !== undefined ? `R$ ${e.valorContrato.toFixed(2)}` : "—"}\n`
+          )
+          .join("\n")
+        : " - Nenhum atendimento de suporte no fim de semana registrado nesta semana.\n"
+      }
 4. CLIENTES SEM PRÓXIMO PASSO (${semProximoPasso.length})
-${
-  semProximoPasso.length > 0
-    ? semProximoPasso
-        .map(
-          (e) =>
-            ` - ${e.nomeEmpresa}\n   Treinador: ${formatarNome(e.responsavel) || "-"}\n   CS: ${formatarNome(e.csResponsavel) || "-"}\n   Progresso: ${e.progresso}%\n   Valor do Contrato: ${e.valorContrato !== undefined ? `R$ ${e.valorContrato.toFixed(2)}` : "—"}\n`
-        )
-        .join("\n")
-    : " - Nenhum cliente com farol vermelho e em progresso/alerta.\n"
-}
+${semProximoPasso.length > 0
+        ? semProximoPasso
+          .map(
+            (e) =>
+              ` - ${e.nomeEmpresa}\n   Treinador: ${formatarNome(e.responsavel) || "-"}\n   CS: ${formatarNome(e.csResponsavel) || "-"}\n   Progresso: ${e.progresso}%\n   Valor do Contrato: ${e.valorContrato !== undefined ? `R$ ${e.valorContrato.toFixed(2)}` : "—"}\n`
+          )
+          .join("\n")
+        : " - Nenhum cliente com farol vermelho e em progresso/alerta.\n"
+      }
 5. CLIENTES ACIMA DO PRAZO DE ONBOARDING (> 60 dias) (${acimaDoPrazo.length})
-${
-  acimaDoPrazo.length > 0
-    ? acimaDoPrazo
-        .map(
-          (e) =>
-            ` - ${e.nomeEmpresa}\n   Treinador: ${formatarNome(e.responsavel) || "-"}\n   CS: ${formatarNome(e.csResponsavel) || "-"}\n   Data de Entrada: ${e.dataEntrada || "-"}\n   Dias na Esteira: ${e.dias} dias\n   Valor do Contrato: ${e.valorContrato !== undefined ? `R$ ${e.valorContrato.toFixed(2)}` : "—"}\n`
-        )
-        .join("\n")
-    : " - Nenhum cliente acima do prazo de 60 dias.\n"
-}
+${acimaDoPrazo.length > 0
+        ? acimaDoPrazo
+          .map(
+            (e) =>
+              ` - ${e.nomeEmpresa}\n   Treinador: ${formatarNome(e.responsavel) || "-"}\n   CS: ${formatarNome(e.csResponsavel) || "-"}\n   Data de Entrada: ${e.dataEntrada || "-"}\n   Dias na Esteira: ${e.dias} dias\n   Valor do Contrato: ${e.valorContrato !== undefined ? `R$ ${e.valorContrato.toFixed(2)}` : "—"}\n`
+          )
+          .join("\n")
+        : " - Nenhum cliente acima do prazo de 60 dias.\n"
+      }
 6. CASOS COM RISCO DE CHURN (Clientes em Alerta) (${riscoChurn.length})
-${
-  riscoChurn.length > 0
-    ? riscoChurn
-        .map(
-          (e) =>
-            ` - ${e.nomeEmpresa}\n   Treinador: ${formatarNome(e.responsavel) || "-"}\n   CS: ${formatarNome(e.csResponsavel) || "-"}\n   Progresso: ${e.progresso}%\n   Valor do Contrato: ${e.valorContrato !== undefined ? `R$ ${e.valorContrato.toFixed(2)}` : "—"}\n`
-        )
-        .join("\n")
-    : " - Nenhum cliente ativo em alerta atualmente.\n"
-}
+${riscoChurn.length > 0
+        ? riscoChurn
+          .map(
+            (e) =>
+              ` - ${e.nomeEmpresa}\n   Treinador: ${formatarNome(e.responsavel) || "-"}\n   CS: ${formatarNome(e.csResponsavel) || "-"}\n   Progresso: ${e.progresso}%\n   Valor do Contrato: ${e.valorContrato !== undefined ? `R$ ${e.valorContrato.toFixed(2)}` : "—"}\n`
+          )
+          .join("\n")
+        : " - Nenhum cliente ativo em alerta atualmente.\n"
+      }
 `;
 
     const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
@@ -389,139 +385,166 @@ ${
       <div className="relatorios-glow"></div>
 
       <header className="relatorios-header">
-        <h1>Relatórios de Acompanhamento</h1>
-        <p>Indicadores consolidados sobre o andamento e status das implantações dos clientes.</p>
+        <h1>{activeTab === "esteira" ? "Relatórios de Acompanhamento" : "Relatório Geral de Scores"}</h1>
+        <p>
+          {activeTab === "esteira"
+            ? "Indicadores consolidados sobre o andamento e status das implantações dos clientes."
+            : "Estatísticas consolidadas e listagem de clientes baseadas no último cálculo de score."}
+        </p>
       </header>
 
-      {/* Filtro de Data */}
-      <div className="relatorios-filtros">
-        <label htmlFor="data-referencia">Data de referência:</label>
-        <input
-          id="data-referencia"
-          type="date"
-          value={dataReferencia}
-          onChange={(e) => {
-            setDataReferencia(e.target.value);
-            // Ao mudar a data, mantém o KPI selecionado ou volta pro inicial se for conveniente
-          }}
-        />
-        {limitesSemana && (
-          <span className="semana-info-badge">
-            <Calendar size={14} style={{ marginRight: "6px", verticalAlign: "middle" }} />
-            Semana: {limitesSemana.inicio.toLocaleDateString("pt-BR")} até {limitesSemana.fim.toLocaleDateString("pt-BR")}
-          </span>
-        )}
+      {/* Sub-abas de Navegação */}
+      <div className="relatorios-tabs">
+        <button
+          className={`relatorios-tab-btn ${activeTab === "esteira" ? "active" : ""}`}
+          onClick={() => setActiveTab("esteira")}
+        >
+          Acompanhamento da Esteira
+        </button>
+        <button
+          className={`relatorios-tab-btn ${activeTab === "score" ? "active" : ""}`}
+          onClick={() => setActiveTab("score")}
+        >
+          Scores dos Clientes
+        </button>
       </div>
 
-      {loading ? (
-        <div className="relatorio-loader">
-          <div className="spinner"></div>
-          <p>Carregando dados dos relatórios...</p>
-        </div>
-      ) : (
+      {activeTab === "esteira" ? (
         <>
-          {/* Grid de KPIs */}
-          <div className="relatorios-grid">
-            {kpis.map((kpi, idx) => (
-              <div
-                key={idx}
-                className={`relatorio-kpi-card ${kpiSelecionado === idx ? "active" : ""}`}
-                onClick={() => setKpiSelecionado(idx)}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span className="kpi-label">{kpi.titulo}</span>
-                  <span style={{ opacity: 0.8 }}>{kpi.icone}</span>
-                </div>
-                <div className="kpi-value-row">
-                  <span className="kpi-value">{kpi.valor}</span>
-                </div>
-                <span className="kpi-desc">
-                  {kpi.desc} {kpi.ehSazonal && " (esta semana)"}
-                </span>
+          {/* Filtro de Data */}
+          <div className="relatorios-filtros">
+            <label htmlFor="data-referencia">Data de referência:</label>
+            <input
+              id="data-referencia"
+              type="date"
+              value={dataReferencia}
+              onChange={(e) => {
+                setDataReferencia(e.target.value);
+                // Ao mudar a data, mantém o KPI selecionado ou volta pro inicial se for conveniente
+              }}
+            />
+            {limitesSemana && (
+              <span className="semana-info-badge">
+                <Calendar size={14} style={{ marginRight: "6px", verticalAlign: "middle" }} />
+                Semana: {limitesSemana.inicio.toLocaleDateString("pt-BR")} até {limitesSemana.fim.toLocaleDateString("pt-BR")}
+              </span>
+            )}
+          </div>
+
+          {loading ? (
+            <div className="relatorio-loader">
+              <div className="spinner"></div>
+              <p>Carregando dados dos relatórios...</p>
+            </div>
+          ) : (
+            <>
+              {/* Grid de KPIs */}
+              <div className="relatorios-grid">
+                {kpis.map((kpi, idx) => (
+                  <div
+                    key={idx}
+                    className={`relatorio-kpi-card ${kpiSelecionado === idx ? "active" : ""}`}
+                    onClick={() => setKpiSelecionado(idx)}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span className="kpi-label">{kpi.titulo}</span>
+                      <span style={{ opacity: 0.8 }}>{kpi.icone}</span>
+                    </div>
+                    <div className="kpi-value-row">
+                      <span className="kpi-value">{kpi.valor}</span>
+                    </div>
+                    <span className="kpi-desc">
+                      {kpi.desc} {kpi.ehSazonal && " (esta semana)"}
+                    </span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
 
-          {/* Section de detalhamento */}
-          <div className="relatorio-detalhe-section">
-            <div className="relatorio-detalhe-header">
-              <h3>
-                📋 {selectedKpi.titulo} ({selectedKpi.valor})
-              </h3>
-              <button className="btn-export-txt" onClick={exportarTXT}>
-                <Download size={16} />
-                Exportar TXT
-              </button>
-            </div>
-
-            <div className="relatorios-table-wrapper">
-              {selectedKpi.lista.length > 0 ? (
-                <table className="relatorios-table">
-                  <thead>
-                    {kpiSelecionado === 2 ? (
-                      <tr>
-                        <th>Cliente</th>
-                        <th>Treinador</th>
-                        <th>CS Responsável</th>
-                        <th style={{ textAlign: "center" }}>Dúvidas</th>
-                        <th style={{ textAlign: "center" }}>Problemas</th>
-                        <th style={{ textAlign: "right" }}>Valor de Contrato</th>
-                      </tr>
-                    ) : (
-                      <tr>
-                        <th>Cliente</th>
-                        <th>Treinador</th>
-                        <th>CS Responsável</th>
-                        <th>Progresso</th>
-                        <th>Dias na Esteira</th>
-                        <th style={{ textAlign: "right" }}>Valor de Contrato</th>
-                      </tr>
-                    )}
-                  </thead>
-                  <tbody>
-                    {selectedKpi.lista.map((e) => (
-                      <tr key={e.id}>
-                        <td style={{ fontWeight: 600 }}>{e.nomeEmpresa}</td>
-                        <td>{formatarNome(e.responsavel) || "—"}</td>
-                        <td>{formatarNome(e.csResponsavel) || "—"}</td>
-                        {kpiSelecionado === 2 ? (
-                          <>
-                            <td style={{ textAlign: "center", fontWeight: 600 }}>
-                              {(e as any).qtdDuvidas}
-                            </td>
-                            <td style={{ textAlign: "center", fontWeight: 600 }}>
-                              {(e as any).qtdProblemas}
-                            </td>
-                          </>
-                        ) : (
-                          <>
-                            <td>
-                              <span style={{ fontWeight: 600, color: e.progresso >= 100 ? "#10b981" : "#f59e0b" }}>
-                                {e.progresso}%
-                              </span>
-                            </td>
-                            <td>{e.dias} dias</td>
-                          </>
-                        )}
-                        <td style={{ textAlign: "right", fontWeight: 600 }}>
-                          {e.valorContrato !== undefined && e.valorContrato !== null
-                            ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(e.valorContrato)
-                            : "—"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <div className="relatorio-empty">
-                  <span className="relatorio-empty-icon">📁</span>
-                  <p>Nenhum cliente atende aos critérios deste indicador nesta semana.</p>
+              {/* Section de detalhamento */}
+              <div className="relatorio-detalhe-section">
+                <div className="relatorio-detalhe-header">
+                  <h3>
+                    📋 {selectedKpi.titulo} ({selectedKpi.valor})
+                  </h3>
+                  <button className="btn-export-txt" onClick={exportarTXT}>
+                    <Download size={16} />
+                    Exportar TXT
+                  </button>
                 </div>
-              )}
-            </div>
-          </div>
+
+                <div className="relatorios-table-wrapper">
+                  {selectedKpi.lista.length > 0 ? (
+                    <table className="relatorios-table">
+                      <thead>
+                        {kpiSelecionado === 2 ? (
+                          <tr>
+                            <th>Cliente</th>
+                            <th>Treinador</th>
+                            <th>CS Responsável</th>
+                            <th style={{ textAlign: "center" }}>Dúvidas</th>
+                            <th style={{ textAlign: "center" }}>Problemas</th>
+                            <th style={{ textAlign: "right" }}>Valor de Contrato</th>
+                          </tr>
+                        ) : (
+                          <tr>
+                            <th>Cliente</th>
+                            <th>Treinador</th>
+                            <th>CS Responsável</th>
+                            <th>Progresso</th>
+                            <th>Dias na Esteira</th>
+                            <th style={{ textAlign: "right" }}>Valor de Contrato</th>
+                          </tr>
+                        )}
+                      </thead>
+                      <tbody>
+                        {selectedKpi.lista.map((e) => (
+                          <tr key={e.id}>
+                            <td style={{ fontWeight: 600 }}>{e.nomeEmpresa}</td>
+                            <td>{formatarNome(e.responsavel) || "—"}</td>
+                            <td>{formatarNome(e.csResponsavel) || "—"}</td>
+                            {kpiSelecionado === 2 ? (
+                              <>
+                                <td style={{ textAlign: "center", fontWeight: 600 }}>
+                                  {(e as any).qtdDuvidas}
+                                </td>
+                                <td style={{ textAlign: "center", fontWeight: 600 }}>
+                                  {(e as any).qtdProblemas}
+                                </td>
+                              </>
+                            ) : (
+                              <>
+                                <td>
+                                  <span style={{ fontWeight: 600, color: e.progresso >= 100 ? "#10b981" : "#f59e0b" }}>
+                                    {e.progresso}%
+                                  </span>
+                                </td>
+                                <td>{e.dias} dias</td>
+                              </>
+                            )}
+                            <td style={{ textAlign: "right", fontWeight: 600 }}>
+                              {e.valorContrato !== undefined && e.valorContrato !== null
+                                ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(e.valorContrato)
+                                : "—"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div className="relatorio-empty">
+                      <span className="relatorio-empty-icon">📁</span>
+                      <p>Nenhum cliente atende aos critérios deste indicador nesta semana.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
         </>
+      ) : (
+        <RelatorioScore />
       )}
+
     </div>
   );
 };

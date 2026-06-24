@@ -8,7 +8,6 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import { LogOut } from "lucide-react";
 import { Usuarios } from "./pages/Usuarios/Usuarios";
 import { Gamificacao } from "./pages/Gamificacao/Gamificacao";
-import { RelatorioScore } from "./pages/RelatorioScore/RelatorioScore";
 import { Relatorios } from "./pages/Relatorios/Relatorios";
 
 function AppRoutes() {
@@ -95,12 +94,6 @@ function AppRoutes() {
           {role === "master" && (
             <>
               <NavLink
-                to="/relatorio-score"
-                className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
-              >
-                Relatório de Scores
-              </NavLink>
-              <NavLink
                 to="/relatorios"
                 className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
               >
@@ -141,7 +134,7 @@ function AppRoutes() {
 
         {role === "master" ? (
           <>
-            <Route path="/relatorio-score" element={<RelatorioScore />} />
+            <Route path="/relatorio-score" element={<Navigate to="/relatorios" replace />} />
             <Route path="/relatorios" element={<Relatorios />} />
           </>
         ) : (

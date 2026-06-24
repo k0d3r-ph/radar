@@ -310,8 +310,8 @@ export default function Home() {
         )
         .sort(
           (a, b) =>
-            (b.createdAt ?? b.dataOcorrencia ?? 0) -
-            (a.createdAt ?? a.dataOcorrencia ?? 0)
+            (b.dataOcorrencia || b.createdAt || 0) -
+            (a.dataOcorrencia || a.createdAt || 0)
         )[0];
 
       let temAlerta = false;
@@ -670,6 +670,7 @@ export default function Home() {
                 <col style={{ width: "5%" }} />
                 <col style={{ width: "5%" }} />
                 <col style={{ width: "5%" }} />
+                <col style={{ width: "5%" }} />
               </colgroup>
               <thead>
                 <tr>
@@ -681,6 +682,7 @@ export default function Home() {
                   <th>Dias</th>
                   <th>Agendamento</th>
                   <th className="td-progresso">Progresso</th>
+                  <th style={{ textAlign: "right" }}>Valor Contrato</th>
                 </tr>
               </thead>
  
@@ -751,11 +753,16 @@ export default function Home() {
                     <td className="td-progresso">
                       <ProgressBar value={empresa.progresso} />
                     </td>
+                    <td style={{ textAlign: "right", fontWeight: 600 }}>
+                      {empresa.valorContrato !== undefined && empresa.valorContrato !== null
+                        ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(empresa.valorContrato)
+                        : "—"}
+                    </td>
                   </tr>
                 ))}
                 {dadosAtivosFiltrados.length === 0 && (
                   <tr>
-                    <td colSpan={8} style={{ textAlign: "center", color: "#64748b", padding: "2rem" }}>
+                    <td colSpan={9} style={{ textAlign: "center", color: "#64748b", padding: "2rem" }}>
                       Nenhum cliente ativo encontrado.
                     </td>
                   </tr>
@@ -797,6 +804,7 @@ export default function Home() {
                 <col style={{ width: "5%" }} />
                 <col style={{ width: "5%" }} />
                 <col style={{ width: "5%" }} />
+                <col style={{ width: "5%" }} />
               </colgroup>
               <thead>
                 <tr>
@@ -804,6 +812,7 @@ export default function Home() {
                   <th>Contato</th>
                   <th>CS Responsável</th>
                   <th>Comercial Responsável</th>
+                  <th style={{ textAlign: "right" }}>Valor Contrato</th>
                 </tr>
               </thead>
 
@@ -846,11 +855,16 @@ export default function Home() {
                     <td>{formatarNome(empresa.csResponsavel) || "-"}</td>
 
                     <td>{formatarNome(empresa.comercialResponsavel) || "-"}</td>
+                    <td style={{ textAlign: "right", fontWeight: 600 }}>
+                      {empresa.valorContrato !== undefined && empresa.valorContrato !== null
+                        ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(empresa.valorContrato)
+                        : "—"}
+                    </td>
                   </tr>
                 ))}
                 {dadosOngoingFiltrados.length === 0 && (
                   <tr>
-                    <td colSpan={4} style={{ textAlign: "center", color: "#64748b", padding: "2rem" }}>
+                    <td colSpan={5} style={{ textAlign: "center", color: "#64748b", padding: "2rem" }}>
                       Nenhum cliente em acompanhamento contínuo (Ongoing).
                     </td>
                   </tr>

@@ -68,7 +68,7 @@ const TIPO_CLASS: Record<string, string> = {
 };
 
 function getOcorrenciaTimestamp(o: Ocorrencia): number {
-  if ((o.tipo === "Problema" || o.tipo === "Dúvida") && o.dataOcorrencia && o.dataOcorrencia > 0) {
+  if ((o.tipo === "Problema" || o.tipo === "Dúvida" || o.departamento === "Suporte") && o.dataOcorrencia && o.dataOcorrencia > 0) {
     return o.dataOcorrencia;
   }
   return o.createdAt ?? o.dataOcorrencia ?? 0;
@@ -634,7 +634,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
             !o.alertaResolvidoPorId &&
             o.id !== savedId
         )
-        .sort((a, b) => (b.createdAt ?? b.dataOcorrencia ?? 0) - (a.createdAt ?? a.dataOcorrencia ?? 0))[0];
+        .sort((a, b) => (b.dataOcorrencia || b.createdAt || 0) - (a.dataOcorrencia || a.createdAt || 0))[0];
 
       if (alertaOriginal) {
         // Atualiza a ocorrência de alerta original para apontar para esta resolução

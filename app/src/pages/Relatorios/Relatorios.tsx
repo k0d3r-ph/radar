@@ -113,8 +113,8 @@ export const Relatorios: React.FC = () => {
         )
         .sort(
           (a, b) =>
-            (b.createdAt ?? b.dataOcorrencia ?? 0) -
-            (a.createdAt ?? a.dataOcorrencia ?? 0)
+            (b.dataOcorrencia || b.createdAt || 0) -
+            (a.dataOcorrencia || a.createdAt || 0)
         )[0];
 
       let temAlerta = false;
@@ -177,7 +177,7 @@ export const Relatorios: React.FC = () => {
 
     ocorrencias.forEach((o) => {
       if (o.departamento === "Suporte") {
-        const t = o.createdAt ?? o.dataOcorrencia ?? 0;
+        const t = o.dataOcorrencia || o.createdAt || 0;
         if (t >= inicio.getTime() && t <= fim.getTime()) {
           const dia = new Date(t).getDay();
           if (dia === 0 || dia === 6) {

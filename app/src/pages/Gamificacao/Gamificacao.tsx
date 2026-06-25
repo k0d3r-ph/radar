@@ -27,6 +27,7 @@ import {
   atualizarLancamentoPonto,
 } from "../../services/gamificacao";
 import type { LancamentoPonto } from "../../types";
+import { listarEmpresas } from "../../services/empresas";
 import "./Gamificacao.css";
 
 const ACOES_DISPONIVEIS = [
@@ -256,10 +257,124 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
   );
 };
 
+interface SearchableSingleSelectProps {
+  value: string;
+  onChange: (value: string) => void;
+  options: string[];
+  placeholder: string;
+  disabled?: boolean;
+}
+
+const SearchableSingleSelect: React.FC<SearchableSingleSelectProps> = ({
+  value,
+  onChange,
+  options,
+  placeholder,
+  disabled
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const containerRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (isOpen && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [isOpen]);
+
+  const filteredOptions = useMemo(() => {
+    return options.filter((opt) =>
+      opt.toLowerCase().includes(searchTerm.toLowerCase().trim())
+    );
+  }, [options, searchTerm]);
+
+  return (
+    <div className="searchable-select-container" ref={containerRef}>
+      <button
+        type="button"
+        className={`searchable-select-trigger ${isOpen ? "active" : ""}`}
+        onClick={() => {
+          if (!disabled) {
+            setIsOpen(!isOpen);
+            setSearchTerm("");
+          }
+        }}
+        disabled={disabled}
+        style={{ height: "auto", minHeight: "48px", padding: "6px 12px" }}
+      >
+        <div className="searchable-select-selected-wrapper">
+          {value ? (
+            <span style={{ color: "#cbd5e1" }}>{value}</span>
+          ) : (
+            <span className="placeholder-value">{placeholder}</span>
+          )}
+        </div>
+        <span className={`select-arrow ${isOpen ? "open" : ""}`} style={{ alignSelf: "center" }}>▼</span>
+      </button>
+
+      {isOpen && (
+        <div className="searchable-select-dropdown">
+          <div className="searchable-select-search-wrapper">
+            <input
+              ref={searchInputRef}
+              type="text"
+              className="searchable-select-search-input"
+              placeholder="Pesquisar empresa..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div className="searchable-select-options-list">
+            {filteredOptions.length > 0 ? (
+              filteredOptions.map((opt) => {
+                const isSelected = value === opt;
+                return (
+                  <div
+                    key={opt}
+                    className={`searchable-select-option ${isSelected ? "selected" : ""}`}
+                    onClick={() => {
+                      onChange(opt);
+                      setIsOpen(false);
+                    }}
+                  >
+                    <span>{opt}</span>
+                    {isSelected && (
+                      <span className="selected-check">✓</span>
+                    )}
+                  </div>
+                );
+              })
+            ) : (
+              <div className="searchable-select-no-options">
+                Nenhuma empresa encontrada
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const Gamificacao: React.FC = () => {
   const { user, userName, role } = useAuth();
   const [trainers, setTrainers] = useState<UsuarioDocument[]>([]);
   const [entries, setEntries] = useState<LancamentoPonto[]>([]);
+  const [empresas, setEmpresas] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -327,9 +442,10 @@ export const Gamificacao: React.FC = () => {
   const carregarDados = async () => {
     try {
       setLoading(true);
-      const [listaUsuarios, listaPontos] = await Promise.all([
+      const [listaUsuarios, listaPontos, listaEmpresas] = await Promise.all([
         listarUsuarios(),
         listarLancamentosPontos(),
+        listarEmpresas(),
       ]);
 
       // Filter only users with "treinador" or "master" role who completed their first access
@@ -338,6 +454,15 @@ export const Gamificacao: React.FC = () => {
       );
       setTrainers(apenasTreinadores);
       setEntries(listaPontos);
+
+      const nomesEmpresas = Array.from(
+        new Set(
+          listaEmpresas
+            .map((e) => e.nomeEmpresa?.trim())
+            .filter(Boolean)
+        )
+      ).sort((a, b) => a.localeCompare(b));
+      setEmpresas(nomesEmpresas);
 
       // Default the selected trainer in the form
       if (user && apenasTreinadores.some((t) => t.uid === user.uid)) {
@@ -929,13 +1054,12 @@ export const Gamificacao: React.FC = () => {
                                 <div className="form-grid-2">
                                   <div className="input-group">
                                     <label htmlFor="treinamento-empresa">Nome da Empresa *</label>
-                                    <input
-                                      type="text"
-                                      id="treinamento-empresa"
-                                      placeholder="Digite o nome da empresa..."
+                                    <SearchableSingleSelect
                                       value={treinamentoEmpresa}
-                                      onChange={(e) => setTreinamentoEmpresa(e.target.value)}
-                                      required
+                                      onChange={setTreinamentoEmpresa}
+                                      options={empresas}
+                                      placeholder="Selecione a empresa..."
+                                      disabled={submitting}
                                     />
                                   </div>
 
@@ -1220,12 +1344,12 @@ export const Gamificacao: React.FC = () => {
                   <div className="form-grid-2">
                     <div className="input-group">
                       <label htmlFor="edit-treinamento-empresa">Nome da Empresa *</label>
-                      <input
-                        type="text"
-                        id="edit-treinamento-empresa"
+                      <SearchableSingleSelect
                         value={editEmpresa}
-                        onChange={(e) => setEditEmpresa(e.target.value)}
-                        required
+                        onChange={setEditEmpresa}
+                        options={empresas}
+                        placeholder="Selecione a empresa..."
+                        disabled={submitting}
                       />
                     </div>
 

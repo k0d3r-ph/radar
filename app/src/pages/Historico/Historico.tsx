@@ -315,6 +315,7 @@ export function Historico() {
   const [filtroDepto, setFiltroDepto] = useState("");
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
+  const [ordenacaoData, setOrdenacaoData] = useState<"desc" | "asc">("desc");
   const [loading, setLoading] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [painelAberto, setPainelAberto] = useState(false);
@@ -1042,6 +1043,10 @@ Score atual: ${novoScore}${mudancasTexto}`;
     }
 
     return bateBusca && empresaOk && tipoOk && deptoOk && dataOk;
+  }).sort((a, b) => {
+    const tA = getOcorrenciaTimestamp(a);
+    const tB = getOcorrenciaTimestamp(b);
+    return ordenacaoData === "desc" ? tB - tA : tA - tB;
   });
 
   const selectedEmpresaObj = empresasList.find(
@@ -1150,7 +1155,13 @@ Score atual: ${novoScore}${mudancasTexto}`;
           <thead>
             <tr>
               <th>Empresa</th>
-              <th>Data</th>
+              <th
+                onClick={() => setOrdenacaoData((prev) => (prev === "desc" ? "asc" : "desc"))}
+                style={{ cursor: "pointer", userSelect: "none" }}
+                title="Clique para ordenar por data"
+              >
+                Data {ordenacaoData === "desc" ? "▼" : "▲"}
+              </th>
               <th>Hora</th>
               <th>Departamento</th>
               <th>Tipo de registro</th>

@@ -89,6 +89,7 @@ const TEMAS_GAMIFICACAO = [
   "Template de Cliente",
   "Template de perfis de acesso",
   "Perfis de acesso administrador",
+  "Perfis de acesso dos usuários",
   "Template de Rastreador",
   "Áreas e Rotas",
   "Regras",
@@ -773,402 +774,402 @@ export const Gamificacao: React.FC = () => {
           </div>
 
           <div className="gamificacao-grid">
-          {/* Coluna da Esquerda: Ranking */}
-          <section className="gamificacao-card ranking-section">
-            <div className="section-header">
-              <h2>
-                <Trophy size={20} className="card-icon gold-glow" />
-                Placar de Líderes
-              </h2>
-              <span className="badge-count">
-                {rankedTrainers.length} {rankedTrainers.length === 1 ? "Treinador" : "Treinadores"}
-              </span>
-            </div>
-
-            {rankedTrainers.length === 0 ? (
-              <p className="no-data-msg">Nenhum treinador cadastrado no sistema.</p>
-            ) : (
-              <div className="ranking-list">
-                {rankedTrainers.map((t, index) => {
-                  const isTop1 = index === 0;
-                  const isTop2 = index === 1;
-                  const isTop3 = index === 2;
-
-                  let rankClass = "rank-other";
-                  let TrophyIcon = null;
-
-                  if (isTop1) {
-                    rankClass = "rank-first";
-                    TrophyIcon = <Trophy className="trophy-gold" size={24} />;
-                  } else if (isTop2) {
-                    rankClass = "rank-second";
-                    TrophyIcon = <Award className="trophy-silver" size={22} />;
-                  } else if (isTop3) {
-                    rankClass = "rank-third";
-                    TrophyIcon = <Award className="trophy-bronze" size={20} />;
-                  }
-
-                  return (
-                    <div key={t.uid} className={`ranking-item ${rankClass}`}>
-                      <div className="ranking-position">
-                        {TrophyIcon ? TrophyIcon : <span className="position-number">{index + 1}</span>}
-                      </div>
-
-                      <div className="ranking-details">
-                        <div className="ranking-name">
-                          {formatarNome(t.nome) || t.email}
-                          {t.uid === user?.uid && <span className="me-badge">Você</span>}
-                        </div>
-                        <div className="ranking-sub">
-                          <div>
-                            {t.qtdAcoes} {t.qtdAcoes === 1 ? "atividade registrada" : "atividades registradas"}
-                          </div>
-                          {t.totalTrainingsCount > 0 && (
-                            <div className="csat-rate-info" style={{ fontSize: "11px", color: "#94a3b8", marginTop: "4px" }}>
-                              CSAT Taxa Resposta: <strong>{Math.round(t.taxaResposta * 100)}%</strong> ({t.answeredTrainingsCount}/{t.totalTrainingsCount})
-                              {t.bonusPercentage > 0 && (
-                                <span className="bonus-pill" style={{ marginLeft: "6px", color: "#34d399", background: "rgba(16, 185, 129, 0.1)", padding: "2px 6px", borderRadius: "4px", fontSize: "10px", fontWeight: "bold" }}>
-                                  +{t.bonusPercentage}% Bônus
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="ranking-score-wrapper">
-                        <span className={`ranking-score ${t.score >= 0 ? "positive-score" : "negative-score"}`}>
-                          {t.score > 0 ? `+${t.score}` : t.score}
-                        </span>
-                        <span className="score-label">pts</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-
-          {/* Coluna da Direita: Lançar e Histórico */}
-          <div className="actions-column">
-            {/* Bloco 1: Lançar Pontos */}
-            <section className="gamificacao-card lancar-section">
-              <h2>
-                <PlusCircle size={20} className="card-icon" />
-                Registrar Nova Ação
-              </h2>
-
-              <form onSubmit={handleLancar} className="lancar-form">
-                <div className="input-group">
-                  <label htmlFor={role === "master" ? "trainer-select" : "trainer-input"}>Treinador</label>
-                  <div className="input-wrapper">
-                    <User className="input-icon" size={18} />
-                    {role === "master" ? (
-                      <select
-                        id="trainer-select"
-                        value={selectedTrainerUid}
-                        onChange={(e) => setSelectedTrainerUid(e.target.value)}
-                        required
-                        disabled={submitting}
-                      >
-                        {trainers.map((t) => (
-                          <option key={t.uid} value={t.uid}>
-                            {formatarNome(t.nome) || t.email}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <input
-                        type="text"
-                        id="trainer-input"
-                        value={userName || user?.email || ""}
-                        readOnly
-                        disabled
-                        className="input-disabled"
-                      />
-                    )}
-                  </div>
-                </div>
-
-                <div className="input-group">
-                  <label>Ação Realizada</label>
-                  <div className="acoes-radio-group">
-                    {acoesFiltradas.map((acao) => {
-                      const Icon = acao.icon;
-                      const isSelected = selectedActionType === acao.tipo;
-                      return (
-                        <React.Fragment key={acao.tipo}>
-                          <label
-                            className={`acao-radio-card ${isSelected ? "selected" : ""} ${acao.colorClass}`}
-                          >
-                            <input
-                              type="radio"
-                              name="acao-tipo"
-                              value={acao.tipo}
-                              checked={isSelected}
-                              onChange={() => setSelectedActionType(acao.tipo)}
-                              disabled={submitting}
-                            />
-                            <div className="acao-radio-content">
-                              <div className="acao-radio-left">
-                                <Icon className="acao-icon" size={18} />
-                                <div className="acao-radio-text">
-                                  <span className="acao-label">{acao.label}</span>
-                                  <span className="acao-desc">{acao.descricao}</span>
-                                </div>
-                              </div>
-                              <span className="acao-points-badge">
-                                {acao.pontos > 0 ? `+${acao.pontos}` : acao.pontos}
-                              </span>
-                            </div>
-                          </label>
-
-                          {isSelected && acao.tipo === "treinamento" && (
-                            <div className="treinamento-subform inline-subform">
-                              <div className="form-grid-2">
-                                <div className="input-group">
-                                  <label htmlFor="treinamento-empresa">Nome da Empresa *</label>
-                                  <input
-                                    type="text"
-                                    id="treinamento-empresa"
-                                    placeholder="Digite o nome da empresa..."
-                                    value={treinamentoEmpresa}
-                                    onChange={(e) => setTreinamentoEmpresa(e.target.value)}
-                                    required
-                                  />
-                                </div>
-
-                                <div className="input-group">
-                                  <label>Temas *</label>
-                                  <SearchableSelect
-                                    value={treinamentoTemas}
-                                    onChange={setTreinamentoTemas}
-                                    options={TEMAS_GAMIFICACAO}
-                                    placeholder="Selecione ou pesquise os temas..."
-                                    disabled={submitting}
-                                  />
-                                </div>
-                              </div>
-
-                              <div className="form-grid-2">
-                                <div className="input-group">
-                                  <label htmlFor="treinamento-data-solicitacao">Data de Solicitação *</label>
-                                  <input
-                                    type="date"
-                                    id="treinamento-data-solicitacao"
-                                    value={treinamentoDataSolicitacao}
-                                    onChange={(e) => setTreinamentoDataSolicitacao(e.target.value)}
-                                    required
-                                  />
-                                </div>
-
-                                <div className="input-group">
-                                  <label htmlFor="treinamento-data-realizacao">Data da Realização *</label>
-                                  <input
-                                    type="date"
-                                    id="treinamento-data-realizacao"
-                                    value={treinamentoDataRealizacao}
-                                    onChange={(e) => setTreinamentoDataRealizacao(e.target.value)}
-                                    required
-                                  />
-                                </div>
-                              </div>
-
-                              <div className="form-grid-2">
-                                <div className="input-group">
-                                  <label htmlFor="treinamento-tempo-agenda">
-                                    Tempo de Agenda {
-                                      treinamentoTemas.some(
-                                        (t) => t.trim().toLowerCase() === "cancelado" || t.trim().toLowerCase() === "ausente"
-                                      ) ? "" : "*"
-                                    }
-                                  </label>
-                                  <input
-                                    type="time"
-                                    id="treinamento-tempo-agenda"
-                                    value={treinamentoTempoAgenda}
-                                    onChange={(e) => setTreinamentoTempoAgenda(e.target.value)}
-                                    required={
-                                      !treinamentoTemas.some(
-                                        (t) => t.trim().toLowerCase() === "cancelado" || t.trim().toLowerCase() === "ausente"
-                                      )
-                                    }
-                                  />
-                                </div>
-
-
-                                <div className="input-group">
-                                  <label htmlFor="treinamento-solicitante">Quem Solicitou *</label>
-                                  <div className="input-wrapper">
-                                    <select
-                                      id="treinamento-solicitante"
-                                      value={treinamentoSolicitante}
-                                      onChange={(e) => setTreinamentoSolicitante(e.target.value)}
-                                      required
-                                    >
-                                      <option value="CS">CS</option>
-                                      <option value="Cliente">Cliente</option>
-                                      <option value="Suporte">Suporte</option>
-                                      <option value="Comercial">Comercial</option>
-                                      <option value="Hardware">Hardware</option>
-                                      <option value="Aplicações">Aplicações</option>
-                                    </select>
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="treinamento-notas-section">
-                                <div className="notas-section-header">
-                                  <label>Notas dos Participantes (CSAT Opcional)</label>
-                                  <button
-                                    type="button"
-                                    className="btn-add-nota-icon"
-                                    onClick={handleAddNota}
-                                    title="Adicionar Nota"
-                                  >
-                                    + Adicionar Nota
-                                  </button>
-                                </div>
-                                {treinamentoNotas.length === 0 ? (
-                                  <span className="no-notas-msg">Nenhuma nota registrada (treinamento sem resposta CSAT).</span>
-                                ) : (
-                                  <div className="notas-inputs-grid">
-                                    {treinamentoNotas.map((nota, idx) => (
-                                      <div key={idx} className="nota-input-row">
-                                        <input
-                                          type="number"
-                                          className="nota-input-field"
-                                          placeholder={`Nota ${idx + 1} (0 a 10)`}
-                                          min="0"
-                                          max="10"
-                                          step="1"
-                                          value={nota}
-                                          onChange={(e) => handleUpdateNota(idx, e.target.value)}
-                                          required
-                                        />
-                                        <button
-                                          type="button"
-                                          className="btn-remove-nota-icon"
-                                          onClick={() => handleRemoveNota(idx)}
-                                          title="Remover nota"
-                                        >
-                                          <Trash2 size={14} />
-                                        </button>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        </React.Fragment>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="input-group">
-                  <label htmlFor="descricao-input">Descrição / Detalhes (Opcional)</label>
-                  <textarea
-                    id="descricao-input"
-                    placeholder="Ex: Treinamento avançado de APIs, Documentação de onboarding revisada..."
-                    value={descricao}
-                    onChange={(e) => setDescricao(e.target.value)}
-                    disabled={submitting}
-                    maxLength={150}
-                    rows={2}
-                  />
-                </div>
-
-                <button type="submit" className="btn-primary lancar-submit-btn" disabled={submitting}>
-                  {submitting ? <div className="spinner"></div> : "Lançar Pontuação"}
-                </button>
-              </form>
-            </section>
-
-            {/* Bloco 2: Histórico Recente */}
-            <section className="gamificacao-card historico-section">
+            {/* Coluna da Esquerda: Ranking */}
+            <section className="gamificacao-card ranking-section">
               <div className="section-header">
                 <h2>
-                  <History size={20} className="card-icon" />
-                  Atividades Recentes
+                  <Trophy size={20} className="card-icon gold-glow" />
+                  Placar de Líderes
                 </h2>
+                <span className="badge-count">
+                  {rankedTrainers.length} {rankedTrainers.length === 1 ? "Treinador" : "Treinadores"}
+                </span>
               </div>
 
-              {filteredEntries.length === 0 ? (
-                <p className="no-data-msg">
-                  {entries.length === 0
-                    ? "Nenhum lançamento de pontos registrado ainda."
-                    : "Nenhum lançamento encontrado para o período selecionado."}
-                </p>
+              {rankedTrainers.length === 0 ? (
+                <p className="no-data-msg">Nenhum treinador cadastrado no sistema.</p>
               ) : (
-                <div className="table-responsive">
-                  <table className="gamificacao-table">
-                    <thead>
-                      <tr>
-                        <th>Treinador</th>
-                        <th>Ação</th>
-                        <th>Detalhes</th>
-                        <th>Data</th>
-                        <th className="points-col">Pontos</th>
-                        <th className="action-col"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredEntries.map((entry) => {
-                        const actionConfig = ACOES_DISPONIVEIS.find((a) => a.tipo === entry.tipoAcao);
-                        return (
-                          <tr key={entry.id}>
-                            <td className="trainer-cell">{entry.treinadorNome}</td>
-                            <td className="action-cell">
-                              <span className="action-label-text">
-                                {actionConfig ? actionConfig.label : entry.tipoAcao}
-                              </span>
-                            </td>
-                            <td className="desc-cell" title={entry.descricao}>
-                              {entry.descricao || "—"}
-                            </td>
-                            <td className="date-cell">{formatarData(entry.dataLancamento)}</td>
-                            <td className="points-cell">
-                              <span
-                                className={`points-tag ${entry.pontos > 0 ? "tag-positive" : "tag-negative"
-                                  }`}
-                              >
-                                {entry.pontos > 0 ? `+${entry.pontos}` : entry.pontos}
-                              </span>
-                            </td>
-                            <td className="action-col">
-                              <div className="action-buttons-wrapper">
-                                {(role === "master" || (entry.treinadorId === user?.uid && entry.criadoPorId === user?.uid)) && (
-                                  <button
-                                    className="btn-edit-entry"
-                                    onClick={() => handleStartEdit(entry)}
-                                    title="Editar lançamento"
-                                  >
-                                    <Edit2 size={14} />
-                                  </button>
-                                )}
-                                {(role === "master" || entry.criadoPorId === user?.uid) && (
-                                  <button
-                                    className="btn-delete-entry"
-                                    onClick={() => setConfirmarExclusaoId(entry.id || null)}
-                                    title="Remover lançamento"
-                                  >
-                                    <Trash2 size={14} />
-                                  </button>
+                <div className="ranking-list">
+                  {rankedTrainers.map((t, index) => {
+                    const isTop1 = index === 0;
+                    const isTop2 = index === 1;
+                    const isTop3 = index === 2;
+
+                    let rankClass = "rank-other";
+                    let TrophyIcon = null;
+
+                    if (isTop1) {
+                      rankClass = "rank-first";
+                      TrophyIcon = <Trophy className="trophy-gold" size={24} />;
+                    } else if (isTop2) {
+                      rankClass = "rank-second";
+                      TrophyIcon = <Award className="trophy-silver" size={22} />;
+                    } else if (isTop3) {
+                      rankClass = "rank-third";
+                      TrophyIcon = <Award className="trophy-bronze" size={20} />;
+                    }
+
+                    return (
+                      <div key={t.uid} className={`ranking-item ${rankClass}`}>
+                        <div className="ranking-position">
+                          {TrophyIcon ? TrophyIcon : <span className="position-number">{index + 1}</span>}
+                        </div>
+
+                        <div className="ranking-details">
+                          <div className="ranking-name">
+                            {formatarNome(t.nome) || t.email}
+                            {t.uid === user?.uid && <span className="me-badge">Você</span>}
+                          </div>
+                          <div className="ranking-sub">
+                            <div>
+                              {t.qtdAcoes} {t.qtdAcoes === 1 ? "atividade registrada" : "atividades registradas"}
+                            </div>
+                            {t.totalTrainingsCount > 0 && (
+                              <div className="csat-rate-info" style={{ fontSize: "11px", color: "#94a3b8", marginTop: "4px" }}>
+                                CSAT Taxa Resposta: <strong>{Math.round(t.taxaResposta * 100)}%</strong> ({t.answeredTrainingsCount}/{t.totalTrainingsCount})
+                                {t.bonusPercentage > 0 && (
+                                  <span className="bonus-pill" style={{ marginLeft: "6px", color: "#34d399", background: "rgba(16, 185, 129, 0.1)", padding: "2px 6px", borderRadius: "4px", fontSize: "10px", fontWeight: "bold" }}>
+                                    +{t.bonusPercentage}% Bônus
+                                  </span>
                                 )}
                               </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="ranking-score-wrapper">
+                          <span className={`ranking-score ${t.score >= 0 ? "positive-score" : "negative-score"}`}>
+                            {t.score > 0 ? `+${t.score}` : t.score}
+                          </span>
+                          <span className="score-label">pts</span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </section>
+
+            {/* Coluna da Direita: Lançar e Histórico */}
+            <div className="actions-column">
+              {/* Bloco 1: Lançar Pontos */}
+              <section className="gamificacao-card lancar-section">
+                <h2>
+                  <PlusCircle size={20} className="card-icon" />
+                  Registrar Nova Ação
+                </h2>
+
+                <form onSubmit={handleLancar} className="lancar-form">
+                  <div className="input-group">
+                    <label htmlFor={role === "master" ? "trainer-select" : "trainer-input"}>Treinador</label>
+                    <div className="input-wrapper">
+                      <User className="input-icon" size={18} />
+                      {role === "master" ? (
+                        <select
+                          id="trainer-select"
+                          value={selectedTrainerUid}
+                          onChange={(e) => setSelectedTrainerUid(e.target.value)}
+                          required
+                          disabled={submitting}
+                        >
+                          {trainers.map((t) => (
+                            <option key={t.uid} value={t.uid}>
+                              {formatarNome(t.nome) || t.email}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type="text"
+                          id="trainer-input"
+                          value={userName || user?.email || ""}
+                          readOnly
+                          disabled
+                          className="input-disabled"
+                        />
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="input-group">
+                    <label>Ação Realizada</label>
+                    <div className="acoes-radio-group">
+                      {acoesFiltradas.map((acao) => {
+                        const Icon = acao.icon;
+                        const isSelected = selectedActionType === acao.tipo;
+                        return (
+                          <React.Fragment key={acao.tipo}>
+                            <label
+                              className={`acao-radio-card ${isSelected ? "selected" : ""} ${acao.colorClass}`}
+                            >
+                              <input
+                                type="radio"
+                                name="acao-tipo"
+                                value={acao.tipo}
+                                checked={isSelected}
+                                onChange={() => setSelectedActionType(acao.tipo)}
+                                disabled={submitting}
+                              />
+                              <div className="acao-radio-content">
+                                <div className="acao-radio-left">
+                                  <Icon className="acao-icon" size={18} />
+                                  <div className="acao-radio-text">
+                                    <span className="acao-label">{acao.label}</span>
+                                    <span className="acao-desc">{acao.descricao}</span>
+                                  </div>
+                                </div>
+                                <span className="acao-points-badge">
+                                  {acao.pontos > 0 ? `+${acao.pontos}` : acao.pontos}
+                                </span>
+                              </div>
+                            </label>
+
+                            {isSelected && acao.tipo === "treinamento" && (
+                              <div className="treinamento-subform inline-subform">
+                                <div className="form-grid-2">
+                                  <div className="input-group">
+                                    <label htmlFor="treinamento-empresa">Nome da Empresa *</label>
+                                    <input
+                                      type="text"
+                                      id="treinamento-empresa"
+                                      placeholder="Digite o nome da empresa..."
+                                      value={treinamentoEmpresa}
+                                      onChange={(e) => setTreinamentoEmpresa(e.target.value)}
+                                      required
+                                    />
+                                  </div>
+
+                                  <div className="input-group">
+                                    <label>Temas *</label>
+                                    <SearchableSelect
+                                      value={treinamentoTemas}
+                                      onChange={setTreinamentoTemas}
+                                      options={TEMAS_GAMIFICACAO}
+                                      placeholder="Selecione ou pesquise os temas..."
+                                      disabled={submitting}
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="form-grid-2">
+                                  <div className="input-group">
+                                    <label htmlFor="treinamento-data-solicitacao">Data de Solicitação *</label>
+                                    <input
+                                      type="date"
+                                      id="treinamento-data-solicitacao"
+                                      value={treinamentoDataSolicitacao}
+                                      onChange={(e) => setTreinamentoDataSolicitacao(e.target.value)}
+                                      required
+                                    />
+                                  </div>
+
+                                  <div className="input-group">
+                                    <label htmlFor="treinamento-data-realizacao">Data da Realização *</label>
+                                    <input
+                                      type="date"
+                                      id="treinamento-data-realizacao"
+                                      value={treinamentoDataRealizacao}
+                                      onChange={(e) => setTreinamentoDataRealizacao(e.target.value)}
+                                      required
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="form-grid-2">
+                                  <div className="input-group">
+                                    <label htmlFor="treinamento-tempo-agenda">
+                                      Tempo de Agenda {
+                                        treinamentoTemas.some(
+                                          (t) => t.trim().toLowerCase() === "cancelado" || t.trim().toLowerCase() === "ausente"
+                                        ) ? "" : "*"
+                                      }
+                                    </label>
+                                    <input
+                                      type="time"
+                                      id="treinamento-tempo-agenda"
+                                      value={treinamentoTempoAgenda}
+                                      onChange={(e) => setTreinamentoTempoAgenda(e.target.value)}
+                                      required={
+                                        !treinamentoTemas.some(
+                                          (t) => t.trim().toLowerCase() === "cancelado" || t.trim().toLowerCase() === "ausente"
+                                        )
+                                      }
+                                    />
+                                  </div>
+
+
+                                  <div className="input-group">
+                                    <label htmlFor="treinamento-solicitante">Quem Solicitou *</label>
+                                    <div className="input-wrapper">
+                                      <select
+                                        id="treinamento-solicitante"
+                                        value={treinamentoSolicitante}
+                                        onChange={(e) => setTreinamentoSolicitante(e.target.value)}
+                                        required
+                                      >
+                                        <option value="CS">CS</option>
+                                        <option value="Cliente">Cliente</option>
+                                        <option value="Suporte">Suporte</option>
+                                        <option value="Comercial">Comercial</option>
+                                        <option value="Hardware">Hardware</option>
+                                        <option value="Aplicações">Aplicações</option>
+                                      </select>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="treinamento-notas-section">
+                                  <div className="notas-section-header">
+                                    <label>Notas dos Participantes (CSAT Opcional)</label>
+                                    <button
+                                      type="button"
+                                      className="btn-add-nota-icon"
+                                      onClick={handleAddNota}
+                                      title="Adicionar Nota"
+                                    >
+                                      + Adicionar Nota
+                                    </button>
+                                  </div>
+                                  {treinamentoNotas.length === 0 ? (
+                                    <span className="no-notas-msg">Nenhuma nota registrada (treinamento sem resposta CSAT).</span>
+                                  ) : (
+                                    <div className="notas-inputs-grid">
+                                      {treinamentoNotas.map((nota, idx) => (
+                                        <div key={idx} className="nota-input-row">
+                                          <input
+                                            type="number"
+                                            className="nota-input-field"
+                                            placeholder={`Nota ${idx + 1} (0 a 10)`}
+                                            min="0"
+                                            max="10"
+                                            step="1"
+                                            value={nota}
+                                            onChange={(e) => handleUpdateNota(idx, e.target.value)}
+                                            required
+                                          />
+                                          <button
+                                            type="button"
+                                            className="btn-remove-nota-icon"
+                                            onClick={() => handleRemoveNota(idx)}
+                                            title="Remover nota"
+                                          >
+                                            <Trash2 size={14} />
+                                          </button>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="input-group">
+                    <label htmlFor="descricao-input">Descrição / Detalhes (Opcional)</label>
+                    <textarea
+                      id="descricao-input"
+                      placeholder="Ex: Treinamento avançado de APIs, Documentação de onboarding revisada..."
+                      value={descricao}
+                      onChange={(e) => setDescricao(e.target.value)}
+                      disabled={submitting}
+                      maxLength={150}
+                      rows={2}
+                    />
+                  </div>
+
+                  <button type="submit" className="btn-primary lancar-submit-btn" disabled={submitting}>
+                    {submitting ? <div className="spinner"></div> : "Lançar Pontuação"}
+                  </button>
+                </form>
+              </section>
+
+              {/* Bloco 2: Histórico Recente */}
+              <section className="gamificacao-card historico-section">
+                <div className="section-header">
+                  <h2>
+                    <History size={20} className="card-icon" />
+                    Atividades Recentes
+                  </h2>
+                </div>
+
+                {filteredEntries.length === 0 ? (
+                  <p className="no-data-msg">
+                    {entries.length === 0
+                      ? "Nenhum lançamento de pontos registrado ainda."
+                      : "Nenhum lançamento encontrado para o período selecionado."}
+                  </p>
+                ) : (
+                  <div className="table-responsive">
+                    <table className="gamificacao-table">
+                      <thead>
+                        <tr>
+                          <th>Treinador</th>
+                          <th>Ação</th>
+                          <th>Detalhes</th>
+                          <th>Data</th>
+                          <th className="points-col">Pontos</th>
+                          <th className="action-col"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredEntries.map((entry) => {
+                          const actionConfig = ACOES_DISPONIVEIS.find((a) => a.tipo === entry.tipoAcao);
+                          return (
+                            <tr key={entry.id}>
+                              <td className="trainer-cell">{entry.treinadorNome}</td>
+                              <td className="action-cell">
+                                <span className="action-label-text">
+                                  {actionConfig ? actionConfig.label : entry.tipoAcao}
+                                </span>
+                              </td>
+                              <td className="desc-cell" title={entry.descricao}>
+                                {entry.descricao || "—"}
+                              </td>
+                              <td className="date-cell">{formatarData(entry.dataLancamento)}</td>
+                              <td className="points-cell">
+                                <span
+                                  className={`points-tag ${entry.pontos > 0 ? "tag-positive" : "tag-negative"
+                                    }`}
+                                >
+                                  {entry.pontos > 0 ? `+${entry.pontos}` : entry.pontos}
+                                </span>
+                              </td>
+                              <td className="action-col">
+                                <div className="action-buttons-wrapper">
+                                  {(role === "master" || (entry.treinadorId === user?.uid && entry.criadoPorId === user?.uid)) && (
+                                    <button
+                                      className="btn-edit-entry"
+                                      onClick={() => handleStartEdit(entry)}
+                                      title="Editar lançamento"
+                                    >
+                                      <Edit2 size={14} />
+                                    </button>
+                                  )}
+                                  {(role === "master" || entry.criadoPorId === user?.uid) && (
+                                    <button
+                                      className="btn-delete-entry"
+                                      onClick={() => setConfirmarExclusaoId(entry.id || null)}
+                                      title="Remover lançamento"
+                                    >
+                                      <Trash2 size={14} />
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </section>
+            </div>
           </div>
-        </div>
         </>
       )}
 

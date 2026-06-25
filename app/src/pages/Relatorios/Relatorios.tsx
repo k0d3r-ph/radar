@@ -258,9 +258,9 @@ export const Relatorios: React.FC = () => {
       ehSazonal: true,
     },
     {
-      titulo: "Ativos fora do expediente",
+      titulo: "Contatos fora do expediente",
       valor: ativosNoFimDeSemana.length,
-      desc: "Suporte no FdS",
+      desc: "Atendimento suporte",
       icone: <Clock size={22} />,
       lista: ativosNoFimDeSemana,
       ehSazonal: true,

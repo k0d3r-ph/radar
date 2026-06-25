@@ -34,6 +34,8 @@ export type Empresa = {
   localizacao?: string;
 
   dataFinalizacao?: string;
+  dataFollowUpFinal?: string;
+  concludedAt?: number;
 
   score?: number;
   scoreAnswers?: any;

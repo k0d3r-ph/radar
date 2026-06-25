@@ -134,6 +134,8 @@ export const Relatorios: React.FC = () => {
         progresso,
         tme,
         alerta: temAlerta,
+        dataFinalizacao: empresa.dataFinalizacao,
+        dataFollowUpFinal: empresa.dataFollowUpFinal,
       });
 
       let ocorrenciaAlertaId = (empresa as any).ocorrenciaAlertaId;
@@ -180,8 +182,10 @@ export const Relatorios: React.FC = () => {
         !e.isOngoing &&
         !e.isSuspended &&
         e.progresso >= 100 &&
-        e.updatedAt >= inicioTime &&
-        e.updatedAt <= fimTime
+        e.concludedAt !== undefined &&
+        e.concludedAt !== null &&
+        e.concludedAt >= inicioTime &&
+        e.concludedAt <= fimTime
       );
     });
   }, [dadosEmpresas, limitesSemana]);

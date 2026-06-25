@@ -26,6 +26,66 @@ import type { Empresa, Ocorrencia } from "../../types";
 import { useAuth } from "../../context/AuthContext";
 import { formatarNome } from "../../utils/formatarNome";
 import { listarUsuarios } from "../../services/auth";
+import { toast } from "sonner";
+
+interface ScoreFormAnswers {
+  facilContato: "Sim" | "Não" | "";
+  entraComputador: "Sim" | "Não" | "";
+  compartilhaTela: "Sim" | "Não" | "";
+  fazPerguntas: "Sim" | "Não" | "";
+  recordaTemas: "Sim" | "Não" | "";
+  faltouDoisDias: "Sim" | "Não" | "";
+  estruturaNecessaria: "Sim" | "Não" | "";
+  clienteReclamante: "Sim" | "Não" | "";
+  clienteSumido: "Sim" | "Não" | "";
+}
+
+const INITIAL_SCORE_ANSWERS: ScoreFormAnswers = {
+  facilContato: "",
+  entraComputador: "",
+  compartilhaTela: "",
+  fazPerguntas: "",
+  recordaTemas: "",
+  faltouDoisDias: "",
+  estruturaNecessaria: "",
+  clienteReclamante: "",
+  clienteSumido: "",
+};
+
+function calcularPontuacao(respostas: ScoreFormAnswers): { score: number; tipo: "Fast" | "Safety" } {
+  let score = 0;
+
+  if (respostas.facilContato === "Sim") score += 0.5;
+
+  if (respostas.entraComputador === "Sim") {
+    score += 1.0;
+  } else if (respostas.entraComputador === "Não") {
+    score -= 1.0;
+  }
+
+  if (respostas.compartilhaTela === "Sim") score += 1.0;
+  if (respostas.fazPerguntas === "Sim") score += 1.5;
+  if (respostas.recordaTemas === "Sim") score += 2.0;
+
+  if (respostas.faltouDoisDias === "Sim") {
+    score -= 1.0;
+  } else if (respostas.faltouDoisDias === "Não") {
+    score += 1.0;
+  }
+
+  if (respostas.estruturaNecessaria === "Sim") score += 1.0;
+
+  if (respostas.clienteReclamante === "Sim") {
+    score -= 3.0;
+  } else if (respostas.clienteReclamante === "Não") {
+    score += 2.0;
+  }
+
+  if (respostas.clienteSumido === "Sim") score -= 5.0;
+
+  const tipo = score >= 6 ? "Fast" : "Safety";
+  return { score, tipo };
+}
 
 export default function Home() {
   const navigate = useNavigate();
@@ -34,6 +94,60 @@ export default function Home() {
   const [clienteSelecionado, setClienteSelecionado] = useState<Empresa | null>(
     null,
   );
+
+  const [modalScoreHomeAberto, setModalScoreHomeAberto] = useState(false);
+  const [respostasScoreHome, setRespostasScoreHome] = useState<ScoreFormAnswers>(
+    INITIAL_SCORE_ANSWERS
+  );
+
+  function abrirModalScoreHome() {
+    if (clienteSelecionado) {
+      setRespostasScoreHome(clienteSelecionado.scoreAnswers || INITIAL_SCORE_ANSWERS);
+      setModalScoreHomeAberto(true);
+    }
+  }
+
+  async function confirmarCalculoScoreHome() {
+    if (!clienteSelecionado) return;
+
+    const possuiPerguntasNaoRespondidas =
+      respostasScoreHome.facilContato === "" ||
+      respostasScoreHome.entraComputador === "" ||
+      respostasScoreHome.compartilhaTela === "" ||
+      respostasScoreHome.fazPerguntas === "" ||
+      respostasScoreHome.recordaTemas === "" ||
+      respostasScoreHome.faltouDoisDias === "" ||
+      respostasScoreHome.estruturaNecessaria === "" ||
+      respostasScoreHome.clienteReclamante === "" ||
+      respostasScoreHome.clienteSumido === "";
+
+    if (possuiPerguntasNaoRespondidas) {
+      toast.error("Por favor, responda a todas as perguntas para confirmar o cálculo do score.");
+      return;
+    }
+
+    try {
+      const res = calcularPontuacao(respostasScoreHome);
+      const empresaAtualizada: Empresa = {
+        ...clienteSelecionado,
+        score: res.score,
+        scoreAnswers: respostasScoreHome,
+        tipo: res.tipo,
+        updatedAt: Date.now(),
+      };
+
+      await salvarEmpresas(empresaAtualizada);
+
+      const lista = await listarEmpresas();
+      setEmpresas(lista);
+      setClienteSelecionado(empresaAtualizada);
+      setModalScoreHomeAberto(false);
+      toast.success(`Score registrado com sucesso: ${res.score.toFixed(1)} (${res.tipo})`);
+    } catch (error) {
+      console.error("Erro ao salvar score do cliente:", error);
+      toast.error("Erro ao registrar score do cliente.");
+    }
+  }
 
   const [filtroCliente, setFiltroCliente] = useState(() => sessionStorage.getItem("filtroCliente") || "");
   const [filtroResponsavel, setFiltroResponsavel] = useState(() => sessionStorage.getItem("filtroResponsavel") || "");
@@ -264,6 +378,27 @@ export default function Home() {
         }
       }
 
+      for (let i = 0; i < empresasLista.length; i++) {
+        const empresa = empresasLista[i];
+        const totalFases = calcularTotalFases(empresa.temaText || "");
+        const progresso = calcularProgressoPorFases(empresa.currentPhase, totalFases);
+
+        if (progresso >= 100 && !empresa.concludedAt) {
+          let concludedTime = empresa.updatedAt || Date.now();
+          if (empresa.dataFinalizacao) {
+            const parts = empresa.dataFinalizacao.split("-").map(Number);
+            if (parts.length === 3 && !parts.some(isNaN)) {
+              concludedTime = new Date(parts[0], parts[1] - 1, parts[2]).getTime();
+            }
+          }
+          await salvarEmpresas({
+            ...empresa,
+            concludedAt: concludedTime,
+          });
+          mudouAlguma = true;
+        }
+      }
+
       if (mudouAlguma) {
         [empresasLista, ocorrenciasLista] = await Promise.all([
           listarEmpresas(),
@@ -364,6 +499,7 @@ export default function Home() {
         tme,
         alerta: temAlerta,
         dataFinalizacao: empresa.dataFinalizacao,
+        dataFollowUpFinal: empresa.dataFollowUpFinal,
       });
 
       return {
@@ -1135,6 +1271,38 @@ export default function Home() {
                   )}
                 </span>
               </div>
+              <div className="info-item">
+                <span className="info-label">Score</span>
+                <span className="info-value" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  {clienteSelecionado.score !== undefined && clienteSelecionado.score !== null ? (
+                    <span style={{ fontWeight: "bold", color: clienteSelecionado.tipo === "Fast" ? "#10b981" : "#ef4444" }}>
+                      {clienteSelecionado.score.toFixed(1)} ({clienteSelecionado.tipo})
+                    </span>
+                  ) : (
+                    "—"
+                  )}
+                  {role === "master" && (
+                    <button
+                      onClick={() => abrirModalScoreHome()}
+                      style={{
+                        background: "rgba(59, 130, 246, 0.15)",
+                        border: "1px solid rgba(59, 130, 246, 0.25)",
+                        color: "#60a5fa",
+                        padding: "2px 8px",
+                        borderRadius: "6px",
+                        fontSize: "0.75rem",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        width: "auto",
+                        lineHeight: "1.2",
+                      }}
+                      title="Calcular/Editar Score"
+                    >
+                      Calcular
+                    </button>
+                  )}
+                </span>
+              </div>
               {(() => {
                 const totalFasesSel = calcularTotalFases(
                   clienteSelecionado.temaText,
@@ -1143,15 +1311,26 @@ export default function Home() {
                   clienteSelecionado.currentPhase,
                   totalFasesSel,
                 );
-                return progressoSel >= 100 ||
-                  clienteSelecionado.dataFinalizacao ? (
-                  <div className="info-item full-width">
-                    <span className="info-label">Data de Finalização</span>
-                    <span className="info-value">
-                      {formatarData(clienteSelecionado.dataFinalizacao)}
-                    </span>
-                  </div>
-                ) : null;
+                return (
+                  <>
+                    {(progressoSel >= 100 || clienteSelecionado.dataFinalizacao) && (
+                      <div className="info-item full-width">
+                        <span className="info-label">Data de Finalização da Esteira</span>
+                        <span className="info-value">
+                          {formatarData(clienteSelecionado.dataFinalizacao)}
+                        </span>
+                      </div>
+                    )}
+                    {clienteSelecionado.dataFollowUpFinal && (
+                      <div className="info-item full-width">
+                        <span className="info-label">Data Follow-up Final</span>
+                        <span className="info-value">
+                          {formatarData(clienteSelecionado.dataFollowUpFinal)}
+                        </span>
+                      </div>
+                    )}
+                  </>
+                );
               })()}
             </div>
 
@@ -1451,20 +1630,36 @@ export default function Home() {
                 clienteForm.currentPhase,
                 totalFasesForm,
               );
+              const isFinished = progressoForm >= 100;
               return (
-                progressoForm >= 100 && (
-                  <div className="form-group">
-                    <label>Data de finalização</label>
-                    <input
-                      type="date"
-                      value={clienteForm.dataFinalizacao || ""}
-                      onChange={(e) =>
-                        setClienteForm({
-                          ...clienteForm,
-                          dataFinalizacao: e.target.value,
-                        })
-                      }
-                    />
+                (isFinished || clienteForm.dataFinalizacao || clienteForm.dataFollowUpFinal) && (
+                  <div className="form-grid-2">
+                    <div className="form-group">
+                      <label>Data finalização esteira</label>
+                      <input
+                        type="date"
+                        value={clienteForm.dataFinalizacao || ""}
+                        onChange={(e) =>
+                          setClienteForm({
+                            ...clienteForm,
+                            dataFinalizacao: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Data follow-up final</label>
+                      <input
+                        type="date"
+                        value={clienteForm.dataFollowUpFinal || ""}
+                        onChange={(e) =>
+                          setClienteForm({
+                            ...clienteForm,
+                            dataFollowUpFinal: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
                   </div>
                 )
               );
@@ -1524,6 +1719,283 @@ export default function Home() {
                 style={{ flex: 1, marginTop: 0 }}
               >
                 Salvar cliente
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {modalScoreHomeAberto && (
+        <div className="home-score-modal-overlay" onClick={() => setModalScoreHomeAberto(false)}>
+          <div className="home-score-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="home-score-modal-header">
+              <h2>Calcular Score do Cliente</h2>
+              <button className="home-score-modal-fechar" onClick={() => setModalScoreHomeAberto(false)}>✕</button>
+            </div>
+
+            <div className="home-score-modal-body">
+              {/* Pergunta 1 */}
+              <div className="home-score-pergunta">
+                <label>Contato com o cliente é fácil? * <span className="home-score-hint">(Sim = +0.5 / Não = 0)</span></label>
+                <div className="home-radio-group-score">
+                  <label>
+                    <input
+                      type="radio"
+                      name="facilContato"
+                      value="Sim"
+                      checked={respostasScoreHome.facilContato === "Sim"}
+                      onChange={() => setRespostasScoreHome(prev => ({ ...prev, facilContato: "Sim" }))}
+                    />
+                    Sim
+                  </label>
+                  <label>
+                    <input
+                      type="radio"
+                      name="facilContato"
+                      value="Não"
+                      checked={respostasScoreHome.facilContato === "Não"}
+                      onChange={() => setRespostasScoreHome(prev => ({ ...prev, facilContato: "Não" }))}
+                    />
+                    Não
+                  </label>
+                </div>
+              </div>
+
+              {/* Pergunta 2 */}
+              <div className="home-score-pergunta">
+                <label>Cliente entra pelo computador? * <span className="home-score-hint">(Sim = +1.0 / Não = -1.0)</span></label>
+                <div className="home-radio-group-score">
+                  <label>
+                    <input
+                      type="radio"
+                      name="entraComputador"
+                      value="Sim"
+                      checked={respostasScoreHome.entraComputador === "Sim"}
+                      onChange={() => setRespostasScoreHome(prev => ({ ...prev, entraComputador: "Sim" }))}
+                    />
+                    Sim
+                  </label>
+                  <label>
+                    <input
+                      type="radio"
+                      name="entraComputador"
+                      value="Não"
+                      checked={respostasScoreHome.entraComputador === "Não"}
+                      onChange={() => setRespostasScoreHome(prev => ({ ...prev, entraComputador: "Não" }))}
+                    />
+                    Não
+                  </label>
+                </div>
+              </div>
+
+              {/* Pergunta 3 */}
+              <div className="home-score-pergunta">
+                <label>Cliente compartilha a tela? * <span className="home-score-hint">(Sim = +1.0 / Não = 0)</span></label>
+                <div className="home-radio-group-score">
+                  <label>
+                    <input
+                      type="radio"
+                      name="compartilhaTela"
+                      value="Sim"
+                      checked={respostasScoreHome.compartilhaTela === "Sim"}
+                      onChange={() => setRespostasScoreHome(prev => ({ ...prev, compartilhaTela: "Sim" }))}
+                    />
+                    Sim
+                  </label>
+                  <label>
+                    <input
+                      type="radio"
+                      name="compartilhaTela"
+                      value="Não"
+                      checked={respostasScoreHome.compartilhaTela === "Não"}
+                      onChange={() => setRespostasScoreHome(prev => ({ ...prev, compartilhaTela: "Não" }))}
+                    />
+                    Não
+                  </label>
+                </div>
+              </div>
+
+              {/* Pergunta 4 */}
+              <div className="home-score-pergunta">
+                <label>Cliente faz perguntas? * <span className="home-score-hint">(Sim = +1.5 / Não = 0)</span></label>
+                <div className="home-radio-group-score">
+                  <label>
+                    <input
+                      type="radio"
+                      name="fazPerguntas"
+                      value="Sim"
+                      checked={respostasScoreHome.fazPerguntas === "Sim"}
+                      onChange={() => setRespostasScoreHome(prev => ({ ...prev, fazPerguntas: "Sim" }))}
+                    />
+                    Sim
+                  </label>
+                  <label>
+                    <input
+                      type="radio"
+                      name="fazPerguntas"
+                      value="Não"
+                      checked={respostasScoreHome.fazPerguntas === "Não"}
+                      onChange={() => setRespostasScoreHome(prev => ({ ...prev, fazPerguntas: "Não" }))}
+                    />
+                    Não
+                  </label>
+                </div>
+              </div>
+
+              {/* Pergunta 5 */}
+              <div className="home-score-pergunta">
+                <label>Cliente se recorda de temas anteriores? * <span className="home-score-hint">(Sim = +2.0 / Não = 0)</span></label>
+                <div className="home-radio-group-score">
+                  <label>
+                    <input
+                      type="radio"
+                      name="recordaTemas"
+                      value="Sim"
+                      checked={respostasScoreHome.recordaTemas === "Sim"}
+                      onChange={() => setRespostasScoreHome(prev => ({ ...prev, recordaTemas: "Sim" }))}
+                    />
+                    Sim
+                  </label>
+                  <label>
+                    <input
+                      type="radio"
+                      name="recordaTemas"
+                      value="Não"
+                      checked={respostasScoreHome.recordaTemas === "Não"}
+                      onChange={() => setRespostasScoreHome(prev => ({ ...prev, recordaTemas: "Não" }))}
+                    />
+                    Não
+                  </label>
+                </div>
+              </div>
+
+              {/* Pergunta 6 */}
+              <div className="home-score-pergunta">
+                <label>Cliente faltou 2 dias seguidos? * <span className="home-score-hint">(Sim = -1.0 / Não = +1.0)</span></label>
+                <div className="home-radio-group-score">
+                  <label>
+                    <input
+                      type="radio"
+                      name="faltouDoisDias"
+                      value="Sim"
+                      checked={respostasScoreHome.faltouDoisDias === "Sim"}
+                      onChange={() => setRespostasScoreHome(prev => ({ ...prev, faltouDoisDias: "Sim" }))}
+                    />
+                    Sim
+                  </label>
+                  <label>
+                    <input
+                      type="radio"
+                      name="faltouDoisDias"
+                      value="Não"
+                      checked={respostasScoreHome.faltouDoisDias === "Não"}
+                      onChange={() => setRespostasScoreHome(prev => ({ ...prev, faltouDoisDias: "Não" }))}
+                    />
+                    Não
+                  </label>
+                </div>
+              </div>
+
+              {/* Pergunta 7 */}
+              <div className="home-score-pergunta">
+                <label>Cliente possui estrutura necessária? * <span className="home-score-hint">(Sim = +1.0 / Não = 0)</span></label>
+                <div className="home-radio-group-score">
+                  <label>
+                    <input
+                      type="radio"
+                      name="estruturaNecessaria"
+                      value="Sim"
+                      checked={respostasScoreHome.estruturaNecessaria === "Sim"}
+                      onChange={() => setRespostasScoreHome(prev => ({ ...prev, estruturaNecessaria: "Sim" }))}
+                    />
+                    Sim
+                  </label>
+                  <label>
+                    <input
+                      type="radio"
+                      name="estruturaNecessaria"
+                      value="Não"
+                      checked={respostasScoreHome.estruturaNecessaria === "Não"}
+                      onChange={() => setRespostasScoreHome(prev => ({ ...prev, estruturaNecessaria: "Não" }))}
+                    />
+                    Não
+                  </label>
+                </div>
+              </div>
+
+              {/* Pergunta 8 */}
+              <div className="home-score-pergunta">
+                <label>Cliente é reclamante? * <span className="home-score-hint">(Sim = -3.0 / Não = +2.0)</span></label>
+                <div className="home-radio-group-score">
+                  <label>
+                    <input
+                      type="radio"
+                      name="clienteReclamante"
+                      value="Sim"
+                      checked={respostasScoreHome.clienteReclamante === "Sim"}
+                      onChange={() => setRespostasScoreHome(prev => ({ ...prev, clienteReclamante: "Sim" }))}
+                    />
+                    Sim
+                  </label>
+                  <label>
+                    <input
+                      type="radio"
+                      name="clienteReclamante"
+                      value="Não"
+                      checked={respostasScoreHome.clienteReclamante === "Não"}
+                      onChange={() => setRespostasScoreHome(prev => ({ ...prev, clienteReclamante: "Não" }))}
+                    />
+                    Não
+                  </label>
+                </div>
+              </div>
+
+              {/* Pergunta 9 */}
+              <div className="home-score-pergunta">
+                <label>Cliente sumiu? * <span className="home-score-hint">(Sim = -5.0 / Não = 0)</span></label>
+                <div className="home-radio-group-score">
+                  <label>
+                    <input
+                      type="radio"
+                      name="clienteSumido"
+                      value="Sim"
+                      checked={respostasScoreHome.clienteSumido === "Sim"}
+                      onChange={() => setRespostasScoreHome(prev => ({ ...prev, clienteSumido: "Sim" }))}
+                    />
+                    Sim
+                  </label>
+                  <label>
+                    <input
+                      type="radio"
+                      name="clienteSumido"
+                      value="Não"
+                      checked={respostasScoreHome.clienteSumido === "Não"}
+                      onChange={() => setRespostasScoreHome(prev => ({ ...prev, clienteSumido: "Não" }))}
+                    />
+                    Não
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div className="home-score-modal-footer">
+              <div className="home-score-calculo-previo">
+                {(() => {
+                  const res = calcularPontuacao(respostasScoreHome);
+                  return (
+                    <span>
+                      Total Parcial: <strong>{res.score.toFixed(1)}</strong> ({res.tipo})
+                    </span>
+                  );
+                })()}
+              </div>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={confirmarCalculoScoreHome}
+                style={{ width: "auto", margin: 0, padding: "0.6rem 1.2rem" }}
+              >
+                Confirmar Cálculo
               </button>
             </div>
           </div>

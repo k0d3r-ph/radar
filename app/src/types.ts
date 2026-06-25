@@ -35,7 +35,6 @@ export type Empresa = {
 
   dataFinalizacao?: string;
   dataFollowUpFinal?: string;
-  concludedAt?: number;
 
   score?: number;
   scoreAnswers?: any;

@@ -378,26 +378,7 @@ export default function Home() {
         }
       }
 
-      for (let i = 0; i < empresasLista.length; i++) {
-        const empresa = empresasLista[i];
-        const totalFases = calcularTotalFases(empresa.temaText || "");
-        const progresso = calcularProgressoPorFases(empresa.currentPhase, totalFases);
 
-        if (progresso >= 100 && !empresa.concludedAt) {
-          let concludedTime = empresa.updatedAt || Date.now();
-          if (empresa.dataFinalizacao) {
-            const parts = empresa.dataFinalizacao.split("-").map(Number);
-            if (parts.length === 3 && !parts.some(isNaN)) {
-              concludedTime = new Date(parts[0], parts[1] - 1, parts[2]).getTime();
-            }
-          }
-          await salvarEmpresas({
-            ...empresa,
-            concludedAt: concludedTime,
-          });
-          mudouAlguma = true;
-        }
-      }
 
       if (mudouAlguma) {
         [empresasLista, ocorrenciasLista] = await Promise.all([
@@ -1314,16 +1295,16 @@ export default function Home() {
                 return (
                   <>
                     {(progressoSel >= 100 || clienteSelecionado.dataFinalizacao) && (
-                      <div className="info-item full-width">
-                        <span className="info-label">Data de Finalização da Esteira</span>
+                      <div className="info-item">
+                        <span className="info-label" style={{ fontSize: "0.68rem" }}>Finalização da Esteira</span>
                         <span className="info-value">
                           {formatarData(clienteSelecionado.dataFinalizacao)}
                         </span>
                       </div>
                     )}
                     {clienteSelecionado.dataFollowUpFinal && (
-                      <div className="info-item full-width">
-                        <span className="info-label">Data Follow-up Final</span>
+                      <div className="info-item">
+                        <span className="info-label" style={{ fontSize: "0.68rem" }}>Follow-up Final</span>
                         <span className="info-value">
                           {formatarData(clienteSelecionado.dataFollowUpFinal)}
                         </span>
@@ -1624,46 +1605,34 @@ export default function Home() {
               />
             </div>
 
-            {(() => {
-              const totalFasesForm = calcularTotalFases(clienteForm.temaText);
-              const progressoForm = calcularProgressoPorFases(
-                clienteForm.currentPhase,
-                totalFasesForm,
-              );
-              const isFinished = progressoForm >= 100;
-              return (
-                (isFinished || clienteForm.dataFinalizacao || clienteForm.dataFollowUpFinal) && (
-                  <div className="form-grid-2">
-                    <div className="form-group">
-                      <label>Data finalização esteira</label>
-                      <input
-                        type="date"
-                        value={clienteForm.dataFinalizacao || ""}
-                        onChange={(e) =>
-                          setClienteForm({
-                            ...clienteForm,
-                            dataFinalizacao: e.target.value,
-                          })
-                        }
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Data follow-up final</label>
-                      <input
-                        type="date"
-                        value={clienteForm.dataFollowUpFinal || ""}
-                        onChange={(e) =>
-                          setClienteForm({
-                            ...clienteForm,
-                            dataFollowUpFinal: e.target.value,
-                          })
-                        }
-                      />
-                    </div>
-                  </div>
-                )
-              );
-            })()}
+            <div className="form-grid-2">
+              <div className="form-group">
+                <label>Data finalização esteira</label>
+                <input
+                  type="date"
+                  value={clienteForm.dataFinalizacao || ""}
+                  onChange={(e) =>
+                    setClienteForm({
+                      ...clienteForm,
+                      dataFinalizacao: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div className="form-group">
+                <label>Data follow-up final</label>
+                <input
+                  type="date"
+                  value={clienteForm.dataFollowUpFinal || ""}
+                  onChange={(e) =>
+                    setClienteForm({
+                      ...clienteForm,
+                      dataFollowUpFinal: e.target.value,
+                    })
+                  }
+                />
+              </div>
+            </div>
 
 
 

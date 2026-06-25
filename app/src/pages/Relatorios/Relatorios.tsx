@@ -175,17 +175,14 @@ export const Relatorios: React.FC = () => {
   const concluidosNaSemana = useMemo(() => {
     if (!limitesSemana) return [];
     const { inicio, fim } = limitesSemana;
-    const inicioTime = inicio.getTime();
-    const fimTime = fim.getTime();
     return dadosEmpresas.filter((e) => {
+      const dataFinalizacaoDate = parseDataLocal(e.dataFinalizacao || "");
       return (
         !e.isOngoing &&
         !e.isSuspended &&
-        e.progresso >= 100 &&
-        e.concludedAt !== undefined &&
-        e.concludedAt !== null &&
-        e.concludedAt >= inicioTime &&
-        e.concludedAt <= fimTime
+        dataFinalizacaoDate &&
+        dataFinalizacaoDate >= inicio &&
+        dataFinalizacaoDate <= fim
       );
     });
   }, [dadosEmpresas, limitesSemana]);

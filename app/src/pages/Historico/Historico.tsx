@@ -302,6 +302,8 @@ export function Historico() {
   const [calculoScoreResult, setCalculoScoreResult] = useState<{ score: number; tipo: "Fast" | "Safety" } | null>(null);
   const [novaAtualizacaoAberta, setNovaAtualizacaoAberta] = useState(false);
   const [novaDescricaoAtual, setNovaDescricaoAtual] = useState("");
+  const [editingUpdateIdx, setEditingUpdateIdx] = useState<number | null>(null);
+  const [editingUpdateText, setEditingUpdateText] = useState("");
   const [novoResponsavelAtual, setNovoResponsavelAtual] = useState("");
   const [empresasList, setEmpresasList] = useState<Empresa[]>([]);
   const [ocorrencias, setOcorrencias] = useState<Ocorrencia[]>([]);
@@ -402,6 +404,41 @@ export function Historico() {
     const updatedSelected = novasOcs.find(o => o.id === selecionada!.id);
     setSelecionada(updatedSelected || atualizado);
     toast.success("Atualização incluída!");
+  }
+
+  async function salvarEdicaoAtualizacao(index: number) {
+    if (!editingUpdateText.trim()) {
+      toast.error("A descrição da atualização não pode ser vazia.");
+      return;
+    }
+
+    const copy = [...(selecionada!.atualizacoes ?? [])];
+    copy[index] = {
+      ...copy[index],
+      descricao: editingUpdateText.trim(),
+      updatedAt: Date.now(),
+    };
+
+    const atualizado = {
+      ...selecionada!,
+      atualizacoes: copy,
+    };
+
+    setSalvando(true);
+    try {
+      await salvarOcorrencia(atualizado);
+      const novasOcs = await carregar();
+      const updatedSelected = novasOcs.find(o => o.id === selecionada!.id);
+      setSelecionada(updatedSelected || atualizado);
+      setEditingUpdateIdx(null);
+      setEditingUpdateText("");
+      toast.success("Atualização editada com sucesso!");
+    } catch (error) {
+      console.error("Erro ao salvar edição da atualização:", error);
+      toast.error("Erro ao salvar as alterações.");
+    } finally {
+      setSalvando(false);
+    }
   }
 
   function fecharDetalhe() {
@@ -1379,20 +1416,96 @@ Score atual: ${novoScore}${mudancasTexto}`;
               {selecionada.atualizacoes &&
                 selecionada.atualizacoes.length > 0 && (
                   <div className="hist-atualizacoes">
-                    {selecionada.atualizacoes.map((at, i) => (
-                      <div key={i} className="hist-atualizacao-item">
-                        <span className="hist-atualizacao-meta">
-                          Atualização em{" "}
-                          {new Date(at.updatedAt).toLocaleDateString("pt-BR")}{" "}
-                          {new Date(at.updatedAt).toLocaleTimeString("pt-BR", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                          {at.responsavel ? ` · ${formatarNome(at.responsavel)}` : ""}
-                        </span>
-                        <p style={{ whiteSpace: "pre-wrap" }}>{at.descricao}</p>
-                      </div>
-                    ))}
+                    {selecionada.atualizacoes.map((at, i) => {
+                      const isEditingThis = editingUpdateIdx === i;
+                      return (
+                        <div key={i} className="hist-atualizacao-item">
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span className="hist-atualizacao-meta">
+                              Atualização em{" "}
+                              {new Date(at.updatedAt).toLocaleDateString("pt-BR")}{" "}
+                              {new Date(at.updatedAt).toLocaleTimeString("pt-BR", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                              {at.responsavel ? ` · ${formatarNome(at.responsavel)}` : ""}
+                            </span>
+                            {!isEditingThis && role === "master" && (
+                              <button
+                                type="button"
+                                className="btn-ghost btn-small"
+                                onClick={() => {
+                                  setEditingUpdateIdx(i);
+                                  setEditingUpdateText(at.descricao);
+                                }}
+                                style={{
+                                  background: "rgba(255, 255, 255, 0.1)",
+                                  border: "none",
+                                  color: "var(--primary-color, #4facfe)",
+                                  cursor: "pointer",
+                                  padding: "2px 6px",
+                                  borderRadius: "4px",
+                                  fontSize: "11px",
+                                }}
+                              >
+                                Editar
+                              </button>
+                            )}
+                          </div>
+
+                          {isEditingThis ? (
+                            <div style={{ marginTop: "8px" }}>
+                              <textarea
+                                rows={3}
+                                value={editingUpdateText}
+                                onChange={(e) => setEditingUpdateText(e.target.value)}
+                                style={{
+                                  width: "100%",
+                                  background: "rgba(255, 255, 255, 0.05)",
+                                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                                  color: "#fff",
+                                  borderRadius: "4px",
+                                  padding: "8px",
+                                  fontSize: "13px",
+                                  outline: "none",
+                                  resize: "vertical"
+                                }}
+                              />
+                              <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
+                                <button
+                                  type="button"
+                                  className="btn-primary btn-small"
+                                  onClick={() => salvarEdicaoAtualizacao(i)}
+                                  disabled={salvando}
+                                  style={{
+                                    fontSize: "12px",
+                                    padding: "4px 10px"
+                                  }}
+                                >
+                                  {salvando ? "Salvando..." : "Salvar"}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn-ghost btn-small"
+                                  onClick={() => {
+                                    setEditingUpdateIdx(null);
+                                    setEditingUpdateText("");
+                                  }}
+                                  style={{
+                                    fontSize: "12px",
+                                    padding: "4px 10px"
+                                  }}
+                                >
+                                  Cancelar
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <p style={{ whiteSpace: "pre-wrap", marginTop: "4px" }}>{at.descricao}</p>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 

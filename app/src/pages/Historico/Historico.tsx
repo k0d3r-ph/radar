@@ -612,6 +612,11 @@ export function Historico() {
       }
     }
 
+    if (form.tipo === "Checkpoint" && !form.dataOcorrencia) {
+      toast.error("A data do checkpoint é obrigatória.");
+      return;
+    }
+
     const isOngoing = empresaObjeto.isOngoing ?? false;
 
     if (isTreinador && !editandoId && (form.tipo === "Informativa" || form.tipo === "Treinamento") && !calculoScoreResult && !isOngoing) {
@@ -1372,7 +1377,13 @@ Score atual: ${novoScore}${mudancasTexto}`;
 
                 {selecionada.createdAt && selecionada.dataOcorrencia > 0 && selecionada.tipo !== "Problema" && selecionada.tipo !== "Dúvida" && (
                   <div>
-                    <span>Data do agendamento</span>
+                    <span>
+                      {selecionada.tipo === "Informativa" || selecionada.tipo === "Treinamento"
+                        ? "Data do próximo treinamento"
+                        : selecionada.tipo === "Checkpoint"
+                        ? "Data do checkpoint"
+                        : "Data do agendamento"}
+                    </span>
                     <strong>
                       {new Date(
                         selecionada.dataOcorrencia,
@@ -1596,9 +1607,18 @@ Score atual: ${novoScore}${mudancasTexto}`;
               <div className="hist-campo hist-campo-row">
                 <div>
                   <label>
-                    {form.tipo === "Problema" || form.tipo === "Dúvida"
-                      ? "Data da ocorrência (não obrigatório)"
-                      : "Data do agendamento (não obrigatório)"}
+                    {(() => {
+                      if (form.tipo === "Problema" || form.tipo === "Dúvida") {
+                        return "Data da ocorrência (não obrigatório)";
+                      }
+                      if (form.tipo === "Informativa" || form.tipo === "Treinamento") {
+                        return "Data do próximo treinamento (não obrigatório)";
+                      }
+                      if (form.tipo === "Checkpoint") {
+                        return "Data do checkpoint *";
+                      }
+                      return "Data do agendamento (não obrigatório)";
+                    })()}
                   </label>
                   <input
                     type="date"
@@ -1609,6 +1629,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
                         dataOcorrencia: e.target.value,
                       })
                     }
+                    required={form.tipo === "Checkpoint"}
                   />
                 </div>
 

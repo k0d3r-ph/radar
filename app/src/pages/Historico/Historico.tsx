@@ -902,19 +902,22 @@ Score atual: ${novoScore}${mudancasTexto}`;
       return ["Informativa", "Financeira", "Comercial", "Treinamento", "Checkpoint", "Problema", "Dúvida"];
     }
     if (role === "treinador") {
-      return ["Informativa", "Treinamento", "Checkpoint", "Problema", "Dúvida"];
+      return ["Informativa", "Treinamento", "Checkpoint"];
     }
-    if (role === "suporte" || role === "hardware") {
+    if (role === "suporte") {
       return ["Informativa", "Problema", "Dúvida"];
     }
+    if (role === "hardware") {
+      return ["Informativa"];
+    }
     if (role === "comercial") {
-      return ["Comercial", "Informativa", "Problema", "Dúvida"];
+      return ["Comercial", "Informativa"];
     }
     if (role === "financeiro") {
-      return ["Financeira", "Informativa", "Problema", "Dúvida"];
+      return ["Financeira", "Informativa"];
     }
     if (role === "crc") {
-      return ["Informativa", "Financeira", "Comercial", "Problema", "Dúvida"];
+      return ["Informativa", "Financeira", "Comercial"];
     }
     return [];
   };

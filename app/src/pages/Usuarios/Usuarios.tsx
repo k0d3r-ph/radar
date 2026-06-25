@@ -29,6 +29,7 @@ const ROLE_DISPLAY: Record<string, string> = {
   financeiro: "Financeiro",
   crc: "CRC",
   treinador: "Treinador",
+  cs: "CS",
   master: "Master",
 };
 
@@ -233,6 +234,7 @@ export const Usuarios: React.FC = () => {
                   <option value="financeiro">Financeiro</option>
                   <option value="crc">CRC</option>
                   <option value="treinador">Treinador</option>
+                  <option value="cs">CS</option>
                   {currentUserRole === "master" && (
                     <option value="master">Master</option>
                   )}
@@ -376,6 +378,7 @@ export const Usuarios: React.FC = () => {
                   <option value="financeiro">Financeiro</option>
                   <option value="crc">CRC</option>
                   <option value="treinador">Treinador</option>
+                  <option value="cs">CS</option>
                   <option value="master">Master</option>
                 </select>
               </div>

@@ -1,4 +1,4 @@
-export type CS = "Jeferson" | "Rafaela" | "Luiz" | "João" | "Eduarda" | "Clarice" | "Lucas" | "";
+export type CS = string;
 
 export type Empresa = {
   id?: string;

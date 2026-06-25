@@ -14,6 +14,8 @@ const ROLE_DISPLAY: Record<string, string> = {
   financeiro: "Financeiro",
   crc: "CRC",
   treinador: "Treinador",
+  cs: "CS",
+  master: "Master",
 };
 
 export const AlterarSenha: React.FC = () => {

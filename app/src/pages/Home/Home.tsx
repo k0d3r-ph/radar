@@ -25,6 +25,7 @@ import {
 import type { Empresa, Ocorrencia } from "../../types";
 import { useAuth } from "../../context/AuthContext";
 import { formatarNome } from "../../utils/formatarNome";
+import { listarUsuarios } from "../../services/auth";
 
 export default function Home() {
   const navigate = useNavigate();
@@ -46,6 +47,11 @@ export default function Home() {
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
 
   const [historico, setHistorico] = useState<Ocorrencia[]>([]);
+
+  const [listaCS, setListaCS] = useState<string[]>(() => {
+    const baseCS = ["Jeferson", "Rafaela", "Luiz", "João", "Eduarda", "Clarice", "Lucas", "Ana Carolina"];
+    return [...baseCS].sort((a, b) => a.localeCompare(b));
+  });
 
   const [loading, setLoading] = useState(true);
 
@@ -267,6 +273,29 @@ export default function Home() {
 
       setEmpresas(empresasLista);
       setHistorico(ocorrenciasLista);
+
+      try {
+        const usersList = await listarUsuarios();
+        const dynamicCS = usersList
+          .filter((u) => u.role?.toLowerCase() === "cs" && u.nome?.trim())
+          .map((u) => u.nome.trim());
+
+        setListaCS((prev) => {
+          const newNames = [...prev];
+          dynamicCS.forEach((nome) => {
+            const exists = newNames.some(
+              (c) => c.toLowerCase() === nome.toLowerCase()
+            );
+            if (!exists) {
+              newNames.push(nome);
+            }
+          });
+          return newNames.sort((a, b) => a.localeCompare(b));
+        });
+      } catch (err) {
+        console.warn("Erro ao carregar usuários com perfil CS:", err);
+      }
+
       setLoading(false);
     }
 
@@ -616,13 +645,11 @@ export default function Home() {
           onChange={(e) => setFiltroCs(e.target.value)}
         >
           <option value="">CS responsável</option>
-          {["Jeferson", "Rafaela", "Luiz", "João", "Eduarda", "Clarice", "Lucas"]
-            .sort()
-            .map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
+          {listaCS.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
         </select>
 
         <select
@@ -1305,13 +1332,11 @@ export default function Home() {
                   }
                 >
                   <option value="">Selecione...</option>
-                  <option value="Jeferson">Jeferson</option>
-                  <option value="Rafaela">Rafaela</option>
-                  <option value="Luiz">Luiz</option>
-                  <option value="João">João</option>
-                  <option value="Eduarda">Eduarda</option>
-                  <option value="Clarice">Clarice</option>
-                  <option value="Lucas">Lucas</option>
+                  {listaCS.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
                 </select>
               </div>
 

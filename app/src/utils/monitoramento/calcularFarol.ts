@@ -4,11 +4,17 @@ export function calcularFarol({
   progresso,
   tme,
   alerta,
+  dataFinalizacao,
 }: {
   progresso: number;
   tme: number | null;
   alerta?: boolean;
+  dataFinalizacao?: string;
 }): StatusFarolType {
+  if (dataFinalizacao && dataFinalizacao.trim() !== "") {
+    return "verde";
+  }
+
   if (tme === null) return "none";
 
   if (alerta) {

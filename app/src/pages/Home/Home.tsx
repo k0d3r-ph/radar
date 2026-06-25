@@ -363,6 +363,7 @@ export default function Home() {
         progresso,
         tme,
         alerta: temAlerta,
+        dataFinalizacao: empresa.dataFinalizacao,
       });
 
       return {

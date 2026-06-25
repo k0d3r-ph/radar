@@ -150,23 +150,21 @@ ${index + 1}. ${q.label}
 
     content += `
 ==================================================
-LISTAGEM DE CLIENTES POR CATEGORIA
+LISTA DOS CLIENTES E SEUS SCORES
 ==================================================
 `;
 
-    questions.forEach((q, index) => {
-      content += `
-${index + 1}. ${q.label}
+    const empresasComScore = empresasList
+      .filter((e) => e.scoreAnswers && typeof e.score === "number")
+      .sort((a, b) => a.nomeEmpresa.localeCompare(b.nomeEmpresa));
 
-   [Sim] ${q.descSim} (${q.simCount} cliente(s)):
-${q.simClients.length > 0 ? q.simClients.map(name => `   - ${name}`).join("\n") : "   (Nenhum cliente)"}
-
-   [Não] ${q.descNao} (${q.naoCount} cliente(s)):
-${q.naoClients.length > 0 ? q.naoClients.map(name => `   - ${name}`).join("\n") : "   (Nenhum cliente)"}
-
---------------------------------------------------
-`;
-    });
+    if (empresasComScore.length > 0) {
+      empresasComScore.forEach((e) => {
+        content += ` - ${e.nomeEmpresa}: ${e.score !== undefined ? e.score.toFixed(1) : "—"}\n`;
+      });
+    } else {
+      content += ` (Nenhum cliente)\n`;
+    }
 
     content += `
 ==================================================

@@ -62,6 +62,12 @@ export type Ocorrencia = {
   retirarAlerta?: boolean;
   alertaResolvidoPorId?: string;
   alertaOriginalId?: string;
+  gamificacaoPontoId?: string;
+  treinamentoDataSolicitacao?: string;
+  treinamentoTempoAgenda?: string;
+  treinamentoSolicitante?: string;
+  treinamentoNotas?: number[];
+  treinamentoNotaMedia?: number | null;
 };
 
 export type OcorrenciaForm = {
@@ -77,6 +83,11 @@ export type OcorrenciaForm = {
   retirarAlerta?: boolean;
   alertaResolvidoPorId?: string;
   alertaOriginalId?: string;
+  gamificacaoPontoId?: string;
+  treinamentoDataSolicitacao?: string;
+  treinamentoTempoAgenda?: string;
+  treinamentoSolicitante?: string;
+  treinamentoNotas?: string[];
 };
 
 export type Atualizacao = {

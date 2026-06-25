@@ -229,3 +229,14 @@
     transform: rotate(360deg);
   }
 }
+
+@media (max-width: 480px) {
+  .login-card {
+    padding: 30px 20px;
+    border-radius: 16px;
+  }
+  
+  .login-header h1 {
+    font-size: 22px;
+  }
+}

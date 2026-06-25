@@ -7,6 +7,11 @@ import {
   removerOcorrencia,
 } from "../../services/ocorrencias";
 import { listarEmpresas, salvarEmpresas } from "../../services/empresas";
+import {
+  salvarLancamentoPonto,
+  atualizarLancamentoPonto,
+  removerLancamentoPonto,
+} from "../../services/gamificacao";
 import type { Ocorrencia, Empresa, OcorrenciaForm } from "../../types";
 import "./Historico.css";
 import { useAuth } from "../../context/AuthContext";
@@ -19,6 +24,7 @@ import {
   TrendingUp,
   Code,
   Cpu,
+  Trash2,
 } from "lucide-react";
 
 const TIPOS = [
@@ -89,6 +95,11 @@ const EMPTY: OcorrenciaForm = {
   retirarAlerta: false,
   alertaResolvidoPorId: "",
   alertaOriginalId: "",
+  gamificacaoPontoId: "",
+  treinamentoDataSolicitacao: "",
+  treinamentoTempoAgenda: "",
+  treinamentoSolicitante: "CS",
+  treinamentoNotas: [],
 };
 
 interface ScoreFormAnswers {
@@ -308,6 +319,28 @@ export function Historico() {
   const [usarTemplate, setUsarTemplate] = useState(true);
   const [temaOcorrenciaOngoingText, setTemaOcorrenciaOngoingText] = useState("");
 
+  const handleAddNota = () => {
+    setForm((f) => ({
+      ...f,
+      treinamentoNotas: [...(f.treinamentoNotas ?? []), ""],
+    }));
+  };
+
+  const handleUpdateNota = (index: number, val: string) => {
+    setForm((f) => {
+      const copy = [...(f.treinamentoNotas ?? [])];
+      copy[index] = val;
+      return { ...f, treinamentoNotas: copy };
+    });
+  };
+
+  const handleRemoveNota = (index: number) => {
+    setForm((f) => ({
+      ...f,
+      treinamentoNotas: (f.treinamentoNotas ?? []).filter((_, i) => i !== index),
+    }));
+  };
+
   const [searchParams] = useSearchParams();
 
   const empresaFiltro = searchParams.get("empresa") || "";
@@ -465,6 +498,11 @@ export function Historico() {
       retirarAlerta: o.retirarAlerta ?? false,
       alertaResolvidoPorId: o.alertaResolvidoPorId || "",
       alertaOriginalId: o.alertaOriginalId || "",
+      gamificacaoPontoId: o.gamificacaoPontoId || "",
+      treinamentoDataSolicitacao: o.treinamentoDataSolicitacao || "",
+      treinamentoTempoAgenda: o.treinamentoTempoAgenda || "",
+      treinamentoSolicitante: o.treinamentoSolicitante || "CS",
+      treinamentoNotas: o.treinamentoNotas ? o.treinamentoNotas.map(String) : [],
     });
     setTemaOcorrenciaOngoingText(o.temaOcorrencia?.join(", ") ?? "");
     setEditandoId(o.id ?? null);
@@ -509,6 +547,34 @@ export function Historico() {
       return;
     }
 
+    if (form.tipo === "Treinamento") {
+      const CanceladoOuAusente = (form.temaOcorrencia ?? []).some(
+        (t) => t.trim().toLowerCase() === "cancelado" || t.trim().toLowerCase() === "ausente"
+      );
+
+      if (!form.treinamentoDataSolicitacao) {
+        toast.error("Preencha a data de solicitação.");
+        return;
+      }
+      if (!CanceladoOuAusente && !form.treinamentoTempoAgenda?.trim()) {
+        toast.error("Preencha o tempo de agenda.");
+        return;
+      }
+      if (!form.treinamentoSolicitante) {
+        toast.error("Selecione quem solicitou o treinamento.");
+        return;
+      }
+
+      const rawNotas = form.treinamentoNotas ?? [];
+      const hasInvalidNota = rawNotas.some(
+        (n) => n.trim() === "" || isNaN(parseInt(n, 10)) || parseInt(n, 10) < 1 || parseInt(n, 10) > 5
+      );
+      if (hasInvalidNota) {
+        toast.error("As notas preenchidas devem ser valores inteiros entre 1 e 5.");
+        return;
+      }
+    }
+
     const isOngoing = empresaObjeto.isOngoing ?? false;
 
     if (isTreinador && !editandoId && (form.tipo === "Informativa" || form.tipo === "Treinamento") && !calculoScoreResult && !isOngoing) {
@@ -531,7 +597,32 @@ export function Historico() {
 
     const novaDescricao = form.descricao.trim();
 
-    const base = {
+    let dataRealizacaoStr = "";
+    let computedMedia: number | null = null;
+    let validNotas: number[] = [];
+
+    if (form.tipo === "Treinamento") {
+      validNotas = (form.treinamentoNotas ?? [])
+        .map((n) => parseInt(n, 10))
+        .filter((n) => !isNaN(n));
+      computedMedia = validNotas.length > 0
+        ? parseFloat((validNotas.reduce((sum, n) => sum + n, 0) / validNotas.length).toFixed(2))
+        : null;
+
+      let d: Date;
+      if (form.dataOcorrencia) {
+        const [year, month, day] = form.dataOcorrencia.split("-").map(Number);
+        d = new Date(year, month - 1, day);
+      } else {
+        d = new Date();
+      }
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      dataRealizacaoStr = `${year}-${month}-${day}`;
+    }
+
+    const base: Ocorrencia = {
       ...form,
       empresa: form.empresa.trim(),
       descricao: novaDescricao,
@@ -540,6 +631,20 @@ export function Historico() {
       atualizacoes: ocorrenciaOriginal?.atualizacoes ?? [],
       scoreCalculado: calculoScoreResult ? calculoScoreResult.score : ocorrenciaOriginal?.scoreCalculado,
       scoreAnswers: calculoScoreResult ? respostasScore : ocorrenciaOriginal?.scoreAnswers,
+      ...(form.tipo === "Treinamento" ? {
+        treinamentoDataSolicitacao: form.treinamentoDataSolicitacao,
+        treinamentoTempoAgenda: form.treinamentoTempoAgenda,
+        treinamentoSolicitante: form.treinamentoSolicitante,
+        treinamentoNotas: validNotas,
+        treinamentoNotaMedia: computedMedia,
+      } : {
+        treinamentoDataSolicitacao: undefined,
+        treinamentoTempoAgenda: undefined,
+        treinamentoSolicitante: undefined,
+        treinamentoNotas: undefined,
+        treinamentoNotaMedia: undefined,
+        gamificacaoPontoId: undefined,
+      })
     };
 
     setSalvando(true);
@@ -620,6 +725,72 @@ Score atual: ${novoScore}${mudancasTexto}`;
         });
       }
       base.alertaResolvidoPorId = "";
+    }
+
+    let pontoId = base.gamificacaoPontoId;
+
+    if (form.tipo === "Treinamento" && user?.uid) {
+      const isZeroPoints = (form.temaOcorrencia ?? []).some(
+        (t) => t.trim().toLowerCase() === "cancelado" || t.trim().toLowerCase() === "ausente"
+      );
+      const pontosAAplicar = isZeroPoints ? 0 : 1;
+
+      const formatarDataInput = (dataStr: string) => {
+        if (!dataStr) return "";
+        const [y, m, d] = dataStr.split("-");
+        return `${d}/${m}/${y}`;
+      };
+
+      const dataSol = formatarDataInput(form.treinamentoDataSolicitacao || "");
+      const dataReal = formatarDataInput(dataRealizacaoStr);
+
+      let finalDescricao = `Empresa: ${form.empresa.trim()} | Tema: ${(form.temaOcorrencia ?? []).join(", ")} | Solicitado: ${dataSol} | Realizado: ${dataReal} | Tempo: ${(form.treinamentoTempoAgenda || "").trim()} | Solicitante: ${form.treinamentoSolicitante || ""}`;
+
+      if (validNotas.length > 0) {
+        finalDescricao += ` | Notas: [${validNotas.join(", ")}] (Média: ${computedMedia})`;
+      }
+
+      if (novaDescricao) {
+        finalDescricao += ` | Obs: ${novaDescricao}`;
+      }
+
+      const lancamentoDados = {
+        treinadorId: user.uid,
+        treinadorNome: formatarNome(userName) || user.email || "Treinador",
+        tipoAcao: "treinamento" as const,
+        pontos: pontosAAplicar,
+        descricao: finalDescricao,
+        criadoPorId: user.uid,
+        criadoPorNome: formatarNome(userName) || user.email || "Sistema",
+        treinamentoEmpresa: form.empresa.trim(),
+        treinamentoTema: (form.temaOcorrencia ?? []).join(", "),
+        treinamentoDataSolicitacao: form.treinamentoDataSolicitacao || "",
+        treinamentoDataRealizacao: dataRealizacaoStr,
+        treinamentoTempoAgenda: (form.treinamentoTempoAgenda || "").trim(),
+        treinamentoSolicitante: form.treinamentoSolicitante || "",
+        treinamentoNotas: validNotas,
+        treinamentoNotaMedia: computedMedia,
+      };
+
+      if (pontoId) {
+        try {
+          await atualizarLancamentoPonto(pontoId, lancamentoDados);
+        } catch (error) {
+          console.error("Erro ao atualizar lançamento de ponto:", error);
+          pontoId = await salvarLancamentoPonto(lancamentoDados);
+        }
+      } else {
+        pontoId = await salvarLancamentoPonto(lancamentoDados);
+      }
+
+      base.gamificacaoPontoId = pontoId;
+    } else if (ocorrenciaOriginal?.gamificacaoPontoId) {
+      try {
+        await removerLancamentoPonto(ocorrenciaOriginal.gamificacaoPontoId);
+      } catch (error) {
+        console.error("Erro ao remover lançamento de ponto anterior:", error);
+      }
+      base.gamificacaoPontoId = "";
     }
 
     const savedId = await salvarOcorrencia(editandoId ? { ...base, id: editandoId } : base);
@@ -705,6 +876,14 @@ Score atual: ${novoScore}${mudancasTexto}`;
                   ...origDoc,
                   alertaResolvidoPorId: "",
                 });
+              }
+            }
+
+            if (oc.tipo === "Treinamento" && oc.gamificacaoPontoId) {
+              try {
+                await removerLancamentoPonto(oc.gamificacaoPontoId);
+              } catch (error) {
+                console.error("Erro ao remover ponto da gamificação associado:", error);
               }
             }
           }
@@ -1466,6 +1645,147 @@ Score atual: ${novoScore}${mudancasTexto}`;
                   </div>
                 )}
               </div>
+            )}
+
+            {form.tipo === "Treinamento" && (
+              <>
+                <div className="hist-campo hist-campo-row">
+                  <div>
+                    <label>Data de solicitação *</label>
+                    <input
+                      type="date"
+                      value={form.treinamentoDataSolicitacao ?? ""}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          treinamentoDataSolicitacao: e.target.value,
+                        })
+                      }
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label>
+                      Tempo de agenda {
+                        (form.temaOcorrencia ?? []).some(
+                          (t) => t.trim().toLowerCase() === "cancelado" || t.trim().toLowerCase() === "ausente"
+                        ) ? "" : "*"
+                      }
+                    </label>
+                    <input
+                      type="time"
+                      value={form.treinamentoTempoAgenda ?? ""}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          treinamentoTempoAgenda: e.target.value,
+                        })
+                      }
+                      required={
+                        !(form.temaOcorrencia ?? []).some(
+                          (t) => t.trim().toLowerCase() === "cancelado" || t.trim().toLowerCase() === "ausente"
+                        )
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="hist-campo">
+                  <label>Quem solicitou *</label>
+                  <select
+                    value={form.treinamentoSolicitante ?? "CS"}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        treinamentoSolicitante: e.target.value,
+                      })
+                    }
+                    required
+                  >
+                    <option value="CS">CS</option>
+                    <option value="Cliente">Cliente</option>
+                    <option value="Suporte">Suporte</option>
+                    <option value="Comercial">Comercial</option>
+                    <option value="Hardware">Hardware</option>
+                    <option value="Aplicações">Aplicações</option>
+                  </select>
+                </div>
+
+                <div className="hist-campo training-notes-container">
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                    <label style={{ marginBottom: 0 }}>Notas dos Participantes (CSAT Opcional)</label>
+                    <button
+                      type="button"
+                      className="btn-add-nota-icon"
+                      onClick={handleAddNota}
+                      style={{
+                        background: "rgba(255, 255, 255, 0.1)",
+                        border: "none",
+                        color: "var(--primary-color, #4facfe)",
+                        cursor: "pointer",
+                        padding: "4px 8px",
+                        borderRadius: "4px",
+                        fontSize: "12px",
+                        fontWeight: "600",
+                        display: "flex",
+                        alignItems: "center"
+                      }}
+                    >
+                      + Adicionar Nota
+                    </button>
+                  </div>
+                  {(!form.treinamentoNotas || form.treinamentoNotas.length === 0) ? (
+                    <span style={{ fontSize: "12px", color: "var(--text-secondary, #a0aec0)", display: "block", fontStyle: "italic", marginBottom: "8px" }}>
+                      Nenhuma nota registrada (treinamento sem resposta CSAT).
+                    </span>
+                  ) : (
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: "8px", marginBottom: "12px" }}>
+                      {form.treinamentoNotas.map((nota, idx) => (
+                        <div key={idx} style={{ display: "flex", alignItems: "center", gap: "4px", background: "rgba(255, 255, 255, 0.05)", padding: "4px 8px", borderRadius: "4px" }}>
+                          <input
+                            type="number"
+                            placeholder={`Nota ${idx + 1} (1 a 5)`}
+                            min="1"
+                            max="5"
+                            step="1"
+                            value={nota}
+                            onChange={(e) => handleUpdateNota(idx, e.target.value)}
+                            required
+                            style={{
+                              flex: 1,
+                              background: "transparent",
+                              border: "none",
+                              color: "var(--text-color, #fff)",
+                              fontSize: "13px",
+                              outline: "none",
+                              padding: "4px 0",
+                              width: "100%"
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveNota(idx)}
+                            style={{
+                              background: "transparent",
+                              border: "none",
+                              color: "#e53e3e",
+                              cursor: "pointer",
+                              padding: "4px",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center"
+                            }}
+                            title="Remover nota"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
             )}
 
             <div className="hist-campo hist-campo-row">

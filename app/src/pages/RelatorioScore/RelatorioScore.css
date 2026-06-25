@@ -402,14 +402,19 @@
 /* Responsividade */
 @media (max-width: 768px) {
   .relatorio-score-page {
-    padding: 20px 20px 60px;
+    padding: 15px 15px 60px;
   }
   
   .relatorio-score-header h1 {
-    font-size: 1.8rem;
+    font-size: 1.5rem;
   }
   
   .relatorio-questions-grid {
     grid-template-columns: 1fr;
+  }
+
+  .relatorio-summary-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
   }
 }

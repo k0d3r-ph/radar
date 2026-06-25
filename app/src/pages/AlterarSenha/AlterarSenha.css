@@ -192,3 +192,14 @@
   cursor: not-allowed;
   transform: none;
 }
+
+@media (max-width: 480px) {
+  .alterar-senha-card {
+    padding: 30px 20px;
+    border-radius: 16px;
+  }
+  
+  .alterar-senha-header h1 {
+    font-size: 22px;
+  }
+}

@@ -1,5 +1,16 @@
 @import url("https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap");
 
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  width: 100%;
+}
+
 :root {
   font-family: "Roboto", Arial;
   fill: white;
@@ -70,4 +81,13 @@
 
 .nav-logout-btn:active {
   transform: scale(0.98);
+}
+
+@media (max-width: 768px) {
+  .usuarios-glow,
+  .relatorio-score-glow,
+  .relatorios-glow,
+  .gamificacao-glow {
+    display: none !important;
+  }
 }

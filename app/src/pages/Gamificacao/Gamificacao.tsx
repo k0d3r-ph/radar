@@ -383,17 +383,26 @@ export const Gamificacao: React.FC = () => {
   const [filtroDataFim, setFiltroDataFim] = useState("");
 
   const acoesFiltradas = useMemo(() => {
+    const baseList = ACOES_DISPONIVEIS.filter((a) => a.tipo !== "treinamento");
     if (role === "treinador") {
-      return ACOES_DISPONIVEIS.filter((a) => a.tipo === "treinamento");
+      return [];
     }
-    return ACOES_DISPONIVEIS;
+    return baseList;
   }, [role]);
 
   // Form states
   const [selectedTrainerUid, setSelectedTrainerUid] = useState("");
   const [selectedActionType, setSelectedActionType] = useState<
-    "treinamento" | "nova_doc" | "att_doc" | "ferramenta_aut" | "chamado_falha"
-  >("treinamento");
+    "treinamento" | "nova_doc" | "att_doc" | "ferramenta_aut" | "chamado_falha" | ""
+  >("");
+
+  useEffect(() => {
+    if (acoesFiltradas.length > 0) {
+      setSelectedActionType(acoesFiltradas[0].tipo);
+    } else {
+      setSelectedActionType("");
+    }
+  }, [acoesFiltradas]);
 
   const [descricao, setDescricao] = useState("");
 
@@ -947,11 +956,11 @@ export const Gamificacao: React.FC = () => {
                           </div>
                           <div className="ranking-sub">
                             <div>
-                              {t.qtdAcoes} {t.qtdAcoes === 1 ? "atividade registrada" : "atividades registradas"}
+                              {t.qtdAcoes} {t.qtdAcoes === 1 ? "atividade" : "atividades"}
                             </div>
                             {t.totalTrainingsCount > 0 && (
                               <div className="csat-rate-info" style={{ fontSize: "11px", color: "#94a3b8", marginTop: "4px" }}>
-                                CSAT Taxa Resposta: <strong>{Math.round(t.taxaResposta * 100)}%</strong> ({t.answeredTrainingsCount}/{t.totalTrainingsCount})
+                                CSAT: <strong>{Math.round(t.taxaResposta * 100)}%</strong> ({t.answeredTrainingsCount}/{t.totalTrainingsCount})
                                 {t.bonusPercentage > 0 && (
                                   <span className="bonus-pill" style={{ marginLeft: "6px", color: "#34d399", background: "rgba(16, 185, 129, 0.1)", padding: "2px 6px", borderRadius: "4px", fontSize: "10px", fontWeight: "bold" }}>
                                     +{t.bonusPercentage}% Bônus
@@ -978,238 +987,117 @@ export const Gamificacao: React.FC = () => {
             {/* Coluna da Direita: Lançar e Histórico */}
             <div className="actions-column">
               {/* Bloco 1: Lançar Pontos */}
-              <section className="gamificacao-card lancar-section">
-                <h2>
-                  <PlusCircle size={20} className="card-icon" />
-                  Registrar Nova Ação
-                </h2>
-
-                <form onSubmit={handleLancar} className="lancar-form">
-                  <div className="input-group">
-                    <label htmlFor={role === "master" ? "trainer-select" : "trainer-input"}>Treinador</label>
-                    <div className="input-wrapper">
-                      <User className="input-icon" size={18} />
-                      {role === "master" ? (
-                        <select
-                          id="trainer-select"
-                          value={selectedTrainerUid}
-                          onChange={(e) => setSelectedTrainerUid(e.target.value)}
-                          required
-                          disabled={submitting}
-                        >
-                          {trainers.map((t) => (
-                            <option key={t.uid} value={t.uid}>
-                              {formatarNome(t.nome) || t.email}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <input
-                          type="text"
-                          id="trainer-input"
-                          value={userName || user?.email || ""}
-                          readOnly
-                          disabled
-                          className="input-disabled"
-                        />
-                      )}
-                    </div>
+              {acoesFiltradas.length === 0 ? (
+                <section className="gamificacao-card lancar-section">
+                  <h2>
+                    <PlusCircle size={20} className="card-icon" />
+                    Registrar Nova Ação
+                  </h2>
+                  <div style={{ padding: "16px", color: "var(--text-secondary, #a0aec0)", fontSize: "14px", lineHeight: "1.6" }}>
+                    <p style={{ marginBottom: "12px" }}>
+                      O registro de treinamentos agora deve ser realizado através da aba <strong>Histórico</strong>, registrando a ocorrência correspondente.
+                    </p>
+                    <p>
+                      Dessa forma, seus pontos serão computados e exibidos aqui na Gamificação de maneira <strong>100% automática</strong>.
+                    </p>
                   </div>
+                </section>
+              ) : (
+                <section className="gamificacao-card lancar-section">
+                  <h2>
+                    <PlusCircle size={20} className="card-icon" />
+                    Registrar Nova Ação
+                  </h2>
 
-                  <div className="input-group">
-                    <label>Ação Realizada</label>
-                    <div className="acoes-radio-group">
-                      {acoesFiltradas.map((acao) => {
-                        const Icon = acao.icon;
-                        const isSelected = selectedActionType === acao.tipo;
-                        return (
-                          <React.Fragment key={acao.tipo}>
-                            <label
-                              className={`acao-radio-card ${isSelected ? "selected" : ""} ${acao.colorClass}`}
-                            >
-                              <input
-                                type="radio"
-                                name="acao-tipo"
-                                value={acao.tipo}
-                                checked={isSelected}
-                                onChange={() => setSelectedActionType(acao.tipo)}
-                                disabled={submitting}
-                              />
-                              <div className="acao-radio-content">
-                                <div className="acao-radio-left">
-                                  <Icon className="acao-icon" size={18} />
-                                  <div className="acao-radio-text">
-                                    <span className="acao-label">{acao.label}</span>
-                                    <span className="acao-desc">{acao.descricao}</span>
-                                  </div>
-                                </div>
-                                <span className="acao-points-badge">
-                                  {acao.pontos > 0 ? `+${acao.pontos}` : acao.pontos}
-                                </span>
-                              </div>
-                            </label>
+                  <form onSubmit={handleLancar} className="lancar-form">
+                    <div className="input-group">
+                      <label htmlFor={role === "master" ? "trainer-select" : "trainer-input"}>Treinador</label>
+                      <div className="input-wrapper">
+                        <User className="input-icon" size={18} />
+                        {role === "master" ? (
+                          <select
+                            id="trainer-select"
+                            value={selectedTrainerUid}
+                            onChange={(e) => setSelectedTrainerUid(e.target.value)}
+                            required
+                            disabled={submitting}
+                          >
+                            {trainers.map((t) => (
+                              <option key={t.uid} value={t.uid}>
+                                {formatarNome(t.nome) || t.email}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            type="text"
+                            id="trainer-input"
+                            value={userName || user?.email || ""}
+                            readOnly
+                            disabled
+                            className="input-disabled"
+                          />
+                        )}
+                      </div>
+                    </div>
 
-                            {isSelected && acao.tipo === "treinamento" && (
-                              <div className="treinamento-subform inline-subform">
-                                <div className="form-grid-2">
-                                  <div className="input-group">
-                                    <label htmlFor="treinamento-empresa">Nome da Empresa *</label>
-                                    <SearchableSingleSelect
-                                      value={treinamentoEmpresa}
-                                      onChange={setTreinamentoEmpresa}
-                                      options={empresas}
-                                      placeholder="Selecione a empresa..."
-                                      disabled={submitting}
-                                    />
-                                  </div>
-
-                                  <div className="input-group">
-                                    <label>Temas *</label>
-                                    <SearchableSelect
-                                      value={treinamentoTemas}
-                                      onChange={setTreinamentoTemas}
-                                      options={TEMAS_GAMIFICACAO}
-                                      placeholder="Selecione ou pesquise os temas..."
-                                      disabled={submitting}
-                                    />
-                                  </div>
-                                </div>
-
-                                <div className="form-grid-2">
-                                  <div className="input-group">
-                                    <label htmlFor="treinamento-data-solicitacao">Data de Solicitação *</label>
-                                    <input
-                                      type="date"
-                                      id="treinamento-data-solicitacao"
-                                      value={treinamentoDataSolicitacao}
-                                      onChange={(e) => setTreinamentoDataSolicitacao(e.target.value)}
-                                      required
-                                    />
-                                  </div>
-
-                                  <div className="input-group">
-                                    <label htmlFor="treinamento-data-realizacao">Data da Realização *</label>
-                                    <input
-                                      type="date"
-                                      id="treinamento-data-realizacao"
-                                      value={treinamentoDataRealizacao}
-                                      onChange={(e) => setTreinamentoDataRealizacao(e.target.value)}
-                                      required
-                                    />
-                                  </div>
-                                </div>
-
-                                <div className="form-grid-2">
-                                  <div className="input-group">
-                                    <label htmlFor="treinamento-tempo-agenda">
-                                      Tempo de Agenda {
-                                        treinamentoTemas.some(
-                                          (t) => t.trim().toLowerCase() === "cancelado" || t.trim().toLowerCase() === "ausente"
-                                        ) ? "" : "*"
-                                      }
-                                    </label>
-                                    <input
-                                      type="time"
-                                      id="treinamento-tempo-agenda"
-                                      value={treinamentoTempoAgenda}
-                                      onChange={(e) => setTreinamentoTempoAgenda(e.target.value)}
-                                      required={
-                                        !treinamentoTemas.some(
-                                          (t) => t.trim().toLowerCase() === "cancelado" || t.trim().toLowerCase() === "ausente"
-                                        )
-                                      }
-                                    />
-                                  </div>
-
-
-                                  <div className="input-group">
-                                    <label htmlFor="treinamento-solicitante">Quem Solicitou *</label>
-                                    <div className="input-wrapper">
-                                      <select
-                                        id="treinamento-solicitante"
-                                        value={treinamentoSolicitante}
-                                        onChange={(e) => setTreinamentoSolicitante(e.target.value)}
-                                        required
-                                      >
-                                        <option value="CS">CS</option>
-                                        <option value="Cliente">Cliente</option>
-                                        <option value="Suporte">Suporte</option>
-                                        <option value="Comercial">Comercial</option>
-                                        <option value="Hardware">Hardware</option>
-                                        <option value="Aplicações">Aplicações</option>
-                                      </select>
+                    <div className="input-group">
+                      <label>Ação Realizada</label>
+                      <div className="acoes-radio-group">
+                        {acoesFiltradas.map((acao) => {
+                          const Icon = acao.icon;
+                          const isSelected = selectedActionType === acao.tipo;
+                          return (
+                            <React.Fragment key={acao.tipo}>
+                              <label
+                                className={`acao-radio-card ${isSelected ? "selected" : ""} ${acao.colorClass}`}
+                              >
+                                <input
+                                  type="radio"
+                                  name="acao-tipo"
+                                  value={acao.tipo}
+                                  checked={isSelected}
+                                  onChange={() => setSelectedActionType(acao.tipo)}
+                                  disabled={submitting}
+                                />
+                                <div className="acao-radio-content">
+                                  <div className="acao-radio-left">
+                                    <Icon className="acao-icon" size={18} />
+                                    <div className="acao-radio-text">
+                                      <span className="acao-label">{acao.label}</span>
+                                      <span className="acao-desc">{acao.descricao}</span>
                                     </div>
                                   </div>
+                                  <span className="acao-points-badge">
+                                    {acao.pontos > 0 ? `+${acao.pontos}` : acao.pontos}
+                                  </span>
                                 </div>
-
-                                <div className="treinamento-notas-section">
-                                  <div className="notas-section-header">
-                                    <label>Notas dos Participantes (CSAT Opcional)</label>
-                                    <button
-                                      type="button"
-                                      className="btn-add-nota-icon"
-                                      onClick={handleAddNota}
-                                      title="Adicionar Nota"
-                                    >
-                                      + Adicionar Nota
-                                    </button>
-                                  </div>
-                                  {treinamentoNotas.length === 0 ? (
-                                    <span className="no-notas-msg">Nenhuma nota registrada (treinamento sem resposta CSAT).</span>
-                                  ) : (
-                                    <div className="notas-inputs-grid">
-                                      {treinamentoNotas.map((nota, idx) => (
-                                        <div key={idx} className="nota-input-row">
-                                          <input
-                                            type="number"
-                                            className="nota-input-field"
-                                            placeholder={`Nota ${idx + 1} (0 a 10)`}
-                                            min="0"
-                                            max="10"
-                                            step="1"
-                                            value={nota}
-                                            onChange={(e) => handleUpdateNota(idx, e.target.value)}
-                                            required
-                                          />
-                                          <button
-                                            type="button"
-                                            className="btn-remove-nota-icon"
-                                            onClick={() => handleRemoveNota(idx)}
-                                            title="Remover nota"
-                                          >
-                                            <Trash2 size={14} />
-                                          </button>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                          </React.Fragment>
-                        );
-                      })}
+                              </label>
+                            </React.Fragment>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="input-group">
-                    <label htmlFor="descricao-input">Descrição / Detalhes (Opcional)</label>
-                    <textarea
-                      id="descricao-input"
-                      placeholder="Ex: Treinamento avançado de APIs, Documentação de onboarding revisada..."
-                      value={descricao}
-                      onChange={(e) => setDescricao(e.target.value)}
-                      disabled={submitting}
-                      maxLength={150}
-                      rows={2}
-                    />
-                  </div>
+                    <div className="input-group">
+                      <label htmlFor="descricao-input">Descrição / Detalhes (Opcional)</label>
+                      <textarea
+                        id="descricao-input"
+                        placeholder="Ex: Documentação de onboarding revisada, playbook criado..."
+                        value={descricao}
+                        onChange={(e) => setDescricao(e.target.value)}
+                        disabled={submitting}
+                        maxLength={150}
+                        rows={2}
+                      />
+                    </div>
 
-                  <button type="submit" className="btn-primary lancar-submit-btn" disabled={submitting}>
-                    {submitting ? <div className="spinner"></div> : "Lançar Pontuação"}
-                  </button>
-                </form>
-              </section>
+                    <button type="submit" className="btn-primary lancar-submit-btn" disabled={submitting}>
+                      {submitting ? <div className="spinner"></div> : "Lançar Pontuação"}
+                    </button>
+                  </form>
+                </section>
+              )}
 
               {/* Bloco 2: Histórico Recente */}
               <section className="gamificacao-card historico-section">
@@ -1264,7 +1152,7 @@ export const Gamificacao: React.FC = () => {
                               </td>
                               <td className="action-col">
                                 <div className="action-buttons-wrapper">
-                                  {(role === "master" || (entry.treinadorId === user?.uid && entry.criadoPorId === user?.uid)) && (
+                                  {entry.tipoAcao !== "treinamento" && (role === "master" || (entry.treinadorId === user?.uid && entry.criadoPorId === user?.uid)) && (
                                     <button
                                       className="btn-edit-entry"
                                       onClick={() => handleStartEdit(entry)}
@@ -1273,7 +1161,7 @@ export const Gamificacao: React.FC = () => {
                                       <Edit2 size={14} />
                                     </button>
                                   )}
-                                  {(role === "master" || entry.criadoPorId === user?.uid) && (
+                                  {entry.tipoAcao !== "treinamento" && (role === "master" || entry.criadoPorId === user?.uid) && (
                                     <button
                                       className="btn-delete-entry"
                                       onClick={() => setConfirmarExclusaoId(entry.id || null)}

@@ -1311,3 +1311,77 @@
   margin: 0;
   flex-shrink: 0;
 }
+
+@media (max-width: 768px) {
+  /* Navbar Scroll on Mobile */
+  .app-nav {
+    padding: 0 12px;
+    gap: 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+    justify-content: flex-start !important;
+  }
+  
+  .app-nav::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+  }
+  
+  .nav-links {
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  
+  .nav-link {
+    white-space: nowrap;
+    padding: 6px 12px;
+    font-size: 0.85rem;
+  }
+
+  .nav-logout-btn {
+    margin-left: auto;
+    flex-shrink: 0;
+    padding: 6px 10px;
+  }
+
+  /* Shell spacing */
+  .hist-shell {
+    padding: 16px 16px 40px;
+  }
+
+  .hist-title {
+    font-size: 1.5rem;
+  }
+
+  .hist-campo-row {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .hist-detail-card {
+    padding: 20px;
+    border-radius: 16px;
+    max-height: 95vh;
+  }
+
+  .hist-detail-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .score-modal-card {
+    padding: 16px;
+    border-radius: 16px;
+    max-height: 95vh;
+  }
+
+  .hist-item {
+    padding: 16px;
+  }
+
+  .hist-item-top {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}

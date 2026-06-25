@@ -386,3 +386,26 @@ body {
 .btn-secondary:active {
   transform: translateY(0);
 }
+
+@media (max-width: 860px) {
+  .app-shell {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 16px;
+    gap: 16px;
+  }
+  
+  .controls {
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+  }
+  
+  .preview {
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+  }
+}

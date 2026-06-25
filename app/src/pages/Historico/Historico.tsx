@@ -1249,10 +1249,9 @@ Score atual: ${novoScore}${mudancasTexto}`;
         </table>
 
         {selecionada && (
-          <div className="hist-detail-overlay" onClick={() => fecharDetalhe()}>
+          <div className="hist-detail-overlay">
             <div
               className="hist-detail-card"
-              onClick={(e) => e.stopPropagation()}
             >
               <div className="hist-detail-header">
                 <h2>Detalhes da interação {selecionada.idSeqFormatted ? `(${selecionada.idSeqFormatted})` : ""}</h2>
@@ -1433,19 +1432,10 @@ Score atual: ${novoScore}${mudancasTexto}`;
                             {!isEditingThis && role === "master" && (
                               <button
                                 type="button"
-                                className="btn-ghost btn-small"
+                                className="btn-edit-atualizacao"
                                 onClick={() => {
                                   setEditingUpdateIdx(i);
                                   setEditingUpdateText(at.descricao);
-                                }}
-                                style={{
-                                  background: "rgba(255, 255, 255, 0.1)",
-                                  border: "none",
-                                  color: "var(--primary-color, #4facfe)",
-                                  cursor: "pointer",
-                                  padding: "2px 6px",
-                                  borderRadius: "4px",
-                                  fontSize: "11px",
                                 }}
                               >
                                 Editar
@@ -1454,46 +1444,28 @@ Score atual: ${novoScore}${mudancasTexto}`;
                           </div>
 
                           {isEditingThis ? (
-                            <div style={{ marginTop: "8px" }}>
+                            <div className="hist-atualizacao-edit-container">
                               <textarea
                                 rows={3}
                                 value={editingUpdateText}
                                 onChange={(e) => setEditingUpdateText(e.target.value)}
-                                style={{
-                                  width: "100%",
-                                  background: "rgba(255, 255, 255, 0.05)",
-                                  border: "1px solid rgba(255, 255, 255, 0.1)",
-                                  color: "#fff",
-                                  borderRadius: "4px",
-                                  padding: "8px",
-                                  fontSize: "13px",
-                                  outline: "none",
-                                  resize: "vertical"
-                                }}
+                                className="hist-atualizacao-edit-textarea"
                               />
-                              <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
+                              <div className="hist-atualizacao-edit-actions">
                                 <button
                                   type="button"
-                                  className="btn-primary btn-small"
+                                  className="hist-atualizacao-edit-btn-save"
                                   onClick={() => salvarEdicaoAtualizacao(i)}
                                   disabled={salvando}
-                                  style={{
-                                    fontSize: "12px",
-                                    padding: "4px 10px"
-                                  }}
                                 >
                                   {salvando ? "Salvando..." : "Salvar"}
                                 </button>
                                 <button
                                   type="button"
-                                  className="btn-ghost btn-small"
+                                  className="hist-atualizacao-edit-btn-cancel"
                                   onClick={() => {
                                     setEditingUpdateIdx(null);
                                     setEditingUpdateText("");
-                                  }}
-                                  style={{
-                                    fontSize: "12px",
-                                    padding: "4px 10px"
                                   }}
                                 >
                                   Cancelar

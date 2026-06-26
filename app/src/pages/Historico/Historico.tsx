@@ -859,6 +859,17 @@ Score atual: ${novoScore}${mudancasTexto}`;
 
     const savedId = await salvarOcorrencia(editandoId ? { ...base, id: editandoId } : base);
 
+    if (pontoId) {
+      try {
+        await atualizarLancamentoPonto(pontoId, {
+          ocorrenciaId: savedId,
+          isAlerta: form.alerta || false,
+        });
+      } catch (error) {
+        console.error("Erro ao vincular ocorrência ao ponto de gamificação:", error);
+      }
+    }
+
     // Vincula a ocorrência de resolução ao último alerta ativo da empresa (funciona para novo ou edição se ainda não vinculado)
     if (form.retirarAlerta && !base.alertaOriginalId) {
       const alertaOriginal = ocorrencias
@@ -1430,6 +1441,75 @@ Score atual: ${novoScore}${mudancasTexto}`;
                   </div>
                 )}
 
+                {selecionada.tipo === "Treinamento" && (
+                  <>
+                    {selecionada.treinamentoDataSolicitacao && (
+                      <div>
+                        <span>Data de solicitação</span>
+                        <strong>
+                          {(() => {
+                            if (selecionada.treinamentoDataSolicitacao.includes("-")) {
+                              const [y, m, d] = selecionada.treinamentoDataSolicitacao.split("-");
+                              return `${d}/${m}/${y}`;
+                            }
+                            return selecionada.treinamentoDataSolicitacao;
+                          })()}
+                        </strong>
+                      </div>
+                    )}
+                    {selecionada.treinamentoTempoAgenda && (
+                      <div>
+                        <span>Tempo de agenda</span>
+                        <strong>{selecionada.treinamentoTempoAgenda}</strong>
+                      </div>
+                    )}
+                    {selecionada.treinamentoSolicitante && (
+                      <div>
+                        <span>Solicitante</span>
+                        <strong>{selecionada.treinamentoSolicitante}</strong>
+                      </div>
+                    )}
+                    {selecionada.treinamentoNotas && selecionada.treinamentoNotas.length > 0 && (
+                      <div style={{ gridColumn: "span 2", alignItems: "flex-start", textAlign: "left" }}>
+                        <span style={{ textAlign: "left" }}>Notas do Treinamento (CSAT)</span>
+                        <div style={{ display: "flex", flexDirection: "row", gap: "8px", alignItems: "center", justifyContent: "flex-start", marginTop: "4px", flexWrap: "wrap", width: "100%" }}>
+                          {selecionada.treinamentoNotas.map((nota, idx) => (
+                            <span
+                              key={idx}
+                              style={{
+                                background: "#f1f5f9",
+                                border: "1px solid #cbd5e1",
+                                color: "#334155",
+                                padding: "4px 8px",
+                                borderRadius: "6px",
+                                fontSize: "0.85rem",
+                                fontWeight: "600"
+                              }}
+                            >
+                              Nota {idx + 1}: {nota}
+                            </span>
+                          ))}
+                          {selecionada.treinamentoNotaMedia !== undefined && selecionada.treinamentoNotaMedia !== null && (
+                            <span
+                              style={{
+                                background: "#ecfdf5",
+                                border: "1px solid #a7f3d0",
+                                color: "#065f46",
+                                padding: "4px 8px",
+                                borderRadius: "6px",
+                                fontSize: "0.85rem",
+                                fontWeight: "700"
+                              }}
+                            >
+                              Média: {selecionada.treinamentoNotaMedia}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
                 {selecionada.temaOcorrencia &&
                   selecionada.temaOcorrencia.length > 0 && (
                     <div className="hist-detail-desc">
@@ -1883,7 +1963,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
                   ) : (
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: "8px", marginBottom: "12px" }}>
                       {form.treinamentoNotas.map((nota, idx) => (
-                        <div key={idx} style={{ display: "flex", alignItems: "center", gap: "4px", background: "rgba(255, 255, 255, 0.05)", padding: "4px 8px", borderRadius: "4px" }}>
+                        <div key={idx} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                           <input
                             type="number"
                             placeholder={`Nota ${idx + 1} (1 a 5)`}
@@ -1895,29 +1975,47 @@ Score atual: ${novoScore}${mudancasTexto}`;
                             required
                             style={{
                               flex: 1,
-                              background: "transparent",
-                              border: "none",
-                              color: "var(--text-color, #fff)",
-                              fontSize: "13px",
+                              background: "#fafbff",
+                              border: "1.5px solid #dde3ef",
+                              borderRadius: "8px",
+                              color: "#1a2540",
+                              fontSize: "14px",
+                              padding: "8px 12px",
                               outline: "none",
-                              padding: "4px 0",
-                              width: "100%"
+                              transition: "border-color 0.15s",
+                              width: "100%",
+                              boxSizing: "border-box"
                             }}
+                            onFocus={(e) => e.target.style.borderColor = "#1e90ff"}
+                            onBlur={(e) => e.target.style.borderColor = "#dde3ef"}
                           />
                           <button
                             type="button"
                             onClick={() => handleRemoveNota(idx)}
                             style={{
-                              background: "transparent",
-                              border: "none",
+                              background: "rgba(229, 62, 62, 0.1)",
+                              border: "1.5px solid rgba(229, 62, 62, 0.2)",
+                              borderRadius: "8px",
                               color: "#e53e3e",
                               cursor: "pointer",
-                              padding: "4px",
+                              padding: "8px",
                               display: "flex",
                               alignItems: "center",
-                              justifyContent: "center"
+                              justifyContent: "center",
+                              width: "38px",
+                              height: "38px",
+                              boxSizing: "border-box",
+                              transition: "all 0.2s ease"
                             }}
                             title="Remover nota"
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = "rgba(229, 62, 62, 0.2)";
+                              e.currentTarget.style.borderColor = "#e53e3e";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = "rgba(229, 62, 62, 0.1)";
+                              e.currentTarget.style.borderColor = "rgba(229, 62, 62, 0.2)";
+                            }}
                           >
                             <Trash2 size={14} />
                           </button>

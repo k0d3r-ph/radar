@@ -1500,3 +1500,37 @@
   }
 }
 
+/* Botão de redirecionamento para o Histórico de Ocorrências */
+.btn-view-occurrence {
+  background: transparent;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  color: #a5b4fc;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-view-occurrence:hover {
+  background-color: rgba(99, 102, 241, 0.15);
+  border-color: rgba(99, 102, 241, 0.4);
+  color: #818cf8;
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.15);
+}
+
+.btn-view-occurrence.alerta-ativo {
+  border-color: rgba(239, 68, 68, 0.25);
+  color: #f87171;
+}
+
+.btn-view-occurrence.alerta-ativo:hover {
+  background-color: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.45);
+  color: #ef4444;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.15);
+}
+

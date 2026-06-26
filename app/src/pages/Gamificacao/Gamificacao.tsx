@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 import {
   Trophy,
   PlusCircle,
@@ -15,6 +16,7 @@ import {
   Settings,
   AlertOctagon,
   Edit2,
+  Eye,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { formatarNome } from "../../utils/formatarNome";
@@ -28,6 +30,7 @@ import {
 } from "../../services/gamificacao";
 import type { LancamentoPonto } from "../../types";
 import { listarEmpresas } from "../../services/empresas";
+import { listarOcorrencias } from "../../services/ocorrencias";
 import "./Gamificacao.css";
 
 const ACOES_DISPONIVEIS = [
@@ -371,10 +374,12 @@ const SearchableSingleSelect: React.FC<SearchableSingleSelectProps> = ({
 };
 
 export const Gamificacao: React.FC = () => {
+  const navigate = useNavigate();
   const { user, userName, role } = useAuth();
   const [trainers, setTrainers] = useState<UsuarioDocument[]>([]);
   const [entries, setEntries] = useState<LancamentoPonto[]>([]);
   const [empresas, setEmpresas] = useState<string[]>([]);
+  const [pontoOcorrenciaMap, setPontoOcorrenciaMap] = useState<Record<string, { id: string; alerta?: boolean }>>({});
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -451,10 +456,14 @@ export const Gamificacao: React.FC = () => {
   const carregarDados = async () => {
     try {
       setLoading(true);
-      const [listaUsuarios, listaPontos, listaEmpresas] = await Promise.all([
+      const [listaUsuarios, listaPontos, listaEmpresas, listaOcorrencias] = await Promise.all([
         listarUsuarios(),
         listarLancamentosPontos(),
         listarEmpresas(),
+        listarOcorrencias().catch((err) => {
+          console.error("Erro ao listar ocorrências para mapeamento:", err);
+          return [];
+        }),
       ]);
 
       // Filter only users with "treinador" or "master" role who completed their first access
@@ -472,6 +481,18 @@ export const Gamificacao: React.FC = () => {
         )
       ).sort((a, b) => a.localeCompare(b));
       setEmpresas(nomesEmpresas);
+
+      // Build mapping of gamificacaoPontoId -> occurrence details
+      const mapping: Record<string, { id: string; alerta?: boolean }> = {};
+      listaOcorrencias.forEach((oc) => {
+        if (oc.gamificacaoPontoId) {
+          mapping[oc.gamificacaoPontoId] = {
+            id: oc.id || "",
+            alerta: oc.alerta,
+          };
+        }
+      });
+      setPontoOcorrenciaMap(mapping);
 
       // Default the selected trainer in the form
       if (user && apenasTreinadores.some((t) => t.uid === user.uid)) {
@@ -1130,6 +1151,10 @@ export const Gamificacao: React.FC = () => {
                       <tbody>
                         {filteredEntries.map((entry) => {
                           const actionConfig = ACOES_DISPONIVEIS.find((a) => a.tipo === entry.tipoAcao);
+                          const ocInfo = pontoOcorrenciaMap[entry.id || ""];
+                          const ocorrenciaId = ocInfo?.id || entry.ocorrenciaId;
+                          const isAlerta = ocInfo?.alerta || entry.isAlerta;
+
                           return (
                             <tr key={entry.id}>
                               <td className="trainer-cell">{entry.treinadorNome}</td>
@@ -1152,6 +1177,15 @@ export const Gamificacao: React.FC = () => {
                               </td>
                               <td className="action-col">
                                 <div className="action-buttons-wrapper">
+                                  {ocorrenciaId && (
+                                    <button
+                                      className={`btn-view-occurrence ${isAlerta ? "alerta-ativo" : ""}`}
+                                      onClick={() => navigate(`/historico?ocorrencia=${ocorrenciaId}`)}
+                                      title={isAlerta ? "Ver ocorrência de treinamento (Alerta Ativo 🔥)" : "Ver ocorrência de treinamento"}
+                                    >
+                                      <Eye size={14} />
+                                    </button>
+                                  )}
                                   {entry.tipoAcao !== "treinamento" && (role === "master" || (entry.treinadorId === user?.uid && entry.criadoPorId === user?.uid)) && (
                                     <button
                                       className="btn-edit-entry"

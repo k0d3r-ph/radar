@@ -132,5 +132,7 @@ export interface LancamentoPonto {
   treinamentoSolicitante?: string;
   treinamentoNotas?: number[];
   treinamentoNotaMedia?: number | null;
+  ocorrenciaId?: string;
+  isAlerta?: boolean;
 }
 

@@ -187,29 +187,33 @@ export const Relatorios: React.FC = () => {
     });
   }, [dadosEmpresas, limitesSemana]);
 
-  const ativosNoFimDeSemana = useMemo(() => {
+  const ativosForaDoExpediente = useMemo(() => {
     if (!limitesSemana) return [];
     const { inicio, fim } = limitesSemana;
     const suporteStats = new Map<string, { duvidas: number; problemas: number }>();
 
     ocorrencias.forEach((o) => {
       if (o.departamento === "Suporte") {
-        const t = o.dataOcorrencia || o.createdAt || 0;
-        if (t >= inicio.getTime() && t <= fim.getTime()) {
-          const dia = new Date(t).getDay();
-          if (dia === 0 || dia === 6) {
-            const key = o.empresa.trim().toLowerCase();
-            const stats = suporteStats.get(key) || { duvidas: 0, problemas: 0 };
+        const tipoLower = (o.tipo || "").toLowerCase();
+        const eDuvida = tipoLower.includes("duvida") || tipoLower.includes("dúvida");
+        const eProblema = tipoLower.includes("problema");
 
-            const tipoLower = (o.tipo || "").toLowerCase();
-            if (tipoLower.includes("duvida") || tipoLower.includes("dúvida")) {
-              stats.duvidas += 1;
-            } else if (tipoLower.includes("problema")) {
-              stats.problemas += 1;
-            } else {
-              stats.problemas += 1;
+        if (eDuvida || eProblema) {
+          const t = o.dataOcorrencia || o.createdAt || 0;
+          if (t >= inicio.getTime() && t <= fim.getTime()) {
+            const dateObj = new Date(t);
+            const hour = dateObj.getHours();
+            if (hour >= 18 || hour < 9) {
+              const key = o.empresa.trim().toLowerCase();
+              const stats = suporteStats.get(key) || { duvidas: 0, problemas: 0 };
+
+              if (eDuvida) {
+                stats.duvidas += 1;
+              } else {
+                stats.problemas += 1;
+              }
+              suporteStats.set(key, stats);
             }
-            suporteStats.set(key, stats);
           }
         }
       }
@@ -266,10 +270,10 @@ export const Relatorios: React.FC = () => {
     },
     {
       titulo: "Contatos fora do expediente",
-      valor: ativosNoFimDeSemana.length,
+      valor: ativosForaDoExpediente.length,
       desc: "Atendimento suporte",
       icone: <Clock size={22} />,
-      lista: ativosNoFimDeSemana,
+      lista: ativosForaDoExpediente,
       ehSazonal: true,
     },
     {
@@ -314,7 +318,7 @@ Semana de Referência: ${semanaStr}
 RESUMO DOS INDICADORES:
 1. Clientes que entraram na esteira na semana: ${entraramNaSemana.length}
 2. Clientes que concluíram a esteira na semana: ${concluidosNaSemana.length}
-3. Clientes fora do expediente (atendimento Suporte): ${ativosNoFimDeSemana.length}
+3. Clientes fora do expediente (atendimento Suporte): ${ativosForaDoExpediente.length}
 4. Clientes sem próximo passo (farol vermelho): ${semProximoPasso.length}
 5. Clientes acima do prazo de onboarding (> 60 dias): ${acimaDoPrazo.length}
 6. Casos com risco de churn (Clientes em Alerta): ${riscoChurn.length}
@@ -343,15 +347,15 @@ ${concluidosNaSemana.length > 0
           .join("\n")
         : " - Nenhum cliente concluído nesta semana.\n"
       }
-3. CLIENTES FORA DO EXPEDIENTE (${ativosNoFimDeSemana.length})
-${ativosNoFimDeSemana.length > 0
-        ? ativosNoFimDeSemana
+3. CLIENTES FORA DO EXPEDIENTE (${ativosForaDoExpediente.length})
+${ativosForaDoExpediente.length > 0
+        ? ativosForaDoExpediente
           .map(
             (e) =>
               ` - ${e.nomeEmpresa}\n   Treinador: ${formatarNome(e.responsavel) || "-"}\n   CS: ${formatarNome(e.csResponsavel) || "-"}\n   Dúvidas: ${(e as any).qtdDuvidas}\n   Problemas: ${(e as any).qtdProblemas}\n   Valor do Contrato: ${e.valorContrato !== undefined ? `R$ ${e.valorContrato.toFixed(2)}` : "—"}\n`
           )
           .join("\n")
-        : " - Nenhum atendimento de suporte no fim de semana registrado nesta semana.\n"
+        : " - Nenhum atendimento de suporte fora do expediente registrado nesta semana.\n"
       }
 4. CLIENTES SEM PRÓXIMO PASSO (${semProximoPasso.length})
 ${semProximoPasso.length > 0

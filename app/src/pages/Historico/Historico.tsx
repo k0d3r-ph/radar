@@ -7,6 +7,8 @@ import {
   removerOcorrencia,
 } from "../../services/ocorrencias";
 import { listarEmpresas, salvarEmpresas } from "../../services/empresas";
+import { listarUsuarios } from "../../services/auth";
+import type { UsuarioDocument } from "../../services/auth";
 import {
   salvarLancamentoPonto,
   atualizarLancamentoPonto,
@@ -306,6 +308,7 @@ export function Historico() {
   const [editingUpdateText, setEditingUpdateText] = useState("");
   const [novoResponsavelAtual, setNovoResponsavelAtual] = useState("");
   const [empresasList, setEmpresasList] = useState<Empresa[]>([]);
+  const [usuariosList, setUsuariosList] = useState<UsuarioDocument[]>([]);
   const [ocorrencias, setOcorrencias] = useState<Ocorrencia[]>([]);
   const [selecionada, setSelecionada] = useState<Ocorrencia | null>(null);
   const [form, setForm] = useState({ ...EMPTY });
@@ -365,13 +368,18 @@ export function Historico() {
 
   async function carregar() {
     setLoading(true);
-    const [ocLista, empLista] = await Promise.all([
+    const [ocLista, empLista, usrLista] = await Promise.all([
       listarOcorrencias(),
       listarEmpresas(),
+      listarUsuarios().catch((error) => {
+        console.error("Erro ao listar usuários no Histórico:", error);
+        return [];
+      }),
     ]);
     const enriquecidas = atribuirIdsOcorrencias(ocLista, empLista);
     setOcorrencias(enriquecidas);
     setEmpresasList(empLista);
+    setUsuariosList(usrLista);
     setLoading(false);
     return enriquecidas;
   }
@@ -797,9 +805,22 @@ Score atual: ${novoScore}${mudancasTexto}`;
         finalDescricao += ` | Obs: ${novaDescricao}`;
       }
 
+      let finalTreinadorId = user.uid;
+      let finalTreinadorNome = formatarNome(userName) || user.email || "Treinador";
+
+      if (usuariosList.length > 0 && responsavelFinal) {
+        const trainerObj = usuariosList.find(
+          (u) => formatarNome(u.nome).toLowerCase() === formatarNome(responsavelFinal).toLowerCase()
+        );
+        if (trainerObj) {
+          finalTreinadorId = trainerObj.uid;
+          finalTreinadorNome = formatarNome(trainerObj.nome) || trainerObj.email || "Treinador";
+        }
+      }
+
       const lancamentoDados = {
-        treinadorId: user.uid,
-        treinadorNome: formatarNome(userName) || user.email || "Treinador",
+        treinadorId: finalTreinadorId,
+        treinadorNome: finalTreinadorNome,
         tipoAcao: "treinamento" as const,
         pontos: pontosAAplicar,
         descricao: finalDescricao,

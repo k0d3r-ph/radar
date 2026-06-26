@@ -27,7 +27,6 @@ const ROLE_DISPLAY: Record<string, string> = {
   hardware: "Hardware",
   comercial: "Comercial/Aplicações",
   financeiro: "Financeiro",
-  crc: "CRC",
   treinador: "Treinador",
   cs: "CS",
   master: "Master",
@@ -55,7 +54,19 @@ export const Usuarios: React.FC = () => {
     try {
       setLoading(true);
       const lista = await listarUsuarios();
-      setUsers(lista);
+      
+      // Migrate users with role "crc" to "cs"
+      const crcUsers = lista.filter(u => u.role === "crc");
+      if (crcUsers.length > 0) {
+        toast.info(`Migrando ${crcUsers.length} usuário(s) do perfil CRC para o perfil CS...`);
+        for (const user of crcUsers) {
+          await atualizarRoleUsuario(user.uid, "cs");
+        }
+        const listaAtualizada = await listarUsuarios();
+        setUsers(listaAtualizada);
+      } else {
+        setUsers(lista);
+      }
     } catch (error: any) {
       console.error("Erro ao carregar usuários:", error);
       const isPermissionError = error?.code === "permission-denied" || 
@@ -232,7 +243,6 @@ export const Usuarios: React.FC = () => {
                   <option value="hardware">Hardware</option>
                   <option value="comercial">Comercial/Aplicações</option>
                   <option value="financeiro">Financeiro</option>
-                  <option value="crc">CRC</option>
                   <option value="treinador">Treinador</option>
                   <option value="cs">CS</option>
                   {currentUserRole === "master" && (
@@ -376,7 +386,6 @@ export const Usuarios: React.FC = () => {
                   <option value="hardware">Hardware</option>
                   <option value="comercial">Comercial/Aplicações</option>
                   <option value="financeiro">Financeiro</option>
-                  <option value="crc">CRC</option>
                   <option value="treinador">Treinador</option>
                   <option value="cs">CS</option>
                   <option value="master">Master</option>

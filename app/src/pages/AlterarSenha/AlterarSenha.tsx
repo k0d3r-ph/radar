@@ -12,7 +12,6 @@ const ROLE_DISPLAY: Record<string, string> = {
   hardware: "Hardware",
   comercial: "Comercial/Aplicações",
   financeiro: "Financeiro",
-  crc: "CRC",
   treinador: "Treinador",
   cs: "CS",
   master: "Master",

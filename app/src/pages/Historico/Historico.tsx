@@ -959,7 +959,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
     if (role === "financeiro") {
       return ["Financeira", "Informativa"];
     }
-    if (role === "crc") {
+    if (role === "cs") {
       return ["Informativa", "Financeira", "Comercial"];
     }
     return [];
@@ -972,7 +972,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
     if (role === "treinador") {
       return ["Treinamento"];
     }
-    if (role === "crc") {
+    if (role === "cs") {
       return ["CS"];
     }
     if (role === "suporte") {

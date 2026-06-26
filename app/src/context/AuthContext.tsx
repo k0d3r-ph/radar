@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import type { User } from "firebase/auth";
 import { auth, db } from "../services/firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { deslogarUsuario } from "../services/auth";
 import { formatarNome } from "../utils/formatarNome";
 import { toast } from "sonner";
@@ -40,7 +40,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           const userDoc = await getDoc(userDocRef);
           if (userDoc.exists()) {
             const data = userDoc.data();
-            setRole(data.role || "suporte");
+            let userRole = data.role || "suporte";
+            if (userRole === "crc") {
+              userRole = "cs";
+              await setDoc(userDocRef, { role: "cs", updatedAt: Date.now() }, { merge: true });
+            }
+            setRole(userRole);
             const rawNome = data.nome || currentUser.email || "";
             const formattedNome = formatarNome(rawNome);
             setUserName(formattedNome);

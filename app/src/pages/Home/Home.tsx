@@ -163,7 +163,7 @@ export default function Home() {
   const [historico, setHistorico] = useState<Ocorrencia[]>([]);
 
   const [listaCS, setListaCS] = useState<string[]>(() => {
-    const baseCS = ["Jeferson", "Rafaela", "Luiz", "João", "Eduarda", "Clarice", "Lucas", "Ana Carolina"];
+    const baseCS = ["Jeferson", "Rafaela", "Luiz Felipe", "João", "Eduarda", "Clarice", "Lucas", "Ana Carolina"];
     return [...baseCS].sort((a, b) => a.localeCompare(b));
   });
 
@@ -331,6 +331,19 @@ export default function Home() {
       ]);
 
       let mudouAlguma = false;
+
+      // Migrate companies from Luiz to Luiz Felipe
+      for (let i = 0; i < empresasLista.length; i++) {
+        const empresa = empresasLista[i];
+        if (empresa.csResponsavel === "Luiz") {
+          empresa.csResponsavel = "Luiz Felipe";
+          await salvarEmpresas({
+            ...empresa,
+            csResponsavel: "Luiz Felipe",
+          });
+          mudouAlguma = true;
+        }
+      }
 
       let highest = 0;
       empresasLista.forEach(e => {

@@ -248,8 +248,64 @@ export const Relatorios: React.FC = () => {
   }, [dadosEmpresas]);
 
   const riscoChurn = useMemo(() => {
-    return dadosEmpresas.filter((e) => !e.isOngoing && !e.isSuspended && e.alerta === true);
-  }, [dadosEmpresas]);
+    if (!limitesSemana) return [];
+    const { fim } = limitesSemana;
+
+    return dadosEmpresas
+      .filter((e) => {
+        // Encontra a ocorrência mais recente de alerta/retirarAlerta até o fim da semana
+        const ultimaOcorrenciaAlertaNaSemana = ocorrencias
+          .filter(
+            (o) =>
+              o.empresa.trim().toLowerCase() === e.nomeEmpresa.trim().toLowerCase() &&
+              (o.alerta === true || o.retirarAlerta === true) &&
+              (o.dataOcorrencia || o.createdAt || 0) <= fim.getTime()
+          )
+          .sort(
+            (a, b) =>
+              (b.dataOcorrencia || b.createdAt || 0) -
+              (a.dataOcorrencia || a.createdAt || 0)
+          )[0];
+
+        let temAlertaNaSemana = false;
+        if (ultimaOcorrenciaAlertaNaSemana) {
+          if (ultimaOcorrenciaAlertaNaSemana.alerta === true) {
+            temAlertaNaSemana = true;
+          }
+        } else {
+          temAlertaNaSemana = !!e.alerta;
+        }
+
+        // Mantém cliente em alerta mesmo que esteja suspenso
+        return !e.isOngoing && temAlertaNaSemana;
+      })
+      .map((e) => {
+        // Para garantir que o badge de alerta mostre a ocorrência correta na semana
+        const ultimaOcorrenciaAlertaNaSemana = ocorrencias
+          .filter(
+            (o) =>
+              o.empresa.trim().toLowerCase() === e.nomeEmpresa.trim().toLowerCase() &&
+              (o.alerta === true || o.retirarAlerta === true) &&
+              (o.dataOcorrencia || o.createdAt || 0) <= fim.getTime()
+          )
+          .sort(
+            (a, b) =>
+              (b.dataOcorrencia || b.createdAt || 0) -
+              (a.dataOcorrencia || a.createdAt || 0)
+          )[0];
+
+        let ocorrenciaAlertaId = (e as any).ocorrenciaAlertaId;
+        if (ultimaOcorrenciaAlertaNaSemana && ultimaOcorrenciaAlertaNaSemana.alerta === true) {
+          ocorrenciaAlertaId = ultimaOcorrenciaAlertaNaSemana.id;
+        }
+
+        return {
+          ...e,
+          alerta: true,
+          ocorrenciaAlertaId,
+        };
+      });
+  }, [dadosEmpresas, ocorrencias, limitesSemana]);
 
   const kpis = [
     {
@@ -298,7 +354,7 @@ export const Relatorios: React.FC = () => {
       desc: "Clientes em alerta",
       icone: <ShieldAlert size={22} color="#ef4444" />,
       lista: riscoChurn,
-      ehSazonal: false,
+      ehSazonal: true,
     },
   ];
 
@@ -385,7 +441,7 @@ ${riscoChurn.length > 0
               ` - ${e.nomeEmpresa}\n   Treinador: ${formatarNome(e.responsavel) || "-"}\n   CS: ${formatarNome(e.csResponsavel) || "-"}\n   Progresso: ${e.progresso}%\n   Valor do Contrato: ${e.valorContrato !== undefined ? `R$ ${e.valorContrato.toFixed(2)}` : "—"}\n`
           )
           .join("\n")
-        : " - Nenhum cliente ativo em alerta atualmente.\n"
+        : " - Nenhum cliente em alerta nesta semana.\n"
       }
 `;
 

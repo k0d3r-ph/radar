@@ -450,6 +450,41 @@ export function Historico() {
     }
   }
 
+  async function excluirAtualizacao(index: number) {
+    if (!selecionada) return;
+
+    toast("Tem certeza que deseja excluir esta atualização?", {
+      action: {
+        label: "Excluir",
+        onClick: async () => {
+          const copy = [...(selecionada.atualizacoes ?? [])];
+          copy.splice(index, 1);
+
+          const atualizado = {
+            ...selecionada,
+            atualizacoes: copy,
+          };
+
+          setSalvando(true);
+          try {
+            await salvarOcorrencia(atualizado);
+            const novasOcs = await carregar();
+            const updatedSelected = novasOcs.find(o => o.id === selecionada.id);
+            setSelecionada(updatedSelected || atualizado);
+            toast.success("Atualização excluída com sucesso!");
+          } catch (error) {
+            console.error("Erro ao excluir atualização:", error);
+            toast.error("Erro ao excluir a atualização.");
+          } finally {
+            setSalvando(false);
+          }
+        },
+      },
+      cancel: { label: "Cancelar", onClick: () => {} },
+      duration: 10000,
+    });
+  }
+
   function fecharDetalhe() {
     setSelecionada(null);
     setNovaAtualizacaoAberta(false);
@@ -1553,16 +1588,25 @@ Score atual: ${novoScore}${mudancasTexto}`;
                               {at.responsavel ? ` · ${formatarNome(at.responsavel)}` : ""}
                             </span>
                             {!isEditingThis && role === "master" && (
-                              <button
-                                type="button"
-                                className="btn-edit-atualizacao"
-                                onClick={() => {
-                                  setEditingUpdateIdx(i);
-                                  setEditingUpdateText(at.descricao);
-                                }}
-                              >
-                                Editar
-                              </button>
+                              <div style={{ display: "flex", gap: "8px" }}>
+                                <button
+                                  type="button"
+                                  className="btn-edit-atualizacao"
+                                  onClick={() => {
+                                    setEditingUpdateIdx(i);
+                                    setEditingUpdateText(at.descricao);
+                                  }}
+                                >
+                                  Editar
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn-delete-atualizacao"
+                                  onClick={() => excluirAtualizacao(i)}
+                                >
+                                  Excluir
+                                </button>
+                              </div>
                             )}
                           </div>
 

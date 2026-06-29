@@ -590,6 +590,26 @@
   color: #2563eb;
 }
 
+.btn-delete-atualizacao {
+  background: transparent;
+  border: none;
+  color: #ef4444;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background-color 0.2s, color 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-delete-atualizacao:hover {
+  background-color: rgba(239, 68, 68, 0.08);
+  color: #dc2626;
+}
+
 .hist-atualizacao-edit-container {
   margin-top: 8px;
   display: flex;

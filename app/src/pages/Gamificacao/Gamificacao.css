@@ -550,6 +550,27 @@
   background-color: rgba(255, 255, 255, 0.015);
 }
 
+/* Highlight row when the logged-in user lost points */
+.gamificacao-table tr.user-lost-points-row td {
+  background-color: rgba(239, 68, 68, 0.04);
+  border-bottom: 1px solid rgba(239, 68, 68, 0.2) !important;
+  color: #fca5a5;
+}
+
+.gamificacao-table tr.user-lost-points-row:hover td {
+  background-color: rgba(239, 68, 68, 0.08);
+}
+
+.gamificacao-table tr.user-lost-points-row td.trainer-cell {
+  color: #fecaca;
+}
+
+.gamificacao-table tr.user-lost-points-row td:first-child {
+  border-left: 4px solid #ef4444;
+  padding-left: 12px;
+}
+
+
 .trainer-cell {
   font-weight: 600;
   color: #ffffff;

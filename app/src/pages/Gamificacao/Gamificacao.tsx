@@ -1166,9 +1166,15 @@ export const Gamificacao: React.FC = () => {
                           const ocInfo = pontoOcorrenciaMap[entry.id || ""];
                           const ocorrenciaId = ocInfo?.id || entry.ocorrenciaId;
                           const isAlerta = ocInfo?.alerta || entry.isAlerta;
+                          const isCurrentUser = entry.treinadorId === user?.uid;
+                          const perdeuPonto = entry.pontos < 0;
+                          const isUserLostPoints = isCurrentUser && perdeuPonto;
 
                           return (
-                            <tr key={entry.id}>
+                            <tr
+                              key={entry.id}
+                              className={isUserLostPoints ? "user-lost-points-row" : ""}
+                            >
                               <td className="trainer-cell">{entry.treinadorNome}</td>
                               <td className="action-cell">
                                 <span className="action-label-text">

@@ -384,8 +384,20 @@ export const Gamificacao: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
 
   // Filtro de data
-  const [filtroDataInicio, setFiltroDataInicio] = useState("");
-  const [filtroDataFim, setFiltroDataFim] = useState("");
+  const [filtroDataInicio, setFiltroDataInicio] = useState(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    return `${year}-${month}-01`;
+  });
+  const [filtroDataFim, setFiltroDataFim] = useState(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const lastDay = new Date(year, month + 1, 0).getDate();
+    const monthStr = String(month + 1).padStart(2, "0");
+    return `${year}-${monthStr}-${String(lastDay).padStart(2, "0")}`;
+  });
 
   const acoesFiltradas = useMemo(() => {
     const baseList = ACOES_DISPONIVEIS.filter((a) => a.tipo !== "treinamento");

@@ -568,7 +568,7 @@ export const Gamificacao: React.FC = () => {
         else if (taxaResposta >= 0.70) bonus = 0.10;
 
         const score = parseFloat((baseScore * (1 + bonus)).toFixed(1));
-        const qtdAcoes = trainerEntries.length;
+        const qtdAcoes = trainerEntries.filter((e) => e.tipoAcao !== "chamado_falha").length;
 
         return {
           ...t,

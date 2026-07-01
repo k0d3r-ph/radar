@@ -8,6 +8,7 @@ import {
   PlayCircle,
   CheckCircle,
   ShieldAlert,
+  Eye,
 } from "lucide-react";
 import { listarEmpresas } from "../../services/empresas";
 import { listarOcorrencias } from "../../services/ocorrencias";
@@ -614,10 +615,62 @@ ${riscoChurn.length > 0
                             {kpiSelecionado === 2 ? (
                               <>
                                 <td style={{ textAlign: "center", fontWeight: 600 }}>
-                                  {(e as any).qtdDuvidas}
+                                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+                                    <span>{(e as any).qtdDuvidas}</span>
+                                    {(e as any).qtdDuvidas > 0 && (
+                                      <button
+                                        onClick={() => navigate(`/historico?empresa=${encodeURIComponent(e.nomeEmpresa)}&tipo=Dúvida`)}
+                                        className="relatorio-action-btn"
+                                        title="Visualizar dúvidas"
+                                        style={{
+                                          background: "rgba(59, 130, 246, 0.15)",
+                                          color: "#60a5fa",
+                                          border: "1px solid rgba(59, 130, 246, 0.25)",
+                                          borderRadius: "6px",
+                                          padding: "2px 6px",
+                                          fontSize: "0.7rem",
+                                          fontWeight: 600,
+                                          cursor: "pointer",
+                                          display: "inline-flex",
+                                          alignItems: "center",
+                                          gap: "2px",
+                                          transition: "0.2s ease"
+                                        }}
+                                      >
+                                        <Eye size={12} />
+                                        Ver
+                                      </button>
+                                    )}
+                                  </div>
                                 </td>
                                 <td style={{ textAlign: "center", fontWeight: 600 }}>
-                                  {(e as any).qtdProblemas}
+                                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+                                    <span>{(e as any).qtdProblemas}</span>
+                                    {(e as any).qtdProblemas > 0 && (
+                                      <button
+                                        onClick={() => navigate(`/historico?empresa=${encodeURIComponent(e.nomeEmpresa)}&tipo=Problema`)}
+                                        className="relatorio-action-btn"
+                                        title="Visualizar problemas"
+                                        style={{
+                                          background: "rgba(239, 68, 68, 0.15)",
+                                          color: "#f87171",
+                                          border: "1px solid rgba(239, 68, 68, 0.25)",
+                                          borderRadius: "6px",
+                                          padding: "2px 6px",
+                                          fontSize: "0.7rem",
+                                          fontWeight: 600,
+                                          cursor: "pointer",
+                                          display: "inline-flex",
+                                          alignItems: "center",
+                                          gap: "2px",
+                                          transition: "0.2s ease"
+                                        }}
+                                      >
+                                        <Eye size={12} />
+                                        Ver
+                                      </button>
+                                    )}
+                                  </div>
                                 </td>
                               </>
                             ) : (

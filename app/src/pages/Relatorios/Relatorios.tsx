@@ -150,7 +150,7 @@ export const Relatorios: React.FC = () => {
         tme,
         progresso,
         farol,
-        dias: calcularDiasNaEsteira(empresa.dataEntrada, progresso, dataBase),
+        dias: calcularDiasNaEsteira(empresa.dataEntrada, progresso, dataBase, empresa.dataFinalizacao),
       };
     });
   }, [empresas, ocorrencias]);
@@ -243,7 +243,13 @@ export const Relatorios: React.FC = () => {
 
   const acimaDoPrazo = useMemo(() => {
     return dadosEmpresas.filter(
-      (e) => !e.isOngoing && !e.isSuspended && e.progresso > 0 && e.progresso < 100 && e.dias > 60
+      (e) =>
+        !e.isOngoing &&
+        !e.isSuspended &&
+        e.progresso > 0 &&
+        e.progresso < 100 &&
+        (!e.dataFinalizacao || e.dataFinalizacao.trim() === "") &&
+        e.dias > 60
     );
   }, [dadosEmpresas]);
 

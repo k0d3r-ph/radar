@@ -188,10 +188,17 @@ export const Relatorios: React.FC = () => {
     });
   }, [dadosEmpresas, limitesSemana]);
 
-  const ativosForaDoExpediente = useMemo(() => {
+  const contatosSuporte = useMemo(() => {
     if (!limitesSemana) return [];
     const { inicio, fim } = limitesSemana;
-    const suporteStats = new Map<string, { duvidas: number; problemas: number }>();
+    const statsMap = new Map<
+      string,
+      {
+        dentro: { duvidas: number; problemas: number; total: number };
+        fora: { duvidas: number; problemas: number; total: number };
+        total: number;
+      }
+    >();
 
     ocorrencias.forEach((o) => {
       if (o.departamento === "Suporte") {
@@ -204,30 +211,42 @@ export const Relatorios: React.FC = () => {
           if (t >= inicio.getTime() && t <= fim.getTime()) {
             const dateObj = new Date(t);
             const hour = dateObj.getHours();
-            if (hour >= 18 || hour < 9) {
-              const key = o.empresa.trim().toLowerCase();
-              const stats = suporteStats.get(key) || { duvidas: 0, problemas: 0 };
+            const day = dateObj.getDay();
+            const isWeekend = day === 0 || day === 6;
+            const isFora = isWeekend || hour >= 18 || hour < 9;
 
-              if (eDuvida) {
-                stats.duvidas += 1;
-              } else {
-                stats.problemas += 1;
-              }
-              suporteStats.set(key, stats);
+            const key = o.empresa.trim().toLowerCase();
+            const stats = statsMap.get(key) || {
+              dentro: { duvidas: 0, problemas: 0, total: 0 },
+              fora: { duvidas: 0, problemas: 0, total: 0 },
+              total: 0,
+            };
+
+            if (isFora) {
+              if (eDuvida) stats.fora.duvidas += 1;
+              else stats.fora.problemas += 1;
+              stats.fora.total += 1;
+            } else {
+              if (eDuvida) stats.dentro.duvidas += 1;
+              else stats.dentro.problemas += 1;
+              stats.dentro.total += 1;
             }
+            stats.total += 1;
+            statsMap.set(key, stats);
           }
         }
       }
     });
 
     return dadosEmpresas
-      .filter((e) => !e.isOngoing && !e.isSuspended && suporteStats.has(e.nomeEmpresa.trim().toLowerCase()))
+      .filter((e) => !e.isOngoing && !e.isSuspended && statsMap.has(e.nomeEmpresa.trim().toLowerCase()))
       .map((e) => {
-        const stats = suporteStats.get(e.nomeEmpresa.trim().toLowerCase())!;
+        const stats = statsMap.get(e.nomeEmpresa.trim().toLowerCase())!;
         return {
           ...e,
-          qtdDuvidas: stats.duvidas,
-          qtdProblemas: stats.problemas,
+          dentroExpediente: stats.dentro,
+          foraExpediente: stats.fora,
+          totalContatos: stats.total,
         };
       });
   }, [dadosEmpresas, ocorrencias, limitesSemana]);
@@ -332,11 +351,11 @@ export const Relatorios: React.FC = () => {
       ehSazonal: true,
     },
     {
-      titulo: "Contatos fora do expediente",
-      valor: ativosForaDoExpediente.length,
+      titulo: "Contato com suporte",
+      valor: contatosSuporte.reduce((acc, curr) => acc + (curr as any).totalContatos, 0),
       desc: "Atendimento suporte",
       icone: <Clock size={22} />,
-      lista: ativosForaDoExpediente,
+      lista: contatosSuporte,
       ehSazonal: true,
     },
     {
@@ -371,6 +390,7 @@ export const Relatorios: React.FC = () => {
     const dataGen = now.toLocaleDateString("pt-BR");
     const horaGen = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
     const semanaStr = `${limitesSemana.inicio.toLocaleDateString("pt-BR")} a ${limitesSemana.fim.toLocaleDateString("pt-BR")}`;
+    const totalContatosSuporte = contatosSuporte.reduce((acc, curr) => acc + (curr as any).totalContatos, 0);
 
     let content = `==================================================
 RELATÓRIO DE ACOMPANHAMENTO DA ESTEIRA DE CAPACITAÇÃO
@@ -381,7 +401,7 @@ Semana de Referência: ${semanaStr}
 RESUMO DOS INDICADORES:
 1. Clientes que entraram na esteira na semana: ${entraramNaSemana.length}
 2. Clientes que concluíram a esteira na semana: ${concluidosNaSemana.length}
-3. Clientes fora do expediente (atendimento Suporte): ${ativosForaDoExpediente.length}
+3. Contatos com suporte (atendimento Suporte): ${totalContatosSuporte}
 4. Clientes sem próximo passo (farol vermelho): ${semProximoPasso.length}
 5. Clientes acima do prazo de onboarding (> 60 dias): ${acimaDoPrazo.length}
 6. Casos com risco de churn (Clientes em Alerta): ${riscoChurn.length}
@@ -410,15 +430,15 @@ ${concluidosNaSemana.length > 0
           .join("\n")
         : " - Nenhum cliente concluído nesta semana.\n"
       }
-3. CLIENTES FORA DO EXPEDIENTE (${ativosForaDoExpediente.length})
-${ativosForaDoExpediente.length > 0
-        ? ativosForaDoExpediente
+3. CONTATOS COM SUPORTE (${totalContatosSuporte})
+${contatosSuporte.length > 0
+        ? contatosSuporte
           .map(
             (e) =>
-              ` - ${e.nomeEmpresa}\n   Treinador: ${formatarNome(e.responsavel) || "-"}\n   CS: ${formatarNome(e.csResponsavel) || "-"}\n   Dúvidas: ${(e as any).qtdDuvidas}\n   Problemas: ${(e as any).qtdProblemas}\n   Valor do Contrato: ${e.valorContrato !== undefined ? `R$ ${e.valorContrato.toFixed(2)}` : "—"}\n`
+              ` - ${e.nomeEmpresa}\n   Treinador: ${formatarNome(e.responsavel) || "-"}\n   CS: ${formatarNome(e.csResponsavel) || "-"}\n   Dentro do Expediente: ${(e as any).dentroExpediente.total} (Dúvidas: ${(e as any).dentroExpediente.duvidas}, Problemas: ${(e as any).dentroExpediente.problemas})\n   Fora do Expediente: ${(e as any).foraExpediente.total} (Dúvidas: ${(e as any).foraExpediente.duvidas}, Problemas: ${(e as any).foraExpediente.problemas})\n   Total de Contatos: ${(e as any).totalContatos}\n   Valor do Contrato: ${e.valorContrato !== undefined ? `R$ ${e.valorContrato.toFixed(2)}` : "—"}\n`
           )
           .join("\n")
-        : " - Nenhum atendimento de suporte fora do expediente registrado nesta semana.\n"
+        : " - Nenhum atendimento de suporte registrado nesta semana.\n"
       }
 4. CLIENTES SEM PRÓXIMO PASSO (${semProximoPasso.length})
 ${semProximoPasso.length > 0
@@ -564,8 +584,9 @@ ${riscoChurn.length > 0
                             <th>Cliente</th>
                             <th>Treinador</th>
                             <th>CS Responsável</th>
-                            <th style={{ textAlign: "center" }}>Dúvidas</th>
-                            <th style={{ textAlign: "center" }}>Problemas</th>
+                            <th style={{ textAlign: "center" }}>Dentro do Expediente</th>
+                            <th style={{ textAlign: "center" }}>Fora do Expediente</th>
+                            <th style={{ textAlign: "center" }}>Total</th>
                             <th style={{ textAlign: "right" }}>Valor de Contrato</th>
                           </tr>
                         ) : (
@@ -614,63 +635,110 @@ ${riscoChurn.length > 0
                             <td>{formatarNome(e.csResponsavel) || "—"}</td>
                             {kpiSelecionado === 2 ? (
                               <>
-                                <td style={{ textAlign: "center", fontWeight: 600 }}>
-                                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
-                                    <span>{(e as any).qtdDuvidas}</span>
-                                    {(e as any).qtdDuvidas > 0 && (
-                                      <button
-                                        onClick={() => navigate(`/historico?empresa=${encodeURIComponent(e.nomeEmpresa)}&tipo=Dúvida`)}
-                                        className="relatorio-action-btn"
-                                        title="Visualizar dúvidas"
-                                        style={{
-                                          background: "rgba(59, 130, 246, 0.15)",
-                                          color: "#60a5fa",
-                                          border: "1px solid rgba(59, 130, 246, 0.25)",
-                                          borderRadius: "6px",
-                                          padding: "2px 6px",
-                                          fontSize: "0.7rem",
-                                          fontWeight: 600,
-                                          cursor: "pointer",
-                                          display: "inline-flex",
-                                          alignItems: "center",
-                                          gap: "2px",
-                                          transition: "0.2s ease"
-                                        }}
-                                      >
-                                        <Eye size={12} />
-                                        Ver
-                                      </button>
-                                    )}
+                                <td style={{ textAlign: "center" }}>
+                                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px" }}>
+                                    <span style={{ fontWeight: 700, fontSize: "0.95rem" }}>
+                                      {(e as any).dentroExpediente.total}
+                                    </span>
+                                    <div style={{ display: "flex", gap: "6px", fontSize: "0.75rem", color: "#a1a1aa" }}>
+                                      <span style={{ display: "inline-flex", alignItems: "center", gap: "3px" }}>
+                                        D: {(e as any).dentroExpediente.duvidas}
+                                        {(e as any).dentroExpediente.duvidas > 0 && (
+                                          <button
+                                            onClick={() => navigate(`/historico?empresa=${encodeURIComponent(e.nomeEmpresa)}&tipo=Dúvida`)}
+                                            style={{
+                                              background: "rgba(59, 130, 246, 0.15)",
+                                              color: "#60a5fa",
+                                              border: "1px solid rgba(59, 130, 246, 0.25)",
+                                              borderRadius: "4px",
+                                              padding: "1px 4px",
+                                              cursor: "pointer",
+                                              display: "inline-flex",
+                                              alignItems: "center"
+                                            }}
+                                            title="Ver dúvidas"
+                                          >
+                                            <Eye size={10} />
+                                          </button>
+                                        )}
+                                      </span>
+                                      <span style={{ display: "inline-flex", alignItems: "center", gap: "3px" }}>
+                                        P: {(e as any).dentroExpediente.problemas}
+                                        {(e as any).dentroExpediente.problemas > 0 && (
+                                          <button
+                                            onClick={() => navigate(`/historico?empresa=${encodeURIComponent(e.nomeEmpresa)}&tipo=Problema`)}
+                                            style={{
+                                              background: "rgba(239, 68, 68, 0.15)",
+                                              color: "#f87171",
+                                              border: "1px solid rgba(239, 68, 68, 0.25)",
+                                              borderRadius: "4px",
+                                              padding: "1px 4px",
+                                              cursor: "pointer",
+                                              display: "inline-flex",
+                                              alignItems: "center"
+                                            }}
+                                            title="Ver problemas"
+                                          >
+                                            <Eye size={10} />
+                                          </button>
+                                        )}
+                                      </span>
+                                    </div>
                                   </div>
                                 </td>
-                                <td style={{ textAlign: "center", fontWeight: 600 }}>
-                                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
-                                    <span>{(e as any).qtdProblemas}</span>
-                                    {(e as any).qtdProblemas > 0 && (
-                                      <button
-                                        onClick={() => navigate(`/historico?empresa=${encodeURIComponent(e.nomeEmpresa)}&tipo=Problema`)}
-                                        className="relatorio-action-btn"
-                                        title="Visualizar problemas"
-                                        style={{
-                                          background: "rgba(239, 68, 68, 0.15)",
-                                          color: "#f87171",
-                                          border: "1px solid rgba(239, 68, 68, 0.25)",
-                                          borderRadius: "6px",
-                                          padding: "2px 6px",
-                                          fontSize: "0.7rem",
-                                          fontWeight: 600,
-                                          cursor: "pointer",
-                                          display: "inline-flex",
-                                          alignItems: "center",
-                                          gap: "2px",
-                                          transition: "0.2s ease"
-                                        }}
-                                      >
-                                        <Eye size={12} />
-                                        Ver
-                                      </button>
-                                    )}
+                                <td style={{ textAlign: "center" }}>
+                                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px" }}>
+                                    <span style={{ fontWeight: 700, fontSize: "0.95rem" }}>
+                                      {(e as any).foraExpediente.total}
+                                    </span>
+                                    <div style={{ display: "flex", gap: "6px", fontSize: "0.75rem", color: "#a1a1aa" }}>
+                                      <span style={{ display: "inline-flex", alignItems: "center", gap: "3px" }}>
+                                        D: {(e as any).foraExpediente.duvidas}
+                                        {(e as any).foraExpediente.duvidas > 0 && (
+                                          <button
+                                            onClick={() => navigate(`/historico?empresa=${encodeURIComponent(e.nomeEmpresa)}&tipo=Dúvida`)}
+                                            style={{
+                                              background: "rgba(59, 130, 246, 0.15)",
+                                              color: "#60a5fa",
+                                              border: "1px solid rgba(59, 130, 246, 0.25)",
+                                              borderRadius: "4px",
+                                              padding: "1px 4px",
+                                              cursor: "pointer",
+                                              display: "inline-flex",
+                                              alignItems: "center"
+                                            }}
+                                            title="Ver dúvidas"
+                                          >
+                                            <Eye size={10} />
+                                          </button>
+                                        )}
+                                      </span>
+                                      <span style={{ display: "inline-flex", alignItems: "center", gap: "3px" }}>
+                                        P: {(e as any).foraExpediente.problemas}
+                                        {(e as any).foraExpediente.problemas > 0 && (
+                                          <button
+                                            onClick={() => navigate(`/historico?empresa=${encodeURIComponent(e.nomeEmpresa)}&tipo=Problema`)}
+                                            style={{
+                                              background: "rgba(239, 68, 68, 0.15)",
+                                              color: "#f87171",
+                                              border: "1px solid rgba(239, 68, 68, 0.25)",
+                                              borderRadius: "4px",
+                                              padding: "1px 4px",
+                                              cursor: "pointer",
+                                              display: "inline-flex",
+                                              alignItems: "center"
+                                            }}
+                                            title="Ver problemas"
+                                          >
+                                            <Eye size={10} />
+                                          </button>
+                                        )}
+                                      </span>
+                                    </div>
                                   </div>
+                                </td>
+                                <td style={{ textAlign: "center", fontWeight: 700, fontSize: "1rem" }}>
+                                  {(e as any).totalContatos}
                                 </td>
                               </>
                             ) : (

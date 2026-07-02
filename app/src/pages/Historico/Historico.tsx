@@ -1329,7 +1329,12 @@ Score atual: ${novoScore}${mudancasTexto}`;
           </tbody>
         </table>
 
+        <div className="hist-total-registros">
+          Total: <strong>{filtradas.length}</strong> {filtradas.length === 1 ? "ocorrência" : "ocorrências"}
+        </div>
+
         {selecionada && (
+
           <div className="hist-detail-overlay">
             <div
               className="hist-detail-card"

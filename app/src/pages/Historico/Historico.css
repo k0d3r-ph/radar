@@ -1495,3 +1495,16 @@
     gap: 8px;
   }
 }
+
+.hist-total-registros {
+  margin-top: 16px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #94a3b8;
+  text-align: right;
+  padding: 4px 8px;
+}
+
+.hist-total-registros strong {
+  color: #ffffff;
+}

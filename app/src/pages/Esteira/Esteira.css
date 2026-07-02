@@ -272,7 +272,6 @@ body {
 }
 body {
   margin: 0;
-  background: linear-gradient(180deg, #e9f1ff 0%, #f7fbff 100%);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

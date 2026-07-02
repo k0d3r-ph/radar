@@ -568,20 +568,30 @@ export const Gamificacao: React.FC = () => {
         else if (taxaResposta >= 0.70) bonus = 0.10;
 
         const score = parseFloat((baseScore * (1 + bonus)).toFixed(1));
-        const qtdAcoes = trainerEntries.filter((e) => e.tipoAcao !== "chamado_falha").length;
+        const qtdAcoes = trainerEntries.filter((e) => {
+          if (e.tipoAcao === "chamado_falha") return false;
+          if (e.tipoAcao === "treinamento" && e.treinamentoTema) {
+            const themes = e.treinamentoTema.split(",").map((theme) => theme.trim().toLowerCase());
+            if (themes.includes("cancelado") || themes.includes("ausente")) return false;
+          }
+          return true;
+        }).length;
+
+        const qtdFalhas = trainerEntries.filter((e) => e.tipoAcao === "chamado_falha").length;
 
         return {
           ...t,
           baseScore,
           score,
           qtdAcoes,
+          qtdFalhas,
           totalTrainingsCount,
           answeredTrainingsCount,
           taxaResposta,
           bonusPercentage: Math.round(bonus * 100),
         };
       })
-      .sort((a, b) => b.score - a.score || a.nome.localeCompare(b.nome));
+      .sort((a, b) => b.score - a.score || a.qtdFalhas - b.qtdFalhas || a.nome.localeCompare(b.nome));
   }, [trainers, filteredEntries]);
 
   const handleLancar = async (e: React.FormEvent) => {

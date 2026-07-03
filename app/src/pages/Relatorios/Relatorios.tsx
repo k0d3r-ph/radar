@@ -48,6 +48,7 @@ export const Relatorios: React.FC = () => {
     return `${year}-${month}-${day}`;
   });
   const [kpiSelecionado, setKpiSelecionado] = useState<number>(0);
+  const [dataComparacao, setDataComparacao] = useState<string>("");
 
   useEffect(() => {
     async function carregarDados() {
@@ -333,6 +334,178 @@ export const Relatorios: React.FC = () => {
       });
   }, [dadosEmpresas, ocorrencias, limitesSemana]);
 
+  const limitesSemanaComparacao = useMemo(() => {
+    if (!dataComparacao) return null;
+    const [y, m, d] = dataComparacao.split("-").map(Number);
+    const dataRef = new Date(y, m - 1, d);
+    const diaDaSemana = dataRef.getDay();
+
+    const inicio = new Date(dataRef);
+    inicio.setDate(dataRef.getDate() - diaDaSemana);
+    inicio.setHours(0, 0, 0, 0);
+
+    const fim = new Date(inicio);
+    fim.setDate(inicio.getDate() + 6);
+    fim.setHours(23, 59, 59, 999);
+
+    return { inicio, fim };
+  }, [dataComparacao]);
+
+  const entraramNaSemanaComparacao = useMemo(() => {
+    if (!limitesSemanaComparacao) return [];
+    const { inicio, fim } = limitesSemanaComparacao;
+    return dadosEmpresas.filter((e) => {
+      const dataEntradaDate = parseDataLocal(e.dataEntrada);
+      return !e.isOngoing && !e.isSuspended && dataEntradaDate && dataEntradaDate >= inicio && dataEntradaDate <= fim;
+    });
+  }, [dadosEmpresas, limitesSemanaComparacao]);
+
+  const concluidosNaSemanaComparacao = useMemo(() => {
+    if (!limitesSemanaComparacao) return [];
+    const { inicio, fim } = limitesSemanaComparacao;
+    return dadosEmpresas.filter((e) => {
+      const dataFinalizacaoDate = parseDataLocal(e.dataFinalizacao || "");
+      return (
+        !e.isOngoing &&
+        !e.isSuspended &&
+        dataFinalizacaoDate &&
+        dataFinalizacaoDate >= inicio &&
+        dataFinalizacaoDate <= fim
+      );
+    });
+  }, [dadosEmpresas, limitesSemanaComparacao]);
+
+  const contatosSuporteComparacao = useMemo(() => {
+    if (!limitesSemanaComparacao) return [];
+    const { inicio, fim } = limitesSemanaComparacao;
+    const statsMap = new Map<
+      string,
+      {
+        dentro: { duvidas: number; problemas: number; total: number };
+        fora: { duvidas: number; problemas: number; total: number };
+        total: number;
+      }
+    >();
+
+    ocorrencias.forEach((o) => {
+      if (o.departamento === "Suporte") {
+        const tipoLower = (o.tipo || "").toLowerCase();
+        const eDuvida = tipoLower.includes("duvida") || tipoLower.includes("dúvida");
+        const eProblema = tipoLower.includes("problema");
+
+        if (eDuvida || eProblema) {
+          const t = o.dataOcorrencia || o.createdAt || 0;
+          if (t >= inicio.getTime() && t <= fim.getTime()) {
+            const dateObj = new Date(t);
+            const hour = dateObj.getHours();
+            const day = dateObj.getDay();
+            const isWeekend = day === 0 || day === 6;
+            const isFora = isWeekend || hour >= 18 || hour < 9;
+
+            const key = o.empresa.trim().toLowerCase();
+            const stats = statsMap.get(key) || {
+              dentro: { duvidas: 0, problemas: 0, total: 0 },
+              fora: { duvidas: 0, problemas: 0, total: 0 },
+              total: 0,
+            };
+
+            if (isFora) {
+              if (eDuvida) stats.fora.duvidas += 1;
+              else stats.fora.problemas += 1;
+              stats.fora.total += 1;
+            } else {
+              if (eDuvida) stats.dentro.duvidas += 1;
+              else stats.dentro.problemas += 1;
+              stats.dentro.total += 1;
+            }
+            stats.total += 1;
+            statsMap.set(key, stats);
+          }
+        }
+      }
+    });
+
+    return dadosEmpresas
+      .filter((e) => !e.isOngoing && !e.isSuspended && statsMap.has(e.nomeEmpresa.trim().toLowerCase()))
+      .map((e) => {
+        const stats = statsMap.get(e.nomeEmpresa.trim().toLowerCase())!;
+        return {
+          ...e,
+          dentroExpediente: stats.dentro,
+          foraExpediente: stats.fora,
+          totalContatos: stats.total,
+        };
+      });
+  }, [dadosEmpresas, ocorrencias, limitesSemanaComparacao]);
+
+  const riscoChurnComparacao = useMemo(() => {
+    if (!limitesSemanaComparacao) return [];
+    const { fim } = limitesSemanaComparacao;
+
+    return dadosEmpresas
+      .filter((e) => {
+        const ultimaOcorrenciaAlertaNaSemana = ocorrencias
+          .filter(
+            (o) =>
+              o.empresa.trim().toLowerCase() === e.nomeEmpresa.trim().toLowerCase() &&
+              (o.alerta === true || o.retirarAlerta === true) &&
+              (o.dataOcorrencia || o.createdAt || 0) <= fim.getTime()
+          )
+          .sort(
+            (a, b) =>
+              (b.dataOcorrencia || b.createdAt || 0) -
+              (a.dataOcorrencia || a.createdAt || 0)
+          )[0];
+
+        let temAlertaNaSemana = false;
+        if (ultimaOcorrenciaAlertaNaSemana) {
+          if (ultimaOcorrenciaAlertaNaSemana.alerta === true) {
+            temAlertaNaSemana = true;
+          }
+        } else {
+          temAlertaNaSemana = !!e.alerta;
+        }
+
+        return !e.isOngoing && temAlertaNaSemana;
+      });
+  }, [dadosEmpresas, ocorrencias, limitesSemanaComparacao]);
+
+  const totalContatosSuporte = useMemo(() => {
+    return contatosSuporte.reduce((acc, curr) => acc + (curr as any).totalContatos, 0);
+  }, [contatosSuporte]);
+
+  const totalContatosSuporteComp = useMemo(() => {
+    return contatosSuporteComparacao.reduce((acc, curr) => acc + (curr as any).totalContatos, 0);
+  }, [contatosSuporteComparacao]);
+
+  const foraExpedienteTotal = useMemo(() => {
+    return contatosSuporte.reduce((acc, curr) => acc + (curr as any).foraExpediente.total, 0);
+  }, [contatosSuporte]);
+
+  const foraExpedienteTotalComp = useMemo(() => {
+    return contatosSuporteComparacao.reduce((acc, curr) => acc + (curr as any).foraExpediente.total, 0);
+  }, [contatosSuporteComparacao]);
+
+  const dentroExpedienteTotal = useMemo(() => {
+    return contatosSuporte.reduce((acc, curr) => acc + (curr as any).dentroExpediente.total, 0);
+  }, [contatosSuporte]);
+
+  const dentroExpedienteTotalComp = useMemo(() => {
+    return contatosSuporteComparacao.reduce((acc, curr) => acc + (curr as any).dentroExpediente.total, 0);
+  }, [contatosSuporteComparacao]);
+
+  const formatarDiferenca = (atual: number, anterior: number) => {
+    if (anterior === 0) {
+      if (atual === 0) return { texto: "0%", classe: "diff-neutral", diff: 0 };
+      return { texto: `+${atual} (novos)`, classe: "diff-positive", diff: 100 };
+    }
+    const diff = ((atual - anterior) / anterior) * 100;
+    const sinal = diff > 0 ? "+" : "";
+    const texto = `${sinal}${diff.toFixed(0)}%`;
+    const classe = diff > 0 ? "diff-positive" : diff < 0 ? "diff-negative" : "diff-neutral";
+    return { texto, classe, diff };
+  };
+
   const kpis = [
     {
       titulo: "Entraram na semana",
@@ -352,7 +525,7 @@ export const Relatorios: React.FC = () => {
     },
     {
       titulo: "Contato com suporte",
-      valor: contatosSuporte.reduce((acc, curr) => acc + (curr as any).totalContatos, 0),
+      valor: totalContatosSuporte,
       desc: "Atendimento suporte",
       icone: <Clock size={22} />,
       lista: contatosSuporte,
@@ -390,14 +563,44 @@ export const Relatorios: React.FC = () => {
     const dataGen = now.toLocaleDateString("pt-BR");
     const horaGen = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
     const semanaStr = `${limitesSemana.inicio.toLocaleDateString("pt-BR")} a ${limitesSemana.fim.toLocaleDateString("pt-BR")}`;
-    const totalContatosSuporte = contatosSuporte.reduce((acc, curr) => acc + (curr as any).totalContatos, 0);
+
+    let comparacaoStr = "";
+    if (dataComparacao && limitesSemanaComparacao) {
+      const pctTotal = formatarDiferenca(totalContatosSuporte, totalContatosSuporteComp);
+      const pctDentro = formatarDiferenca(dentroExpedienteTotal, dentroExpedienteTotalComp);
+      const pctFora = formatarDiferenca(foraExpedienteTotal, foraExpedienteTotalComp);
+
+      const entrouComp = entraramNaSemanaComparacao.length;
+      const pctEntrou = formatarDiferenca(entraramNaSemana.length, entrouComp);
+
+      const concluiuComp = concluidosNaSemanaComparacao.length;
+      const pctConcluiu = formatarDiferenca(concluidosNaSemana.length, concluiuComp);
+
+      const churnComp = riscoChurnComparacao.length;
+      const pctChurn = formatarDiferenca(riscoChurn.length, churnComp);
+
+      comparacaoStr = `
+==================================================
+COMPARATIVO COM A SEMANA DE: ${limitesSemanaComparacao.inicio.toLocaleDateString("pt-BR")} a ${limitesSemanaComparacao.fim.toLocaleDateString("pt-BR")}
+==================================================
+1. Entraram na esteira: ${entraramNaSemana.length} vs ${entrouComp} (${pctEntrou.texto})
+2. Concluíram a esteira: ${concluidosNaSemana.length} vs ${concluiuComp} (${pctConcluiu.texto})
+3. Risco de Churn: ${riscoChurn.length} vs ${churnComp} (${pctChurn.texto})
+
+CONTATOS COM SUPORTE:
+- Total: ${totalContatosSuporte} vs ${totalContatosSuporteComp} (${pctTotal.texto})
+- Dentro do Expediente: ${dentroExpedienteTotal} vs ${dentroExpedienteTotalComp} (${pctDentro.texto})
+- Fora do Expediente: ${foraExpedienteTotal} vs ${foraExpedienteTotalComp} (${pctFora.texto})
+==================================================
+`;
+    }
 
     let content = `==================================================
 RELATÓRIO DE ACOMPANHAMENTO DA ESTEIRA DE CAPACITAÇÃO
 Gerado em: ${dataGen} às ${horaGen}
 Semana de Referência: ${semanaStr}
 ==================================================
-
+${comparacaoStr}
 RESUMO DOS INDICADORES:
 1. Clientes que entraram na esteira na semana: ${entraramNaSemana.length}
 2. Clientes que concluíram a esteira na semana: ${concluidosNaSemana.length}
@@ -516,22 +719,49 @@ ${riscoChurn.length > 0
         <>
           {/* Filtro de Data */}
           <div className="relatorios-filtros">
-            <label htmlFor="data-referencia">Data de referência:</label>
-            <input
-              id="data-referencia"
-              type="date"
-              value={dataReferencia}
-              onChange={(e) => {
-                setDataReferencia(e.target.value);
-                // Ao mudar a data, mantém o KPI selecionado ou volta pro inicial se for conveniente
-              }}
-            />
-            {limitesSemana && (
-              <span className="semana-info-badge">
-                <Calendar size={14} style={{ marginRight: "6px", verticalAlign: "middle" }} />
-                Semana: {limitesSemana.inicio.toLocaleDateString("pt-BR")} até {limitesSemana.fim.toLocaleDateString("pt-BR")}
-              </span>
-            )}
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+              <label htmlFor="data-referencia">Data de referência:</label>
+              <input
+                id="data-referencia"
+                type="date"
+                value={dataReferencia}
+                onChange={(e) => {
+                  setDataReferencia(e.target.value);
+                }}
+              />
+              {limitesSemana && (
+                <span className="semana-info-badge">
+                  <Calendar size={14} style={{ marginRight: "6px", verticalAlign: "middle" }} />
+                  Semana: {limitesSemana.inicio.toLocaleDateString("pt-BR")} até {limitesSemana.fim.toLocaleDateString("pt-BR")}
+                </span>
+              )}
+            </div>
+
+            <div className="comparacao-filtro-container">
+              <label htmlFor="data-comparacao">Comparar com semana de:</label>
+              <input
+                id="data-comparacao"
+                type="date"
+                value={dataComparacao}
+                onChange={(e) => setDataComparacao(e.target.value)}
+              />
+              {dataComparacao && limitesSemanaComparacao && (
+                <span className="semana-info-badge comparacao-badge">
+                  <Calendar size={14} style={{ marginRight: "6px", verticalAlign: "middle" }} />
+                  Comp.: {limitesSemanaComparacao.inicio.toLocaleDateString("pt-BR")} até {limitesSemanaComparacao.fim.toLocaleDateString("pt-BR")}
+                </span>
+              )}
+              {dataComparacao && (
+                <button
+                  type="button"
+                  className="btn-limpar-comparacao"
+                  onClick={() => setDataComparacao("")}
+                  title="Limpar comparação"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
           </div>
 
           {loading ? (
@@ -543,24 +773,47 @@ ${riscoChurn.length > 0
             <>
               {/* Grid de KPIs */}
               <div className="relatorios-grid">
-                {kpis.map((kpi, idx) => (
-                  <div
-                    key={idx}
-                    className={`relatorio-kpi-card ${kpiSelecionado === idx ? "active" : ""}`}
-                    onClick={() => setKpiSelecionado(idx)}
-                  >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span className="kpi-label">{kpi.titulo}</span>
-                      <span style={{ opacity: 0.8 }}>{kpi.icone}</span>
+                {kpis.map((kpi, idx) => {
+                  let diffResult = null;
+                  if (dataComparacao && kpi.ehSazonal) {
+                    let valorComp = 0;
+                    if (idx === 0) valorComp = entraramNaSemanaComparacao.length;
+                    else if (idx === 1) valorComp = concluidosNaSemanaComparacao.length;
+                    else if (idx === 2) valorComp = totalContatosSuporteComp;
+                    else if (idx === 5) valorComp = riscoChurnComparacao.length;
+                    
+                    diffResult = formatarDiferenca(kpi.valor, valorComp);
+                  }
+
+                  return (
+                    <div
+                      key={idx}
+                      className={`relatorio-kpi-card ${kpiSelecionado === idx ? "active" : ""}`}
+                      onClick={() => setKpiSelecionado(idx)}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span className="kpi-label">{kpi.titulo}</span>
+                        <span style={{ opacity: 0.8 }}>{kpi.icone}</span>
+                      </div>
+                      <div className="kpi-value-row" style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", width: "100%" }}>
+                        <span className="kpi-value">{kpi.valor}</span>
+                        {diffResult && (
+                          <span className={`kpi-comparison-badge ${diffResult.classe}`}>
+                            {diffResult.texto}
+                          </span>
+                        )}
+                      </div>
+                      <span className="kpi-desc">
+                        {kpi.desc} {kpi.ehSazonal && " (esta semana)"}
+                      </span>
+                      {diffResult && (
+                        <span className="kpi-desc" style={{ fontSize: "0.75rem", opacity: 0.7 }}>
+                          vs semana comp.
+                        </span>
+                      )}
                     </div>
-                    <div className="kpi-value-row">
-                      <span className="kpi-value">{kpi.valor}</span>
-                    </div>
-                    <span className="kpi-desc">
-                      {kpi.desc} {kpi.ehSazonal && " (esta semana)"}
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Section de detalhamento */}
@@ -574,6 +827,61 @@ ${riscoChurn.length > 0
                     Exportar TXT
                   </button>
                 </div>
+
+                {kpiSelecionado === 2 && dataComparacao && (
+                  <div className="relatorio-comparacao-container">
+                    <div className="comparacao-header">
+                      <h4>Comparativo com a semana de {limitesSemanaComparacao?.inicio.toLocaleDateString("pt-BR")} a {limitesSemanaComparacao?.fim.toLocaleDateString("pt-BR")}</h4>
+                    </div>
+                    <div className="comparacao-cards-grid">
+                      {(() => {
+                        const pctTotalResult = formatarDiferenca(totalContatosSuporte, totalContatosSuporteComp);
+                        const pctDentroResult = formatarDiferenca(dentroExpedienteTotal, dentroExpedienteTotalComp);
+                        const pctForaResult = formatarDiferenca(foraExpedienteTotal, foraExpedienteTotalComp);
+
+                        return (
+                          <>
+                            <div className="comparacao-card-item">
+                              <span className="comp-item-label">Total de Contatos</span>
+                              <div className="comp-item-values">
+                                <span className="comp-val-atual">{totalContatosSuporte}</span>
+                                <span className="comp-val-separator">vs</span>
+                                <span className="comp-val-anterior">{totalContatosSuporteComp}</span>
+                              </div>
+                              <span className={`comp-item-pct ${pctTotalResult.classe}`}>
+                                {pctTotalResult.texto} {pctTotalResult.diff > 0 ? "a mais" : pctTotalResult.diff < 0 ? "a menos" : "sem alteração"}
+                              </span>
+                            </div>
+
+                            <div className="comparacao-card-item">
+                              <span className="comp-item-label">Dentro do Expediente</span>
+                              <div className="comp-item-values">
+                                <span className="comp-val-atual">{dentroExpedienteTotal}</span>
+                                <span className="comp-val-separator">vs</span>
+                                <span className="comp-val-anterior">{dentroExpedienteTotalComp}</span>
+                              </div>
+                              <span className={`comp-item-pct ${pctDentroResult.classe}`}>
+                                {pctDentroResult.texto} {pctDentroResult.diff > 0 ? "a mais" : pctDentroResult.diff < 0 ? "a menos" : "sem alteração"}
+                              </span>
+                            </div>
+
+                            <div className="comparacao-card-item highlight-card">
+                              <span className="comp-item-label">Fora do Expediente</span>
+                              <div className="comp-item-values">
+                                <span className="comp-val-atual">{foraExpedienteTotal}</span>
+                                <span className="comp-val-separator">vs</span>
+                                <span className="comp-val-anterior">{foraExpedienteTotalComp}</span>
+                              </div>
+                              <span className={`comp-item-pct ${pctForaResult.classe}`}>
+                                {pctForaResult.texto} {pctForaResult.diff > 0 ? "a mais" : pctForaResult.diff < 0 ? "a menos" : "sem alteração"}
+                              </span>
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                )}
 
                 <div className="relatorios-table-wrapper">
                   {selectedKpi.lista.length > 0 ? (

@@ -253,14 +253,25 @@ export const Relatorios: React.FC = () => {
   }, [dadosEmpresas, ocorrencias, limitesSemana]);
 
   const semProximoPasso = useMemo(() => {
-    return dadosEmpresas.filter(
-      (e) =>
-        !e.isOngoing &&
-        !e.isSuspended &&
-        e.farol === "vermelho" &&
-        ((e.progresso > 0 && e.progresso < 100) || e.alerta === true)
-    );
-  }, [dadosEmpresas]);
+    const agora = Date.now();
+    return dadosEmpresas.filter((e) => {
+      if (e.isOngoing || e.isSuspended || e.progresso >= 100) return false;
+
+      const ocorrenciasDaEmpresa = ocorrencias.filter(
+        (o) => o.empresa.trim().toLowerCase() === e.nomeEmpresa.trim().toLowerCase()
+      );
+
+      const temAgendamento = ocorrenciasDaEmpresa.some(
+        (o) =>
+          (o.tipo === "Informativa" || o.tipo === "Treinamento" || o.tipo === "Checkpoint") &&
+          o.departamento === "Treinamento" &&
+          o.dataOcorrencia &&
+          o.dataOcorrencia > agora
+      );
+
+      return !temAgendamento;
+    });
+  }, [dadosEmpresas, ocorrencias]);
 
   const acimaDoPrazo = useMemo(() => {
     return dadosEmpresas.filter(

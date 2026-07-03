@@ -1012,7 +1012,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
       return ["Informativa", "Financeira", "Comercial", "Treinamento", "Checkpoint", "Problema", "Dúvida"];
     }
     if (role === "treinador") {
-      return ["Informativa", "Treinamento", "Checkpoint"];
+      return ["Informativa", "Treinamento", "Checkpoint", "Dúvida"];
     }
     if (role === "suporte") {
       return ["Informativa", "Problema", "Dúvida"];

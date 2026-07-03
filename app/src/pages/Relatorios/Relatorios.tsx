@@ -705,7 +705,7 @@ ${riscoChurn.length > 0
           className={`relatorios-tab-btn ${activeTab === "esteira" ? "active" : ""}`}
           onClick={() => setActiveTab("esteira")}
         >
-          Acompanhamento da Esteira
+          Visão Geral
         </button>
         <button
           className={`relatorios-tab-btn ${activeTab === "score" ? "active" : ""}`}
@@ -781,7 +781,7 @@ ${riscoChurn.length > 0
                     else if (idx === 1) valorComp = concluidosNaSemanaComparacao.length;
                     else if (idx === 2) valorComp = totalContatosSuporteComp;
                     else if (idx === 5) valorComp = riscoChurnComparacao.length;
-                    
+
                     diffResult = formatarDiferenca(kpi.valor, valorComp);
                   }
 

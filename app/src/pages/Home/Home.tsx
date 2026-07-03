@@ -503,7 +503,7 @@ export default function Home() {
         tme,
         progresso,
         farol,
-        dias: calcularDiasNaEsteira(empresa.dataEntrada, progresso, dataBase),
+        dias: calcularDiasNaEsteira(empresa.dataEntrada, progresso, dataBase, empresa.dataFinalizacao),
       };
     });
   }, [empresas, historico]);

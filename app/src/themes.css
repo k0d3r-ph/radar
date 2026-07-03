@@ -1,0 +1,1340 @@
+/* ==========================================
+   SISTEMA DE TEMAS GLOBAL (LIGHT & DARK MODE)
+   ========================================== */
+
+/* Transições suaves para mudança de tema */
+body {
+  transition: background-color 0.25s ease, background-image 0.25s ease, color 0.25s ease;
+}
+
+/* ==========================================
+   1. TEMA ESCURO (DARK MODE - PADRÃO)
+   ========================================== */
+body.dark-theme {
+  background-color: #0b0f19 !important;
+  background-image: none !important;
+  color: #f3f4f6;
+}
+
+/* Navbar no Dark Mode */
+body.dark-theme .app-nav {
+  background: #0f172a !important;
+  border-bottom: 1.5px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25) !important;
+}
+
+body.dark-theme .nav-link {
+  color: #94a3b8 !important;
+}
+
+body.dark-theme .nav-link:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: #ffffff !important;
+}
+
+body.dark-theme .nav-link.active {
+  background: rgba(59, 130, 246, 0.15) !important;
+  color: #3b82f6 !important;
+}
+
+body.dark-theme .nav-logout-btn {
+  color: #94a3b8 !important;
+}
+
+body.dark-theme .nav-logout-btn:hover {
+  background-color: rgba(239, 68, 68, 0.15) !important;
+  color: #ef4444 !important;
+}
+
+/* Histórico de Ocorrências no Dark Mode */
+body.dark-theme .hist-shell {
+  color: #ffffff !important;
+}
+
+body.dark-theme .hist-title {
+  color: #ffffff !important;
+}
+
+body.dark-theme .hist-subtitle {
+  color: #94a3b8 !important;
+}
+
+body.dark-theme .hist-filtros {
+  background: #1e293b !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+body.dark-theme .hist-busca,
+body.dark-theme .hist-select-filtro,
+body.dark-theme .hist-date-input {
+  background: #0f172a !important;
+  color: #ffffff !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.12) !important;
+}
+
+body.dark-theme .hist-busca::placeholder {
+  color: #64748b !important;
+}
+
+body.dark-theme .btn-limpar-filtros {
+  background: #334155 !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.08) !important;
+  color: #cbd5e1 !important;
+}
+
+body.dark-theme .btn-limpar-filtros:hover {
+  background: #475569 !important;
+  color: #ffffff !important;
+}
+
+body.dark-theme .hist-table-wrapper {
+  background: #1e293b !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2) !important;
+}
+
+body.dark-theme .hist-table thead {
+  background: rgba(255, 255, 255, 0.02) !important;
+}
+
+body.dark-theme .hist-table th {
+  color: #94a3b8 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+body.dark-theme .hist-table td {
+  color: #cbd5e1 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+body.dark-theme .hist-table tbody tr:hover,
+body.dark-theme .hist-row-click:hover {
+  background: rgba(255, 255, 255, 0.02) !important;
+}
+
+body.dark-theme .empresa-cell {
+  color: #60a5fa !important;
+}
+
+body.dark-theme .descricao-cell {
+  color: #94a3b8 !important;
+}
+
+/* Modais do Histórico no Dark Mode */
+body.dark-theme .hist-detail-card,
+body.dark-theme .score-modal-card {
+  background: #1e293b !important;
+  color: #ffffff !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4) !important;
+}
+
+body.dark-theme .hist-detail-header h2,
+body.dark-theme .score-modal-header h2 {
+  color: #ffffff !important;
+}
+
+body.dark-theme .score-modal-header {
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+body.dark-theme .score-modal-fechar {
+  color: #94a3b8 !important;
+}
+
+body.dark-theme .score-modal-fechar:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+}
+
+body.dark-theme .score-pergunta {
+  background: #0f172a !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+body.dark-theme .checkbox-label-score {
+  color: #cbd5e1 !important;
+}
+
+body.dark-theme .score-modal-footer {
+  border-top-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+body.dark-theme .score-calculo-previo {
+  color: #cbd5e1 !important;
+}
+
+body.dark-theme .score-calculo-previo strong {
+  color: #ffffff !important;
+}
+
+body.dark-theme .score-hint {
+  color: #94a3b8 !important;
+}
+
+body.dark-theme .tipo--mudanca-score {
+  background: rgba(249, 115, 22, 0.15) !important;
+  color: #ffedd5 !important;
+  border: 1px solid rgba(249, 115, 22, 0.3) !important;
+}
+
+body.dark-theme .hist-detail-grid span,
+body.dark-theme .hist-detail-desc span {
+  color: #94a3b8 !important;
+}
+
+body.dark-theme .hist-detail-desc p {
+  color: #e2e8f0 !important;
+}
+
+body.dark-theme .hist-atualizacao-item {
+  background: rgba(0, 0, 0, 0.15) !important;
+  border-left-color: #334155 !important;
+}
+
+body.dark-theme .hist-atualizacao-meta {
+  color: #94a3b8 !important;
+}
+
+body.dark-theme .hist-atualizacao-item p {
+  color: #cbd5e1 !important;
+}
+
+body.dark-theme .hist-atualizacao-edit-textarea {
+  background: #0f172a !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #ffffff !important;
+}
+
+/* Histórico - Painel Lateral no Dark Mode */
+body.dark-theme .hist-overlay {
+  background: rgba(0, 0, 0, 0.6) !important;
+}
+
+body.dark-theme .hist-painel {
+  background: #1e293b !important;
+  color: #ffffff !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: -10px 0 30px rgba(0, 0, 0, 0.3) !important;
+}
+
+body.dark-theme .hist-painel-header h2 {
+  color: #ffffff !important;
+}
+
+body.dark-theme .hist-fechar {
+  color: #94a3b8 !important;
+}
+
+body.dark-theme .hist-fechar:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+}
+
+body.dark-theme .hist-campo label {
+  color: #cbd5e1 !important;
+}
+
+body.dark-theme .hist-campo input,
+body.dark-theme .hist-campo textarea,
+body.dark-theme .hist-campo select {
+  background: #0f172a !important;
+  color: #ffffff !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.12) !important;
+}
+
+body.dark-theme .hist-campo input:focus,
+body.dark-theme .hist-campo textarea:focus,
+body.dark-theme .hist-campo select:focus {
+  border-color: #3b82f6 !important;
+  background: #0f172a !important;
+}
+
+body.dark-theme .hist-campo input::placeholder,
+body.dark-theme .hist-campo textarea::placeholder {
+  color: #475569 !important;
+}
+
+body.dark-theme .btn-ghost {
+  border: 1.5px solid rgba(255, 255, 255, 0.12) !important;
+  color: #cbd5e1 !important;
+}
+
+body.dark-theme .btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: #ffffff !important;
+}
+
+/* Relatório de Score no Dark Mode */
+body.dark-theme .relatorio-score-header h1 {
+  color: #ffffff !important;
+}
+
+body.dark-theme .relatorio-score-header p {
+  color: #94a3b8 !important;
+}
+
+body.dark-theme .sem-score-badge {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+body.dark-theme .sub-question-card {
+  background: rgba(0, 0, 0, 0.2) !important;
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+body.dark-theme .relatorio-question-card {
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+
+/* ==========================================
+   2. TEMA CLARO (LIGHT MODE) - MELHORADO COM ALTO CONTRASTE
+   ========================================== */
+body.light-theme {
+  background-color: #f1f5f9 !important;
+  background-image: linear-gradient(180deg, #e9f1ff 0%, #f7fbff 100%) !important;
+  color: #1e293b;
+}
+
+/* Forçar cores de letras com alto contraste no Light Mode */
+body.light-theme,
+body.light-theme p,
+body.light-theme label,
+body.light-theme span:not(.badge):not(.role-tag):not(.active-badge) {
+  color: #1e293b;
+}
+
+/* Navbar no Light Mode */
+body.light-theme .app-nav {
+  background: #ffffff !important;
+  border-bottom: 1.5px solid #eaedfa !important;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05) !important;
+}
+
+body.light-theme .nav-link {
+  color: #334155 !important; /* Mais escuro */
+}
+
+body.light-theme .nav-link:hover {
+  background: rgba(15, 23, 42, 0.05) !important;
+  color: #0f2a5e !important;
+}
+
+body.light-theme .nav-link.active {
+  background: rgba(30, 144, 255, 0.08) !important;
+  color: #1e90ff !important;
+}
+
+body.light-theme .nav-logout-btn {
+  color: #475569 !important; /* Mais escuro */
+}
+
+body.light-theme .nav-logout-btn:hover {
+  background-color: rgba(239, 68, 68, 0.08) !important;
+  color: #ef4444 !important;
+}
+
+/* Home no Light Mode */
+body.light-theme .monitoramento-page {
+  background: transparent !important;
+  color: #1e293b !important;
+}
+
+body.light-theme .monitoramento-page h1 {
+  color: #0f2a5e !important;
+}
+
+body.light-theme .monitoramento-page p {
+  color: #334155 !important; /* Mais escuro */
+}
+
+body.light-theme .stat-card:not(.active-total):not(.active-concluidos):not(.active-andamento):not(.active-safety):not(.active-fast):not(.active-alerta) {
+  background: #ffffff !important;
+  border-color: #eaedfa !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03) !important;
+}
+
+body.light-theme .stat-card:not(.active-total):not(.active-concluidos):not(.active-andamento):not(.active-safety):not(.active-fast):not(.active-alerta):hover {
+  background: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+}
+
+body.light-theme .stat-card:not(.active-total):not(.active-concluidos):not(.active-andamento):not(.active-safety):not(.active-fast):not(.active-alerta) .stat-value {
+  color: #0f2a5e !important;
+}
+
+body.light-theme .stat-card:not(.active-total):not(.active-concluidos):not(.active-andamento):not(.active-safety):not(.active-fast):not(.active-alerta) .stat-label {
+  color: #334155 !important; /* Mais escuro */
+}
+
+body.light-theme .stat-card:not(.active-total):not(.active-concluidos):not(.active-andamento):not(.active-safety):not(.active-fast):not(.active-alerta) .stat-sub {
+  color: #475569 !important; /* Mais escuro */
+}
+
+body.light-theme .table-wrapper {
+  background: #ffffff !important;
+  border-color: #eaedfa !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03) !important;
+}
+
+body.light-theme .monitoramento-page thead {
+  background: #f8fafc !important;
+}
+
+body.light-theme .monitoramento-page th {
+  color: #334155 !important; /* Mais escuro */
+  border-bottom: 1px solid #eaedfa !important;
+}
+
+body.light-theme .monitoramento-page td {
+  color: #1e293b !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+}
+
+body.light-theme .monitoramento-page tbody tr:hover {
+  background: #f8fbff !important;
+}
+
+/* Modais da Home no Light Mode */
+body.light-theme .home-score-modal-card {
+  background: #ffffff !important;
+  color: #1e293b !important;
+}
+
+body.light-theme .home-score-modal-header {
+  border-bottom-color: #f1f5f9 !important;
+}
+
+body.light-theme .home-score-modal-header h2 {
+  color: #0f2a5e !important;
+}
+
+body.light-theme .home-score-modal-fechar {
+  color: #475569 !important;
+}
+
+body.light-theme .home-score-modal-fechar:hover {
+  background: #f1f5f9 !important;
+  color: #1e293b !important;
+}
+
+body.light-theme .home-score-pergunta {
+  background: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+body.light-theme .home-score-pergunta label {
+  color: #1e293b !important; /* Alto contraste */
+}
+
+body.light-theme .home-radio-group-score label {
+  color: #1e293b !important; /* Alto contraste */
+}
+
+body.light-theme .home-score-calculo-previo {
+  color: #334155 !important;
+}
+
+body.light-theme .home-score-calculo-previo strong {
+  color: #0f2a5e !important;
+}
+
+body.light-theme .home-score-modal-footer {
+  border-top-color: #f1f5f9 !important;
+}
+
+/* Relatórios no Light Mode */
+body.light-theme .relatorios-page {
+  background: transparent !important;
+  color: #1e293b !important;
+}
+
+body.light-theme .relatorios-header h1 {
+  color: #0f2a5e !important;
+}
+
+body.light-theme .relatorios-header p {
+  color: #334155 !important;
+}
+
+body.light-theme .relatorios-filtros {
+  background: #ffffff !important;
+  border: 1px solid #eaedfa !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03) !important;
+}
+
+body.light-theme .relatorios-filtros label {
+  color: #334155 !important; /* Mais escuro */
+}
+
+body.light-theme .relatorios-filtros input[type="date"] {
+  background: #ffffff !important;
+  color: #1e293b !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+body.light-theme .relatorio-kpi-card:not(.active) {
+  background: #ffffff !important;
+  border: 1px solid #eaedfa !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03) !important;
+}
+
+body.light-theme .relatorio-kpi-card:not(.active):hover {
+  background: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+}
+
+body.light-theme .relatorio-kpi-card:not(.active) .kpi-label {
+  color: #334155 !important; /* Mais escuro */
+}
+
+body.light-theme .relatorio-kpi-card:not(.active) .kpi-value {
+  color: #0f2a5e !important;
+}
+
+body.light-theme .relatorio-kpi-card:not(.active) .kpi-desc {
+  color: #475569 !important; /* Mais escuro */
+}
+
+body.light-theme .relatorio-detalhe-section {
+  background: #ffffff !important;
+  border: 1px solid #eaedfa !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03) !important;
+}
+
+body.light-theme .relatorio-detalhe-header {
+  border-bottom: 1px solid #f1f5f9 !important;
+}
+
+body.light-theme .relatorio-detalhe-header h3 {
+  color: #0f2a5e !important;
+}
+
+body.light-theme .relatorios-table th {
+  color: #334155 !important; /* Mais escuro */
+  border-bottom: 1px solid #eaedfa !important;
+}
+
+body.light-theme .relatorios-table td {
+  color: #1e293b !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+}
+
+body.light-theme .relatorios-table tbody tr:hover {
+  background: #f8fbff !important;
+}
+
+/* Relatório de Score no Light Mode */
+body.light-theme .relatorio-score-page {
+  color: #1e293b !important;
+}
+
+body.light-theme .relatorio-score-header h1 {
+  color: #0f2a5e !important;
+}
+
+body.light-theme .relatorio-score-header p {
+  color: #334155 !important;
+}
+
+body.light-theme .relatorio-card {
+  background: #ffffff !important;
+  border: 1px solid #eaedfa !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03) !important;
+}
+
+body.light-theme .relatorio-card:hover {
+  border-color: #cbd5e1 !important;
+}
+
+body.light-theme .card-value {
+  color: #0f2a5e !important;
+}
+
+body.light-theme .card-label {
+  color: #334155 !important; /* Mais escuro */
+}
+
+body.light-theme .sem-score-desc {
+  color: #334155 !important;
+}
+
+body.light-theme .sem-score-badge {
+  background: #f1f5f9 !important;
+  color: #1e293b !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+body.light-theme .relatorio-question-card {
+  background: #ffffff !important;
+  border: 1px solid #eaedfa !important;
+}
+
+body.light-theme .relatorio-question-card h4 {
+  color: #0f2a5e !important;
+}
+
+body.light-theme .sub-question-card {
+  background: #f8fafc !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+body.light-theme .relatorio-question-header {
+  border-bottom-color: #f1f5f9 !important;
+}
+
+body.light-theme .relatorio-table th {
+  color: #334155 !important;
+  border-bottom: 1px solid #eaedfa !important;
+}
+
+body.light-theme .relatorio-table td {
+  color: #1e293b !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+}
+
+/* Usuários no Light Mode */
+body.light-theme .usuarios-page {
+  color: #1e293b !important;
+}
+
+body.light-theme .usuarios-header h1 {
+  color: #0f2a5e !important;
+  text-shadow: none !important;
+}
+
+body.light-theme .usuarios-header p {
+  color: #334155 !important;
+}
+
+body.light-theme .usuarios-card {
+  background: #ffffff !important;
+  border: 1px solid #eaedfa !important;
+  color: #1e293b !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03) !important;
+}
+
+body.light-theme .usuarios-card h2 {
+  color: #0f2a5e !important;
+  border-bottom: 1px solid #eaedfa !important;
+}
+
+body.light-theme .usuarios-table th {
+  color: #334155 !important;
+  border-bottom: 1px solid #eaedfa !important;
+}
+
+body.light-theme .usuarios-table td {
+  color: #1e293b !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+}
+
+body.light-theme .usuarios-table tr:hover td {
+  background-color: #f8fbff !important;
+}
+
+body.light-theme .nome-cell {
+  color: #0f2a5e !important;
+}
+
+body.light-theme .email-cell {
+  color: #334155 !important; /* Mais escuro */
+}
+
+body.light-theme .cadastro-form input,
+body.light-theme .cadastro-form select {
+  background: #ffffff !important;
+  color: #1e293b !important;
+  border: 1.5px solid #cbd5e1 !important;
+}
+
+body.light-theme .cadastro-form input::placeholder {
+  color: #475569 !important;
+}
+
+body.light-theme .cadastro-form select option {
+  background: #ffffff !important;
+  color: #1e293b !important;
+}
+
+body.light-theme .cadastro-form label {
+  color: #1e293b !important; /* Alto contraste */
+}
+
+/* Gamificação no Light Mode */
+body.light-theme .gamificacao-page {
+  color: #1e293b !important;
+}
+
+body.light-theme .gamificacao-header h1 {
+  color: #0f2a5e !important;
+  text-shadow: none !important;
+}
+
+body.light-theme .gamificacao-header p {
+  color: #334155 !important;
+}
+
+body.light-theme .gamificacao-card {
+  background: #ffffff !important;
+  border: 1px solid #eaedfa !important;
+  color: #1e293b !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03) !important;
+}
+
+body.light-theme .gamificacao-card h2 {
+  color: #0f2a5e !important;
+  border-bottom: 1px solid #eaedfa !important;
+}
+
+body.light-theme .ranking-item {
+  background: #f8fafc !important;
+  border: 1px solid #eaedfa !important;
+}
+
+body.light-theme .ranking-item:hover {
+  background: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+}
+
+body.light-theme .ranking-name {
+  color: #0f2a5e !important;
+}
+
+body.light-theme .ranking-sub {
+  color: #334155 !important; /* Mais escuro */
+}
+
+body.light-theme .input-wrapper input,
+body.light-theme .input-wrapper select {
+  background: #ffffff !important;
+  color: #1e293b !important;
+  border: 1.5px solid #cbd5e1 !important;
+}
+
+body.light-theme .input-wrapper select option {
+  background: #ffffff !important;
+  color: #1e293b !important;
+}
+
+body.light-theme .input-wrapper select::placeholder,
+body.light-theme .input-wrapper input::placeholder {
+  color: #475569 !important;
+}
+
+body.light-theme .acao-radio-card {
+  background: #f8fafc !important;
+  border: 1.5px solid #eaedfa !important;
+}
+
+body.light-theme .acao-radio-card:hover {
+  border-color: #cbd5e1 !important;
+}
+
+body.light-theme .acao-label {
+  color: #0f2a5e !important;
+}
+
+body.light-theme .acao-desc {
+  color: #334155 !important; /* Mais escuro */
+}
+
+body.light-theme .input-wrapper input.input-disabled {
+  background-color: #f1f5f9 !important;
+  color: #475569 !important;
+  border-color: #cbd5e1 !important;
+}
+
+body.light-theme .edit-modal-card {
+  background: #ffffff !important;
+  color: #1e293b !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15) !important;
+}
+
+body.light-theme .edit-modal-header {
+  border-bottom: 1px solid #f1f5f9 !important;
+}
+
+body.light-theme .edit-modal-header h2 {
+  color: #0f2a5e !important;
+}
+
+body.light-theme .edit-modal-fechar {
+  color: #475569 !important;
+}
+
+body.light-theme .edit-modal-fechar:hover {
+  background: #f1f5f9 !important;
+  color: #1e293b !important;
+}
+
+body.light-theme .edit-modal-body label {
+  color: #1e293b !important; /* Alto contraste */
+}
+
+body.light-theme .edit-modal-footer {
+  border-top: 1px solid #f1f5f9 !important;
+}
+
+body.light-theme .historico-pontos-table th {
+  color: #334155 !important;
+  border-bottom: 1px solid #eaedfa !important;
+}
+
+body.light-theme .historico-pontos-table td {
+  color: #1e293b !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+}
+
+body.light-theme .historico-pontos-table tbody tr:hover {
+  background-color: #f8fbff !important;
+}
+
+/* Badges e Pontos de Gamificação em Alto Contraste */
+body.light-theme .badge-count {
+  background-color: rgba(99, 102, 241, 0.1) !important;
+  color: #3730a3 !important;
+  border: 1px solid rgba(99, 102, 241, 0.4) !important;
+}
+
+body.light-theme .me-badge {
+  background-color: rgba(16, 185, 129, 0.1) !important;
+  color: #065f46 !important;
+  border: 1px solid rgba(16, 185, 129, 0.4) !important;
+}
+
+body.light-theme .positive-score {
+  color: #059669 !important;
+  text-shadow: none !important;
+}
+
+body.light-theme .negative-score {
+  color: #dc2626 !important;
+  text-shadow: none !important;
+}
+
+body.light-theme .ponto-positivo .acao-points-badge {
+  background-color: rgba(16, 185, 129, 0.1) !important;
+  color: #065f46 !important;
+}
+
+body.light-theme .ponto-destaque .acao-points-badge {
+  background-color: rgba(99, 102, 241, 0.1) !important;
+  color: #3730a3 !important;
+}
+
+body.light-theme .ponto-premium .acao-points-badge {
+  background-color: rgba(6, 182, 212, 0.1) !important;
+  color: #075985 !important;
+}
+
+body.light-theme .ponto-negativo .acao-points-badge {
+  background-color: rgba(239, 68, 68, 0.1) !important;
+  color: #991b1b !important;
+}
+
+/* Histórico de Ocorrências no Light Mode (Alto Contraste) */
+body.light-theme .hist-shell {
+  color: #1e293b !important;
+}
+
+body.light-theme .hist-title {
+  color: #0f2a5e !important;
+}
+
+body.light-theme .hist-subtitle {
+  color: #334155 !important;
+}
+
+body.light-theme .hist-filtros {
+  background: #ffffff !important;
+  border: 1.5px solid #eaedfa !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03) !important;
+}
+
+body.light-theme .hist-busca,
+body.light-theme .hist-select-filtro,
+body.light-theme .hist-date-input {
+  background: #ffffff !important;
+  color: #1e293b !important;
+  border: 1.5px solid #cbd5e1 !important;
+}
+
+body.light-theme .hist-busca::placeholder {
+  color: #475569 !important;
+}
+
+body.light-theme .btn-limpar-filtros {
+  background: #f1f5f9 !important;
+  border: 1.5px solid #cbd5e1 !important;
+  color: #1e293b !important;
+}
+
+body.light-theme .btn-limpar-filtros:hover {
+  background: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+body.light-theme .hist-table-wrapper {
+  background: #ffffff !important;
+  border: 1.5px solid #eaedfa !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.03) !important;
+}
+
+body.light-theme .hist-table thead {
+  background: #f8fafc !important;
+}
+
+body.light-theme .hist-table th {
+  color: #334155 !important;
+  border-bottom: 1px solid #eaedfa !important;
+}
+
+body.light-theme .hist-table td {
+  color: #1e293b !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+}
+
+body.light-theme .hist-table tbody tr:hover,
+body.light-theme .hist-row-click:hover {
+  background: #f8fbff !important;
+}
+
+body.light-theme .empresa-cell {
+  color: #0f2a5e !important;
+}
+
+body.light-theme .descricao-cell {
+  color: #1e293b !important;
+}
+
+/* Modais/Painéis do Histórico no Light Mode */
+body.light-theme .hist-detail-card,
+body.light-theme .score-modal-card,
+body.light-theme .hist-painel {
+  background: #ffffff !important;
+  color: #1e293b !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15) !important;
+}
+
+body.light-theme .hist-painel {
+  border-left: 1.5px solid #eaedfa !important;
+}
+
+body.light-theme .hist-detail-header h2,
+body.light-theme .score-modal-header h2,
+body.light-theme .hist-painel-header h2 {
+  color: #0f2a5e !important;
+}
+
+body.light-theme .score-modal-header,
+body.light-theme .hist-painel-header {
+  border-bottom-color: #f1f5f9 !important;
+}
+
+body.light-theme .score-modal-fechar,
+body.light-theme .hist-fechar {
+  color: #475569 !important;
+}
+
+body.light-theme .score-modal-fechar:hover,
+body.light-theme .hist-fechar:hover {
+  background: #f0f4ff !important;
+  color: #0f2a5e !important;
+}
+
+body.light-theme .score-pergunta,
+body.light-theme .hist-campo {
+  background: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+}
+
+body.light-theme .checkbox-label-score,
+body.light-theme .hist-campo label {
+  color: #1e293b !important;
+}
+
+body.light-theme .score-modal-footer,
+body.light-theme .hist-painel-actions {
+  border-top-color: #f1f5f9 !important;
+}
+
+body.light-theme .score-calculo-previo {
+  color: #334155 !important;
+}
+
+body.light-theme .score-calculo-previo strong {
+  color: #0f2a5e !important;
+}
+
+body.light-theme .score-hint {
+  color: #475569 !important;
+}
+
+body.light-theme .tipo--mudanca-score {
+  background: #fff7ed !important;
+  color: #c2410c !important;
+  border: 1px solid #ffedd5 !important;
+}
+
+body.light-theme .hist-detail-grid span,
+body.light-theme .hist-detail-desc span {
+  color: #475569 !important;
+}
+
+body.light-theme .hist-detail-desc p {
+  color: #1e293b !important;
+}
+
+body.light-theme .hist-atualizacao-item {
+  background: #f8fafc !important;
+  border-left-color: #cbd5e1 !important;
+}
+
+body.light-theme .hist-atualizacao-meta {
+  color: #475569 !important;
+}
+
+body.light-theme .hist-atualizacao-item p {
+  color: #1e293b !important;
+}
+
+body.light-theme .hist-atualizacao-edit-textarea {
+  background: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #1e293b !important;
+}
+
+body.light-theme .hist-campo input,
+body.light-theme .hist-campo textarea,
+body.light-theme .hist-campo select {
+  background: #ffffff !important;
+  color: #1e293b !important;
+  border: 1.5px solid #cbd5e1 !important;
+}
+
+body.light-theme .hist-campo input:focus,
+body.light-theme .hist-campo textarea:focus,
+body.light-theme .hist-campo select:focus {
+  border-color: #1e90ff !important;
+  background: #ffffff !important;
+}
+
+body.light-theme .btn-ghost {
+  border: 1.5px solid #cbd5e1 !important;
+  color: #334155 !important;
+}
+
+body.light-theme .btn-ghost:hover {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+body.light-theme .tema-tag {
+  background: rgba(59, 130, 246, 0.08) !important;
+  color: #1e3a8a !important;
+  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+}
+
+body.light-theme .tema-tag-alerta {
+  background: rgba(239, 68, 68, 0.08) !important;
+  color: #991b1b !important;
+  border: 1px solid rgba(239, 68, 68, 0.3) !important;
+}
+
+
+/* ==========================================
+   3. BOTÕES E COMPONENTES AUXILIARES
+   ========================================== */
+.theme-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1.5px solid transparent;
+  background-color: transparent;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+body.light-theme .theme-toggle-btn {
+  color: #475569;
+}
+
+body.light-theme .theme-toggle-btn:hover {
+  background-color: rgba(15, 23, 42, 0.05);
+  color: #0f2a5e;
+}
+
+body.dark-theme .theme-toggle-btn {
+  color: #94a3b8;
+}
+
+body.dark-theme .theme-toggle-btn:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+}
+
+.nav-right-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Correções adicionais de alto contraste para tabelas e badges no Light Mode */
+body.light-theme .gamificacao-table th {
+  color: #334155 !important;
+  border-bottom: 1px solid #eaedfa !important;
+}
+
+body.light-theme .gamificacao-table td {
+  color: #1e293b !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+}
+
+body.light-theme .trainer-cell {
+  color: #0f2a5e !important;
+}
+
+body.light-theme .desc-cell {
+  color: #334155 !important;
+}
+
+body.light-theme .date-cell {
+  color: #475569 !important;
+}
+
+body.light-theme .action-label-text {
+  color: #1e293b !important;
+}
+
+/* Modificações adicionais de KPI e Tabelas no Light Mode */
+body.light-theme .relatorios-table td div[style*="color: #a1a1aa"],
+body.light-theme .relatorios-table td div span[style*="color: #a1a1aa"],
+body.light-theme .relatorios-table td div div {
+  color: #475569 !important;
+}
+
+body.light-theme .relatorio-alert-badge {
+  background: rgba(239, 68, 68, 0.08) !important;
+  color: #b91c1c !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+}
+
+body.light-theme .relatorios-table td button {
+  background: rgba(59, 130, 246, 0.08) !important;
+  color: #1d4ed8 !important;
+  border-color: rgba(59, 130, 246, 0.3) !important;
+}
+
+body.light-theme .relatorios-table td button[style*="rgba(239, 68, 68"] {
+  background: rgba(239, 68, 68, 0.08) !important;
+  color: #b91c1c !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+}
+
+/* Outras correções de botões no Light Mode */
+body.light-theme .btn-edit-entry {
+  color: #4f46e5 !important;
+  border-color: rgba(99, 102, 241, 0.4) !important;
+}
+body.light-theme .btn-edit-entry:hover {
+  background-color: rgba(99, 102, 241, 0.08) !important;
+  color: #3730a3 !important;
+}
+
+body.light-theme .btn-delete-entry {
+  color: #dc2626 !important;
+  border-color: rgba(239, 68, 68, 0.4) !important;
+}
+body.light-theme .btn-delete-entry:hover {
+  background-color: rgba(239, 68, 68, 0.08) !important;
+  color: #b91c1c !important;
+}
+
+body.light-theme .btn-view-occurrence {
+  color: #1e90ff !important;
+  border-color: rgba(30, 144, 255, 0.4) !important;
+}
+body.light-theme .btn-view-occurrence:hover {
+  background-color: rgba(30, 144, 255, 0.08) !important;
+  color: #0f2a5e !important;
+}
+
+body.light-theme .tag-positive {
+  background-color: rgba(16, 185, 129, 0.1) !important;
+  color: #065f46 !important;
+  border: 1px solid rgba(16, 185, 129, 0.3) !important;
+}
+
+body.light-theme .tag-negative {
+  background-color: rgba(239, 68, 68, 0.1) !important;
+  color: #991b1b !important;
+  border: 1px solid rgba(239, 68, 68, 0.3) !important;
+}
+
+/* Alto contraste para Relatorios e RelatorioScore no Light Mode */
+body.light-theme .relatorios-tab-btn {
+  color: #475569 !important;
+}
+
+body.light-theme .relatorios-tab-btn:hover {
+  color: #0f2a5e !important;
+}
+
+body.light-theme .relatorios-tab-btn.active {
+  color: #1e90ff !important;
+}
+
+body.light-theme .relatorios-tabs {
+  border-bottom: 1px solid #eaedfa !important;
+}
+
+/* Clientes sem Score Card */
+body.light-theme .sem-score-card {
+  background: #ffffff !important;
+  border-color: rgba(245, 158, 11, 0.4) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03) !important;
+}
+
+body.light-theme .sem-score-title-wrapper h3 {
+  color: #b45309 !important; /* Amber escuro para contraste */
+}
+
+body.light-theme .sem-score-title-wrapper {
+  color: #b45309 !important;
+}
+
+body.light-theme .sem-score-desc {
+  color: #334155 !important;
+}
+
+body.light-theme .sem-score-badge {
+  background: rgba(245, 158, 11, 0.08) !important;
+  color: #b45309 !important;
+  border: 1px solid rgba(245, 158, 11, 0.3) !important;
+  box-shadow: none !important;
+}
+
+/* Question Cards no Relatório de Score */
+body.light-theme .question-title {
+  color: #0f2a5e !important;
+}
+
+body.light-theme .label-nao {
+  color: #475569 !important;
+}
+
+body.light-theme .btn-expander {
+  background: #f8fafc !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #1e293b !important;
+}
+
+body.light-theme .btn-expander:hover {
+  background: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+}
+
+body.light-theme .btn-expander.active {
+  background: #e2e8f0 !important;
+  border-color: #cbd5e1 !important;
+  color: #0f2a5e !important;
+  font-weight: 600 !important;
+}
+
+body.light-theme .clients-list-container {
+  background: #f1f5f9 !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+body.light-theme .clients-list-container li {
+  color: #1e293b !important;
+}
+
+body.light-theme .empty-list-msg {
+  color: #475569 !important;
+}
+
+/* Forçar cores claras para cartões ativos no Light Mode */
+body.light-theme .relatorio-kpi-card.active .kpi-label {
+  color: #bfdbfe !important;
+}
+body.light-theme .relatorio-kpi-card.active .kpi-value {
+  color: #ffffff !important;
+}
+body.light-theme .relatorio-kpi-card.active .kpi-desc {
+  color: #e0f2fe !important;
+}
+body.light-theme .relatorio-kpi-card.active svg {
+  color: #ffffff !important;
+}
+
+/* Home active cards text overrides */
+body.light-theme .stat-card.active-total .stat-value,
+body.light-theme .stat-card.active-concluidos .stat-value,
+body.light-theme .stat-card.active-andamento .stat-value,
+body.light-theme .stat-card.active-safety .stat-value,
+body.light-theme .stat-card.active-fast .stat-value,
+body.light-theme .stat-card.active-alerta .stat-value {
+  color: #ffffff !important;
+}
+
+body.light-theme .stat-card.active-total .stat-label,
+body.light-theme .stat-card.active-concluidos .stat-label,
+body.light-theme .stat-card.active-andamento .stat-label,
+body.light-theme .stat-card.active-safety .stat-label,
+body.light-theme .stat-card.active-fast .stat-label,
+body.light-theme .stat-card.active-alerta .stat-label {
+  color: #bfdbfe !important;
+}
+
+body.light-theme .stat-card.active-total .stat-sub,
+body.light-theme .stat-card.active-concluidos .stat-sub,
+body.light-theme .stat-card.active-andamento .stat-sub,
+body.light-theme .stat-card.active-safety .stat-sub,
+body.light-theme .stat-card.active-fast .stat-sub,
+body.light-theme .stat-card.active-alerta .stat-sub {
+  color: #e0f2fe !important;
+}
+
+body.light-theme .stat-card.active-total svg,
+body.light-theme .stat-card.active-concluidos svg,
+body.light-theme .stat-card.active-andamento svg,
+body.light-theme .stat-card.active-safety svg,
+body.light-theme .stat-card.active-fast svg,
+body.light-theme .stat-card.active-alerta svg {
+  color: #ffffff !important;
+}
+
+/* Correções para o componente ProgressBar no Light Mode */
+body.light-theme .progress-tooltip {
+  color: #ffffff !important; /* Forçar número branco sobre fundo escuro */
+}
+
+body.light-theme .progress-bar-wrapper {
+  background: rgba(0, 0, 0, 0.08) !important; /* Tornar a trilha cinza claro visível no Light Mode */
+}
+
+body.light-theme .progress-bar-wrapper:hover {
+  background: rgba(0, 0, 0, 0.12) !important;
+}
+
+body.light-theme .hist-total-registros {
+  color: #475569 !important;
+}
+
+body.light-theme .hist-total-registros strong {
+  color: #0f2a5e !important;
+}
+
+
+
+

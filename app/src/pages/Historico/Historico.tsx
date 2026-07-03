@@ -299,6 +299,7 @@ function descreverRespostas(respostas: ScoreFormAnswers): string[] {
 export function Historico() {
   const { role, userName, user } = useAuth();
   const isTreinador = role === "treinador" || role === "master";
+  const [searchParams] = useSearchParams();
   const [modalScoreAberto, setModalScoreAberto] = useState(false);
   const [respostasScore, setRespostasScore] = useState<ScoreFormAnswers>({ ...INITIAL_SCORE_ANSWERS });
   const [calculoScoreResult, setCalculoScoreResult] = useState<{ score: number; tipo: "Fast" | "Safety" } | null>(null);
@@ -314,7 +315,7 @@ export function Historico() {
   const [form, setForm] = useState({ ...EMPTY });
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
-  const [filtroTipo, setFiltroTipo] = useState("");
+  const [filtroTipo, setFiltroTipo] = useState(() => searchParams.get("tipo") || "");
   const [filtroDepto, setFiltroDepto] = useState("");
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
@@ -346,9 +347,6 @@ export function Historico() {
       treinamentoNotas: (f.treinamentoNotas ?? []).filter((_, i) => i !== index),
     }));
   };
-
-  const [searchParams] = useSearchParams();
-
   const empresaFiltro = searchParams.get("empresa") || "";
   const ocorrenciaIdFiltro = searchParams.get("ocorrencia") || "";
 
@@ -1331,7 +1329,12 @@ Score atual: ${novoScore}${mudancasTexto}`;
           </tbody>
         </table>
 
+        <div className="hist-total-registros">
+          Total: <strong>{filtradas.length}</strong> {filtradas.length === 1 ? "ocorrência" : "ocorrências"}
+        </div>
+
         {selecionada && (
+
           <div className="hist-detail-overlay">
             <div
               className="hist-detail-card"

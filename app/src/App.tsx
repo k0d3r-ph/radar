@@ -5,13 +5,15 @@ import Home from "./pages/Home/Home";
 import { Login } from "./pages/Login/Login";
 import { AlterarSenha } from "./pages/AlterarSenha/AlterarSenha";
 import { AuthProvider, useAuth } from "./context/AuthContext";
-import { LogOut } from "lucide-react";
+import { LogOut, Sun, Moon } from "lucide-react";
 import { Usuarios } from "./pages/Usuarios/Usuarios";
 import { Gamificacao } from "./pages/Gamificacao/Gamificacao";
 import { Relatorios } from "./pages/Relatorios/Relatorios";
+import { useTheme } from "./context/ThemeContext";
 
 function AppRoutes() {
   const { user, loading, needsPasswordChange, role, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -102,10 +104,19 @@ function AppRoutes() {
             </>
           )}
         </div>
-        <button className="nav-logout-btn" onClick={handleLogout} title="Sair">
-          <LogOut size={16} />
-          <span>Sair</span>
-        </button>
+        <div className="nav-right-container">
+          <button
+            className="theme-toggle-btn"
+            onClick={toggleTheme}
+            title={theme === "light" ? "Alternar para Tema Escuro" : "Alternar para Tema Claro"}
+          >
+            {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
+          </button>
+          <button className="nav-logout-btn" onClick={handleLogout} title="Sair">
+            <LogOut size={16} />
+            <span>Sair</span>
+          </button>
+        </div>
       </nav>
 
       <Routes>

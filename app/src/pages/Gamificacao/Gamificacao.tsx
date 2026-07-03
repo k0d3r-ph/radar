@@ -384,8 +384,20 @@ export const Gamificacao: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
 
   // Filtro de data
-  const [filtroDataInicio, setFiltroDataInicio] = useState("");
-  const [filtroDataFim, setFiltroDataFim] = useState("");
+  const [filtroDataInicio, setFiltroDataInicio] = useState(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    return `${year}-${month}-01`;
+  });
+  const [filtroDataFim, setFiltroDataFim] = useState(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const lastDay = new Date(year, month + 1, 0).getDate();
+    const monthStr = String(month + 1).padStart(2, "0");
+    return `${year}-${monthStr}-${String(lastDay).padStart(2, "0")}`;
+  });
 
   const acoesFiltradas = useMemo(() => {
     const baseList = ACOES_DISPONIVEIS.filter((a) => a.tipo !== "treinamento");
@@ -556,20 +568,30 @@ export const Gamificacao: React.FC = () => {
         else if (taxaResposta >= 0.70) bonus = 0.10;
 
         const score = parseFloat((baseScore * (1 + bonus)).toFixed(1));
-        const qtdAcoes = trainerEntries.length;
+        const qtdAcoes = trainerEntries.filter((e) => {
+          if (e.tipoAcao === "chamado_falha") return false;
+          if (e.tipoAcao === "treinamento" && e.treinamentoTema) {
+            const themes = e.treinamentoTema.split(",").map((theme) => theme.trim().toLowerCase());
+            if (themes.includes("cancelado") || themes.includes("ausente")) return false;
+          }
+          return true;
+        }).length;
+
+        const qtdFalhas = trainerEntries.filter((e) => e.tipoAcao === "chamado_falha").length;
 
         return {
           ...t,
           baseScore,
           score,
           qtdAcoes,
+          qtdFalhas,
           totalTrainingsCount,
           answeredTrainingsCount,
           taxaResposta,
           bonusPercentage: Math.round(bonus * 100),
         };
       })
-      .sort((a, b) => b.score - a.score || a.nome.localeCompare(b.nome));
+      .sort((a, b) => b.score - a.score || a.qtdFalhas - b.qtdFalhas || a.nome.localeCompare(b.nome));
   }, [trainers, filteredEntries]);
 
   const handleLancar = async (e: React.FormEvent) => {
@@ -1154,9 +1176,15 @@ export const Gamificacao: React.FC = () => {
                           const ocInfo = pontoOcorrenciaMap[entry.id || ""];
                           const ocorrenciaId = ocInfo?.id || entry.ocorrenciaId;
                           const isAlerta = ocInfo?.alerta || entry.isAlerta;
+                          const isCurrentUser = entry.treinadorId === user?.uid;
+                          const perdeuPonto = entry.pontos < 0;
+                          const isUserLostPoints = isCurrentUser && perdeuPonto;
 
                           return (
-                            <tr key={entry.id}>
+                            <tr
+                              key={entry.id}
+                              className={isUserLostPoints ? "user-lost-points-row" : ""}
+                            >
                               <td className="trainer-cell">{entry.treinadorNome}</td>
                               <td className="action-cell">
                                 <span className="action-label-text">

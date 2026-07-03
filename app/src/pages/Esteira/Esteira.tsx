@@ -1,6 +1,7 @@
 import "./Esteira.css";
 import base from "../../assets/base.png";
 import { useState, useRef, useEffect } from "react";
+import type { Empresa } from "../../types";
 import {
   salvarEmpresas,
   listarEmpresas,
@@ -26,16 +27,7 @@ function Esteira() {
   const isTreinador = role === "treinador" || role === "master";
 
   const [empresaId, setEmpresaId] = useState("");
-  const [empresas, setEmpresas] = useState<
-    Array<{
-      id: string;
-      nomeEmpresa: string;
-      temaText: string;
-      dataText: string;
-      currentPhase: number;
-      updatedAt: number;
-    }>
-  >([]);
+  const [empresas, setEmpresas] = useState<Empresa[]>([]);
 
   const [nomeEmpresa, setNomeEmpresa] = useState("");
   const [temaText, setTemaText] = useState(``);
@@ -265,12 +257,28 @@ function Esteira() {
                   return;
                 }
 
+                const empresaExistente = empresas.find(
+                  (e) => String(e.id) === empresaId,
+                );
+                const isFinished = currentPhase === temas.length - 1;
+
+                const today = new Date();
+                const year = today.getFullYear();
+                const month = String(today.getMonth() + 1).padStart(2, "0");
+                const day = String(today.getDate()).padStart(2, "0");
+                const dataHoje = `${year}-${month}-${day}`;
+
+                const dataFinalizacao = isFinished
+                  ? (empresaExistente?.dataFinalizacao || dataHoje)
+                  : "";
+
                 const novoId = await salvarEmpresas({
                   ...(empresaId ? { id: empresaId } : {}),
                   nomeEmpresa,
                   temaText,
                   dataText,
                   currentPhase,
+                  dataFinalizacao,
                   updatedAt: Date.now(),
                 });
 

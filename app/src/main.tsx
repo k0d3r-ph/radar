@@ -3,13 +3,17 @@ import { createRoot } from "react-dom/client";
 import { Toaster } from "sonner";
 import "sonner/dist/styles.css";
 import "./index.css";
+import "./themes.css";
 import App from "./App.tsx";
 import { BrowserRouter } from "react-router-dom";
+import { ThemeProvider } from "./context/ThemeContext";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
-      <App />
+      <ThemeProvider>
+        <App />
+      </ThemeProvider>
       <Toaster
         richColors
         toastOptions={{

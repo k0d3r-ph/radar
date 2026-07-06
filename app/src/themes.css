@@ -16,6 +16,16 @@ body.dark-theme {
   color: #f3f4f6;
 }
 
+/* Ícones de calendário brancos nos inputs de data e hora no Dark Mode */
+body.dark-theme input[type="date"]::-webkit-calendar-picker-indicator,
+body.dark-theme input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+body.dark-theme input[type="time"]::-webkit-calendar-picker-indicator,
+body.dark-theme input[type="month"]::-webkit-calendar-picker-indicator,
+body.dark-theme input[type="week"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(100%) !important;
+  cursor: pointer;
+}
+
 /* Navbar no Dark Mode */
 body.dark-theme .app-nav {
   background: #0f172a !important;

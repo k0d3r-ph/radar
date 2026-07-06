@@ -9,7 +9,13 @@ import {
   CheckCircle,
   ShieldAlert,
   Eye,
+  GraduationCap,
+  Star,
+  Wrench,
+  Cpu,
+  TrendingUp,
 } from "lucide-react";
+import "../Historico/Historico.css";
 import { listarEmpresas } from "../../services/empresas";
 import { listarOcorrencias } from "../../services/ocorrencias";
 import {
@@ -34,6 +40,51 @@ type DecorredEmpresa = Empresa & {
   dias: number;
 };
 
+const TIPO_CLASS: Record<string, string> = {
+  Informativa: "tipo--informativa",
+  Financeira: "tipo--financeira",
+  Comercial: "tipo--comercial",
+  Treinamento: "tipo--treinamento",
+  Checkpoint: "tipo--checkpoint",
+  "Mudança de score": "tipo--mudanca-score",
+  Problema: "tipo--problema",
+  Dúvida: "tipo--duvida",
+};
+
+const DEPARTAMENTO_CLASS: Record<string, string> = {
+  Treinamento: "departamento-treinamento",
+  CS: "departamento-cs",
+  Suporte: "departamento-suporte",
+  Hardware: "departamento-hardware",
+  Comercial: "departamento-comercial",
+};
+
+const DEPARTAMENTO_ICONES: Record<string, React.ReactNode> = {
+  Treinamento: <GraduationCap size={14} />,
+  CS: <Star size={14} />,
+  Suporte: <Wrench size={14} />,
+  Hardware: <Cpu size={14} />,
+  Comercial: <TrendingUp size={14} />,
+};
+
+function getOcorrenciaTimestamp(o: Ocorrencia): number {
+  if ((o.tipo === "Problema" || o.tipo === "Dúvida" || o.departamento === "Suporte") && o.dataOcorrencia && o.dataOcorrencia > 0) {
+    return o.dataOcorrencia;
+  }
+  return o.createdAt ?? o.dataOcorrencia ?? 0;
+}
+
+function obterDataUmaSemanaAtras(dataStr: string): string {
+  if (!dataStr) return "";
+  const [y, m, d] = dataStr.split("-").map(Number);
+  const data = new Date(y, m - 1, d);
+  data.setDate(data.getDate() - 7);
+  const year = data.getFullYear();
+  const month = String(data.getMonth() + 1).padStart(2, "0");
+  const day = String(data.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 export const Relatorios: React.FC = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<"esteira" | "score">("esteira");
@@ -48,7 +99,15 @@ export const Relatorios: React.FC = () => {
     return `${year}-${month}-${day}`;
   });
   const [kpiSelecionado, setKpiSelecionado] = useState<number>(0);
-  const [dataComparacao, setDataComparacao] = useState<string>("");
+  const [dataComparacao, setDataComparacao] = useState<string>(() => {
+    const today = new Date();
+    today.setDate(today.getDate() - 7);
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  });
+  const [ocorrenciaSelecionada, setOcorrenciaSelecionada] = useState<Ocorrencia | null>(null);
 
   useEffect(() => {
     async function carregarDados() {
@@ -90,6 +149,23 @@ export const Relatorios: React.FC = () => {
 
     return { inicio, fim };
   }, [dataReferencia]);
+
+  const limitesSemanaComparacao = useMemo(() => {
+    if (!dataComparacao) return null;
+    const [y, m, d] = dataComparacao.split("-").map(Number);
+    const dataRef = new Date(y, m - 1, d);
+    const diaDaSemana = dataRef.getDay();
+
+    const inicio = new Date(dataRef);
+    inicio.setDate(dataRef.getDate() - diaDaSemana);
+    inicio.setHours(0, 0, 0, 0);
+
+    const fim = new Date(inicio);
+    fim.setDate(inicio.getDate() + 6);
+    fim.setHours(23, 59, 59, 999);
+
+    return { inicio, fim };
+  }, [dataComparacao]);
 
   // Decora os dados das empresas calculando progresso, farol, etc.
   const dadosEmpresas = useMemo<DecorredEmpresa[]>(() => {
@@ -253,37 +329,120 @@ export const Relatorios: React.FC = () => {
   }, [dadosEmpresas, ocorrencias, limitesSemana]);
 
   const semProximoPasso = useMemo(() => {
-    const agora = Date.now();
+    if (!limitesSemana) return [];
+    const fimTimestamp = limitesSemana.fim.getTime();
+
     return dadosEmpresas.filter((e) => {
+      // 1. Deve ter entrado antes/durante a semana
+      const entradaDate = parseDataLocal(e.dataEntrada);
+      if (!entradaDate || entradaDate.getTime() > fimTimestamp) return false;
+
+      // 2. Não deve ter sido finalizado até o fim da semana
+      if (e.dataFinalizacao) {
+        const finalizacaoDate = parseDataLocal(e.dataFinalizacao);
+        if (finalizacaoDate && finalizacaoDate.getTime() <= fimTimestamp) return false;
+      }
+
+      // 3. Status live (ongoing/suspenso/concluído)
       if (e.isOngoing || e.isSuspended || e.progresso >= 100) return false;
 
+      // 4. Sem agendamento futuro em relação ao fim da semana
       const ocorrenciasDaEmpresa = ocorrencias.filter(
         (o) => o.empresa.trim().toLowerCase() === e.nomeEmpresa.trim().toLowerCase()
       );
-
-      const temAgendamento = ocorrenciasDaEmpresa.some(
+      const temAgendamentoFuturo = ocorrenciasDaEmpresa.some(
         (o) =>
           (o.tipo === "Informativa" || o.tipo === "Treinamento" || o.tipo === "Checkpoint") &&
           o.departamento === "Treinamento" &&
           o.dataOcorrencia &&
-          o.dataOcorrencia > agora
+          o.dataOcorrencia > fimTimestamp
       );
 
-      return !temAgendamento;
+      return !temAgendamentoFuturo;
     });
-  }, [dadosEmpresas, ocorrencias]);
+  }, [dadosEmpresas, ocorrencias, limitesSemana]);
+
+  const semProximoPassoComparacao = useMemo(() => {
+    if (!limitesSemanaComparacao) return [];
+    const fimTimestamp = limitesSemanaComparacao.fim.getTime();
+
+    return dadosEmpresas.filter((e) => {
+      // 1. Deve ter entrado antes/durante a semana de comparação
+      const entradaDate = parseDataLocal(e.dataEntrada);
+      if (!entradaDate || entradaDate.getTime() > fimTimestamp) return false;
+
+      // 2. Não deve ter sido finalizado até o fim da semana de comparação
+      if (e.dataFinalizacao) {
+        const finalizacaoDate = parseDataLocal(e.dataFinalizacao);
+        if (finalizacaoDate && finalizacaoDate.getTime() <= fimTimestamp) return false;
+      }
+
+      // 3. Status live (ongoing/suspenso/concluído)
+      if (e.isOngoing || e.isSuspended || e.progresso >= 100) return false;
+
+      // 4. Sem agendamento futuro em relação ao fim da semana de comparação
+      const ocorrenciasDaEmpresa = ocorrencias.filter(
+        (o) => o.empresa.trim().toLowerCase() === e.nomeEmpresa.trim().toLowerCase()
+      );
+      const temAgendamentoFuturo = ocorrenciasDaEmpresa.some(
+        (o) =>
+          (o.tipo === "Informativa" || o.tipo === "Treinamento" || o.tipo === "Checkpoint") &&
+          o.departamento === "Treinamento" &&
+          o.dataOcorrencia &&
+          o.dataOcorrencia > fimTimestamp
+      );
+
+      return !temAgendamentoFuturo;
+    });
+  }, [dadosEmpresas, ocorrencias, limitesSemanaComparacao]);
 
   const acimaDoPrazo = useMemo(() => {
-    return dadosEmpresas.filter(
-      (e) =>
-        !e.isOngoing &&
-        !e.isSuspended &&
-        e.progresso > 0 &&
-        e.progresso < 100 &&
-        (!e.dataFinalizacao || e.dataFinalizacao.trim() === "") &&
-        e.dias > 60
-    );
-  }, [dadosEmpresas]);
+    if (!limitesSemana) return [];
+    const fimTimestamp = limitesSemana.fim.getTime();
+
+    return dadosEmpresas.filter((e) => {
+      // 1. Deve ter entrado antes/durante a semana
+      const entradaDate = parseDataLocal(e.dataEntrada);
+      if (!entradaDate || entradaDate.getTime() > fimTimestamp) return false;
+
+      // 2. Não deve ter sido finalizado até o fim da semana
+      if (e.dataFinalizacao) {
+        const finalizacaoDate = parseDataLocal(e.dataFinalizacao);
+        if (finalizacaoDate && finalizacaoDate.getTime() <= fimTimestamp) return false;
+      }
+
+      // 3. Status live (ongoing/suspenso)
+      if (e.isOngoing || e.isSuspended) return false;
+
+      // 4. Calcular dias na esteira até o fim da semana
+      const diasNaSemana = Math.floor((fimTimestamp - entradaDate.getTime()) / (1000 * 60 * 60 * 24));
+      return diasNaSemana > 60;
+    });
+  }, [dadosEmpresas, limitesSemana]);
+
+  const acimaDoPrazoComparacao = useMemo(() => {
+    if (!limitesSemanaComparacao) return [];
+    const fimTimestamp = limitesSemanaComparacao.fim.getTime();
+
+    return dadosEmpresas.filter((e) => {
+      // 1. Deve ter entrado antes/durante a semana de comparação
+      const entradaDate = parseDataLocal(e.dataEntrada);
+      if (!entradaDate || entradaDate.getTime() > fimTimestamp) return false;
+
+      // 2. Não deve ter sido finalizado até o fim da semana de comparação
+      if (e.dataFinalizacao) {
+        const finalizacaoDate = parseDataLocal(e.dataFinalizacao);
+        if (finalizacaoDate && finalizacaoDate.getTime() <= fimTimestamp) return false;
+      }
+
+      // 3. Status live (ongoing/suspenso)
+      if (e.isOngoing || e.isSuspended) return false;
+
+      // 4. Calcular dias na esteira até o fim da semana de comparação
+      const diasNaSemana = Math.floor((fimTimestamp - entradaDate.getTime()) / (1000 * 60 * 60 * 24));
+      return diasNaSemana > 60;
+    });
+  }, [dadosEmpresas, limitesSemanaComparacao]);
 
   const riscoChurn = useMemo(() => {
     if (!limitesSemana) return [];
@@ -345,22 +504,7 @@ export const Relatorios: React.FC = () => {
       });
   }, [dadosEmpresas, ocorrencias, limitesSemana]);
 
-  const limitesSemanaComparacao = useMemo(() => {
-    if (!dataComparacao) return null;
-    const [y, m, d] = dataComparacao.split("-").map(Number);
-    const dataRef = new Date(y, m - 1, d);
-    const diaDaSemana = dataRef.getDay();
 
-    const inicio = new Date(dataRef);
-    inicio.setDate(dataRef.getDate() - diaDaSemana);
-    inicio.setHours(0, 0, 0, 0);
-
-    const fim = new Date(inicio);
-    fim.setDate(inicio.getDate() + 6);
-    fim.setHours(23, 59, 59, 999);
-
-    return { inicio, fim };
-  }, [dataComparacao]);
 
   const entraramNaSemanaComparacao = useMemo(() => {
     if (!limitesSemanaComparacao) return [];
@@ -548,7 +692,7 @@ export const Relatorios: React.FC = () => {
       desc: "Farol vermelho",
       icone: <AlertCircle size={22} />,
       lista: semProximoPasso,
-      ehSazonal: false,
+      ehSazonal: true,
     },
     {
       titulo: "Acima do prazo",
@@ -556,7 +700,7 @@ export const Relatorios: React.FC = () => {
       desc: "Onboarding > 60d",
       icone: <AlertCircle size={22} color="#f59e0b" />,
       lista: acimaDoPrazo,
-      ehSazonal: false,
+      ehSazonal: true,
     },
     {
       titulo: "Risco de churn",
@@ -590,13 +734,21 @@ export const Relatorios: React.FC = () => {
       const churnComp = riscoChurnComparacao.length;
       const pctChurn = formatarDiferenca(riscoChurn.length, churnComp);
 
+      const semPassoComp = semProximoPassoComparacao.length;
+      const pctSemPasso = formatarDiferenca(semProximoPasso.length, semPassoComp);
+
+      const acimaPrazoComp = acimaDoPrazoComparacao.length;
+      const pctAcimaPrazo = formatarDiferenca(acimaDoPrazo.length, acimaPrazoComp);
+
       comparacaoStr = `
 ==================================================
 COMPARATIVO COM A SEMANA DE: ${limitesSemanaComparacao.inicio.toLocaleDateString("pt-BR")} a ${limitesSemanaComparacao.fim.toLocaleDateString("pt-BR")}
 ==================================================
 1. Entraram na esteira: ${entraramNaSemana.length} vs ${entrouComp} (${pctEntrou.texto})
 2. Concluíram a esteira: ${concluidosNaSemana.length} vs ${concluiuComp} (${pctConcluiu.texto})
-3. Risco de Churn: ${riscoChurn.length} vs ${churnComp} (${pctChurn.texto})
+3. Sem próximo passo: ${semProximoPasso.length} vs ${semPassoComp} (${pctSemPasso.texto})
+4. Acima do prazo: ${acimaDoPrazo.length} vs ${acimaPrazoComp} (${pctAcimaPrazo.texto})
+5. Risco de Churn: ${riscoChurn.length} vs ${churnComp} (${pctChurn.texto})
 
 CONTATOS COM SUPORTE:
 - Total: ${totalContatosSuporte} vs ${totalContatosSuporteComp} (${pctTotal.texto})
@@ -737,7 +889,9 @@ ${riscoChurn.length > 0
                 type="date"
                 value={dataReferencia}
                 onChange={(e) => {
-                  setDataReferencia(e.target.value);
+                  const novaData = e.target.value;
+                  setDataReferencia(novaData);
+                  setDataComparacao(obterDataUmaSemanaAtras(novaData));
                 }}
               />
               {limitesSemana && (
@@ -791,6 +945,8 @@ ${riscoChurn.length > 0
                     if (idx === 0) valorComp = entraramNaSemanaComparacao.length;
                     else if (idx === 1) valorComp = concluidosNaSemanaComparacao.length;
                     else if (idx === 2) valorComp = totalContatosSuporteComp;
+                    else if (idx === 3) valorComp = semProximoPassoComparacao.length;
+                    else if (idx === 4) valorComp = acimaDoPrazoComparacao.length;
                     else if (idx === 5) valorComp = riscoChurnComparacao.length;
 
                     diffResult = formatarDiferenca(kpi.valor, valorComp);
@@ -928,7 +1084,14 @@ ${riscoChurn.length > 0
                                 {e.alerta && (e as any).ocorrenciaAlertaId && (
                                   <button
                                     className="relatorio-alert-badge"
-                                    onClick={() => navigate(`/historico?empresa=${encodeURIComponent(e.nomeEmpresa)}&ocorrencia=${(e as any).ocorrenciaAlertaId}`)}
+                                    onClick={() => {
+                                      const oc = ocorrencias.find((o) => o.id === (e as any).ocorrenciaAlertaId);
+                                      if (oc) {
+                                        setOcorrenciaSelecionada(oc);
+                                      } else {
+                                        toast.error("Ocorrência não encontrada.");
+                                      }
+                                    }}
                                     title="Clique para ver a ocorrência de alerta"
                                     style={{
                                       background: "rgba(239, 68, 68, 0.2)",
@@ -1092,6 +1255,271 @@ ${riscoChurn.length > 0
         </>
       ) : (
         <RelatorioScore />
+      )}
+
+      {ocorrenciaSelecionada && (
+        <div className="hist-detail-overlay">
+          <div className="hist-detail-card">
+            <div className="hist-detail-header">
+              <h2>Detalhes da interação {ocorrenciaSelecionada.idSeqFormatted ? `(${ocorrenciaSelecionada.idSeqFormatted})` : ""}</h2>
+              <button onClick={() => setOcorrenciaSelecionada(null)}>✕</button>
+            </div>
+
+            <div className="hist-detail-grid">
+              {(() => {
+                if (ocorrenciaSelecionada.alerta) {
+                  if (ocorrenciaSelecionada.alertaResolvidoPorId) {
+                    const resDoc = ocorrencias.find((o) => o.id === ocorrenciaSelecionada.alertaResolvidoPorId);
+                    return (
+                      <div style={{ gridColumn: "span 2", marginBottom: "10px" }}>
+                        <span style={{ color: "#16a34a", fontWeight: "bold", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                          ✅🚨 Alerta Solucionado {resDoc ? `em ${new Date(getOcorrenciaTimestamp(resDoc)).toLocaleDateString("pt-BR")}` : ""}.
+                          {resDoc && (
+                            <button
+                              style={{
+                                textDecoration: "underline",
+                                color: "#2563eb",
+                                background: "none",
+                                border: "none",
+                                padding: 0,
+                                cursor: "pointer",
+                                fontWeight: "bold",
+                                fontSize: "0.85rem",
+                                marginLeft: "5px",
+                              }}
+                              onClick={() => setOcorrenciaSelecionada(resDoc)}
+                            >
+                              Ver ocorrência de resolução
+                            </button>
+                          )}
+                        </span>
+                      </div>
+                    );
+                  } else {
+                    return (
+                      <div style={{ gridColumn: "span 2", marginBottom: "10px" }}>
+                        <span style={{ color: "#dc2626", fontWeight: "bold", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "6px" }}>
+                          🚨 Ocorrência marcada como Alerta Ativo
+                        </span>
+                      </div>
+                    );
+                  }
+                }
+                if (ocorrenciaSelecionada.retirarAlerta) {
+                  const origDoc = ocorrencias.find((o) => o.id === ocorrenciaSelecionada.alertaOriginalId);
+                  return (
+                    <div style={{ gridColumn: "span 2", marginBottom: "10px" }}>
+                      <span style={{ color: "#16a34a", fontWeight: "bold", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                        ✅ Ocorrência marcada como Resolução de Alerta.
+                        {origDoc && (
+                          <span style={{ color: "#475569", display: "flex", alignItems: "center", gap: "5px", flexWrap: "wrap" }}>
+                            Resolução do alerta criado em {new Date(getOcorrenciaTimestamp(origDoc)).toLocaleDateString("pt-BR")}.
+                            <button
+                              style={{
+                                textDecoration: "underline",
+                                color: "#2563eb",
+                                background: "none",
+                                border: "none",
+                                padding: 0,
+                                cursor: "pointer",
+                                fontWeight: "bold",
+                                fontSize: "0.85rem",
+                              }}
+                              onClick={() => setOcorrenciaSelecionada(origDoc)}
+                            >
+                              Ver ocorrência do alerta original
+                            </button>
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+
+              <div>
+                <span>Empresa</span>
+                <strong>{ocorrenciaSelecionada.empresa}</strong>
+              </div>
+
+              <div>
+                <span>Departamento</span>
+                <strong style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                  <span className={`hist-item-departamento ${DEPARTAMENTO_CLASS[ocorrenciaSelecionada.departamento ?? ""] || ""}`}>
+                    {ocorrenciaSelecionada.departamento && DEPARTAMENTO_ICONES[ocorrenciaSelecionada.departamento] && (
+                      <span className="departamento-icon">
+                        {DEPARTAMENTO_ICONES[ocorrenciaSelecionada.departamento]}
+                      </span>
+                    )}
+                    {ocorrenciaSelecionada.departamento || "—"}
+                  </span>
+                </strong>
+              </div>
+
+              <div>
+                <span>Tipo</span>
+                <strong className={`hist-item-tipo hist-item-tipo-detail ${TIPO_CLASS[ocorrenciaSelecionada.tipo] || ""}`}>
+                  {ocorrenciaSelecionada.tipo}
+                </strong>
+              </div>
+
+              <div>
+                <span>Responsável</span>
+                <strong>{formatarNome(ocorrenciaSelecionada.responsavel) || "—"}</strong>
+              </div>
+
+              <div>
+                <span>Data da ocorrência</span>
+                <strong>
+                  {new Date(getOcorrenciaTimestamp(ocorrenciaSelecionada)).toLocaleDateString("pt-BR")}{" "}
+                  {new Date(getOcorrenciaTimestamp(ocorrenciaSelecionada)).toLocaleTimeString("pt-BR", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </strong>
+              </div>
+
+              {ocorrenciaSelecionada.createdAt && ocorrenciaSelecionada.dataOcorrencia > 0 && ocorrenciaSelecionada.tipo !== "Problema" && ocorrenciaSelecionada.tipo !== "Dúvida" && (
+                <div>
+                  <span>
+                    {ocorrenciaSelecionada.tipo === "Informativa" || ocorrenciaSelecionada.tipo === "Treinamento"
+                      ? "Data do próximo treinamento"
+                      : ocorrenciaSelecionada.tipo === "Checkpoint"
+                      ? "Data do checkpoint"
+                      : "Data do agendamento"}
+                  </span>
+                  <strong>
+                    {new Date(ocorrenciaSelecionada.dataOcorrencia).toLocaleDateString("pt-BR")}{" "}
+                    {new Date(ocorrenciaSelecionada.dataOcorrencia).toLocaleTimeString("pt-BR", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </strong>
+                </div>
+              )}
+
+              {ocorrenciaSelecionada.tipo === "Treinamento" && (
+                <>
+                  {ocorrenciaSelecionada.treinamentoDataSolicitacao && (
+                    <div>
+                      <span>Data de solicitação</span>
+                      <strong>
+                        {(() => {
+                          if (ocorrenciaSelecionada.treinamentoDataSolicitacao.includes("-")) {
+                            const [y, m, d] = ocorrenciaSelecionada.treinamentoDataSolicitacao.split("-");
+                            return `${d}/${m}/${y}`;
+                          }
+                          return ocorrenciaSelecionada.treinamentoDataSolicitacao;
+                        })()}
+                      </strong>
+                    </div>
+                  )}
+                  {ocorrenciaSelecionada.treinamentoTempoAgenda && (
+                    <div>
+                      <span>Tempo de agenda</span>
+                      <strong>{ocorrenciaSelecionada.treinamentoTempoAgenda}</strong>
+                    </div>
+                  )}
+                  {ocorrenciaSelecionada.treinamentoSolicitante && (
+                    <div>
+                      <span>Solicitante</span>
+                      <strong>{ocorrenciaSelecionada.treinamentoSolicitante}</strong>
+                    </div>
+                  )}
+                  {ocorrenciaSelecionada.treinamentoNotas && ocorrenciaSelecionada.treinamentoNotas.length > 0 && (
+                    <div style={{ gridColumn: "span 2", alignItems: "flex-start", textAlign: "left" }}>
+                      <span style={{ textAlign: "left" }}>Notas do Treinamento (CSAT)</span>
+                      <div style={{ display: "flex", flexDirection: "row", gap: "8px", alignItems: "center", justifyContent: "flex-start", marginTop: "4px", flexWrap: "wrap", width: "100%" }}>
+                        {ocorrenciaSelecionada.treinamentoNotas.map((nota, idx) => (
+                          <span
+                            key={idx}
+                            style={{
+                              background: "#f1f5f9",
+                              border: "1px solid #cbd5e1",
+                              color: "#334155",
+                              padding: "4px 8px",
+                              borderRadius: "6px",
+                              fontSize: "0.85rem",
+                              fontWeight: "600"
+                            }}
+                          >
+                            Nota {idx + 1}: {nota}
+                          </span>
+                        ))}
+                        {ocorrenciaSelecionada.treinamentoNotaMedia !== undefined && ocorrenciaSelecionada.treinamentoNotaMedia !== null && (
+                          <span
+                            style={{
+                              background: "#ecfdf5",
+                              border: "1px solid #a7f3d0",
+                              color: "#065f46",
+                              padding: "4px 8px",
+                              borderRadius: "6px",
+                              fontSize: "0.85rem",
+                              fontWeight: "700"
+                            }}
+                          >
+                            Média: {ocorrenciaSelecionada.treinamentoNotaMedia}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {ocorrenciaSelecionada.temaOcorrencia && ocorrenciaSelecionada.temaOcorrencia.length > 0 && (
+                <div className="hist-detail-desc">
+                  <span>Temas abordados</span>
+                  <div className="temas-selecionados">
+                    {ocorrenciaSelecionada.temaOcorrencia.map((tema) => (
+                      <span
+                        key={tema}
+                        className={`tema-tag ${["Ausente", "Cancelado"].includes(tema) ? "tema-tag-alerta" : ""}`}
+                      >
+                        {tema}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="hist-detail-desc" style={{ marginTop: "16px" }}>
+              <span>Descrição</span>
+              <p style={{ whiteSpace: "pre-wrap" }}>
+                {ocorrenciaSelecionada.descricao}
+              </p>
+            </div>
+
+            {ocorrenciaSelecionada.atualizacoes && ocorrenciaSelecionada.atualizacoes.length > 0 && (
+              <div className="hist-atualizacoes" style={{ marginTop: "20px" }}>
+                {ocorrenciaSelecionada.atualizacoes.map((at, i) => (
+                  <div key={i} className="hist-atualizacao-item">
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span className="hist-atualizacao-meta">
+                        Atualização em{" "}
+                        {new Date(at.updatedAt).toLocaleDateString("pt-BR")}{" "}
+                        {new Date(at.updatedAt).toLocaleTimeString("pt-BR", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                        {at.responsavel ? ` · ${formatarNome(at.responsavel)}` : ""}
+                      </span>
+                    </div>
+                    <p style={{ whiteSpace: "pre-wrap", marginTop: "4px" }}>{at.descricao}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="botoes" style={{ marginTop: "24px" }}>
+              <button className="btn-secondary btn-small" onClick={() => setOcorrenciaSelecionada(null)}>
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>

@@ -331,6 +331,8 @@ export const Relatorios: React.FC = () => {
   const semProximoPasso = useMemo(() => {
     if (!limitesSemana) return [];
     const fimTimestamp = limitesSemana.fim.getTime();
+    const agora = Date.now();
+    const limiteCorte = fimTimestamp > agora ? agora : fimTimestamp;
 
     return dadosEmpresas.filter((e) => {
       // 1. Deve ter entrado antes/durante a semana
@@ -346,16 +348,15 @@ export const Relatorios: React.FC = () => {
       // 3. Status live (ongoing/suspenso/concluído)
       if (e.isOngoing || e.isSuspended || e.progresso >= 100) return false;
 
-      // 4. Sem agendamento futuro em relação ao fim da semana
+      // 4. Sem agendamento futuro em relação ao limite de corte
       const ocorrenciasDaEmpresa = ocorrencias.filter(
         (o) => o.empresa.trim().toLowerCase() === e.nomeEmpresa.trim().toLowerCase()
       );
       const temAgendamentoFuturo = ocorrenciasDaEmpresa.some(
         (o) =>
           (o.tipo === "Informativa" || o.tipo === "Treinamento" || o.tipo === "Checkpoint") &&
-          o.departamento === "Treinamento" &&
           o.dataOcorrencia &&
-          o.dataOcorrencia > fimTimestamp
+          o.dataOcorrencia > limiteCorte
       );
 
       return !temAgendamentoFuturo;
@@ -365,6 +366,8 @@ export const Relatorios: React.FC = () => {
   const semProximoPassoComparacao = useMemo(() => {
     if (!limitesSemanaComparacao) return [];
     const fimTimestamp = limitesSemanaComparacao.fim.getTime();
+    const agora = Date.now();
+    const limiteCorte = fimTimestamp > agora ? agora : fimTimestamp;
 
     return dadosEmpresas.filter((e) => {
       // 1. Deve ter entrado antes/durante a semana de comparação
@@ -380,16 +383,15 @@ export const Relatorios: React.FC = () => {
       // 3. Status live (ongoing/suspenso/concluído)
       if (e.isOngoing || e.isSuspended || e.progresso >= 100) return false;
 
-      // 4. Sem agendamento futuro em relação ao fim da semana de comparação
+      // 4. Sem agendamento futuro em relação ao limite de corte
       const ocorrenciasDaEmpresa = ocorrencias.filter(
         (o) => o.empresa.trim().toLowerCase() === e.nomeEmpresa.trim().toLowerCase()
       );
       const temAgendamentoFuturo = ocorrenciasDaEmpresa.some(
         (o) =>
           (o.tipo === "Informativa" || o.tipo === "Treinamento" || o.tipo === "Checkpoint") &&
-          o.departamento === "Treinamento" &&
           o.dataOcorrencia &&
-          o.dataOcorrencia > fimTimestamp
+          o.dataOcorrencia > limiteCorte
       );
 
       return !temAgendamentoFuturo;
@@ -399,6 +401,8 @@ export const Relatorios: React.FC = () => {
   const acimaDoPrazo = useMemo(() => {
     if (!limitesSemana) return [];
     const fimTimestamp = limitesSemana.fim.getTime();
+    const agora = Date.now();
+    const limiteCorte = fimTimestamp > agora ? agora : fimTimestamp;
 
     return dadosEmpresas.filter((e) => {
       // 1. Deve ter entrado antes/durante a semana
@@ -411,11 +415,11 @@ export const Relatorios: React.FC = () => {
         if (finalizacaoDate && finalizacaoDate.getTime() <= fimTimestamp) return false;
       }
 
-      // 3. Status live (ongoing/suspenso)
-      if (e.isOngoing || e.isSuspended) return false;
+      // 3. Status live (ongoing/suspenso/concluído)
+      if (e.isOngoing || e.isSuspended || e.progresso >= 100) return false;
 
-      // 4. Calcular dias na esteira até o fim da semana
-      const diasNaSemana = Math.floor((fimTimestamp - entradaDate.getTime()) / (1000 * 60 * 60 * 24));
+      // 4. Calcular dias na esteira até a data de referência/corte
+      const diasNaSemana = Math.floor((limiteCorte - entradaDate.getTime()) / (1000 * 60 * 60 * 24));
       return diasNaSemana > 60;
     });
   }, [dadosEmpresas, limitesSemana]);
@@ -423,6 +427,8 @@ export const Relatorios: React.FC = () => {
   const acimaDoPrazoComparacao = useMemo(() => {
     if (!limitesSemanaComparacao) return [];
     const fimTimestamp = limitesSemanaComparacao.fim.getTime();
+    const agora = Date.now();
+    const limiteCorte = fimTimestamp > agora ? agora : fimTimestamp;
 
     return dadosEmpresas.filter((e) => {
       // 1. Deve ter entrado antes/durante a semana de comparação
@@ -435,11 +441,11 @@ export const Relatorios: React.FC = () => {
         if (finalizacaoDate && finalizacaoDate.getTime() <= fimTimestamp) return false;
       }
 
-      // 3. Status live (ongoing/suspenso)
-      if (e.isOngoing || e.isSuspended) return false;
+      // 3. Status live (ongoing/suspenso/concluído)
+      if (e.isOngoing || e.isSuspended || e.progresso >= 100) return false;
 
-      // 4. Calcular dias na esteira até o fim da semana de comparação
-      const diasNaSemana = Math.floor((fimTimestamp - entradaDate.getTime()) / (1000 * 60 * 60 * 24));
+      // 4. Calcular dias na esteira até a data de referência/corte de comparação
+      const diasNaSemana = Math.floor((limiteCorte - entradaDate.getTime()) / (1000 * 60 * 60 * 24));
       return diasNaSemana > 60;
     });
   }, [dadosEmpresas, limitesSemanaComparacao]);
@@ -450,14 +456,14 @@ export const Relatorios: React.FC = () => {
 
     return dadosEmpresas
       .filter((e) => {
-        // Encontra a ocorrência mais recente de alerta/retirarAlerta até o fim da semana
-        const ultimaOcorrenciaAlertaNaSemana = ocorrencias
-          .filter(
-            (o) =>
-              o.empresa.trim().toLowerCase() === e.nomeEmpresa.trim().toLowerCase() &&
-              (o.alerta === true || o.retirarAlerta === true) &&
-              (o.dataOcorrencia || o.createdAt || 0) <= fim.getTime()
-          )
+        const ocorrenciasAlertaDaEmpresa = ocorrencias.filter(
+          (o) =>
+            o.empresa.trim().toLowerCase() === e.nomeEmpresa.trim().toLowerCase() &&
+            (o.alerta === true || o.retirarAlerta === true)
+        );
+
+        const ultimaOcorrenciaAlertaNaSemana = ocorrenciasAlertaDaEmpresa
+          .filter((o) => (o.dataOcorrencia || o.createdAt || 0) <= fim.getTime())
           .sort(
             (a, b) =>
               (b.dataOcorrencia || b.createdAt || 0) -
@@ -470,10 +476,13 @@ export const Relatorios: React.FC = () => {
             temAlertaNaSemana = true;
           }
         } else {
-          temAlertaNaSemana = !!e.alerta;
+          if (ocorrenciasAlertaDaEmpresa.length > 0) {
+            temAlertaNaSemana = false;
+          } else {
+            temAlertaNaSemana = !!e.alerta;
+          }
         }
 
-        // Mantém cliente em alerta mesmo que esteja suspenso
         return !e.isOngoing && temAlertaNaSemana;
       })
       .map((e) => {
@@ -599,13 +608,14 @@ export const Relatorios: React.FC = () => {
 
     return dadosEmpresas
       .filter((e) => {
-        const ultimaOcorrenciaAlertaNaSemana = ocorrencias
-          .filter(
-            (o) =>
-              o.empresa.trim().toLowerCase() === e.nomeEmpresa.trim().toLowerCase() &&
-              (o.alerta === true || o.retirarAlerta === true) &&
-              (o.dataOcorrencia || o.createdAt || 0) <= fim.getTime()
-          )
+        const ocorrenciasAlertaDaEmpresa = ocorrencias.filter(
+          (o) =>
+            o.empresa.trim().toLowerCase() === e.nomeEmpresa.trim().toLowerCase() &&
+            (o.alerta === true || o.retirarAlerta === true)
+        );
+
+        const ultimaOcorrenciaAlertaNaSemana = ocorrenciasAlertaDaEmpresa
+          .filter((o) => (o.dataOcorrencia || o.createdAt || 0) <= fim.getTime())
           .sort(
             (a, b) =>
               (b.dataOcorrencia || b.createdAt || 0) -
@@ -618,7 +628,11 @@ export const Relatorios: React.FC = () => {
             temAlertaNaSemana = true;
           }
         } else {
-          temAlertaNaSemana = !!e.alerta;
+          if (ocorrenciasAlertaDaEmpresa.length > 0) {
+            temAlertaNaSemana = false;
+          } else {
+            temAlertaNaSemana = !!e.alerta;
+          }
         }
 
         return !e.isOngoing && temAlertaNaSemana;
@@ -649,15 +663,22 @@ export const Relatorios: React.FC = () => {
     return contatosSuporteComparacao.reduce((acc, curr) => acc + (curr as any).dentroExpediente.total, 0);
   }, [contatosSuporteComparacao]);
 
-  const formatarDiferenca = (atual: number, anterior: number) => {
+  const formatarDiferenca = (atual: number, anterior: number, menorEhMelhor = false) => {
     if (anterior === 0) {
       if (atual === 0) return { texto: "0%", classe: "diff-neutral", diff: 0 };
-      return { texto: `+${atual} (novos)`, classe: "diff-positive", diff: 100 };
+      const texto = `+${atual} (novos)`;
+      const classe = menorEhMelhor ? "diff-negative" : "diff-positive";
+      return { texto, classe, diff: 100 };
     }
     const diff = ((atual - anterior) / anterior) * 100;
     const sinal = diff > 0 ? "+" : "";
     const texto = `${sinal}${diff.toFixed(0)}%`;
-    const classe = diff > 0 ? "diff-positive" : diff < 0 ? "diff-negative" : "diff-neutral";
+    let classe = "diff-neutral";
+    if (diff > 0) {
+      classe = menorEhMelhor ? "diff-negative" : "diff-positive";
+    } else if (diff < 0) {
+      classe = menorEhMelhor ? "diff-positive" : "diff-negative";
+    }
     return { texto, classe, diff };
   };
 
@@ -721,9 +742,9 @@ export const Relatorios: React.FC = () => {
 
     let comparacaoStr = "";
     if (dataComparacao && limitesSemanaComparacao) {
-      const pctTotal = formatarDiferenca(totalContatosSuporte, totalContatosSuporteComp);
-      const pctDentro = formatarDiferenca(dentroExpedienteTotal, dentroExpedienteTotalComp);
-      const pctFora = formatarDiferenca(foraExpedienteTotal, foraExpedienteTotalComp);
+      const pctTotal = formatarDiferenca(totalContatosSuporte, totalContatosSuporteComp, true);
+      const pctDentro = formatarDiferenca(dentroExpedienteTotal, dentroExpedienteTotalComp, true);
+      const pctFora = formatarDiferenca(foraExpedienteTotal, foraExpedienteTotalComp, true);
 
       const entrouComp = entraramNaSemanaComparacao.length;
       const pctEntrou = formatarDiferenca(entraramNaSemana.length, entrouComp);
@@ -732,13 +753,13 @@ export const Relatorios: React.FC = () => {
       const pctConcluiu = formatarDiferenca(concluidosNaSemana.length, concluiuComp);
 
       const churnComp = riscoChurnComparacao.length;
-      const pctChurn = formatarDiferenca(riscoChurn.length, churnComp);
+      const pctChurn = formatarDiferenca(riscoChurn.length, churnComp, true);
 
       const semPassoComp = semProximoPassoComparacao.length;
-      const pctSemPasso = formatarDiferenca(semProximoPasso.length, semPassoComp);
+      const pctSemPasso = formatarDiferenca(semProximoPasso.length, semPassoComp, true);
 
       const acimaPrazoComp = acimaDoPrazoComparacao.length;
-      const pctAcimaPrazo = formatarDiferenca(acimaDoPrazo.length, acimaPrazoComp);
+      const pctAcimaPrazo = formatarDiferenca(acimaDoPrazo.length, acimaPrazoComp, true);
 
       comparacaoStr = `
 ==================================================
@@ -949,7 +970,8 @@ ${riscoChurn.length > 0
                     else if (idx === 4) valorComp = acimaDoPrazoComparacao.length;
                     else if (idx === 5) valorComp = riscoChurnComparacao.length;
 
-                    diffResult = formatarDiferenca(kpi.valor, valorComp);
+                    const menorEhMelhor = idx === 2 || idx === 3 || idx === 4 || idx === 5;
+                    diffResult = formatarDiferenca(kpi.valor, valorComp, menorEhMelhor);
                   }
 
                   return (
@@ -1002,9 +1024,9 @@ ${riscoChurn.length > 0
                     </div>
                     <div className="comparacao-cards-grid">
                       {(() => {
-                        const pctTotalResult = formatarDiferenca(totalContatosSuporte, totalContatosSuporteComp);
-                        const pctDentroResult = formatarDiferenca(dentroExpedienteTotal, dentroExpedienteTotalComp);
-                        const pctForaResult = formatarDiferenca(foraExpedienteTotal, foraExpedienteTotalComp);
+                        const pctTotalResult = formatarDiferenca(totalContatosSuporte, totalContatosSuporteComp, true);
+                        const pctDentroResult = formatarDiferenca(dentroExpedienteTotal, dentroExpedienteTotalComp, true);
+                        const pctForaResult = formatarDiferenca(foraExpedienteTotal, foraExpedienteTotalComp, true);
 
                         return (
                           <>

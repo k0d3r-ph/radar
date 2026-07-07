@@ -14,6 +14,8 @@ import {
   Wrench,
   Cpu,
   TrendingUp,
+  Play,
+  Pause,
 } from "lucide-react";
 import "../Historico/Historico.css";
 import { listarEmpresas } from "../../services/empresas";
@@ -108,6 +110,31 @@ export const Relatorios: React.FC = () => {
     return `${year}-${month}-${day}`;
   });
   const [ocorrenciaSelecionada, setOcorrenciaSelecionada] = useState<Ocorrencia | null>(null);
+  const [isAutoplayActive, setIsAutoplayActive] = useState<boolean>(false);
+  const [intervaloSegundos, setIntervaloSegundos] = useState<number>(30);
+  const [autoplayTimer, setAutoplayTimer] = useState<number>(30);
+
+  useEffect(() => {
+    if (!isAutoplayActive || activeTab !== "esteira") {
+      setAutoplayTimer(intervaloSegundos);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      if (autoplayTimer <= 1) {
+        setKpiSelecionado((current) => (current + 1) % 6);
+        setAutoplayTimer(intervaloSegundos);
+      } else {
+        setAutoplayTimer(autoplayTimer - 1);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isAutoplayActive, autoplayTimer, activeTab, intervaloSegundos]);
+
+  useEffect(() => {
+    setAutoplayTimer(intervaloSegundos);
+  }, [kpiSelecionado, intervaloSegundos]);
 
   useEffect(() => {
     async function carregarDados() {
@@ -947,6 +974,45 @@ ${riscoChurn.length > 0
                   ✕
                 </button>
               )}
+            </div>
+
+            <div className="autoplay-controls">
+              <button
+                type="button"
+                className={`btn-autoplay ${isAutoplayActive ? "active" : ""}`}
+                onClick={() => setIsAutoplayActive(!isAutoplayActive)}
+                title={isAutoplayActive ? "Pausar rotação automática" : "Iniciar rotação automática"}
+              >
+                {isAutoplayActive ? (
+                  <>
+                    <Pause size={14} />
+                    <span>Autoplay Ativo</span>
+                    <span className="autoplay-timer-badge">{autoplayTimer}s</span>
+                  </>
+                ) : (
+                  <>
+                    <Play size={14} />
+                    <span>Autoplay</span>
+                  </>
+                )}
+              </button>
+
+              <div className="autoplay-interval-wrapper">
+                <label htmlFor="autoplay-interval">Intervalo:</label>
+                <input
+                  id="autoplay-interval"
+                  type="number"
+                  min={5}
+                  max={300}
+                  value={intervaloSegundos}
+                  onChange={(e) => {
+                    const val = Math.max(5, parseInt(e.target.value) || 5);
+                    setIntervaloSegundos(val);
+                  }}
+                  title="Intervalo de rotação em segundos (mínimo 5s)"
+                />
+                <span className="unit">s</span>
+              </div>
             </div>
           </div>
 

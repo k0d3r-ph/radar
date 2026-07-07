@@ -676,6 +676,22 @@ export const Relatorios: React.FC = () => {
     return contatosSuporteComparacao.reduce((acc, curr) => acc + (curr as any).totalContatos, 0);
   }, [contatosSuporteComparacao]);
 
+  const totalDuvidas = useMemo(() => {
+    return contatosSuporte.reduce((acc, curr) => acc + (curr as any).dentroExpediente.duvidas + (curr as any).foraExpediente.duvidas, 0);
+  }, [contatosSuporte]);
+
+  const totalDuvidasComp = useMemo(() => {
+    return contatosSuporteComparacao.reduce((acc, curr) => acc + (curr as any).dentroExpediente.duvidas + (curr as any).foraExpediente.duvidas, 0);
+  }, [contatosSuporteComparacao]);
+
+  const totalProblemas = useMemo(() => {
+    return contatosSuporte.reduce((acc, curr) => acc + (curr as any).dentroExpediente.problemas + (curr as any).foraExpediente.problemas, 0);
+  }, [contatosSuporte]);
+
+  const totalProblemasComp = useMemo(() => {
+    return contatosSuporteComparacao.reduce((acc, curr) => acc + (curr as any).dentroExpediente.problemas + (curr as any).foraExpediente.problemas, 0);
+  }, [contatosSuporteComparacao]);
+
   const foraExpedienteTotal = useMemo(() => {
     return contatosSuporte.reduce((acc, curr) => acc + (curr as any).foraExpediente.total, 0);
   }, [contatosSuporte]);
@@ -731,7 +747,7 @@ export const Relatorios: React.FC = () => {
     {
       titulo: "Contato com suporte",
       valor: totalContatosSuporte,
-      desc: "Atendimento suporte",
+      desc: `Dúvidas: ${totalDuvidas} | Problemas: ${totalProblemas}`,
       icone: <Clock size={22} />,
       lista: contatosSuporte,
       ehSazonal: true,
@@ -772,6 +788,8 @@ export const Relatorios: React.FC = () => {
     let comparacaoStr = "";
     if (dataComparacao && limitesSemanaComparacao) {
       const pctTotal = formatarDiferenca(totalContatosSuporte, totalContatosSuporteComp, true);
+      const pctDuvidas = formatarDiferenca(totalDuvidas, totalDuvidasComp, true);
+      const pctProblemas = formatarDiferenca(totalProblemas, totalProblemasComp, true);
       const pctDentro = formatarDiferenca(dentroExpedienteTotal, dentroExpedienteTotalComp, true);
       const pctFora = formatarDiferenca(foraExpedienteTotal, foraExpedienteTotalComp, true);
 
@@ -802,6 +820,8 @@ COMPARATIVO COM A SEMANA DE: ${limitesSemanaComparacao.inicio.toLocaleDateString
 
 CONTATOS COM SUPORTE:
 - Total: ${totalContatosSuporte} vs ${totalContatosSuporteComp} (${pctTotal.texto})
+- Dúvidas: ${totalDuvidas} vs ${totalDuvidasComp} (${pctDuvidas.texto})
+- Problemas: ${totalProblemas} vs ${totalProblemasComp} (${pctProblemas.texto})
 - Dentro do Expediente: ${dentroExpedienteTotal} vs ${dentroExpedienteTotalComp} (${pctDentro.texto})
 - Fora do Expediente: ${foraExpedienteTotal} vs ${foraExpedienteTotalComp} (${pctFora.texto})
 ==================================================
@@ -817,7 +837,7 @@ ${comparacaoStr}
 RESUMO DOS INDICADORES:
 1. Clientes que entraram na esteira na semana: ${entraramNaSemana.length}
 2. Clientes que concluíram a esteira na semana: ${concluidosNaSemana.length}
-3. Contatos com suporte (atendimento Suporte): ${totalContatosSuporte}
+3. Contatos com suporte (atendimento Suporte): ${totalContatosSuporte} (Dúvidas: ${totalDuvidas}, Problemas: ${totalProblemas})
 4. Clientes sem próximo passo (farol vermelho): ${semProximoPasso.length}
 5. Clientes acima do prazo de onboarding (> 60 dias): ${acimaDoPrazo.length}
 6. Casos com risco de churn (Clientes em Alerta): ${riscoChurn.length}
@@ -846,7 +866,7 @@ ${concluidosNaSemana.length > 0
           .join("\n")
         : " - Nenhum cliente concluído nesta semana.\n"
       }
-3. CONTATOS COM SUPORTE (${totalContatosSuporte})
+3. CONTATOS COM SUPORTE (${totalContatosSuporte} - Dúvidas: ${totalDuvidas}, Problemas: ${totalProblemas})
 ${contatosSuporte.length > 0
         ? contatosSuporte
           .map(
@@ -1077,7 +1097,7 @@ ${riscoChurn.length > 0
               <div className="relatorio-detalhe-section">
                 <div className="relatorio-detalhe-header">
                   <h3>
-                    📋 {selectedKpi.titulo} ({selectedKpi.valor})
+                    📋 {selectedKpi.titulo} {kpiSelecionado === 2 ? `(Total: ${totalContatosSuporte} | Dúvidas: ${totalDuvidas} | Problemas: ${totalProblemas})` : `(${selectedKpi.valor})`}
                   </h3>
                   <button className="btn-export-txt" onClick={exportarTXT}>
                     <Download size={16} />
@@ -1093,6 +1113,8 @@ ${riscoChurn.length > 0
                     <div className="comparacao-cards-grid">
                       {(() => {
                         const pctTotalResult = formatarDiferenca(totalContatosSuporte, totalContatosSuporteComp, true);
+                        const pctDuvidasResult = formatarDiferenca(totalDuvidas, totalDuvidasComp, true);
+                        const pctProblemasResult = formatarDiferenca(totalProblemas, totalProblemasComp, true);
                         const pctDentroResult = formatarDiferenca(dentroExpedienteTotal, dentroExpedienteTotalComp, true);
                         const pctForaResult = formatarDiferenca(foraExpedienteTotal, foraExpedienteTotalComp, true);
 
@@ -1107,6 +1129,30 @@ ${riscoChurn.length > 0
                               </div>
                               <span className={`comp-item-pct ${pctTotalResult.classe}`}>
                                 {pctTotalResult.texto} {pctTotalResult.diff > 0 ? "a mais" : pctTotalResult.diff < 0 ? "a menos" : "sem alteração"}
+                              </span>
+                            </div>
+
+                            <div className="comparacao-card-item">
+                              <span className="comp-item-label">Total de Dúvidas</span>
+                              <div className="comp-item-values">
+                                <span className="comp-val-atual">{totalDuvidas}</span>
+                                <span className="comp-val-separator">vs</span>
+                                <span className="comp-val-anterior">{totalDuvidasComp}</span>
+                              </div>
+                              <span className={`comp-item-pct ${pctDuvidasResult.classe}`}>
+                                {pctDuvidasResult.texto} {pctDuvidasResult.diff > 0 ? "a mais" : pctDuvidasResult.diff < 0 ? "a menos" : "sem alteração"}
+                              </span>
+                            </div>
+
+                            <div className="comparacao-card-item">
+                              <span className="comp-item-label">Total de Problemas</span>
+                              <div className="comp-item-values">
+                                <span className="comp-val-atual">{totalProblemas}</span>
+                                <span className="comp-val-separator">vs</span>
+                                <span className="comp-val-anterior">{totalProblemasComp}</span>
+                              </div>
+                              <span className={`comp-item-pct ${pctProblemasResult.classe}`}>
+                                {pctProblemasResult.texto} {pctProblemasResult.diff > 0 ? "a mais" : pctProblemasResult.diff < 0 ? "a menos" : "sem alteração"}
                               </span>
                             </div>
 

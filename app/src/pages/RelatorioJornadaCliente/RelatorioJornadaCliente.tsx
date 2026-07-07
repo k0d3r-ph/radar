@@ -285,7 +285,9 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
 
   // 2. Filtra e processa os dados de todas as empresas para a visão consolidada
   const dadosGeraisClientes = useMemo(() => {
-    return empresas.map((emp) => {
+    return empresas
+      .filter((emp) => !emp.isOngoing)
+      .map((emp) => {
       const jornada = calcularJornada(emp);
       const isFinalizado = !!emp.dataFinalizacao;
       const currentStageObj = jornada.find((s) => s.active) || (isFinalizado ? jornada[jornada.length - 1] : null);

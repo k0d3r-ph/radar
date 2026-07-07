@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { toast } from "sonner";
 import {
   Download,
@@ -114,6 +114,23 @@ export const Relatorios: React.FC = () => {
   const [intervaloSegundos, setIntervaloSegundos] = useState<number>(30);
   const [autoplayTimer, setAutoplayTimer] = useState<number>(30);
 
+  const carregarDados = useCallback(async (silencioso = false) => {
+    if (!silencioso) setLoading(true);
+    try {
+      const [empresasLista, ocorrenciasLista] = await Promise.all([
+        listarEmpresas(),
+        listarOcorrencias(),
+      ]);
+      setEmpresas(empresasLista);
+      setOcorrencias(ocorrenciasLista);
+    } catch (error) {
+      console.error("Erro ao carregar dados:", error);
+      toast.error("Erro ao carregar dados dos relatórios.");
+    } finally {
+      if (!silencioso) setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (!isAutoplayActive || activeTab !== "esteira") {
       setAutoplayTimer(intervaloSegundos);
@@ -123,6 +140,7 @@ export const Relatorios: React.FC = () => {
     const interval = setInterval(() => {
       if (autoplayTimer <= 1) {
         setKpiSelecionado((current) => (current + 1) % 6);
+        carregarDados(true);
         setAutoplayTimer(intervaloSegundos);
       } else {
         setAutoplayTimer(autoplayTimer - 1);
@@ -130,31 +148,15 @@ export const Relatorios: React.FC = () => {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [isAutoplayActive, autoplayTimer, activeTab, intervaloSegundos]);
+  }, [isAutoplayActive, autoplayTimer, activeTab, intervaloSegundos, carregarDados]);
 
   useEffect(() => {
     setAutoplayTimer(intervaloSegundos);
   }, [kpiSelecionado, intervaloSegundos]);
 
   useEffect(() => {
-    async function carregarDados() {
-      setLoading(true);
-      try {
-        const [empresasLista, ocorrenciasLista] = await Promise.all([
-          listarEmpresas(),
-          listarOcorrencias(),
-        ]);
-        setEmpresas(empresasLista);
-        setOcorrencias(ocorrenciasLista);
-      } catch (error) {
-        console.error("Erro ao carregar dados:", error);
-        toast.error("Erro ao carregar dados dos relatórios.");
-      } finally {
-        setLoading(false);
-      }
-    }
     carregarDados();
-  }, []);
+  }, [carregarDados]);
 
   // Limites da semana selecionada (de Domingo a Sábado)
   const limitesSemana = useMemo(() => {

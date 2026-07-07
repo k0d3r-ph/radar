@@ -162,6 +162,16 @@ body.dark-theme .score-pergunta {
   border-color: rgba(255, 255, 255, 0.08) !important;
 }
 
+body.dark-theme .score-pergunta label,
+body.dark-theme .home-score-pergunta label {
+  color: #f1f5f9 !important;
+}
+
+body.dark-theme .radio-group-score label,
+body.dark-theme .home-score-pergunta .radio-group-score label {
+  color: #cbd5e1 !important;
+}
+
 body.dark-theme .checkbox-label-score {
   color: #cbd5e1 !important;
 }
@@ -178,7 +188,8 @@ body.dark-theme .score-calculo-previo strong {
   color: #ffffff !important;
 }
 
-body.dark-theme .score-hint {
+body.dark-theme .score-hint,
+body.dark-theme .home-score-hint {
   color: #94a3b8 !important;
 }
 

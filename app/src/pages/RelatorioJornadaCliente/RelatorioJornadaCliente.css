@@ -1,0 +1,1072 @@
+/* ========================================================
+   ESTILOS DO RELATÓRIO DE JORNADA DO CLIENTE - STEPPER UX
+   ======================================================== */
+
+.jornada-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  margin-top: 1rem;
+}
+
+/* Painel de KPIs */
+.jornada-kpis-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.25rem;
+}
+
+.jornada-kpi-card {
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  position: relative;
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.jornada-kpi-card:hover {
+  background: #273549;
+  border-color: rgba(255, 255, 255, 0.16);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+.jornada-kpi-card.alert-card {
+  border-left: 4px solid #ef4444;
+}
+
+.jornada-kpi-card.success-card {
+  border-left: 4px solid #10b981;
+}
+
+.jornada-kpi-card.info-card {
+  border-left: 4px solid #3b82f6;
+}
+
+.jornada-kpi-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.jornada-kpi-label {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.jornada-kpi-icon {
+  color: #94a3b8;
+  opacity: 0.8;
+}
+
+.jornada-kpi-card.alert-card .jornada-kpi-icon {
+  color: #f87171;
+}
+
+.jornada-kpi-card.success-card .jornada-kpi-icon {
+  color: #34d399;
+}
+
+.jornada-kpi-card.info-card .jornada-kpi-icon {
+  color: #60a5fa;
+}
+
+.jornada-kpi-value {
+  font-size: 2.25rem;
+  font-weight: 800;
+  color: #f1f5f9;
+  line-height: 1.1;
+}
+
+.jornada-kpi-desc {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin: 0;
+}
+
+.jornada-main-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2rem;
+}
+
+@media (min-width: 1024px) {
+  .jornada-main-layout {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.9fr);
+  }
+}
+
+/* Seção de Clientes Ativos */
+.jornada-section-card {
+  background: rgba(30, 41, 59, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 1.5rem;
+  backdrop-filter: blur(12px);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  height: fit-content;
+}
+
+.jornada-section-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.jornada-search-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.jornada-search-input {
+  width: 100%;
+  padding: 0.6rem 2.5rem 0.6rem 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #0f172a;
+  color: white;
+  font-size: 0.9rem;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.jornada-search-input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.jornada-search-icon {
+  position: absolute;
+  right: 0.75rem;
+  color: #64748b;
+  pointer-events: none;
+}
+
+/* Lista de Clientes */
+.jornada-clients-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 520px;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+
+.jornada-clients-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.jornada-clients-list::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+.jornada-clients-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.jornada-client-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.jornada-client-item:hover {
+  background: rgba(30, 41, 59, 0.6);
+  border-color: rgba(255, 255, 255, 0.12);
+  transform: translateX(3px);
+}
+
+.jornada-client-item.selected {
+  background: linear-gradient(135deg, rgba(30, 58, 138, 0.6), rgba(59, 130, 246, 0.4));
+  border-color: #3b82f6;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+.jornada-client-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.jornada-client-name {
+  font-weight: 600;
+  color: #f1f5f9;
+  font-size: 0.95rem;
+}
+
+.jornada-client-meta {
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.jornada-client-stage-badge {
+  font-size: 0.75rem;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.jornada-client-stage-badge.treinamento {
+  background: rgba(139, 92, 246, 0.15);
+  color: #a78bfa;
+  border: 1px solid rgba(139, 92, 246, 0.25);
+}
+
+.jornada-client-stage-badge.checkpoint {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.25);
+}
+
+.jornada-client-stage-badge.sem-passo {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.jornada-client-stage-badge.sem-passo-erro {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  animation: pulse-border 2s infinite;
+}
+
+.jornada-client-stage-badge.finalizado {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+/* Detalhamento do Cliente Selecionado */
+.jornada-detail-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.jornada-detail-company-title {
+  font-size: 1.45rem;
+  font-weight: 800;
+  margin: 0 0 0.5rem 0;
+  color: #f1f5f9;
+}
+
+.jornada-detail-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1rem;
+  background: rgba(15, 23, 42, 0.3);
+  padding: 1.25rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.jornada-detail-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  text-align: left;
+}
+
+.jornada-detail-info-item span {
+  font-size: 0.75rem;
+  color: #64748b;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.jornada-detail-info-item strong {
+  font-size: 0.95rem;
+  color: #cbd5e1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ========================================================
+   NOVO STEPPER HORIZONTAL
+   ======================================================== */
+
+.jornada-stepper-container {
+  width: 100%;
+  padding: 1rem;
+  margin-top: 0.5rem;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  position: relative;
+}
+
+.jornada-stepper-track {
+  display: flex;
+  align-items: stretch;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  position: relative;
+  width: 100%;
+  padding: 0;
+}
+
+.jornada-step-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: calc(20% - 0.6rem); /* 5 columns on desktop, wrapping to next lines */
+  min-width: 110px;
+  position: relative;
+  z-index: 2;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0.5rem 0;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+/* Linha conectora da régua (ruler track) */
+.jornada-step-node::before {
+  content: "";
+  position: absolute;
+  top: 26px; /* center of the 36px circle vertically (padding top 8px + 18px = 26px) */
+  left: 50%;
+  right: -50%;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.08);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.jornada-step-node:last-child::before {
+  display: none;
+}
+
+.jornada-step-node:hover {
+  transform: translateY(-2px);
+}
+
+.jornada-step-node.selected-node {
+  background: none;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+/* Círculo do Nó */
+.jornada-step-circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #1e293b;
+  border: 2px solid #475569;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  margin-bottom: 0.5rem;
+  transition: all 0.2s ease;
+  position: relative;
+  z-index: 3; /* above the background line */
+}
+
+/* Cores específicas de cada nó no stepper */
+.jornada-step-node.treinamento .jornada-step-circle {
+  border-color: #8b5cf6;
+  color: #a78bfa;
+}
+
+.jornada-step-node.checkpoint .jornada-step-circle {
+  border-color: #3b82f6;
+  color: #60a5fa;
+}
+
+.jornada-step-node.sem-passo .jornada-step-circle {
+  border-color: #d97706;
+  color: #fbbf24;
+}
+
+.jornada-step-node.sem-passo.sla-violated .jornada-step-circle {
+  border-color: #ef4444;
+  background: #ef4444;
+  color: #ffffff;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
+  animation: pulse-marker 1.5s infinite;
+}
+
+.jornada-step-node.finalizado .jornada-step-circle {
+  border-color: #10b981;
+  background: #10b981;
+  color: #ffffff;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.5);
+}
+
+/* Estilo para Nós Selecionados (Foco) */
+.jornada-step-node.selected-node .jornada-step-circle {
+  transform: scale(1.18);
+  border-width: 4px;
+  box-shadow: 0 0 15px currentColor;
+}
+
+.jornada-step-node.treinamento.selected-node .jornada-step-circle {
+  box-shadow: 0 0 15px rgba(139, 92, 246, 0.6);
+  background: #2e1065;
+}
+
+.jornada-step-node.checkpoint.selected-node .jornada-step-circle {
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.6);
+  background: #172554;
+}
+
+.jornada-step-node.sem-passo.selected-node .jornada-step-circle {
+  box-shadow: 0 0 15px rgba(245, 158, 11, 0.6);
+  background: #451a03;
+}
+
+.jornada-step-node.sem-passo.sla-violated.selected-node .jornada-step-circle {
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.8);
+  background: #dc2626;
+}
+
+.jornada-step-node.finalizado.selected-node .jornada-step-circle {
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.8);
+  background: #059669;
+}
+
+/* Badge de Etapa Atual no Stepper */
+.jornada-step-active-pulse {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #3b82f6;
+  border: 2px solid #0f172a;
+  box-shadow: 0 0 8px #3b82f6;
+  animation: pulse-active-stepper 2s infinite;
+}
+
+/* Nomes e Datas dos Nós */
+.jornada-step-name {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #cbd5e1;
+  text-align: center;
+  max-width: 100%;
+  word-break: break-word;
+  line-height: 1.25;
+  transition: color 0.2s;
+}
+
+.jornada-step-node:hover .jornada-step-name {
+  color: #ffffff;
+}
+
+.jornada-step-node.selected-node .jornada-step-name {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.jornada-step-date {
+  font-size: 0.72rem;
+  color: #64748b;
+  margin-top: 0.25rem;
+}
+
+/* ========================================================
+   CARD DE FOCO DETALHADO
+   ======================================================== */
+
+.jornada-focus-card {
+  background: rgba(30, 41, 59, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  text-align: left;
+  animation: fadeIn 0.3s ease;
+}
+
+.jornada-focus-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.jornada-focus-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.jornada-focus-title {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: #f1f5f9;
+  margin: 0;
+}
+
+.jornada-focus-badges {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+.jornada-stage-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72rem;
+  padding: 4px 10px;
+  border-radius: 9999px; /* Pill design */
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  gap: 4px;
+}
+
+.jornada-stage-badge.concluido {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.jornada-stage-badge.em-andamento {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.jornada-stage-badge.sla-status-breached {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.jornada-stage-badge.sla-status-ok {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+/* Grid de Informações de Foco */
+.jornada-focus-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1.25rem;
+}
+
+.jornada-focus-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  background: rgba(15, 23, 42, 0.2);
+  padding: 0.85rem 1rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.jornada-focus-item span {
+  font-size: 0.75rem;
+  color: #64748b;
+  text-transform: uppercase;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.jornada-focus-item strong {
+  font-size: 0.95rem;
+  color: #e2e8f0;
+}
+
+/* Alerta de violação de SLA no card de foco */
+.jornada-focus-sla-alert {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  padding: 1rem;
+  border-radius: 12px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  color: #f87171;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.jornada-focus-sla-icon {
+  flex-shrink: 0;
+  color: #ef4444;
+}
+
+/* Detalhamento de Ocorrência */
+.jornada-focus-ocorrencia-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 1.25rem;
+}
+
+.jornada-focus-oc-header {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #94a3b8;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.jornada-focus-desc {
+  background: rgba(15, 23, 42, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  padding: 1.25rem;
+  border-radius: 12px;
+}
+
+.jornada-focus-desc h5 {
+  font-size: 0.8rem;
+  color: #64748b;
+  text-transform: uppercase;
+  margin: 0 0 0.5rem 0;
+  font-weight: 700;
+}
+
+.jornada-focus-desc p {
+  font-size: 0.9rem;
+  color: #cbd5e1;
+  margin: 0;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+/* Temas selecionados */
+.jornada-focus-temas h5 {
+  font-size: 0.8rem;
+  color: #64748b;
+  text-transform: uppercase;
+  margin: 0 0 0.5rem 0;
+  font-weight: 700;
+}
+
+.temas-selecionados {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.jornada-container .tema-tag {
+  background: rgba(59, 130, 246, 0.1) !important;
+  border: 1px solid rgba(59, 130, 246, 0.25) !important;
+  color: #60a5fa !important; /* Azul claro de alto contraste */
+  padding: 5px 12px;
+  border-radius: 9999px; /* Pill design */
+  font-size: 0.78rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  letter-spacing: 0.02em;
+  display: inline-flex;
+}
+
+.jornada-container .tema-tag:hover {
+  background: rgba(59, 130, 246, 0.2) !important;
+  border-color: rgba(59, 130, 246, 0.4) !important;
+  color: #ffffff !important;
+  transform: translateY(-1px);
+}
+
+.jornada-container .tema-tag-alerta {
+  background: rgba(239, 68, 68, 0.15) !important;
+  border: 1px solid rgba(239, 68, 68, 0.4) !important;
+  color: #fca5a5 !important;
+}
+
+.jornada-container .tema-tag-alerta:hover {
+  background: rgba(239, 68, 68, 0.25) !important;
+  border-color: rgba(239, 68, 68, 0.55) !important;
+  color: #ffffff !important;
+}
+
+/* Notas de treinamento / CSAT */
+.jornada-focus-csat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.jornada-focus-csat h5 {
+  font-size: 0.8rem;
+  color: #64748b;
+  text-transform: uppercase;
+  margin: 0;
+  font-weight: 700;
+}
+
+.csat-notas-container {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.csat-nota-badge {
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.csat-media-badge {
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+/* Mensagens de tela vazia */
+.jornada-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  background: rgba(30, 41, 59, 0.2);
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  color: #94a3b8;
+  gap: 1rem;
+  text-align: center;
+}
+
+.jornada-empty-icon {
+  font-size: 3rem;
+  opacity: 0.6;
+}
+
+/* Animações e Pulsars */
+@keyframes pulse-border {
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+@keyframes pulse-marker {
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+@keyframes pulse-active-stepper {
+  0% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+    transform: scale(1);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(59, 130, 246, 0);
+    transform: scale(1);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+    transform: scale(1);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Custom styles for light theme compatibility */
+body.light-theme .jornada-kpi-card {
+  background: #ffffff;
+  border-color: #e2e8f0;
+}
+
+body.light-theme .jornada-kpi-card:hover {
+  background: #f8fafc;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+}
+
+body.light-theme .jornada-kpi-value {
+  color: #0f172a;
+}
+
+body.light-theme .jornada-kpi-label {
+  color: #64748b;
+}
+
+body.light-theme .jornada-section-card {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+}
+
+body.light-theme .jornada-section-title {
+  color: #0f172a;
+}
+
+body.light-theme .jornada-search-input {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
+body.light-theme .jornada-search-input:focus {
+  border-color: #3b82f6;
+  background: #ffffff;
+}
+
+body.light-theme .jornada-client-item {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+body.light-theme .jornada-client-item:hover {
+  background: #f1f5f9;
+}
+
+body.light-theme .jornada-client-item.selected {
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  border-color: #3b82f6;
+}
+
+body.light-theme .jornada-client-name {
+  color: #0f172a;
+}
+
+body.light-theme .jornada-client-meta {
+  color: #64748b;
+}
+
+body.light-theme .jornada-detail-info-grid {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+body.light-theme .jornada-detail-info-item strong {
+  color: #1e293b;
+}
+
+/* Stepper Light mode */
+body.light-theme .jornada-stepper-container {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+body.light-theme .jornada-step-node::before {
+  background: #cbd5e1;
+}
+
+body.light-theme .jornada-step-name {
+  color: #475569;
+}
+
+body.light-theme .jornada-step-node:hover .jornada-step-name {
+  color: #0f172a;
+}
+
+body.light-theme .jornada-step-node.selected-node .jornada-step-name {
+  color: #0f172a;
+}
+
+/* Ícones da Régua no Light Theme com cores semânticas distintas */
+body.light-theme .jornada-step-node.treinamento .jornada-step-circle {
+  border-color: #c084fc;
+  color: #7e22ce;
+  background: #f3e8ff;
+}
+body.light-theme .jornada-step-node.treinamento.selected-node .jornada-step-circle {
+  background: #e9d5ff;
+  border-color: #a855f7;
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.45);
+}
+
+body.light-theme .jornada-step-node.checkpoint .jornada-step-circle {
+  border-color: #60a5fa;
+  color: #1d4ed8;
+  background: #eff6ff;
+}
+body.light-theme .jornada-step-node.checkpoint.selected-node .jornada-step-circle {
+  background: #dbeafe;
+  border-color: #3b82f6;
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.45);
+}
+
+body.light-theme .jornada-step-node.sem-passo .jornada-step-circle {
+  border-color: #fbbf24;
+  color: #b45309;
+  background: #fffbeb;
+}
+body.light-theme .jornada-step-node.sem-passo.selected-node .jornada-step-circle {
+  background: #fef3c7;
+  border-color: #f59e0b;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.45);
+}
+
+body.light-theme .jornada-step-node.sem-passo.sla-violated .jornada-step-circle {
+  border-color: #fca5a5;
+  color: #b91c1c;
+  background: #fef2f2;
+}
+body.light-theme .jornada-step-node.sem-passo.sla-violated.selected-node .jornada-step-circle {
+  background: #fee2e2;
+  border-color: #ef4444;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.45);
+}
+
+body.light-theme .jornada-step-node.finalizado .jornada-step-circle {
+  border-color: #34d399;
+  color: #047857;
+  background: #ecfdf5;
+}
+body.light-theme .jornada-step-node.finalizado.selected-node .jornada-step-circle {
+  background: #d1fae5;
+  border-color: #10b981;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.45);
+}
+
+body.light-theme .jornada-focus-card {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+}
+
+body.light-theme .jornada-focus-title {
+  color: #0f172a;
+}
+
+body.light-theme .jornada-focus-item {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+body.light-theme .jornada-focus-item strong {
+  color: #1e293b;
+}
+
+body.light-theme .jornada-focus-desc {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+body.light-theme .jornada-detail-company-title {
+  color: #0f172a;
+}
+
+body.light-theme .jornada-focus-desc p {
+  color: #334155;
+}
+
+body.light-theme .jornada-container .tema-tag {
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #475569 !important;
+  font-weight: 600;
+  border-radius: 9999px !important;
+}
+
+body.light-theme .jornada-container .tema-tag:hover {
+  background: #e2e8f0 !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+body.light-theme .jornada-container .tema-tag-alerta {
+  background: #fff5f5 !important;
+  border-color: #feb2b2 !important;
+  color: #c53030 !important;
+}
+
+body.light-theme .csat-nota-badge {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #334155;
+}
+
+body.light-theme .jornada-empty-state {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #64748b;
+}
+
+/* Overrides de Light Theme para badges */
+body.light-theme .jornada-stage-badge.concluido {
+  background: rgba(16, 185, 129, 0.1);
+  color: #065f46;
+  border-color: rgba(16, 185, 129, 0.2);
+}
+
+body.light-theme .jornada-stage-badge.em-andamento {
+  background: rgba(59, 130, 246, 0.1);
+  color: #1e3a8a;
+  border-color: rgba(59, 130, 246, 0.2);
+}
+
+body.light-theme .jornada-stage-badge.sla-status-breached {
+  background: rgba(239, 68, 68, 0.1);
+  color: #991b1b;
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+body.light-theme .jornada-stage-badge.sla-status-ok {
+  background: rgba(16, 185, 129, 0.1);
+  color: #065f46;
+  border-color: rgba(16, 185, 129, 0.2);
+}

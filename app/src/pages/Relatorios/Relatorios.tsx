@@ -32,6 +32,7 @@ import type { Empresa, Ocorrencia } from "../../types";
 import { formatarNome } from "../../utils/formatarNome";
 import "./Relatorios.css";
 import { RelatorioScore } from "../RelatorioScore/RelatorioScore";
+import { RelatorioJornadaCliente } from "../RelatorioJornadaCliente/RelatorioJornadaCliente";
 import { useNavigate } from "react-router-dom";
 
 type DecorredEmpresa = Empresa & {
@@ -89,7 +90,7 @@ function obterDataUmaSemanaAtras(dataStr: string): string {
 
 export const Relatorios: React.FC = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<"esteira" | "score">("esteira");
+  const [activeTab, setActiveTab] = useState<"esteira" | "score" | "jornada">("esteira");
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [ocorrencias, setOcorrencias] = useState<Ocorrencia[]>([]);
   const [loading, setLoading] = useState(true);
@@ -946,6 +947,12 @@ ${riscoChurn.length > 0
         >
           Scores dos Clientes
         </button>
+        <button
+          className={`relatorios-tab-btn ${activeTab === "jornada" ? "active" : ""}`}
+          onClick={() => setActiveTab("jornada")}
+        >
+          Jornada do Cliente
+        </button>
       </div>
 
       {activeTab === "esteira" ? (
@@ -1389,8 +1396,10 @@ ${riscoChurn.length > 0
             </>
           )}
         </>
-      ) : (
+      ) : activeTab === "score" ? (
         <RelatorioScore />
+      ) : (
+        <RelatorioJornadaCliente empresas={empresas} ocorrencias={ocorrencias} />
       )}
 
       {ocorrenciaSelecionada && (

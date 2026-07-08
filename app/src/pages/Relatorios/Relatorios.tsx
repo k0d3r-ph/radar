@@ -925,11 +925,19 @@ ${riscoChurn.length > 0
       <div className="relatorios-glow"></div>
 
       <header className="relatorios-header">
-        <h1>{activeTab === "esteira" ? "Relatórios de Acompanhamento" : "Relatório Geral de Scores"}</h1>
+        <h1>
+          {activeTab === "esteira"
+            ? "Visão Geral"
+            : activeTab === "jornada"
+              ? "Jornada do Cliente"
+              : "Relatório Geral de Scores"}
+        </h1>
         <p>
           {activeTab === "esteira"
             ? "Indicadores consolidados sobre o andamento e status das implantações dos clientes."
-            : "Estatísticas consolidadas e listagem de clientes baseadas no último cálculo de score."}
+            : activeTab === "jornada"
+              ? "Acompanhamento do progresso, etapas de treinamento e checkpoints de capacitação dos clientes."
+              : "Estatísticas consolidadas e listagem de clientes baseadas no último cálculo de score."}
         </p>
       </header>
 
@@ -1531,8 +1539,8 @@ ${riscoChurn.length > 0
                     {ocorrenciaSelecionada.tipo === "Informativa" || ocorrenciaSelecionada.tipo === "Treinamento"
                       ? "Data do próximo treinamento"
                       : ocorrenciaSelecionada.tipo === "Checkpoint"
-                      ? "Data do checkpoint"
-                      : "Data do agendamento"}
+                        ? "Data do checkpoint"
+                        : "Data do agendamento"}
                   </span>
                   <strong>
                     {new Date(ocorrenciaSelecionada.dataOcorrencia).toLocaleDateString("pt-BR")}{" "}

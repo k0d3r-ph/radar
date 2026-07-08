@@ -148,11 +148,13 @@ body.dark-theme .score-modal-header {
   border-bottom-color: rgba(255, 255, 255, 0.08) !important;
 }
 
-body.dark-theme .score-modal-fechar {
+body.dark-theme .score-modal-fechar,
+body.dark-theme .hist-detail-fechar {
   color: #94a3b8 !important;
 }
 
-body.dark-theme .score-modal-fechar:hover {
+body.dark-theme .score-modal-fechar:hover,
+body.dark-theme .hist-detail-fechar:hover {
   background: rgba(255, 255, 255, 0.08) !important;
   color: #ffffff !important;
 }
@@ -1354,6 +1356,57 @@ body.light-theme .hist-total-registros {
 
 body.light-theme .hist-total-registros strong {
   color: #0f2a5e !important;
+}
+
+/* ── Notas de treinamento no Dark Mode ── */
+body.dark-theme .nota-treinamento-tag {
+  background: #0f172a !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #cbd5e1 !important;
+}
+
+body.dark-theme .nota-treinamento-media {
+  background: rgba(16, 185, 129, 0.15) !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+  color: #a7f3d0 !important;
+}
+
+body.dark-theme .btn-add-nota-icon {
+  background: rgba(59, 130, 246, 0.15) !important;
+  border-color: rgba(59, 130, 246, 0.3) !important;
+  color: #60a5fa !important;
+}
+
+body.dark-theme .btn-add-nota-icon:hover {
+  background: rgba(59, 130, 246, 0.25) !important;
+  color: #ffffff !important;
+}
+
+body.dark-theme .training-no-notes-text {
+  color: #64748b !important;
+}
+
+body.dark-theme .training-note-input {
+  background: #0f172a !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+body.dark-theme .training-note-input:focus {
+  border-color: #3b82f6 !important;
+  background: #0f172a !important;
+}
+
+body.dark-theme .btn-remove-nota {
+  background: rgba(239, 68, 68, 0.15) !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+  color: #fca5a5 !important;
+}
+
+body.dark-theme .btn-remove-nota:hover {
+  background: rgba(239, 68, 68, 0.25) !important;
+  border-color: #ef4444 !important;
+  color: #ffffff !important;
 }
 
 

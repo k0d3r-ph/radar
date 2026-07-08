@@ -499,11 +499,25 @@
   color: #0f2a5e;
 }
 
-.hist-detail-header button {
+.hist-detail-fechar {
+  background: transparent;
   border: none;
-  background: none;
-  font-size: 1.2rem;
+  color: #64748b;
   cursor: pointer;
+  padding: 0;
+  border-radius: 50%;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+}
+
+.hist-detail-fechar:hover {
+  background: #f0f4ff;
+  color: #0f2a5e;
+  transform: rotate(90deg);
 }
 
 .hist-detail-grid {
@@ -922,19 +936,24 @@
 }
 
 .hist-fechar {
-  background: none;
+  background: transparent;
   border: none;
-  font-size: 1.1rem;
+  color: #64748b;
   cursor: pointer;
-  color: #8a96b0;
-  padding: 4px 8px;
-  border-radius: 6px;
-  transition: background 0.15s;
+  padding: 0;
+  border-radius: 50%;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
 }
 
 .hist-fechar:hover {
   background: #f0f4ff;
-  color: #374060;
+  color: #0f2a5e;
+  transform: rotate(90deg);
 }
 
 /* ── Campos do formulário ── */
@@ -1286,24 +1305,24 @@
 }
 
 .score-modal-fechar {
-  background: none;
+  background: transparent;
   border: none;
-  font-size: 1.1rem;
   color: #64748b;
   cursor: pointer;
-  padding: 4px;
+  padding: 0;
   border-radius: 50%;
-  transition: background 0.15s, color 0.15s;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
 }
 
 .score-modal-fechar:hover {
-  background: #f1f5f9;
-  color: #1e293b;
+  background: #f0f4ff;
+  color: #0f2a5e;
+  transform: rotate(90deg);
 }
 
 .score-modal-body {
@@ -1507,4 +1526,132 @@
 
 .hist-total-registros strong {
   color: #ffffff;
+}
+
+/* ── Notas de treinamento (CSAT) ── */
+.hist-detail-grid .hist-detail-training-notes-wrapper {
+  grid-column: span 2;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+  text-align: left;
+}
+
+.hist-detail-grid .hist-detail-training-notes-list {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-start;
+  margin-top: 4px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.nota-treinamento-tag {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.nota-treinamento-media {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.training-notes-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.btn-add-nota-icon {
+  background: #f0f4ff;
+  border: 1px solid #dbeafe;
+  color: #1e90ff;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  transition: all 0.2s ease;
+}
+
+.btn-add-nota-icon:hover {
+  background: #e0eaff;
+  color: #0f2a5e;
+}
+
+.training-no-notes-text {
+  font-size: 12px;
+  color: #8a96b0;
+  display: block;
+  font-style: italic;
+  margin-bottom: 8px;
+}
+
+.training-notes-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.training-note-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.training-note-input {
+  flex: 1;
+  background: #fafbff;
+  border: 1.5px solid #dde3ef;
+  border-radius: 8px;
+  color: #1a2540;
+  font-size: 14px;
+  padding: 8px 12px;
+  outline: none;
+  transition: border-color 0.15s;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.training-note-input:focus {
+  border-color: #1e90ff;
+  background: white;
+}
+
+.btn-remove-nota {
+  background: rgba(229, 62, 62, 0.08);
+  border: 1.5px solid rgba(229, 62, 62, 0.15);
+  border-radius: 8px;
+  color: #e53e3e;
+  cursor: pointer;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+}
+
+.btn-remove-nota:hover {
+  background: rgba(229, 62, 62, 0.15);
+  border-color: #e53e3e;
 }

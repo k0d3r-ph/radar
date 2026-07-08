@@ -27,6 +27,7 @@ import {
   Code,
   Cpu,
   Trash2,
+  X,
 } from "lucide-react";
 
 const TIPOS = [
@@ -1342,7 +1343,9 @@ Score atual: ${novoScore}${mudancasTexto}`;
               <div className="hist-detail-header">
                 <h2>Detalhes da interação {selecionada.idSeqFormatted ? `(${selecionada.idSeqFormatted})` : ""}</h2>
 
-                <button onClick={() => fecharDetalhe()}>✕</button>
+                <button className="hist-detail-fechar" onClick={() => fecharDetalhe()} aria-label="Fechar detalhes">
+                  <X size={18} />
+                </button>
               </div>
 
               <div className="hist-detail-grid">
@@ -1508,37 +1511,16 @@ Score atual: ${novoScore}${mudancasTexto}`;
                       </div>
                     )}
                     {selecionada.treinamentoNotas && selecionada.treinamentoNotas.length > 0 && (
-                      <div style={{ gridColumn: "span 2", alignItems: "flex-start", textAlign: "left" }}>
-                        <span style={{ textAlign: "left" }}>Notas do Treinamento (CSAT)</span>
-                        <div style={{ display: "flex", flexDirection: "row", gap: "8px", alignItems: "center", justifyContent: "flex-start", marginTop: "4px", flexWrap: "wrap", width: "100%" }}>
+                      <div className="hist-detail-training-notes-wrapper">
+                        <span>Notas do Treinamento (CSAT)</span>
+                        <div className="hist-detail-training-notes-list">
                           {selecionada.treinamentoNotas.map((nota, idx) => (
-                            <span
-                              key={idx}
-                              style={{
-                                background: "#f1f5f9",
-                                border: "1px solid #cbd5e1",
-                                color: "#334155",
-                                padding: "4px 8px",
-                                borderRadius: "6px",
-                                fontSize: "0.85rem",
-                                fontWeight: "600"
-                              }}
-                            >
+                            <span key={idx} className="nota-treinamento-tag">
                               Nota {idx + 1}: {nota}
                             </span>
                           ))}
                           {selecionada.treinamentoNotaMedia !== undefined && selecionada.treinamentoNotaMedia !== null && (
-                            <span
-                              style={{
-                                background: "#ecfdf5",
-                                border: "1px solid #a7f3d0",
-                                color: "#065f46",
-                                padding: "4px 8px",
-                                borderRadius: "6px",
-                                fontSize: "0.85rem",
-                                fontWeight: "700"
-                              }}
-                            >
+                            <span className="nota-treinamento-media">
                               Média: {selecionada.treinamentoNotaMedia}
                             </span>
                           )}
@@ -1738,8 +1720,8 @@ Score atual: ${novoScore}${mudancasTexto}`;
           <div className="hist-painel">
             <div className="hist-painel-header">
               <h2>{editandoId ? "Editar ocorrência" : "Nova ocorrência"}</h2>
-              <button className="hist-fechar" onClick={cancelar}>
-                ✕
+              <button className="hist-fechar" onClick={cancelar} aria-label="Fechar painel">
+                <X size={18} />
               </button>
             </div>
 
@@ -1981,36 +1963,24 @@ Score atual: ${novoScore}${mudancasTexto}`;
                 </div>
 
                 <div className="hist-campo training-notes-container">
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-                    <label style={{ marginBottom: 0 }}>Notas dos Participantes (CSAT Opcional)</label>
+                  <div className="training-notes-header">
+                    <label>Notas dos Participantes (CSAT Opcional)</label>
                     <button
                       type="button"
                       className="btn-add-nota-icon"
                       onClick={handleAddNota}
-                      style={{
-                        background: "rgba(255, 255, 255, 0.1)",
-                        border: "none",
-                        color: "var(--primary-color, #4facfe)",
-                        cursor: "pointer",
-                        padding: "4px 8px",
-                        borderRadius: "4px",
-                        fontSize: "12px",
-                        fontWeight: "600",
-                        display: "flex",
-                        alignItems: "center"
-                      }}
                     >
                       + Adicionar Nota
                     </button>
                   </div>
                   {(!form.treinamentoNotas || form.treinamentoNotas.length === 0) ? (
-                    <span style={{ fontSize: "12px", color: "var(--text-secondary, #a0aec0)", display: "block", fontStyle: "italic", marginBottom: "8px" }}>
+                    <span className="training-no-notes-text">
                       Nenhuma nota registrada (treinamento sem resposta CSAT).
                     </span>
                   ) : (
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: "8px", marginBottom: "12px" }}>
+                    <div className="training-notes-list">
                       {form.treinamentoNotas.map((nota, idx) => (
-                        <div key={idx} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <div key={idx} className="training-note-item">
                           <input
                             type="number"
                             placeholder={`Nota ${idx + 1} (1 a 5)`}
@@ -2020,49 +1990,13 @@ Score atual: ${novoScore}${mudancasTexto}`;
                             value={nota}
                             onChange={(e) => handleUpdateNota(idx, e.target.value)}
                             required
-                            style={{
-                              flex: 1,
-                              background: "#fafbff",
-                              border: "1.5px solid #dde3ef",
-                              borderRadius: "8px",
-                              color: "#1a2540",
-                              fontSize: "14px",
-                              padding: "8px 12px",
-                              outline: "none",
-                              transition: "border-color 0.15s",
-                              width: "100%",
-                              boxSizing: "border-box"
-                            }}
-                            onFocus={(e) => e.target.style.borderColor = "#1e90ff"}
-                            onBlur={(e) => e.target.style.borderColor = "#dde3ef"}
+                            className="training-note-input"
                           />
                           <button
                             type="button"
                             onClick={() => handleRemoveNota(idx)}
-                            style={{
-                              background: "rgba(229, 62, 62, 0.1)",
-                              border: "1.5px solid rgba(229, 62, 62, 0.2)",
-                              borderRadius: "8px",
-                              color: "#e53e3e",
-                              cursor: "pointer",
-                              padding: "8px",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              width: "38px",
-                              height: "38px",
-                              boxSizing: "border-box",
-                              transition: "all 0.2s ease"
-                            }}
+                            className="btn-remove-nota"
                             title="Remover nota"
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.background = "rgba(229, 62, 62, 0.2)";
-                              e.currentTarget.style.borderColor = "#e53e3e";
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.background = "rgba(229, 62, 62, 0.1)";
-                              e.currentTarget.style.borderColor = "rgba(229, 62, 62, 0.2)";
-                            }}
                           >
                             <Trash2 size={14} />
                           </button>
@@ -2170,7 +2104,9 @@ Score atual: ${novoScore}${mudancasTexto}`;
           <div className="score-modal-card">
             <div className="score-modal-header">
               <h2>Calcular Score do Cliente</h2>
-              <button className="score-modal-fechar" onClick={() => setModalScoreAberto(false)}>✕</button>
+              <button className="score-modal-fechar" onClick={() => setModalScoreAberto(false)} aria-label="Fechar score">
+                <X size={18} />
+              </button>
             </div>
 
             <div className="score-modal-body">

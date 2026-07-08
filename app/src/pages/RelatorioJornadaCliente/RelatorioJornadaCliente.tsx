@@ -443,13 +443,20 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
 
       // Caso contrário, desenha a curva suave (U-turn) conectando as linhas
       const isRightSide = anterior.x > trackWidth / 2;
-      const direcao = isRightSide ? 1 : -1;
       const curvaOffset = 60; // Raio/offset do arco da curva
 
-      const c1x = anterior.x + direcao * curvaOffset;
-      const c1y = anterior.y;
+      let c1x, c2x;
+      if (isRightSide) {
+        const maxX = Math.max(anterior.x, ponto.x);
+        c1x = maxX + curvaOffset;
+        c2x = maxX + curvaOffset;
+      } else {
+        const minX = Math.min(anterior.x, ponto.x);
+        c1x = minX - curvaOffset;
+        c2x = minX - curvaOffset;
+      }
 
-      const c2x = ponto.x + direcao * curvaOffset;
+      const c1y = anterior.y;
       const c2y = ponto.y;
 
       return `${acc} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${ponto.x} ${ponto.y}`;

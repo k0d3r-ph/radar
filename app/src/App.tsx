@@ -59,25 +59,29 @@ function AppRoutes() {
     <>
       <nav className="app-nav">
         <div className="nav-links">
-          <NavLink
-            to="/home"
-            className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
-          >
-            Home
-          </NavLink>
-          <NavLink
-            to="/esteira"
-            className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
-          >
-            Esteira
-          </NavLink>
-          <NavLink
-            to="/historico"
-            className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
-          >
-            Histórico de Ocorrências
-          </NavLink>
-          {(role === "treinador" || role === "master") && (
+          {role !== "painel" && (
+            <>
+              <NavLink
+                to="/home"
+                className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
+              >
+                Home
+              </NavLink>
+              <NavLink
+                to="/esteira"
+                className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
+              >
+                Esteira
+              </NavLink>
+              <NavLink
+                to="/historico"
+                className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
+              >
+                Histórico de Ocorrências
+              </NavLink>
+            </>
+          )}
+          {role !== "painel" && (role === "treinador" || role === "master") && (
             <>
               <NavLink
                 to="/usuarios"
@@ -93,7 +97,7 @@ function AppRoutes() {
               </NavLink>
             </>
           )}
-          {role === "master" && (
+          {(role === "master" || role === "painel") && (
             <>
               <NavLink
                 to="/relatorios"
@@ -120,30 +124,39 @@ function AppRoutes() {
       </nav>
 
       <Routes>
-        <Route path="/" element={<Navigate to="/home" replace />} />
-        <Route path="/login" element={<Navigate to="/home" replace />} />
-        <Route path="/alterar-senha" element={<Navigate to="/home" replace />} />
+        <Route path="/" element={<Navigate to={role === "painel" ? "/relatorios" : "/home"} replace />} />
+        <Route path="/login" element={<Navigate to={role === "painel" ? "/relatorios" : "/home"} replace />} />
+        <Route path="/alterar-senha" element={<Navigate to={role === "painel" ? "/relatorios" : "/home"} replace />} />
 
-        <Route path="/esteira" element={<Esteira />} />
-        <Route path="/esteira/:id" element={<Esteira />} />
+        {role !== "painel" ? (
+          <>
+            <Route path="/esteira" element={<Esteira />} />
+            <Route path="/esteira/:id" element={<Esteira />} />
+            <Route path="/historico" element={<Historico />} />
+            <Route path="/home" element={<Home />} />
+          </>
+        ) : (
+          <>
+            <Route path="/esteira" element={<Navigate to="/relatorios" replace />} />
+            <Route path="/esteira/:id" element={<Navigate to="/relatorios" replace />} />
+            <Route path="/historico" element={<Navigate to="/relatorios" replace />} />
+            <Route path="/home" element={<Navigate to="/relatorios" replace />} />
+          </>
+        )}
 
-        <Route path="/historico" element={<Historico />} />
-
-        <Route path="/home" element={<Home />} />
-
-        {role === "treinador" || role === "master" ? (
+        {(role === "treinador" || role === "master") && role !== "painel" ? (
           <Route path="/usuarios" element={<Usuarios />} />
         ) : (
-          <Route path="/usuarios" element={<Navigate to="/home" replace />} />
+          <Route path="/usuarios" element={<Navigate to={role === "painel" ? "/relatorios" : "/home"} replace />} />
         )}
 
-        {role === "treinador" || role === "master" ? (
+        {(role === "treinador" || role === "master") && role !== "painel" ? (
           <Route path="/gamificacao" element={<Gamificacao />} />
         ) : (
-          <Route path="/gamificacao" element={<Navigate to="/home" replace />} />
+          <Route path="/gamificacao" element={<Navigate to={role === "painel" ? "/relatorios" : "/home"} replace />} />
         )}
 
-        {role === "master" ? (
+        {role === "master" || role === "painel" ? (
           <>
             <Route path="/relatorio-score" element={<Navigate to="/relatorios" replace />} />
             <Route path="/relatorios" element={<Relatorios />} />
@@ -155,7 +168,7 @@ function AppRoutes() {
           </>
         )}
         
-        <Route path="*" element={<Navigate to="/home" replace />} />
+        <Route path="*" element={<Navigate to={role === "painel" ? "/relatorios" : "/home"} replace />} />
       </Routes>
     </>
   );

@@ -480,7 +480,11 @@ export const Gamificacao: React.FC = () => {
 
       // Filter only users with "treinador" or "master" role who completed their first access
       const apenasTreinadores = listaUsuarios.filter(
-        (u) => (u.role === "treinador" || u.role === "master") && !u.needsPasswordChange
+        (u) =>
+          (u.role === "treinador" || u.role === "master") &&
+          !u.needsPasswordChange &&
+          u.nome.trim().toLowerCase() !== "painel" &&
+          !u.email.toLowerCase().includes("painel")
       );
       setTrainers(apenasTreinadores);
       setEntries(listaPontos);
@@ -527,6 +531,12 @@ export const Gamificacao: React.FC = () => {
   // Filtro de lançamentos por período
   const filteredEntries = useMemo(() => {
     return entries.filter((entry) => {
+      // Excluir lançamentos do usuário Painel
+      const isPainel =
+        entry.treinadorNome?.trim().toLowerCase() === "painel" ||
+        entry.treinadorNome?.toLowerCase().includes("painel");
+      if (isPainel) return false;
+
       if (filtroDataInicio) {
         const startTimestamp = new Date(filtroDataInicio + "T00:00:00").getTime();
         if (entry.dataLancamento < startTimestamp) return false;

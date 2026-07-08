@@ -34,6 +34,7 @@ import "./Relatorios.css";
 import { RelatorioScore } from "../RelatorioScore/RelatorioScore";
 import { RelatorioJornadaCliente } from "../RelatorioJornadaCliente/RelatorioJornadaCliente";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 
 type DecorredEmpresa = Empresa & {
   alerta: boolean;
@@ -90,7 +91,14 @@ function obterDataUmaSemanaAtras(dataStr: string): string {
 
 export const Relatorios: React.FC = () => {
   const navigate = useNavigate();
+  const { role } = useAuth();
   const [activeTab, setActiveTab] = useState<"esteira" | "score" | "jornada">("esteira");
+
+  useEffect(() => {
+    if (role === "painel" && activeTab !== "esteira") {
+      setActiveTab("esteira");
+    }
+  }, [role, activeTab]);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [ocorrencias, setOcorrencias] = useState<Ocorrencia[]>([]);
   const [loading, setLoading] = useState(true);
@@ -949,18 +957,22 @@ ${riscoChurn.length > 0
         >
           Visão Geral
         </button>
-        <button
-          className={`relatorios-tab-btn ${activeTab === "score" ? "active" : ""}`}
-          onClick={() => setActiveTab("score")}
-        >
-          Scores dos Clientes
-        </button>
-        <button
-          className={`relatorios-tab-btn ${activeTab === "jornada" ? "active" : ""}`}
-          onClick={() => setActiveTab("jornada")}
-        >
-          Jornada do Cliente
-        </button>
+        {role !== "painel" && (
+          <>
+            <button
+              className={`relatorios-tab-btn ${activeTab === "score" ? "active" : ""}`}
+              onClick={() => setActiveTab("score")}
+            >
+              Scores dos Clientes
+            </button>
+            <button
+              className={`relatorios-tab-btn ${activeTab === "jornada" ? "active" : ""}`}
+              onClick={() => setActiveTab("jornada")}
+            >
+              Jornada do Cliente
+            </button>
+          </>
+        )}
       </div>
 
       {activeTab === "esteira" ? (

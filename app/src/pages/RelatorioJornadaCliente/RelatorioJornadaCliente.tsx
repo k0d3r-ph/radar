@@ -155,7 +155,7 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
         const diffMs = creationTime - currentTime;
         // Só considera gap real se tiver durado pelo menos 24 horas (evita registrar gaps para reagendamentos rápidos de poucas horas)
         if (diffMs >= 24 * 60 * 60 * 1000) {
-          const days = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+          const days = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
           stages.push({
             stage: "Sem próximo passo definido",
             startDate: new Date(currentTime),
@@ -216,7 +216,7 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
 
       if (stageEndTime >= currentTime) {
         const diffMs = stageEndTime - currentTime;
-        const days = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+        const days = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
         stages.push({
           stage: stageType,
           startDate: new Date(currentTime),
@@ -234,7 +234,7 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
     // Se após processar todas as ocorrências ainda não chegamos ao fim da jornada
     if (currentTime < endJourneyTime) {
       const diffMs = endJourneyTime - currentTime;
-      const days = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+      const days = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
       stages.push({
         stage: "Sem próximo passo definido",
         startDate: new Date(currentTime),
@@ -264,7 +264,7 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
           // Mescla as etapas estendendo a data final da primeira
           last.endDate = current.endDate;
           const diffMs = last.endDate.getTime() - last.startDate.getTime();
-          last.days = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+          last.days = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
           if (last.stage === "Sem próximo passo definido") {
             last.slaBreached = diffMs > 4 * 24 * 60 * 60 * 1000;
           }
@@ -321,7 +321,7 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
           const startJourneyTime = currentStageObj.startDate.getTime();
           const tempoSemPasso = Date.now() - startJourneyTime;
           slaEstouradoAtual = tempoSemPasso > 4 * 24 * 60 * 60 * 1000;
-          diasNaEtapaAtual = Math.max(0, Math.ceil(tempoSemPasso / (1000 * 60 * 60 * 24)));
+          diasNaEtapaAtual = Math.max(0, Math.floor(tempoSemPasso / (1000 * 60 * 60 * 24)));
         }
       }
 

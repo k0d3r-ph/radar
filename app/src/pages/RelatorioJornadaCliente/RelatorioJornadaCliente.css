@@ -263,6 +263,18 @@
   border: 1px solid rgba(16, 185, 129, 0.25);
 }
 
+.jornada-client-stage-badge.treinamento-cancelado {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+.jornada-client-stage-badge.treinamento-ausente {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
 /* Detalhamento do Cliente Selecionado */
 .jornada-detail-card {
   display: flex;
@@ -322,6 +334,7 @@
   background: rgba(15, 23, 42, 0.25);
   border: 1px solid rgba(255, 255, 255, 0.04);
   position: relative;
+  overflow: hidden;
 }
 
 .jornada-stepper-track {
@@ -351,21 +364,18 @@
   transition: all 0.2s ease;
 }
 
-/* Linha conectora da régua (ruler track) */
+/* Linha conectora da régua (ruler track) - Desabilitado em favor da linha SVG dinâmica */
 .jornada-step-node::before {
-  content: "";
-  position: absolute;
-  top: 26px; /* center of the 36px circle vertically (padding top 8px + 18px = 26px) */
-  left: 50%;
-  right: -50%;
-  height: 2px;
-  background: rgba(255, 255, 255, 0.08);
-  z-index: 1;
-  pointer-events: none;
+  display: none;
 }
 
-.jornada-step-node:last-child::before {
-  display: none;
+.jornada-stepper-line {
+  stroke: rgba(255, 255, 255, 0.15);
+  transition: stroke 0.2s ease;
+}
+
+body.light-theme .jornada-stepper-line {
+  stroke: #cbd5e1;
 }
 
 .jornada-step-node:hover {
@@ -399,6 +409,16 @@
 .jornada-step-node.treinamento .jornada-step-circle {
   border-color: #8b5cf6;
   color: #a78bfa;
+}
+
+.jornada-step-node.treinamento.cancelado .jornada-step-circle {
+  border-color: #ef4444;
+  color: #f87171;
+}
+
+.jornada-step-node.treinamento.ausente .jornada-step-circle {
+  border-color: #f59e0b;
+  color: #fbbf24;
 }
 
 .jornada-step-node.checkpoint .jornada-step-circle {
@@ -436,6 +456,18 @@
 .jornada-step-node.treinamento.selected-node .jornada-step-circle {
   box-shadow: 0 0 15px rgba(139, 92, 246, 0.6);
   background: #2e1065;
+}
+
+.jornada-step-node.treinamento.cancelado.selected-node .jornada-step-circle {
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.6);
+  background: #450a0a;
+  border-color: #ef4444;
+}
+
+.jornada-step-node.treinamento.ausente.selected-node .jornada-step-circle {
+  box-shadow: 0 0 15px rgba(245, 158, 11, 0.6);
+  background: #451a03;
+  border-color: #f59e0b;
 }
 
 .jornada-step-node.checkpoint.selected-node .jornada-step-circle {
@@ -938,6 +970,28 @@ body.light-theme .jornada-step-node.treinamento.selected-node .jornada-step-circ
   box-shadow: 0 0 12px rgba(168, 85, 247, 0.45);
 }
 
+body.light-theme .jornada-step-node.treinamento.cancelado .jornada-step-circle {
+  border-color: #fca5a5;
+  color: #b91c1c;
+  background: #fef2f2;
+}
+body.light-theme .jornada-step-node.treinamento.cancelado.selected-node .jornada-step-circle {
+  background: #fee2e2;
+  border-color: #ef4444;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.45);
+}
+
+body.light-theme .jornada-step-node.treinamento.ausente .jornada-step-circle {
+  border-color: #fde047;
+  color: #b45309;
+  background: #fffbeb;
+}
+body.light-theme .jornada-step-node.treinamento.ausente.selected-node .jornada-step-circle {
+  background: #fef3c7;
+  border-color: #f59e0b;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.45);
+}
+
 body.light-theme .jornada-step-node.checkpoint .jornada-step-circle {
   border-color: #60a5fa;
   color: #1d4ed8;
@@ -1069,4 +1123,16 @@ body.light-theme .jornada-stage-badge.sla-status-ok {
   background: rgba(16, 185, 129, 0.1);
   color: #065f46;
   border-color: rgba(16, 185, 129, 0.2);
+}
+
+body.light-theme .jornada-client-stage-badge.treinamento-cancelado {
+  background: #fff5f5;
+  color: #c53030;
+  border-color: #feb2b2;
+}
+
+body.light-theme .jornada-client-stage-badge.treinamento-ausente {
+  background: #fffbeb;
+  color: #92400e;
+  border-color: #fde047;
 }

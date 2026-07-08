@@ -1662,10 +1662,21 @@ export default function Home() {
                   />
                   Cliente Ongoing 🔄
                 </label>
-                <label className="checkbox-label" style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+                <label
+                  className="checkbox-label"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    cursor: role === "master" ? "pointer" : "not-allowed",
+                    opacity: role === "master" ? 1 : 0.6
+                  }}
+                  title={role !== "master" ? "Apenas administradores Master podem suspender clientes" : ""}
+                >
                   <input
                     type="checkbox"
                     checked={clienteForm.isSuspended ?? false}
+                    disabled={role !== "master"}
                     onChange={(e) =>
                       setClienteForm({ ...clienteForm, isSuspended: e.target.checked })
                     }

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import {
   Calendar,
   Clock,
@@ -16,7 +16,9 @@ import {
   Award,
   Info,
   FileText,
-  Star
+  Star,
+  XCircle,
+  UserX
 } from "lucide-react";
 import type { Empresa, Ocorrencia } from "../../types";
 import { formatarNome } from "../../utils/formatarNome";
@@ -72,6 +74,23 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
       return startStr;
     }
     return `${startStr} a ${endStr}`;
+  };
+
+  // Verifica se a etapa de treinamento foi cancelada ou marcada como ausente
+  const obterStatusTreinamento = (item: StageInterval): "cancelado" | "ausente" | "agendado" | "realizado" => {
+    if (item.stage !== "Em treinamento") return "realizado";
+    
+    const contemTema = (oc: Ocorrencia | undefined, termo: string) => {
+      return oc?.temaOcorrencia?.some(t => t.trim().toLowerCase() === termo.toLowerCase()) ?? false;
+    };
+
+    const isCancelado = contemTema(item.ocorrencia, "cancelado") || contemTema(item.ocorrenciaFinalizadora, "cancelado");
+    const isAusente = contemTema(item.ocorrencia, "ausente") || contemTema(item.ocorrenciaFinalizadora, "ausente");
+
+    if (isCancelado) return "cancelado";
+    if (isAusente) return "ausente";
+    if (item.ocorrenciaFinalizadora) return "realizado";
+    return "agendado";
   };
 
   // 1. Calcula a jornada de um cliente específico
@@ -355,6 +374,88 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
   // Define a jornada da empresa selecionada
   const jornadaSelecionada = empresaSelecionadaObj ? empresaSelecionadaObj.jornada : [];
 
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [points, setPoints] = useState<{ x: number; y: number }[]>([]);
+
+  // Calcula a ordem da etapa no layout de "serpente" (boustrophedon)
+  const obterOrderEtapa = (index: number, maxPorLinha = 5): number => {
+    const row = Math.floor(index / maxPorLinha);
+    const col = index % maxPorLinha;
+    if (row % 2 === 0) {
+      return index;
+    } else {
+      return row * maxPorLinha + (maxPorLinha - 1 - col);
+    }
+  };
+
+  useEffect(() => {
+    const updatePoints = () => {
+      const track = trackRef.current;
+      if (!track) return;
+      const circles = track.querySelectorAll(".jornada-step-circle");
+      const trackRect = track.getBoundingClientRect();
+      const newPoints = Array.from(circles).map((circle) => {
+        const rect = circle.getBoundingClientRect();
+        return {
+          x: rect.left - trackRect.left + rect.width / 2,
+          y: rect.top - trackRect.top + rect.height / 2,
+        };
+      });
+      setPoints(newPoints);
+    };
+
+    let rAFId = window.requestAnimationFrame(updatePoints);
+
+    const observer = new ResizeObserver(() => {
+      updatePoints();
+    });
+    if (trackRef.current) {
+      observer.observe(trackRef.current);
+    }
+
+    window.addEventListener("resize", updatePoints);
+    return () => {
+      window.cancelAnimationFrame(rAFId);
+      observer.disconnect();
+      window.removeEventListener("resize", updatePoints);
+    };
+  }, [jornadaSelecionada, selectedCompanyId]);
+
+  const pathD = useMemo(() => {
+    return points.reduce((acc, ponto, index, arr) => {
+      if (index === 0) {
+        return `M ${ponto.x} ${ponto.y}`;
+      }
+
+      const anterior = arr[index - 1];
+      const mesmaLinha = Math.abs(ponto.y - anterior.y) < 15;
+
+      if (mesmaLinha) {
+        return `${acc} L ${ponto.x} ${ponto.y}`;
+      }
+
+      const trackWidth = trackRef.current?.getBoundingClientRect().width || 800;
+
+      // Se a largura do track for pequena (celular), as etapas se empilham e usamos linha reta vertical simples
+      if (trackWidth < 550) {
+        return `${acc} L ${ponto.x} ${ponto.y}`;
+      }
+
+      // Caso contrário, desenha a curva suave (U-turn) conectando as linhas
+      const isRightSide = anterior.x > trackWidth / 2;
+      const direcao = isRightSide ? 1 : -1;
+      const curvaOffset = 60; // Raio/offset do arco da curva
+
+      const c1x = anterior.x + direcao * curvaOffset;
+      const c1y = anterior.y;
+
+      const c2x = ponto.x + direcao * curvaOffset;
+      const c2y = ponto.y;
+
+      return `${acc} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${ponto.x} ${ponto.y}`;
+    }, "");
+  }, [points]);
+
   // Define o índice selecionado de etapa de forma dinâmica
   const selectedStageIndex = useMemo(() => {
     if (jornadaSelecionada.length === 0) return null;
@@ -371,6 +472,11 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
     if (selectedStageIndex === null || selectedStageIndex >= jornadaSelecionada.length) return null;
     return jornadaSelecionada[selectedStageIndex];
   }, [jornadaSelecionada, selectedStageIndex]);
+
+  const focusStatus = useMemo(() => {
+    if (!etapaSelecionada) return "realizado";
+    return obterStatusTreinamento(etapaSelecionada);
+  }, [etapaSelecionada]);
 
 
   // Handler para quando seleciona da lista rápida
@@ -395,9 +501,40 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
   };
 
   // Ícone dinâmico baseado na etapa
-  const renderStageIcon = (stage: string, size = 18) => {
+  const renderStageIcon = (stage: string, size = 18, statusTreinamento?: string) => {
     switch (stage) {
       case "Em treinamento":
+        if (statusTreinamento === "cancelado") {
+          return (
+            <div style={{ position: "relative", display: "inline-flex", alignItems: "center", justifyContent: "center", width: size, height: size }}>
+              <GraduationCap size={size} />
+              <svg
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  height: "100%",
+                  pointerEvents: "none",
+                }}
+                viewBox={`0 0 ${size} ${size}`}
+              >
+                <line
+                  x1={size * 0.15}
+                  y1={size * 0.85}
+                  x2={size * 0.85}
+                  y2={size * 0.15}
+                  stroke="#ef4444"
+                  strokeWidth={size * 0.125}
+                  strokeLinecap="round"
+                />
+              </svg>
+            </div>
+          );
+        }
+        if (statusTreinamento === "ausente") {
+          return <UserX size={size} />;
+        }
         return <GraduationCap size={size} />;
       case "Checkpoint":
         return <Award size={size} />;
@@ -471,6 +608,21 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
                 let badgeClass = getStageClass(c.etapaAtual);
                 if (isSlaBreached) badgeClass = "sem-passo-erro";
 
+                let stageText = c.etapaAtual;
+                if (c.etapaAtual === "Em treinamento") {
+                  const currentStageObj = c.jornada.find((s) => s.active) || (c.isFinalizado ? c.jornada[c.jornada.length - 1] : null);
+                  if (currentStageObj) {
+                    const statusTreinamento = obterStatusTreinamento(currentStageObj);
+                    if (statusTreinamento === "cancelado") {
+                      stageText = "Treinamento Cancelado";
+                      badgeClass = "treinamento-cancelado";
+                    } else if (statusTreinamento === "ausente") {
+                      stageText = "Treinamento Ausente";
+                      badgeClass = "treinamento-ausente";
+                    }
+                  }
+                }
+
                 return (
                   <button
                     key={c.id}
@@ -484,7 +636,7 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
                       </span>
                     </div>
                     <span className={`jornada-client-stage-badge ${badgeClass}`}>
-                      {isSlaBreached ? "SLA Violado" : c.etapaAtual}
+                      {isSlaBreached ? "SLA Violado" : stageText}
                     </span>
                   </button>
                 );
@@ -558,27 +710,58 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
                  NOVO: STEPPER HORIZONTAL INTERATIVO
                  ======================================================== */}
               <div className="jornada-stepper-container">
-                <div className="jornada-stepper-track">
+                <div className="jornada-stepper-track" ref={trackRef}>
+                  {points.length > 1 && (
+                    <svg
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        width: "100%",
+                        height: "100%",
+                        pointerEvents: "none",
+                        zIndex: 1,
+                      }}
+                    >
+                      <path
+                        d={pathD}
+                        fill="none"
+                        className="jornada-stepper-line"
+                        strokeWidth={3}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  )}
                   {jornadaSelecionada.map((item, idx) => {
                     const isSlaBreached = item.stage === "Sem próximo passo definido" && item.slaBreached;
                     const isSelected = selectedStageIndex === idx;
+                    const statusTreinamento = obterStatusTreinamento(item);
+                    const statusClass = statusTreinamento === "cancelado" ? "cancelado" : statusTreinamento === "ausente" ? "ausente" : "";
 
                     return (
                       <button
                         key={idx}
-                        className={`jornada-step-node ${getStageClass(item.stage)} ${
+                        style={{ order: obterOrderEtapa(idx) }}
+                        className={`jornada-step-node ${getStageClass(item.stage)} ${statusClass} ${
                           isSlaBreached ? "sla-violated" : ""
                         } ${isSelected ? "selected-node" : ""}`}
                         onClick={() => setManualStageIndex(idx)}
                       >
                         <div className="jornada-step-circle">
-                          {renderStageIcon(item.stage, 16)}
+                          {renderStageIcon(item.stage, 16, statusTreinamento)}
                           {item.active && !empresaSelecionadaObj.isFinalizado && (
                             <div className="jornada-step-active-pulse" />
                           )}
                         </div>
                         <span className="jornada-step-name">
-                          {item.stage === "Finalizado" ? "Finalizado" : item.stage}
+                          {item.stage === "Finalizado"
+                            ? "Finalizado"
+                            : item.stage === "Em treinamento" && statusTreinamento === "cancelado"
+                            ? "Treinamento Cancelado"
+                            : item.stage === "Em treinamento" && statusTreinamento === "ausente"
+                            ? "Treinamento Ausente"
+                            : item.stage}
                         </span>
                         {item.stage !== "Finalizado" ? (
                           <>
@@ -617,7 +800,13 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
                   <div className="jornada-focus-header">
                     <div className="jornada-focus-title-group">
                       <h4 className="jornada-focus-title">
-                        {etapaSelecionada.stage === "Finalizado" ? "🏁 Esteira Finalizada" : etapaSelecionada.stage}
+                        {etapaSelecionada.stage === "Finalizado"
+                          ? "🏁 Esteira Finalizada"
+                          : etapaSelecionada.stage === "Em treinamento" && focusStatus === "cancelado"
+                          ? "❌ Treinamento Cancelado"
+                          : etapaSelecionada.stage === "Em treinamento" && focusStatus === "ausente"
+                          ? "⚠️ Treinamento Ausente"
+                          : etapaSelecionada.stage}
                       </h4>
                       <div className="jornada-focus-badges">
                         {etapaSelecionada.active && (
@@ -626,7 +815,20 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
                             Etapa Atual
                           </span>
                         )}
-                        {!etapaSelecionada.active && etapaSelecionada.stage !== "Finalizado" && (
+                        {etapaSelecionada.stage === "Em treinamento" && focusStatus === "cancelado" && (
+                          <span className="jornada-stage-badge cancelado" style={{ background: "rgba(239,68,68,0.15)", color: "#f87171", borderColor: "rgba(239,68,68,0.3)" }}>
+                            <AlertCircle size={12} style={{ marginRight: 5 }} />
+                            Cancelado
+                          </span>
+                        )}
+                        {etapaSelecionada.stage === "Em treinamento" && focusStatus === "ausente" && (
+                          <span className="jornada-stage-badge ausente" style={{ background: "rgba(245,158,11,0.15)", color: "#fbbf24", borderColor: "rgba(245,158,11,0.3)" }}>
+                            <AlertCircle size={12} style={{ marginRight: 5 }} />
+                            Ausente
+                          </span>
+                        )}
+                        {!etapaSelecionada.active && etapaSelecionada.stage !== "Finalizado" &&
+                         !(etapaSelecionada.stage === "Em treinamento" && (focusStatus === "cancelado" || focusStatus === "ausente")) && (
                           <span className="jornada-stage-badge concluido">
                             <CheckCircle size={12} style={{ marginRight: 5 }} />
                             Concluída

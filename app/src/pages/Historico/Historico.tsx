@@ -327,6 +327,7 @@ export function Historico() {
   const [painelAberto, setPainelAberto] = useState(false);
   const [usarTemplate, setUsarTemplate] = useState(true);
   const [temaOcorrenciaOngoingText, setTemaOcorrenciaOngoingText] = useState("");
+  const [isRevisao, setIsRevisao] = useState(false);
 
   const handleAddNota = () => {
     setForm((f) => ({
@@ -551,6 +552,7 @@ export function Historico() {
     setCalculoScoreResult(null);
     setRespostasScore({ ...INITIAL_SCORE_ANSWERS });
     setPainelAberto(true);
+    setIsRevisao(false);
   }
 
   function abrirEdicao(o: Ocorrencia) {
@@ -590,6 +592,7 @@ export function Historico() {
     setCalculoScoreResult(null);
     setRespostasScore({ ...INITIAL_SCORE_ANSWERS });
     setPainelAberto(true);
+    setIsRevisao(o.isRevisao ?? false);
   }
 
   function cancelar() {
@@ -600,6 +603,7 @@ export function Historico() {
     setUsarTemplate(true);
     setCalculoScoreResult(null);
     setRespostasScore({ ...INITIAL_SCORE_ANSWERS });
+    setIsRevisao(false);
   }
 
   function normalizar(str: string) {
@@ -708,6 +712,15 @@ export function Historico() {
       dataRealizacaoStr = `${year}-${month}-${day}`;
     }
 
+    // Quando for revisão, os temas recebem prefixo "Revisão de" (exceto Ausente/Cancelado)
+    const temaOcorrenciaFinal = form.tipo === "Treinamento" && isRevisao
+      ? (form.temaOcorrencia ?? []).map((t) =>
+          t.trim().toLowerCase() === "ausente" || t.trim().toLowerCase() === "cancelado"
+            ? t
+            : `Revisão de ${t}`
+        )
+      : (form.temaOcorrencia ?? []);
+
     const base: Ocorrencia = {
       ...form,
       empresa: form.empresa.trim(),
@@ -717,6 +730,8 @@ export function Historico() {
       atualizacoes: ocorrenciaOriginal?.atualizacoes ?? [],
       scoreCalculado: calculoScoreResult ? calculoScoreResult.score : ocorrenciaOriginal?.scoreCalculado,
       scoreAnswers: calculoScoreResult ? respostasScore : ocorrenciaOriginal?.scoreAnswers,
+      temaOcorrencia: temaOcorrenciaFinal,
+      isRevisao: form.tipo === "Treinamento" ? isRevisao : undefined,
       ...(form.tipo === "Treinamento" ? {
         treinamentoDataSolicitacao: form.treinamentoDataSolicitacao,
         treinamentoTempoAgenda: form.treinamentoTempoAgenda,
@@ -931,6 +946,109 @@ Score atual: ${novoScore}${mudancasTexto}`;
           alertaOriginalId: alertaOriginal.id,
         };
         await salvarOcorrencia(resolutionOcorrencia);
+      }
+    }
+
+    // Avança a esteira automaticamente quando o treinamento tem temas válidos e não é uma revisão
+    if (
+      form.tipo === "Treinamento" &&
+      !isRevisao &&
+      !isSelectedEmpresaOngoing &&
+      empresaObjeto
+    ) {
+      const temasValidos = (form.temaOcorrencia ?? []).filter(
+        (t) => t.trim().toLowerCase() !== "ausente" && t.trim().toLowerCase() !== "cancelado"
+      );
+
+      if (temasValidos.length > 0) {
+        const normTema = (s: string) =>
+          s.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+        const linhasTema = (empresaObjeto.temaText || "").split("\n").map((l) => l.trim());
+        const linhasData = (empresaObjeto.dataText || "")
+          .split("\n")
+          .map((l) => l.trim());
+
+        // Garante que dataText tem o mesmo número de linhas que temaText
+        while (linhasData.length < linhasTema.length) linhasData.push("");
+
+        // Formata data da ocorrência como dd/mm
+        let dataStr = "";
+        if (dataRealizacaoStr) {
+          const [, m, d] = dataRealizacaoStr.split("-");
+          dataStr = `${d}/${m}`;
+        } else {
+          const now = new Date();
+          const d = String(now.getDate()).padStart(2, "0");
+          const m = String(now.getMonth() + 1).padStart(2, "0");
+          dataStr = `${d}/${m}`;
+        }
+
+        const temasValidosNorm = temasValidos.map(normTema);
+
+        // Encontra os índices originais dos temas ensinados (em ordem crescente)
+        const indicesEnsinados: number[] = [];
+        linhasTema.forEach((tema, idx) => {
+          if (temasValidosNorm.includes(normTema(tema))) {
+            indicesEnsinados.push(idx);
+          }
+        });
+
+        if (indicesEnsinados.length > 0) {
+          // Cópias mutáveis para reordenar sem afetar as originais
+          const newTemas = [...linhasTema];
+          const newDatas = [...linhasData];
+
+          // Marca a data nos temas ensinados (posições originais nos arrays copiados)
+          indicesEnsinados.forEach((idx) => {
+            newDatas[idx] = dataStr;
+          });
+
+          // Reordena: temas ensinados "fora de sequência" (com gap) são puxados
+          // para ficarem contíguos logo após o último tema ensinado consecutivo.
+          // Ex: [Gateway(2), Rastreador(3), Videotelemetria(6)]
+          //  → Videotelemetria é movido para posição 4; Tema4 e Tema5 vão para 5 e 6.
+          let lastInsertedAt = indicesEnsinados[0];
+
+          for (let i = 1; i < indicesEnsinados.length; i++) {
+            const temaAlvo = linhasTema[indicesEnsinados[i]];
+
+            // Procura a posição atual desse tema no array já em mutação
+            const posAtual = newTemas.findIndex(
+              (t, pos) => pos > lastInsertedAt && normTema(t) === normTema(temaAlvo)
+            );
+
+            if (posAtual === lastInsertedAt + 1) {
+              // Já é contíguo — sem mover
+              lastInsertedAt = posAtual;
+            } else if (posAtual > lastInsertedAt + 1) {
+              // Há gap → puxa para logo após o último ensinado consecutivo
+              const [tRemovido] = newTemas.splice(posAtual, 1);
+              const [dRemovido] = newDatas.splice(posAtual, 1);
+              newTemas.splice(lastInsertedAt + 1, 0, tRemovido);
+              newDatas.splice(lastInsertedAt + 1, 0, dRemovido);
+              lastInsertedAt = lastInsertedAt + 1;
+            }
+          }
+
+          const ultimoIndice = lastInsertedAt;
+          const novoTemaText = newTemas.join("\n");
+          const novoDataText = newDatas.join("\n");
+
+          await salvarEmpresas({
+            ...empresaObjeto,
+            // Preserva o score/tipo que possa ter sido atualizado mais cedo neste mesmo salvar()
+            ...(calculoScoreResult ? {
+              score: calculoScoreResult.score,
+              tipo: calculoScoreResult.tipo,
+              scoreAnswers: respostasScore,
+            } : {}),
+            temaText: novoTemaText,
+            dataText: novoDataText,
+            currentPhase: Math.max(empresaObjeto.currentPhase ?? 0, ultimoIndice),
+            updatedAt: Date.now(),
+          });
+        }
       }
     }
 
@@ -1865,6 +1983,38 @@ Score atual: ${novoScore}${mudancasTexto}`;
             {form.tipo === "Treinamento" && (
               <div className="hist-campo">
                 <label>Temas abordados</label>
+
+                {/* Toggle de revisão */}
+                {!isSelectedEmpresaOngoing && (
+                  <label
+                    className="checkbox-label revisao-toggle"
+                    title="Revisões não avançam a posição na esteira"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      marginBottom: "10px",
+                      padding: "8px 12px",
+                      borderRadius: "8px",
+                      background: isRevisao ? "rgba(99,102,241,0.12)" : "rgba(255,255,255,0.04)",
+                      border: isRevisao ? "1px solid rgba(99,102,241,0.4)" : "1px solid rgba(255,255,255,0.08)",
+                      cursor: "pointer",
+                      transition: "all 0.2s ease",
+                      fontWeight: isRevisao ? 600 : 400,
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isRevisao}
+                      onChange={(e) => setIsRevisao(e.target.checked)}
+                      style={{ cursor: "pointer" }}
+                    />
+                    <span>📝 Treinamento de revisão</span>
+                    <small style={{ color: "#94a3b8", fontWeight: 400 }}>
+                      {isRevisao ? "(não avança a esteira — tags: \"Revisão de...\")" : "(marque se for revisão de temas anteriores)"}
+                    </small>
+                  </label>
+                )}
                 {isSelectedEmpresaOngoing ? (
                   <input
                     type="text"

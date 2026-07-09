@@ -1147,3 +1147,130 @@ body.light-theme .jornada-client-stage-badge.treinamento-ausente {
   color: #92400e;
   border-color: #fde047;
 }
+
+/* ========================================================
+   DIAGNÓSTICO AUTOMÁTICO DA JORNADA
+   ======================================================== */
+
+.jornada-diagnostico {
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.jornada-diagnostico-title {
+  display: flex;
+  align-items: center;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+  margin: 0 0 1rem 0;
+}
+
+.jornada-diagnostico-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.jornada-diagnostico-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  transition: background 0.2s ease;
+}
+
+/* Crítico */
+.jornada-diagnostico-item.diag-critico {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.25);
+}
+
+/* Alerta */
+.jornada-diagnostico-item.diag-alerta {
+  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.22);
+}
+
+/* Ok / Positivo */
+.jornada-diagnostico-item.diag-ok {
+  background: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.2);
+}
+
+/* Info / Neutro */
+.jornada-diagnostico-item.diag-info {
+  background: rgba(99, 102, 241, 0.08);
+  border-color: rgba(99, 102, 241, 0.2);
+}
+
+.diag-emoji {
+  font-size: 1.1rem;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.diag-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  flex: 1;
+}
+
+.diag-titulo {
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.jornada-diagnostico-item.diag-critico .diag-titulo { color: #fca5a5; }
+.jornada-diagnostico-item.diag-alerta  .diag-titulo { color: #fcd34d; }
+.jornada-diagnostico-item.diag-ok      .diag-titulo { color: #6ee7b7; }
+.jornada-diagnostico-item.diag-info    .diag-titulo { color: #a5b4fc; }
+
+.diag-desc {
+  font-size: 0.82rem;
+  color: #94a3b8;
+  line-height: 1.5;
+}
+
+/* Light theme overrides */
+body.light-theme .jornada-diagnostico {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+body.light-theme .jornada-diagnostico-item.diag-critico {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+body.light-theme .jornada-diagnostico-item.diag-alerta {
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+
+body.light-theme .jornada-diagnostico-item.diag-ok {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+}
+
+body.light-theme .jornada-diagnostico-item.diag-info {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+body.light-theme .jornada-diagnostico-item.diag-critico .diag-titulo { color: #b91c1c; }
+body.light-theme .jornada-diagnostico-item.diag-alerta  .diag-titulo { color: #92400e; }
+body.light-theme .jornada-diagnostico-item.diag-ok      .diag-titulo { color: #065f46; }
+body.light-theme .jornada-diagnostico-item.diag-info    .diag-titulo { color: #1e40af; }
+
+body.light-theme .diag-desc { color: #475569; }
+body.light-theme .jornada-diagnostico-title { color: #94a3b8; }

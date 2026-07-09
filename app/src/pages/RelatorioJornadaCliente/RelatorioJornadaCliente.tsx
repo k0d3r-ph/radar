@@ -478,6 +478,179 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
   }, [etapaSelecionada]);
 
 
+  // ─────────────────────────────────────────────────────────────────
+  // Diagnóstico automático da jornada
+  // ─────────────────────────────────────────────────────────────────
+  interface DiagnosticoItem {
+    tipo: "ok" | "alerta" | "critico" | "info";
+    emoji: string;
+    titulo: string;
+    descricao: string;
+  }
+
+  const diagnostico = useMemo((): DiagnosticoItem[] => {
+    if (!empresaSelecionadaObj || jornadaSelecionada.length === 0) return [];
+
+    const itens: DiagnosticoItem[] = [];
+    const jornada = jornadaSelecionada.filter((s) => s.stage !== "Finalizado");
+
+    // ─── 1. Treinamentos cancelados/ausentes consecutivos ───────────
+    const treinamentos = jornada.filter((s) => s.stage === "Em treinamento");
+    let maxConsecutivosCancelados = 0;
+    let sequenciaAtualCancelados = 0;
+    let maxConsecutivosAusentes = 0;
+    let sequenciaAtualAusentes = 0;
+    let totalCancelados = 0;
+    let totalAusentes = 0;
+
+    for (const t of treinamentos) {
+      const status = obterStatusTreinamento(t);
+      if (status === "cancelado") {
+        totalCancelados++;
+        sequenciaAtualCancelados++;
+        sequenciaAtualAusentes = 0;
+        maxConsecutivosCancelados = Math.max(maxConsecutivosCancelados, sequenciaAtualCancelados);
+      } else if (status === "ausente") {
+        totalAusentes++;
+        sequenciaAtualAusentes++;
+        sequenciaAtualCancelados = 0;
+        maxConsecutivosAusentes = Math.max(maxConsecutivosAusentes, sequenciaAtualAusentes);
+      } else {
+        sequenciaAtualCancelados = 0;
+        sequenciaAtualAusentes = 0;
+      }
+    }
+
+    if (maxConsecutivosCancelados >= 3) {
+      itens.push({
+        tipo: "critico",
+        emoji: "🚨",
+        titulo: `${maxConsecutivosCancelados} cancelamentos consecutivos`,
+        descricao: `O cliente acumulou ${maxConsecutivosCancelados} treinamentos cancelados em sequência, indicando dificuldade séria de comprometimento com a agenda.`,
+      });
+    } else if (maxConsecutivosCancelados === 2) {
+      itens.push({
+        tipo: "alerta",
+        emoji: "⚠️",
+        titulo: "2 cancelamentos consecutivos",
+        descricao: "Dois treinamentos seguidos foram cancelados. Atenção para evitar que o padrão se repita.",
+      });
+    } else if (totalCancelados > 0) {
+      itens.push({
+        tipo: "info",
+        emoji: "ℹ️",
+        titulo: `${totalCancelados} treinamento${totalCancelados > 1 ? "s" : ""} cancelado${totalCancelados > 1 ? "s" : ""} no total`,
+        descricao: "Houve cancelamentos pontuais, mas sem sequência crítica contínua.",
+      });
+    }
+
+    if (maxConsecutivosAusentes >= 2) {
+      itens.push({
+        tipo: maxConsecutivosAusentes >= 3 ? "critico" : "alerta",
+        emoji: maxConsecutivosAusentes >= 3 ? "🚨" : "⚠️",
+        titulo: `${maxConsecutivosAusentes} ausências consecutivas`,
+        descricao: `O cliente faltou sem aviso em ${maxConsecutivosAusentes} treinamentos seguidos, o que pode indicar desengajamento.`,
+      });
+    } else if (totalAusentes > 0) {
+      itens.push({
+        tipo: "info",
+        emoji: "👤",
+        titulo: `${totalAusentes} ausência${totalAusentes > 1 ? "s" : ""} registrada${totalAusentes > 1 ? "s" : ""}`,
+        descricao: "Houve ausências pontuais sem aviso ao longo da jornada.",
+      });
+    }
+
+    // ─── 2. Períodos sem próximo passo definido ─────────────────────
+    const semPassos = jornada.filter((s) => s.stage === "Sem próximo passo definido");
+    const semPassoSLAViolados = semPassos.filter((s) => s.slaBreached);
+    const totalDiasSemPasso = semPassos.reduce((acc, s) => acc + s.days, 0);
+
+    if (semPassoSLAViolados.length >= 3) {
+      itens.push({
+        tipo: "critico",
+        emoji: "🔴",
+        titulo: `${semPassoSLAViolados.length} violações de SLA`,
+        descricao: `O cliente ficou sem próximo passo agendado por mais de 4 dias em ${semPassoSLAViolados.length} momentos distintos da jornada.`,
+      });
+    } else if (semPassoSLAViolados.length > 0) {
+      itens.push({
+        tipo: "alerta",
+        emoji: "🟠",
+        titulo: `${semPassoSLAViolados.length} violação${semPassoSLAViolados.length > 1 ? "ões" : ""} de SLA (> 4 dias sem passo)`,
+        descricao: `Em ${semPassoSLAViolados.length} momento${semPassoSLAViolados.length > 1 ? "s" : ""} o cliente ficou sem agendamento por mais de 4 dias.`,
+      });
+    }
+
+    if (totalDiasSemPasso > 15) {
+      itens.push({
+        tipo: "alerta",
+        emoji: "⏳",
+        titulo: `${totalDiasSemPasso} dias acumulados sem passo definido`,
+        descricao: "O cliente passou um total significativo de dias da jornada sem um próximo agendamento definido.",
+      });
+    }
+
+    // ─── 3. Checkpoints ────────────────────────────────────────────
+    const checkpoints = jornada.filter((s) => s.stage === "Checkpoint");
+    if (checkpoints.length > 0) {
+      itens.push({
+        tipo: "info",
+        emoji: "📅",
+        titulo: `${checkpoints.length} checkpoint${checkpoints.length > 1 ? "s" : ""} de acompanhamento`,
+        descricao: `Foram criados ${checkpoints.length} checkpoint${checkpoints.length > 1 ? "s" : ""} para checar o status do cliente em datas específicas (ex: retorno de viagem, disponibilidade futura).`,
+      });
+    }
+
+    // ─── 4. Cadência de treinamentos realizados ─────────────────────
+    const treinamentosRealizados = treinamentos.filter((t) => {
+      const s = obterStatusTreinamento(t);
+      return s === "realizado" || s === "agendado";
+    });
+
+    if (treinamentosRealizados.length >= 1) {
+      itens.push({
+        tipo: "ok",
+        emoji: "🎓",
+        titulo: `${treinamentosRealizados.length} treinamento${treinamentosRealizados.length > 1 ? "s" : ""} concluído${treinamentosRealizados.length > 1 ? "s" : ""}`,
+        descricao: `O cliente participou de ${treinamentosRealizados.length} ${treinamentosRealizados.length > 1 ? "sessões" : "sessão"} de treinamento realizadas com sucesso.`,
+      });
+    }
+
+    // ─── 5. Estado atual: preso sem passo ───────────────────────────
+    const etapaAtiva = jornada.find((s) => s.active);
+    if (etapaAtiva?.stage === "Sem próximo passo definido" && !empresaSelecionadaObj.isFinalizado) {
+      const diasPreso = Math.floor((Date.now() - etapaAtiva.startDate.getTime()) / (1000 * 60 * 60 * 24));
+      if (diasPreso > 4) {
+        itens.push({
+          tipo: "critico",
+          emoji: "🔴",
+          titulo: `Atualmente sem passo definido há ${diasPreso} dias`,
+          descricao: "O cliente está parado agora e já ultrapassou o SLA recomendado de 4 dias. É urgente definir um próximo agendamento.",
+        });
+      } else if (diasPreso > 0) {
+        itens.push({
+          tipo: "alerta",
+          emoji: "⏰",
+          titulo: `Sem próximo passo há ${diasPreso} dia${diasPreso > 1 ? "s" : ""}`,
+          descricao: "O cliente está aguardando agendamento. Ainda está dentro do SLA, mas atenção para não ultrapassar 4 dias.",
+        });
+      }
+    }
+
+    // ─── 6. Jornada saudável (sem alertas) ─────────────────────────
+    const temProblema = itens.some((i) => i.tipo === "critico" || i.tipo === "alerta");
+    if (!temProblema && treinamentosRealizados.length > 0) {
+      itens.push({
+        tipo: "ok",
+        emoji: "🌟",
+        titulo: "Jornada saudável",
+        descricao: "Nenhum padrão de risco detectado. O cliente está progredindo de forma regular e sem interrupções críticas.",
+      });
+    }
+
+    return itens;
+  }, [empresaSelecionadaObj, jornadaSelecionada]);
+
   // Handler para quando seleciona da lista rápida
   const selecionarEmpresa = (id: string) => {
     setSelectedCompanyId(id);
@@ -706,7 +879,30 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
               </div>
 
               {/* ========================================================
-                 NOVO: STEPPER HORIZONTAL INTERATIVO
+                 DIAGNÓSTICO AUTOMÁTICO DA JORNADA
+                 ======================================================== */}
+              {diagnostico.length > 0 && (
+                <div className="jornada-diagnostico">
+                  <h5 className="jornada-diagnostico-title">
+                    <Activity size={14} style={{ marginRight: 6 }} />
+                    Diagnóstico da Jornada
+                  </h5>
+                  <div className="jornada-diagnostico-lista">
+                    {diagnostico.map((item, i) => (
+                      <div key={i} className={`jornada-diagnostico-item diag-${item.tipo}`}>
+                        <span className="diag-emoji">{item.emoji}</span>
+                        <div className="diag-content">
+                          <strong className="diag-titulo">{item.titulo}</strong>
+                          <span className="diag-desc">{item.descricao}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ========================================================
+                 STEPPER HORIZONTAL INTERATIVO
                  ======================================================== */}
               <div className="jornada-stepper-container">
                 <div className={`jornada-stepper-track ${trackWidth >= 550 ? "use-grid" : ""}`} ref={trackRef}>

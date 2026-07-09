@@ -20,6 +20,7 @@ import {
 import type { UsuarioDocument } from "../../services/auth";
 import { formatarNome } from "../../utils/formatarNome";
 import { useAuth } from "../../context/AuthContext";
+import { listarLancamentosPontos, reassociarPontosTreinador } from "../../services/gamificacao";
 import "./Usuarios.css";
 
 const ROLE_DISPLAY: Record<string, string> = {
@@ -51,6 +52,85 @@ export const Usuarios: React.FC = () => {
   const [editingUserRole, setEditingUserRole] = useState("suporte");
   const [savingRole, setSavingRole] = useState(false);
 
+  // Estados para reconsolidação de pontos da gamificação
+  const [selectedOrphanId, setSelectedOrphanId] = useState("");
+  const [selectedNewUserUid, setSelectedNewUserUid] = useState("");
+  const [orphanedTrainers, setOrphanedTrainers] = useState<{ id: string; nome: string; count: number; totalPoints: number }[]>([]);
+  const [isConsolidating, setIsConsolidating] = useState(false);
+
+  const carregarOrfaos = async (listaUsuarios: UsuarioDocument[]) => {
+    if (currentUserRole !== "master") return;
+    try {
+      const todosPontos = await listarLancamentosPontos();
+      const uidsExistentes = new Set(listaUsuarios.map(u => u.uid));
+      
+      const orfaosMap: Record<string, { nome: string; count: number; totalPoints: number }> = {};
+      
+      todosPontos.forEach(p => {
+        if (p.treinadorId && !uidsExistentes.has(p.treinadorId)) {
+          if (!orfaosMap[p.treinadorId]) {
+            orfaosMap[p.treinadorId] = {
+              nome: p.treinadorNome || "Sem nome",
+              count: 0,
+              totalPoints: 0
+            };
+          }
+          orfaosMap[p.treinadorId].count++;
+          orfaosMap[p.treinadorId].totalPoints += p.pontos || 0;
+        }
+      });
+      
+      const orfaosLista = Object.entries(orfaosMap).map(([id, info]) => ({
+        id,
+        nome: info.nome,
+        count: info.count,
+        totalPoints: info.totalPoints
+      }));
+      
+      setOrphanedTrainers(orfaosLista);
+    } catch (error) {
+      console.error("Erro ao carregar pontos órfãos da gamificação:", error);
+    }
+  };
+
+  const handleConsolidarPontos = async () => {
+    if (!selectedOrphanId || !selectedNewUserUid) {
+      toast.error("Por favor, selecione os dois campos.");
+      return;
+    }
+
+    const newUser = users.find(u => u.uid === selectedNewUserUid);
+    if (!newUser) {
+      toast.error("Novo usuário selecionado não encontrado.");
+      return;
+    }
+
+    const confirmResult = window.confirm(
+      `Deseja realmente transferir todos os pontos históricos do ID antigo para o usuário ${newUser.nome}?`
+    );
+    if (!confirmResult) return;
+
+    setIsConsolidating(true);
+    try {
+      const qteAtualizada = await reassociarPontosTreinador(
+        selectedOrphanId,
+        newUser.uid,
+        newUser.nome
+      );
+      toast.success(`${qteAtualizada} lançamentos de pontos foram consolidados com sucesso para o usuário ${newUser.nome}!`);
+      
+      setSelectedOrphanId("");
+      setSelectedNewUserUid("");
+      
+      await carregarUsuarios();
+    } catch (error: any) {
+      console.error("Erro ao reconsolidar pontos:", error);
+      toast.error(`Erro ao consolidar: ${error.message || error}`);
+    } finally {
+      setIsConsolidating(false);
+    }
+  };
+
   const carregarUsuarios = async () => {
     try {
       setLoading(true);
@@ -65,8 +145,10 @@ export const Usuarios: React.FC = () => {
         }
         const listaAtualizada = await listarUsuarios();
         setUsers(listaAtualizada);
+        await carregarOrfaos(listaAtualizada);
       } else {
         setUsers(lista);
+        await carregarOrfaos(lista);
       }
     } catch (error: any) {
       console.error("Erro ao carregar usuários:", error);
@@ -365,6 +447,89 @@ export const Usuarios: React.FC = () => {
       )}
 
       {/* Modal de Edição de Perfil */}
+      {/* Ferramenta de Administrador para Consolidação de Pontos */}
+      {currentUserRole === "master" && (
+        <section className="usuarios-card admin-tool-section" style={{ marginTop: "24px" }}>
+          <h2>
+            <KeyRound size={22} className="card-icon" /> 
+            Consolidação de Pontos (Gamificação)
+          </h2>
+          <p className="admin-tool-description" style={{ color: "#9ca3af", fontSize: "14px", marginBottom: "20px", lineHeight: "1.5" }}>
+            Se você excluiu um usuário e o cadastrou novamente, os pontos históricos dele continuam vinculados ao ID de usuário antigo.
+            Use esta ferramenta para reassociar todos os lançamentos de pontos desse ID antigo para a nova conta do usuário.
+          </p>
+          
+          <div className="admin-tool-grid">
+            <div className="input-group">
+              <label style={{ fontSize: "13px", fontWeight: "600", color: "#d1d5db" }}>Selecione os Lançamentos Órfãos (ID Antigo)</label>
+              <div className="input-wrapper" style={{ marginTop: "8px" }}>
+                <Shield className="input-icon" size={18} />
+                <select
+                  value={selectedOrphanId}
+                  onChange={(e) => setSelectedOrphanId(e.target.value)}
+                  className="role-edit-select"
+                  style={{ width: "100%", paddingLeft: "45px", height: "48px", borderRadius: "12px", background: "rgba(31, 41, 55, 0.5)", border: "1px solid rgba(255, 255, 255, 0.1)", color: "white" }}
+                >
+                  <option value="">-- Selecione o ID Antigo --</option>
+                  {orphanedTrainers.length === 0 ? (
+                    <option value="" disabled>Nenhum ponto órfão encontrado</option>
+                  ) : (
+                    orphanedTrainers.map((orphan) => (
+                      <option key={orphan.id} value={orphan.id}>
+                        {orphan.nome} ({orphan.totalPoints} pts / {orphan.count} lançamentos)
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
+            </div>
+            
+            <div className="input-group">
+              <label style={{ fontSize: "13px", fontWeight: "600", color: "#d1d5db" }}>Selecione o Novo Cadastro (Usuário Atual)</label>
+              <div className="input-wrapper" style={{ marginTop: "8px" }}>
+                <UserCheck className="input-icon" size={18} />
+                <select
+                  value={selectedNewUserUid}
+                  onChange={(e) => setSelectedNewUserUid(e.target.value)}
+                  className="role-edit-select"
+                  style={{ width: "100%", paddingLeft: "45px", height: "48px", borderRadius: "12px", background: "rgba(31, 41, 55, 0.5)", border: "1px solid rgba(255, 255, 255, 0.1)", color: "white" }}
+                >
+                  <option value="">-- Selecione o Usuário Atual --</option>
+                  {users.map((u) => (
+                    <option key={u.uid} value={u.uid}>
+                      {u.nome} ({u.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+          
+          <button
+            onClick={handleConsolidarPontos}
+            disabled={isConsolidating || !selectedOrphanId || !selectedNewUserUid}
+            className="btn-salvar-confirm"
+            style={{
+              background: "#10b981",
+              color: "white",
+              border: "none",
+              borderRadius: "12px",
+              padding: "12px 24px",
+              fontWeight: "600",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "8px",
+              boxShadow: "0 4px 12px rgba(16, 185, 129, 0.2)",
+              marginTop: "16px"
+            }}
+          >
+            {isConsolidating ? <div className="spinner"></div> : "Reconsolidar Pontos"}
+          </button>
+        </section>
+      )}
+
       {editingUser && (
         <div className="confirm-overlay" onClick={() => setEditingUser(null)}>
           <div className="confirm-modal" onClick={(e) => e.stopPropagation()}>

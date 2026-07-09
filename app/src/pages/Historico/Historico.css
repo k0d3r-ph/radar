@@ -1094,6 +1094,21 @@
   background: rgba(255, 255, 255, 0.05);
 }
 
+/* Light Mode overrides */
+body.light-theme .temas-lista {
+  background: #ffffff;
+  border-color: #d1d5db;
+}
+
+body.light-theme .tema-opcao {
+  color: #1e293b !important;
+}
+
+body.light-theme .tema-opcao:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+
 .tema-opcao input[type="checkbox"] {
   accent-color: #3b82f6;
   width: 15px;

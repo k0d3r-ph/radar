@@ -4,6 +4,7 @@ import {
   updatePassword,
   createUserWithEmailAndPassword,
   getAuth,
+  sendPasswordResetEmail,
 } from "firebase/auth";
 import type { User } from "firebase/auth";
 import { doc, getDoc, setDoc, deleteDoc, collection, getDocs, query, orderBy } from "firebase/firestore";
@@ -127,3 +128,8 @@ export async function atualizarRoleUsuario(uid: string, role: string): Promise<v
   const userDocRef = doc(db, COLLECTION_USUARIOS, uid);
   await setDoc(userDocRef, { role, updatedAt: Date.now() }, { merge: true });
 }
+
+export async function enviarEmailRedefinicaoSenha(email: string): Promise<void> {
+  await sendPasswordResetEmail(auth, email);
+}
+

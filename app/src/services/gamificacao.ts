@@ -7,6 +7,8 @@ import {
   query,
   orderBy,
   updateDoc,
+  writeBatch,
+  where,
 } from "firebase/firestore";
 import { db } from "./firebase";
 import type { LancamentoPonto } from "../types";
@@ -51,3 +53,29 @@ export async function listarLancamentosPontos(): Promise<LancamentoPonto[]> {
 export async function removerLancamentoPonto(id: string): Promise<void> {
   await deleteDoc(doc(db, COLLECTION, id));
 }
+
+export async function reassociarPontosTreinador(
+  oldTreinadorId: string,
+  newTreinadorId: string,
+  newTreinadorNome: string
+): Promise<number> {
+  const q = query(
+    collection(db, COLLECTION),
+    where("treinadorId", "==", oldTreinadorId)
+  );
+  const snapshot = await getDocs(q);
+  if (snapshot.empty) return 0;
+
+  const batch = writeBatch(db);
+  snapshot.docs.forEach((docSnap) => {
+    batch.update(docSnap.ref, {
+      treinadorId: newTreinadorId,
+      treinadorNome: newTreinadorNome,
+      updatedAt: Date.now(),
+    });
+  });
+
+  await batch.commit();
+  return snapshot.size;
+}
+

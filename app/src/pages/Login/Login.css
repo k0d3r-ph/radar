@@ -240,3 +240,50 @@
     font-size: 22px;
   }
 }
+
+.forgot-password-container {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -10px;
+  margin-bottom: 2px;
+}
+
+.forgot-password-link {
+  font-size: 13px;
+  color: #3b82f6;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-weight: 500;
+  transition: color 0.2s ease;
+  font-family: inherit;
+}
+
+.forgot-password-link:hover {
+  color: #60a5fa;
+  text-decoration: underline;
+}
+
+.login-back-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #d1d5db;
+  height: 48px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 10px;
+  font-family: inherit;
+}
+
+.login-back-btn:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+}
+

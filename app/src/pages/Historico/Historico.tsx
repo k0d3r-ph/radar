@@ -9,6 +9,9 @@ import {
 import { listarEmpresas, salvarEmpresas } from "../../services/empresas";
 import { listarUsuarios } from "../../services/auth";
 import type { UsuarioDocument } from "../../services/auth";
+import { enviarMensagemWhatsApp } from "../../services/whatsapp";
+import { generateEsteiraImage } from "../../utils/generateEsteiraImage";
+
 import {
   salvarLancamentoPonto,
   atualizarLancamentoPonto,
@@ -305,6 +308,21 @@ export function Historico() {
   const [modalScoreAberto, setModalScoreAberto] = useState(false);
   const [respostasScore, setRespostasScore] = useState<ScoreFormAnswers>({ ...INITIAL_SCORE_ANSWERS });
   const [calculoScoreResult, setCalculoScoreResult] = useState<{ score: number; tipo: "Fast" | "Safety" } | null>(null);
+
+  // WhatsApp Integration States
+  const [whatsappConfirmModalOpen, setWhatsappConfirmModalOpen] = useState(false);
+  const [pendingWhatsAppMessage, setPendingWhatsAppMessage] = useState<{
+    to: string;
+    contato: string;
+    empresaNome: string;
+    temas: string[];
+    dataStr: string;
+    empresaObjeto: Empresa;
+  } | null>(null);
+  const [editedWhatsAppText, setEditedWhatsAppText] = useState("");
+  const [sendConveyorImage, setSendConveyorImage] = useState(true);
+  const [sendingWhatsApp, setSendingWhatsApp] = useState(false);
+
   const [novaAtualizacaoAberta, setNovaAtualizacaoAberta] = useState(false);
   const [novaDescricaoAtual, setNovaDescricaoAtual] = useState("");
   const [editingUpdateIdx, setEditingUpdateIdx] = useState<number | null>(null);
@@ -1052,12 +1070,124 @@ Score atual: ${novoScore}${mudancasTexto}`;
       }
     }
 
-    await carregar();
-    setSalvando(false);
-    cancelar();
-    toast.success(
-      editandoId ? "Ocorrência atualizada!" : "Ocorrência registrada!",
-    );
+    // Fluxo de Disparo do WhatsApp
+    const temasValidos = form.tipo === "Treinamento" && !isRevisao && empresaObjeto
+      ? (form.temaOcorrencia ?? []).filter(
+          (t) => t.trim().toLowerCase() !== "ausente" && t.trim().toLowerCase() !== "cancelado"
+        )
+      : [];
+
+    if (form.tipo === "Treinamento" && !isRevisao && empresaObjeto && temasValidos.length > 0) {
+      const telefoneLimpo = (empresaObjeto.telefone || "").replace(/\D/g, "");
+      if (!telefoneLimpo) {
+        toast.warning("Ocorrência registrada! No entanto, o cliente não possui telefone de contato cadastrado para envio do WhatsApp.");
+        await carregar();
+        setSalvando(false);
+        cancelar();
+        toast.success(editandoId ? "Ocorrência atualizada!" : "Ocorrência registrada!");
+      } else {
+        // Encontra o novo temaText e dataText (que foram atualizados logo acima)
+        let novoTemaText = empresaObjeto.temaText;
+        let novoDataText = empresaObjeto.dataText;
+        let ultimoIndice = empresaObjeto.currentPhase ?? 0;
+
+        const normTema = (s: string) =>
+          s.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const linhasTema = (empresaObjeto.temaText || "").split("\n").map((l) => l.trim());
+        const linhasData = (empresaObjeto.dataText || "").split("\n").map((l) => l.trim());
+        while (linhasData.length < linhasTema.length) linhasData.push("");
+
+        let dataStr = "";
+        if (dataRealizacaoStr) {
+          const [, m, d] = dataRealizacaoStr.split("-");
+          dataStr = `${d}/${m}`;
+        } else {
+          const now = new Date();
+          const d = String(now.getDate()).padStart(2, "0");
+          const m = String(now.getMonth() + 1).padStart(2, "0");
+          dataStr = `${d}/${m}`;
+        }
+
+        const temasValidosNorm = temasValidos.map(normTema);
+        const indicesEnsinados: number[] = [];
+        linhasTema.forEach((tema, idx) => {
+          if (temasValidosNorm.includes(normTema(tema))) {
+            indicesEnsinados.push(idx);
+          }
+        });
+
+        if (indicesEnsinados.length > 0) {
+          const newTemas = [...linhasTema];
+          const newDatas = [...linhasData];
+          indicesEnsinados.forEach((idx) => {
+            newDatas[idx] = dataStr;
+          });
+
+          let lastInsertedAt = indicesEnsinados[0];
+          for (let i = 1; i < indicesEnsinados.length; i++) {
+            const temaAlvo = linhasTema[indicesEnsinados[i]];
+            const posAtual = newTemas.findIndex(
+              (t, pos) => pos > lastInsertedAt && normTema(t) === normTema(temaAlvo)
+            );
+            if (posAtual > lastInsertedAt + 1) {
+              const [tRemovido] = newTemas.splice(posAtual, 1);
+              const [dRemovido] = newDatas.splice(posAtual, 1);
+              newTemas.splice(lastInsertedAt + 1, 0, tRemovido);
+              newDatas.splice(lastInsertedAt + 1, 0, dRemovido);
+              lastInsertedAt = lastInsertedAt + 1;
+            } else if (posAtual === lastInsertedAt + 1) {
+              lastInsertedAt = posAtual;
+            }
+          }
+          ultimoIndice = lastInsertedAt;
+          novoTemaText = newTemas.join("\n");
+          novoDataText = newDatas.join("\n");
+        }
+
+        const empresaAtualizada: Empresa = {
+          ...empresaObjeto,
+          ...(calculoScoreResult ? {
+            score: calculoScoreResult.score,
+            tipo: calculoScoreResult.tipo,
+            scoreAnswers: respostasScore,
+          } : {}),
+          temaText: novoTemaText,
+          dataText: novoDataText,
+          currentPhase: Math.max(empresaObjeto.currentPhase ?? 0, ultimoIndice),
+          updatedAt: Date.now(),
+        };
+
+        const contatoNome = empresaObjeto.contato || "Cliente";
+        const dataCompleta = new Date().toLocaleDateString("pt-BR");
+        const plural = temasValidos.length > 1;
+        const textoMensagem = `Olá, *${contatoNome}* (${empresaObjeto.nomeEmpresa})! 🚀\nSeu treinamento sobre ${plural ? "os temas" : "o tema"} *${temasValidos.join(", ")}* foi registrado com sucesso em *${dataCompleta}*.\n\nConfira abaixo a sua esteira de evolução atualizada:`;
+
+        let telefoneFormatado = telefoneLimpo;
+        if (telefoneLimpo.length === 10 || telefoneLimpo.length === 11) {
+          telefoneFormatado = "55" + telefoneLimpo;
+        }
+
+        setPendingWhatsAppMessage({
+          to: telefoneFormatado,
+          contato: contatoNome,
+          empresaNome: empresaObjeto.nomeEmpresa,
+          temas: temasValidos,
+          dataStr: dataCompleta,
+          empresaObjeto: empresaAtualizada
+        });
+        setEditedWhatsAppText(textoMensagem);
+        setSendConveyorImage(true);
+        setWhatsappConfirmModalOpen(true);
+        setSalvando(false);
+      }
+    } else {
+      await carregar();
+      setSalvando(false);
+      cancelar();
+      toast.success(
+        editandoId ? "Ocorrência atualizada!" : "Ocorrência registrada!",
+      );
+    }
   }
 
   async function excluir(id: string) {
@@ -2569,6 +2699,120 @@ Score atual: ${novoScore}${mudancasTexto}`;
                 }}
               >
                 Confirmar Cálculo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Popup de Confirmação de Envio do WhatsApp */}
+      {whatsappConfirmModalOpen && pendingWhatsAppMessage && (
+        <div className="score-modal-overlay animate-fade-in" style={{ zIndex: 2000 }}>
+          <div className="score-modal-content" style={{ maxWidth: "550px", width: "90%" }}>
+            <div className="score-modal-header" style={{ marginBottom: "16px" }}>
+              <h3 style={{ margin: 0, fontSize: "1.25rem", color: "var(--text-color, #ffffff)", fontWeight: "700" }}>
+                💬 Enviar progresso pelo WhatsApp?
+              </h3>
+            </div>
+            <div className="score-modal-body" style={{ color: "var(--text-color, #ffffff)" }}>
+              <p style={{ fontSize: "0.9rem", marginBottom: "16px", color: "var(--text-muted, #94a3b8)", lineHeight: "1.4" }}>
+                Deseja enviar uma notificação para o cliente com o status atualizado do progresso de onboarding dele?
+              </p>
+              
+              <div style={{ marginBottom: "16px" }}>
+                <label style={{ display: "block", fontSize: "0.8rem", fontWeight: "600", marginBottom: "6px", color: "var(--text-color, #ffffff)" }}>
+                  Destinatário (WhatsApp do cliente)
+                </label>
+                <input
+                  type="text"
+                  value={`+${pendingWhatsAppMessage.to} (${pendingWhatsAppMessage.contato})`}
+                  disabled
+                  className="whatsapp-input"
+                  style={{ opacity: 0.7, background: "rgba(255, 255, 255, 0.05)", width: "100%", padding: "10px 14px", border: "1px solid var(--border-color, rgba(255,255,255,0.08))", borderRadius: "8px" }}
+                />
+              </div>
+
+              <div style={{ marginBottom: "16px" }}>
+                <label style={{ display: "block", fontSize: "0.8rem", fontWeight: "600", marginBottom: "6px", color: "var(--text-color, #ffffff)" }}>
+                  Texto da Mensagem (Você pode personalizar antes de enviar)
+                </label>
+                <textarea
+                  rows={6}
+                  value={editedWhatsAppText}
+                  onChange={(e) => setEditedWhatsAppText(e.target.value)}
+                  className="whatsapp-textarea"
+                  style={{ width: "100%", boxSizing: "border-box", background: "rgba(255, 255, 255, 0.03)", border: "1px solid var(--border-color, rgba(255,255,255,0.08))", borderRadius: "8px", color: "var(--text-color, #ffffff)", padding: "10px 14px" }}
+                />
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "10px" }}>
+                <label className="checkbox-label" style={{ fontSize: "0.85rem", cursor: "pointer", display: "inline-flex", alignItems: "center" }}>
+                  <input
+                    type="checkbox"
+                    checked={sendConveyorImage}
+                    onChange={(e) => setSendConveyorImage(e.target.checked)}
+                    className="whatsapp-checkbox"
+                  />
+                  <span className="checkbox-custom"></span>
+                  <span className="checkbox-text">Incluir imagem da esteira de evolução do cliente</span>
+                </label>
+              </div>
+            </div>
+
+            <div className="score-modal-footer" style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "24px" }}>
+              <button
+                type="button"
+                className="btn-secondary"
+                disabled={sendingWhatsApp}
+                onClick={async () => {
+                  setWhatsappConfirmModalOpen(false);
+                  setPendingWhatsAppMessage(null);
+                  await carregar();
+                  setSalvando(false);
+                  cancelar();
+                  toast.success(editandoId ? "Ocorrência atualizada!" : "Ocorrência registrada!");
+                }}
+              >
+                Não enviar
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                disabled={sendingWhatsApp}
+                style={{ display: "flex", alignItems: "center", gap: "6px" }}
+                onClick={async () => {
+                  setSendingWhatsApp(true);
+                  try {
+                    let imageBase64: string | undefined = undefined;
+                    if (sendConveyorImage) {
+                      toast.info("Renderizando imagem da esteira em background...");
+                      imageBase64 = await generateEsteiraImage(pendingWhatsAppMessage.empresaObjeto);
+                    }
+                    
+                    toast.info("Disparando mensagem para o WhatsApp...");
+                    await enviarMensagemWhatsApp({
+                      to: pendingWhatsAppMessage.to,
+                      message: editedWhatsAppText,
+                      imageBase64,
+                      filename: `esteira_${pendingWhatsAppMessage.empresaNome}.png`
+                    });
+                    
+                    toast.success("Mensagem do WhatsApp enviada com sucesso!");
+                  } catch (err: any) {
+                    console.error("Erro ao enviar mensagem pelo WhatsApp:", err);
+                    toast.error(`Erro ao enviar WhatsApp: ${err.message || err}`);
+                  } finally {
+                    setSendingWhatsApp(false);
+                    setWhatsappConfirmModalOpen(false);
+                    setPendingWhatsAppMessage(null);
+                    await carregar();
+                    setSalvando(false);
+                    cancelar();
+                    toast.success(editandoId ? "Ocorrência atualizada!" : "Ocorrência registrada!");
+                  }
+                }}
+              >
+                {sendingWhatsApp ? "Enviando..." : "Sim, enviar"}
               </button>
             </div>
           </div>

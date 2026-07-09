@@ -12,6 +12,24 @@ import type { Empresa } from "../types";
 
 const COLLECTION = "empresas";
 
+export function formatarTelefoneWhatsApp(telefone?: string): string {
+  if (!telefone) return "";
+  const limpo = telefone.replace(/\D/g, "");
+  if (!limpo) return "";
+
+  // Se tiver DDD + número (10 ou 11 dígitos, ex: 21999999999)
+  if (limpo.length === 10 || limpo.length === 11) {
+    return "55" + limpo;
+  }
+
+  // Se já tiver DDI 55 (12 ou 13 dígitos, ex: 5521999999999)
+  if ((limpo.length === 12 || limpo.length === 13) && limpo.startsWith("55")) {
+    return limpo;
+  }
+
+  return limpo;
+}
+
 export async function salvarEmpresas(empresa: Partial<Empresa>) {
   const { id, tme, progresso, farol, dias, ocorrenciaAlertaId, ...dados } = empresa as any;
 

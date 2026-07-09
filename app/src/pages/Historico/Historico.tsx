@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
   salvarOcorrencia,
@@ -301,6 +301,7 @@ export function Historico() {
   const { role, userName, user } = useAuth();
   const isTreinador = role === "treinador" || role === "master";
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [modalScoreAberto, setModalScoreAberto] = useState(false);
   const [respostasScore, setRespostasScore] = useState<ScoreFormAnswers>({ ...INITIAL_SCORE_ANSWERS });
   const [calculoScoreResult, setCalculoScoreResult] = useState<{ score: number; tipo: "Fast" | "Safety" } | null>(null);
@@ -1131,9 +1132,35 @@ Score atual: ${novoScore}${mudancasTexto}`;
               Registro e acompanhamento de ocorrências
             </p>
           </div>
-          <button className="btn-primary hist-btn-novo" onClick={abrirNovo}>
-            + Nova ocorrência
-          </button>
+          <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+            {empresaFiltro && (
+              <button
+                className="btn-secondary"
+                onClick={() => {
+                  const emp = empresasList.find(
+                    (e) => e.nomeEmpresa.trim().toLowerCase() === empresaFiltro.trim().toLowerCase()
+                  );
+                  if (emp && emp.id) {
+                    navigate(`/esteira/${emp.id}`);
+                  } else {
+                    navigate(`/esteira`);
+                  }
+                }}
+                style={{
+                  height: "46px",
+                  padding: "0 18px",
+                  borderRadius: "8px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Ver Esteira de {empresaFiltro}
+              </button>
+            )}
+            <button className="btn-primary hist-btn-novo" onClick={abrirNovo}>
+              + Nova ocorrência
+            </button>
+          </div>
         </div>
       </header>
 

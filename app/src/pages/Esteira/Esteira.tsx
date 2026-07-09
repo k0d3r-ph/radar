@@ -9,7 +9,7 @@ import {
 } from "../../services/empresas";
 import FakeSelect from "../../components/FakeSelect";
 import { toast } from "sonner";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
 function normalizarNome(nome: string) {
@@ -23,6 +23,7 @@ function normalizarNome(nome: string) {
 
 function Esteira() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { role } = useAuth();
   const isTreinador = role === "treinador" || role === "master";
 
@@ -201,6 +202,21 @@ function Esteira() {
             }}
           />
         </div>
+
+        {nomeEmpresa && (
+          <div className="control-row" style={{ marginTop: "-12px", marginBottom: "24px" }}>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => {
+                navigate(`/historico?empresa=${encodeURIComponent(nomeEmpresa)}`);
+              }}
+              style={{ width: "100%", padding: "10px 14px", fontSize: "0.85rem" }}
+            >
+              Ver Ocorrências de {nomeEmpresa}
+            </button>
+          </div>
+        )}
 
         <div className="control-row">
           <label>Nome da empresa</label>

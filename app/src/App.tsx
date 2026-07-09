@@ -97,16 +97,12 @@ function AppRoutes() {
               </NavLink>
             </>
           )}
-          {(role === "master" || role === "painel") && (
-            <>
-              <NavLink
-                to="/relatorios"
-                className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
-              >
-                Relatórios
-              </NavLink>
-            </>
-          )}
+          <NavLink
+            to="/relatorios"
+            className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
+          >
+            Relatórios
+          </NavLink>
         </div>
         <div className="nav-right-container">
           <button
@@ -156,17 +152,8 @@ function AppRoutes() {
           <Route path="/gamificacao" element={<Navigate to={role === "painel" ? "/relatorios" : "/home"} replace />} />
         )}
 
-        {role === "master" || role === "painel" ? (
-          <>
-            <Route path="/relatorio-score" element={<Navigate to="/relatorios" replace />} />
-            <Route path="/relatorios" element={<Relatorios />} />
-          </>
-        ) : (
-          <>
-            <Route path="/relatorio-score" element={<Navigate to="/home" replace />} />
-            <Route path="/relatorios" element={<Navigate to="/home" replace />} />
-          </>
-        )}
+        <Route path="/relatorio-score" element={<Navigate to="/relatorios" replace />} />
+        <Route path="/relatorios" element={<Relatorios />} />
         
         <Route path="*" element={<Navigate to={role === "painel" ? "/relatorios" : "/home"} replace />} />
       </Routes>

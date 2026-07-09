@@ -376,22 +376,16 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
 
   const trackRef = useRef<HTMLDivElement>(null);
   const [points, setPoints] = useState<{ x: number; y: number }[]>([]);
-
-  // Calcula a ordem da etapa no layout de "serpente" (boustrophedon)
-  const obterOrderEtapa = (index: number, maxPorLinha = 5): number => {
-    const row = Math.floor(index / maxPorLinha);
-    const col = index % maxPorLinha;
-    if (row % 2 === 0) {
-      return index;
-    } else {
-      return row * maxPorLinha + (maxPorLinha - 1 - col);
-    }
-  };
+  const [trackWidth, setTrackWidth] = useState<number>(800);
 
   useEffect(() => {
     const updatePoints = () => {
       const track = trackRef.current;
       if (!track) return;
+
+      const width = track.getBoundingClientRect().width;
+      setTrackWidth(width);
+
       const circles = track.querySelectorAll(".jornada-step-circle");
       const trackRect = track.getBoundingClientRect();
       const newPoints = Array.from(circles).map((circle) => {
@@ -434,8 +428,6 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
         return `${acc} L ${ponto.x} ${ponto.y}`;
       }
 
-      const trackWidth = trackRef.current?.getBoundingClientRect().width || 800;
-
       // Se a largura do track for pequena (celular), as etapas se empilham e usamos linha reta vertical simples
       if (trackWidth < 550) {
         return `${acc} L ${ponto.x} ${ponto.y}`;
@@ -461,7 +453,7 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
 
       return `${acc} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${ponto.x} ${ponto.y}`;
     }, "");
-  }, [points]);
+  }, [points, trackWidth]);
 
   // Define o índice selecionado de etapa de forma dinâmica
   const selectedStageIndex = useMemo(() => {
@@ -717,7 +709,7 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
                  NOVO: STEPPER HORIZONTAL INTERATIVO
                  ======================================================== */}
               <div className="jornada-stepper-container">
-                <div className="jornada-stepper-track" ref={trackRef}>
+                <div className={`jornada-stepper-track ${trackWidth >= 550 ? "use-grid" : ""}`} ref={trackRef}>
                   {points.length > 1 && (
                     <svg
                       style={{
@@ -746,10 +738,18 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
                     const statusTreinamento = obterStatusTreinamento(item);
                     const statusClass = statusTreinamento === "cancelado" ? "cancelado" : statusTreinamento === "ausente" ? "ausente" : "";
 
+                    const isUseGrid = trackWidth >= 550;
+                    const row = Math.floor(idx / 5);
+                    const col = isUseGrid && row % 2 !== 0 ? 4 - (idx % 5) : idx % 5;
+                    const nodeStyle = isUseGrid ? {
+                      gridRow: row + 1,
+                      gridColumn: col + 1,
+                    } : undefined;
+
                     return (
                       <button
                         key={idx}
-                        style={{ order: obterOrderEtapa(idx) }}
+                        style={nodeStyle}
                         className={`jornada-step-node ${getStageClass(item.stage)} ${statusClass} ${
                           isSlaBreached ? "sla-violated" : ""
                         } ${isSelected ? "selected-node" : ""}`}

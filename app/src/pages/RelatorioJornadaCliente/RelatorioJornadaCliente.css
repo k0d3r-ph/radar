@@ -339,21 +339,27 @@
 
 .jornada-stepper-track {
   display: flex;
-  align-items: stretch;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-  justify-content: flex-start;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
   position: relative;
   width: 100%;
   padding: 0;
+}
+
+.jornada-stepper-track.use-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1.5rem 0.75rem;
+  align-items: stretch;
 }
 
 .jornada-step-node {
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: calc(20% - 0.6rem); /* 5 columns on desktop, wrapping to next lines */
-  min-width: 110px;
+  width: 100%;
+  max-width: 280px;
   position: relative;
   z-index: 2;
   cursor: pointer;
@@ -362,6 +368,11 @@
   padding: 0.5rem 0;
   outline: none;
   transition: all 0.2s ease;
+}
+
+.jornada-stepper-track.use-grid .jornada-step-node {
+  max-width: none;
+  min-width: 110px;
 }
 
 /* Linha conectora da régua (ruler track) - Desabilitado em favor da linha SVG dinâmica */

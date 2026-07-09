@@ -157,6 +157,7 @@ export default function Home() {
   const [filtroCardTipo, setFiltroCardTipo] = useState<"safety" | "fast" | "">(() => (sessionStorage.getItem("filtroCardTipo") as any) || "");
   const [filtroCardAlerta, setFiltroCardAlerta] = useState<"alerta" | "">(() => (sessionStorage.getItem("filtroCardAlerta") as any) || "");
   const [ordenacaoContrato, setOrdenacaoContrato] = useState<"" | "maior" | "menor">(() => (sessionStorage.getItem("ordenacaoContrato") as any) || "");
+  const [ordenacaoScore, setOrdenacaoScore] = useState<"" | "maior" | "menor">(() => (sessionStorage.getItem("ordenacaoScore") as any) || "");
 
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
 
@@ -440,7 +441,8 @@ export default function Home() {
     sessionStorage.setItem("filtroCardTipo", filtroCardTipo);
     sessionStorage.setItem("filtroCardAlerta", filtroCardAlerta);
     sessionStorage.setItem("ordenacaoContrato", ordenacaoContrato);
-  }, [filtroCliente, filtroResponsavel, filtroCs, filtroProgresso, filtroCardStatus, filtroCardTipo, filtroCardAlerta, ordenacaoContrato]);
+    sessionStorage.setItem("ordenacaoScore", ordenacaoScore);
+  }, [filtroCliente, filtroResponsavel, filtroCs, filtroProgresso, filtroCardStatus, filtroCardTipo, filtroCardAlerta, ordenacaoContrato, ordenacaoScore]);
 
   const dados = useMemo(() => {
     return empresas.map((empresa) => {
@@ -581,6 +583,16 @@ export default function Home() {
         return clienteOk && responsavelOk && csOk && progressoOk && statusCardOk && tipoCardOk && alertaCardOk;
       })
       .sort((a, b) => {
+        if (ordenacaoScore === "maior") {
+          const scoreA = a.score !== undefined && a.score !== null ? a.score : -999;
+          const scoreB = b.score !== undefined && b.score !== null ? b.score : -999;
+          return scoreB - scoreA;
+        }
+        if (ordenacaoScore === "menor") {
+          const scoreA = a.score !== undefined && a.score !== null ? a.score : 999;
+          const scoreB = b.score !== undefined && b.score !== null ? b.score : 999;
+          return scoreA - scoreB;
+        }
         if (ordenacaoContrato === "maior") {
           return (b.valorContrato ?? 0) - (a.valorContrato ?? 0);
         }
@@ -592,7 +604,7 @@ export default function Home() {
         if (farolDiff !== 0) return farolDiff;
         return a.nomeEmpresa.localeCompare(b.nomeEmpresa, "pt-BR");
       });
-  }, [dadosAtivos, filtroCliente, filtroResponsavel, filtroCs, filtroProgresso, filtroCardStatus, filtroCardTipo, filtroCardAlerta, ordenacaoContrato]);
+  }, [dadosAtivos, filtroCliente, filtroResponsavel, filtroCs, filtroProgresso, filtroCardStatus, filtroCardTipo, filtroCardAlerta, ordenacaoContrato, ordenacaoScore]);
 
   const dadosOngoingFiltrados = useMemo(() => {
     return dadosOngoing
@@ -607,6 +619,16 @@ export default function Home() {
         return clienteOk && csOk && responsavelOk;
       })
       .sort((a, b) => {
+        if (ordenacaoScore === "maior") {
+          const scoreA = a.score !== undefined && a.score !== null ? a.score : -999;
+          const scoreB = b.score !== undefined && b.score !== null ? b.score : -999;
+          return scoreB - scoreA;
+        }
+        if (ordenacaoScore === "menor") {
+          const scoreA = a.score !== undefined && a.score !== null ? a.score : 999;
+          const scoreB = b.score !== undefined && b.score !== null ? b.score : 999;
+          return scoreA - scoreB;
+        }
         if (ordenacaoContrato === "maior") {
           return (b.valorContrato ?? 0) - (a.valorContrato ?? 0);
         }
@@ -615,7 +637,7 @@ export default function Home() {
         }
         return a.nomeEmpresa.localeCompare(b.nomeEmpresa, "pt-BR");
       });
-  }, [dadosOngoing, filtroCliente, filtroCs, filtroResponsavel, ordenacaoContrato]);
+  }, [dadosOngoing, filtroCliente, filtroCs, filtroResponsavel, ordenacaoContrato, ordenacaoScore]);
 
   const dadosSuspensosFiltrados = useMemo(() => {
     return dadosSuspensos
@@ -630,6 +652,16 @@ export default function Home() {
         return clienteOk && csOk && responsavelOk;
       })
       .sort((a, b) => {
+        if (ordenacaoScore === "maior") {
+          const scoreA = a.score !== undefined && a.score !== null ? a.score : -999;
+          const scoreB = b.score !== undefined && b.score !== null ? b.score : -999;
+          return scoreB - scoreA;
+        }
+        if (ordenacaoScore === "menor") {
+          const scoreA = a.score !== undefined && a.score !== null ? a.score : 999;
+          const scoreB = b.score !== undefined && b.score !== null ? b.score : 999;
+          return scoreA - scoreB;
+        }
         if (ordenacaoContrato === "maior") {
           return (b.valorContrato ?? 0) - (a.valorContrato ?? 0);
         }
@@ -638,7 +670,7 @@ export default function Home() {
         }
         return a.nomeEmpresa.localeCompare(b.nomeEmpresa, "pt-BR");
       });
-  }, [dadosSuspensos, filtroCliente, filtroCs, filtroResponsavel, ordenacaoContrato]);
+  }, [dadosSuspensos, filtroCliente, filtroCs, filtroResponsavel, ordenacaoContrato, ordenacaoScore]);
 
   return (
     <div className="monitoramento-page">
@@ -796,11 +828,26 @@ export default function Home() {
 
         <select
           value={ordenacaoContrato}
-          onChange={(e) => setOrdenacaoContrato(e.target.value as any)}
+          onChange={(e) => {
+            setOrdenacaoContrato(e.target.value as any);
+            setOrdenacaoScore("");
+          }}
         >
           <option value="">Ordenar contrato: Padrão</option>
           <option value="maior">Ordenar contrato: Maior valor</option>
           <option value="menor">Ordenar contrato: Menor valor</option>
+        </select>
+
+        <select
+          value={ordenacaoScore}
+          onChange={(e) => {
+            setOrdenacaoScore(e.target.value as any);
+            setOrdenacaoContrato("");
+          }}
+        >
+          <option value="">Ordenar score: Padrão</option>
+          <option value="maior">Ordenar score: Maior nota</option>
+          <option value="menor">Ordenar score: Menor nota</option>
         </select>
  
         {(filtroCliente ||
@@ -810,7 +857,8 @@ export default function Home() {
           filtroCardStatus ||
           filtroCardTipo ||
           filtroCardAlerta ||
-          ordenacaoContrato) && (
+          ordenacaoContrato ||
+          ordenacaoScore) && (
             <button
               onClick={() => {
                 setFiltroCliente("");
@@ -821,6 +869,7 @@ export default function Home() {
                 setFiltroCardTipo("");
                 setFiltroCardAlerta("");
                 setOrdenacaoContrato("");
+                setOrdenacaoScore("");
               }}
             >
               Limpar filtros
@@ -858,6 +907,7 @@ export default function Home() {
                 <col style={{ width: "5%" }} />
                 <col style={{ width: "5%" }} />
                 <col style={{ width: "5%" }} />
+                <col style={{ width: "5%" }} />
               </colgroup>
               <thead>
                 <tr>
@@ -865,6 +915,7 @@ export default function Home() {
                   <th>Cliente</th>
                   <th>Responsável</th>
                   <th>Tipo</th>
+                  <th>Score</th>
                   <th>Data de entrada</th>
                   <th>Dias</th>
                   <th>Agendamento</th>
@@ -931,6 +982,21 @@ export default function Home() {
                       )}
                     </td>
 
+                    <td>
+                      {empresa.score !== undefined && empresa.score !== null ? (
+                        <span
+                          style={{
+                            fontWeight: 600,
+                            color: empresa.tipo === "Fast" ? "#16a34a" : "#dc2626",
+                          }}
+                        >
+                          {empresa.score.toFixed(1)}
+                        </span>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+
                     <td>{formatarData(empresa.dataEntrada)}</td>
 
                     <td>{empresa.dias}</td>
@@ -949,7 +1015,7 @@ export default function Home() {
                 ))}
                 {dadosAtivosFiltrados.length === 0 && (
                   <tr>
-                    <td colSpan={9} style={{ textAlign: "center", color: "#64748b", padding: "2rem" }}>
+                    <td colSpan={10} style={{ textAlign: "center", color: "#64748b", padding: "2rem" }}>
                       Nenhum cliente ativo encontrado.
                     </td>
                   </tr>

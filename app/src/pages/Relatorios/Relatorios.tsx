@@ -284,7 +284,7 @@ export const Relatorios: React.FC = () => {
     const { inicio, fim } = limitesSemana;
     return dadosEmpresas.filter((e) => {
       const dataEntradaDate = parseDataLocal(e.dataEntrada);
-      return !e.isOngoing && !e.isSuspended && dataEntradaDate && dataEntradaDate >= inicio && dataEntradaDate <= fim;
+      return !e.isOngoing && dataEntradaDate && dataEntradaDate >= inicio && dataEntradaDate <= fim;
     });
   }, [dadosEmpresas, limitesSemana]);
 
@@ -295,7 +295,6 @@ export const Relatorios: React.FC = () => {
       const dataFinalizacaoDate = parseDataLocal(e.dataFinalizacao || "");
       return (
         !e.isOngoing &&
-        !e.isSuspended &&
         dataFinalizacaoDate &&
         dataFinalizacaoDate >= inicio &&
         dataFinalizacaoDate <= fim
@@ -354,7 +353,7 @@ export const Relatorios: React.FC = () => {
     });
 
     return dadosEmpresas
-      .filter((e) => !e.isOngoing && !e.isSuspended && statsMap.has(e.nomeEmpresa.trim().toLowerCase()))
+      .filter((e) => !e.isOngoing && statsMap.has(e.nomeEmpresa.trim().toLowerCase()))
       .map((e) => {
         const stats = statsMap.get(e.nomeEmpresa.trim().toLowerCase())!;
         return {
@@ -384,7 +383,7 @@ export const Relatorios: React.FC = () => {
       }
 
       // 3. Status live (ongoing/suspenso/concluído)
-      if (e.isOngoing || e.isSuspended || e.progresso >= 100) return false;
+      if (e.isOngoing || e.progresso >= 100) return false;
 
       // 4. Sem agendamento futuro em relação ao limite de corte
       const ocorrenciasDaEmpresa = ocorrencias.filter(
@@ -419,7 +418,7 @@ export const Relatorios: React.FC = () => {
       }
 
       // 3. Status live (ongoing/suspenso/concluído)
-      if (e.isOngoing || e.isSuspended || e.progresso >= 100) return false;
+      if (e.isOngoing || e.progresso >= 100) return false;
 
       // 4. Sem agendamento futuro em relação ao limite de corte
       const ocorrenciasDaEmpresa = ocorrencias.filter(
@@ -454,7 +453,7 @@ export const Relatorios: React.FC = () => {
       }
 
       // 3. Status live (ongoing/suspenso/concluído)
-      if (e.isOngoing || e.isSuspended || e.progresso >= 100) return false;
+      if (e.isOngoing || e.progresso >= 100) return false;
 
       // 4. Calcular dias na esteira até a data de referência/corte
       const diasNaSemana = Math.floor((limiteCorte - entradaDate.getTime()) / (1000 * 60 * 60 * 24));
@@ -480,7 +479,7 @@ export const Relatorios: React.FC = () => {
       }
 
       // 3. Status live (ongoing/suspenso/concluído)
-      if (e.isOngoing || e.isSuspended || e.progresso >= 100) return false;
+      if (e.isOngoing || e.progresso >= 100) return false;
 
       // 4. Calcular dias na esteira até a data de referência/corte de comparação
       const diasNaSemana = Math.floor((limiteCorte - entradaDate.getTime()) / (1000 * 60 * 60 * 24));
@@ -558,7 +557,7 @@ export const Relatorios: React.FC = () => {
     const { inicio, fim } = limitesSemanaComparacao;
     return dadosEmpresas.filter((e) => {
       const dataEntradaDate = parseDataLocal(e.dataEntrada);
-      return !e.isOngoing && !e.isSuspended && dataEntradaDate && dataEntradaDate >= inicio && dataEntradaDate <= fim;
+      return !e.isOngoing && dataEntradaDate && dataEntradaDate >= inicio && dataEntradaDate <= fim;
     });
   }, [dadosEmpresas, limitesSemanaComparacao]);
 
@@ -569,7 +568,6 @@ export const Relatorios: React.FC = () => {
       const dataFinalizacaoDate = parseDataLocal(e.dataFinalizacao || "");
       return (
         !e.isOngoing &&
-        !e.isSuspended &&
         dataFinalizacaoDate &&
         dataFinalizacaoDate >= inicio &&
         dataFinalizacaoDate <= fim
@@ -628,7 +626,7 @@ export const Relatorios: React.FC = () => {
     });
 
     return dadosEmpresas
-      .filter((e) => !e.isOngoing && !e.isSuspended && statsMap.has(e.nomeEmpresa.trim().toLowerCase()))
+      .filter((e) => !e.isOngoing && statsMap.has(e.nomeEmpresa.trim().toLowerCase()))
       .map((e) => {
         const stats = statsMap.get(e.nomeEmpresa.trim().toLowerCase())!;
         return {

@@ -342,7 +342,7 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
 
   // 3. Clientes ativos (esteira em aberto)
   const clientesAtivos = useMemo(() => {
-    return dadosGeraisClientes.filter((c) => !c.isFinalizado && !c.isOngoing && !c.isSuspended);
+    return dadosGeraisClientes.filter((c) => !c.isFinalizado && !c.isOngoing);
   }, [dadosGeraisClientes]);
 
   // 4. Contagem de KPIs

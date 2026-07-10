@@ -337,8 +337,8 @@ export function Historico() {
   const [busca, setBusca] = useState("");
   const [filtroTipo, setFiltroTipo] = useState(() => searchParams.get("tipo") || "");
   const [filtroDepto, setFiltroDepto] = useState("");
-  const [dataInicio, setDataInicio] = useState("");
-  const [dataFim, setDataFim] = useState("");
+  const [dataInicio, setDataInicio] = useState(() => searchParams.get("dataInicio") || "");
+  const [dataFim, setDataFim] = useState(() => searchParams.get("dataFim") || "");
   const [ordenacaoData, setOrdenacaoData] = useState<"desc" | "asc">("desc");
   const [loading, setLoading] = useState(true);
   const [salvando, setSalvando] = useState(false);
@@ -346,6 +346,15 @@ export function Historico() {
   const [usarTemplate, setUsarTemplate] = useState(true);
   const [temaOcorrenciaOngoingText, setTemaOcorrenciaOngoingText] = useState("");
   const [isRevisao, setIsRevisao] = useState(false);
+
+  useEffect(() => {
+    const tipo = searchParams.get("tipo") || "";
+    const start = searchParams.get("dataInicio") || "";
+    const end = searchParams.get("dataFim") || "";
+    setFiltroTipo(tipo);
+    setDataInicio(start);
+    setDataFim(end);
+  }, [searchParams]);
 
   const handleAddNota = () => {
     setForm((f) => ({

@@ -1302,7 +1302,7 @@ ${riscoChurn.length > 0
                                         D: {(e as any).dentroExpediente.duvidas}
                                         {(e as any).dentroExpediente.duvidas > 0 && (
                                           <button
-                                            onClick={() => navigate(`/historico?empresa=${encodeURIComponent(e.nomeEmpresa)}&tipo=Dúvida&dataInicio=${dataInicioSemanaStr}&dataFim=${dataFimSemanaStr}`)}
+                                            onClick={() => navigate(`/historico?empresa=${encodeURIComponent(e.nomeEmpresa)}&tipo=Dúvida&dataInicio=${dataInicioSemanaStr}&dataFim=${dataFimSemanaStr}&expediente=dentro`)}
                                             style={{
                                               background: "rgba(59, 130, 246, 0.15)",
                                               color: "#60a5fa",
@@ -1323,7 +1323,7 @@ ${riscoChurn.length > 0
                                         P: {(e as any).dentroExpediente.problemas}
                                         {(e as any).dentroExpediente.problemas > 0 && (
                                           <button
-                                            onClick={() => navigate(`/historico?empresa=${encodeURIComponent(e.nomeEmpresa)}&tipo=Problema&dataInicio=${dataInicioSemanaStr}&dataFim=${dataFimSemanaStr}`)}
+                                            onClick={() => navigate(`/historico?empresa=${encodeURIComponent(e.nomeEmpresa)}&tipo=Problema&dataInicio=${dataInicioSemanaStr}&dataFim=${dataFimSemanaStr}&expediente=dentro`)}
                                             style={{
                                               background: "rgba(239, 68, 68, 0.15)",
                                               color: "#f87171",
@@ -1353,7 +1353,7 @@ ${riscoChurn.length > 0
                                         D: {(e as any).foraExpediente.duvidas}
                                         {(e as any).foraExpediente.duvidas > 0 && (
                                           <button
-                                            onClick={() => navigate(`/historico?empresa=${encodeURIComponent(e.nomeEmpresa)}&tipo=Dúvida&dataInicio=${dataInicioSemanaStr}&dataFim=${dataFimSemanaStr}`)}
+                                            onClick={() => navigate(`/historico?empresa=${encodeURIComponent(e.nomeEmpresa)}&tipo=Dúvida&dataInicio=${dataInicioSemanaStr}&dataFim=${dataFimSemanaStr}&expediente=fora`)}
                                             style={{
                                               background: "rgba(59, 130, 246, 0.15)",
                                               color: "#60a5fa",
@@ -1374,7 +1374,7 @@ ${riscoChurn.length > 0
                                         P: {(e as any).foraExpediente.problemas}
                                         {(e as any).foraExpediente.problemas > 0 && (
                                           <button
-                                            onClick={() => navigate(`/historico?empresa=${encodeURIComponent(e.nomeEmpresa)}&tipo=Problema&dataInicio=${dataInicioSemanaStr}&dataFim=${dataFimSemanaStr}`)}
+                                            onClick={() => navigate(`/historico?empresa=${encodeURIComponent(e.nomeEmpresa)}&tipo=Problema&dataInicio=${dataInicioSemanaStr}&dataFim=${dataFimSemanaStr}&expediente=fora`)}
                                             style={{
                                               background: "rgba(239, 68, 68, 0.15)",
                                               color: "#f87171",

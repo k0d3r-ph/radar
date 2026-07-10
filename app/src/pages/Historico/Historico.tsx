@@ -379,6 +379,7 @@ export function Historico() {
   };
   const empresaFiltro = searchParams.get("empresa") || "";
   const ocorrenciaIdFiltro = searchParams.get("ocorrencia") || "";
+  const expedienteFiltro = searchParams.get("expediente") || "";
 
   useEffect(() => {
     if (!loading && ocorrenciaIdFiltro && ocorrencias.length > 0) {
@@ -1366,7 +1367,21 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       dataOk = false;
     }
 
-    return bateBusca && empresaOk && tipoOk && deptoOk && dataOk;
+    let expedienteOk = true;
+    if (expedienteFiltro && timestamp > 0) {
+      const dateObj = new Date(timestamp);
+      const hour = dateObj.getHours();
+      const day = dateObj.getDay();
+      const isWeekend = day === 0 || day === 6;
+      const isFora = isWeekend || hour >= 18 || hour < 9;
+      if (expedienteFiltro === "dentro") {
+        expedienteOk = !isFora;
+      } else if (expedienteFiltro === "fora") {
+        expedienteOk = isFora;
+      }
+    }
+
+    return bateBusca && empresaOk && tipoOk && deptoOk && dataOk && expedienteOk;
   }).sort((a, b) => {
     const tA = getOcorrenciaTimestamp(a);
     const tB = getOcorrenciaTimestamp(b);
@@ -1481,7 +1496,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             />
           </div>
 
-          {(busca || filtroTipo || filtroDepto || dataInicio || dataFim) && (
+          {(busca || filtroTipo || filtroDepto || dataInicio || dataFim || empresaFiltro || expedienteFiltro) && (
             <button
               className="btn-limpar-filtros"
               onClick={() => {
@@ -1490,6 +1505,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 setFiltroDepto("");
                 setDataInicio("");
                 setDataFim("");
+                if (empresaFiltro || expedienteFiltro || searchParams.get("ocorrencia")) {
+                  navigate("/historico");
+                }
               }}
               title="Limpar todos os filtros"
             >

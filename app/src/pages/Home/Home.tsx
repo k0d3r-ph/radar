@@ -107,6 +107,30 @@ export default function Home() {
     }
   }
 
+  async function confirmarScoreNeutroHome() {
+    if (!clienteSelecionado) return;
+    try {
+      const empresaAtualizada: Empresa = {
+        ...clienteSelecionado,
+        score: null as any,
+        scoreAnswers: null,
+        tipo: "",
+        updatedAt: Date.now(),
+      };
+
+      await salvarEmpresas(empresaAtualizada);
+
+      const lista = await listarEmpresas();
+      setEmpresas(lista);
+      setClienteSelecionado(empresaAtualizada);
+      setModalScoreHomeAberto(false);
+      toast.success("Score do cliente marcado como Neutro!");
+    } catch (error) {
+      console.error("Erro ao salvar score neutro do cliente:", error);
+      toast.error("Erro ao registrar score neutro do cliente.");
+    }
+  }
+
   async function confirmarCalculoScoreHome() {
     if (!clienteSelecionado) return;
 
@@ -2048,14 +2072,35 @@ export default function Home() {
                   );
                 })()}
               </div>
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={confirmarCalculoScoreHome}
-                style={{ width: "auto", margin: 0, padding: "0.6rem 1.2rem" }}
-              >
-                Confirmar Cálculo
-              </button>
+              <div style={{ display: "flex", gap: "10px" }}>
+                <button
+                  type="button"
+                  onClick={confirmarScoreNeutroHome}
+                  style={{
+                    width: "auto",
+                    margin: 0,
+                    padding: "0.6rem 1.2rem",
+                    backgroundColor: "rgba(255, 255, 255, 0.08)",
+                    border: "1px solid rgba(255, 255, 255, 0.2)",
+                    color: "#cbd5e1",
+                    borderRadius: "8px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    transition: "0.2s ease"
+                  }}
+                  className="btn-score-neutro"
+                >
+                  Neutro
+                </button>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={confirmarCalculoScoreHome}
+                  style={{ width: "auto", margin: 0, padding: "0.6rem 1.2rem" }}
+                >
+                  Confirmar Cálculo
+                </button>
+              </div>
             </div>
           </div>
         </div>

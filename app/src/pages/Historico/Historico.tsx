@@ -783,16 +783,14 @@ export function Historico() {
         updatedAt: Date.now()
       });
 
-      // Gera a ocorrência se for o primeiro cálculo OU se o tipo mudou.
+      // Gera a ocorrência se for o primeiro cálculo OU se o tipo mudou (desde que não seja marcado como Neutro).
       const isPrimeiroCalculo = typeof antigoScore !== "number";
       const tipoMudou = antigoTipo !== novoTipo;
-      const deveGerarOcorrencia = isPrimeiroCalculo || tipoMudou;
+      const deveGerarOcorrencia = (isPrimeiroCalculo || tipoMudou) && !calculoScoreResult.isNeutro;
 
       if (deveGerarOcorrencia) {
         let descMudanca: string;
-        if (calculoScoreResult.isNeutro) {
-          descMudanca = `Cliente marcado como Neutro (sem score e sem tipo).`;
-        } else if (isPrimeiroCalculo) {
+        if (isPrimeiroCalculo) {
           const marcadas = descreverRespostas(respostasScore);
           const marcadasTexto = marcadas.length > 0 ? "\n\nRespostas marcadas:\n" + marcadas.join("\n") : "";
           descMudanca = `Cálculo inicial de score: ${novoTipo || "Neutro"}

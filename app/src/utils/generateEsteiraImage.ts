@@ -114,7 +114,7 @@ export async function generateEsteiraImage(empresa: Empresa): Promise<string> {
     // ignore fetch error
   }
 
-  // Gera o HTML do SVG em string
+  // Gera o HTML do SVG em string com as classes e estilos idênticos ao do arquivo Esteira.css
   const circlesHtml = pontos.map((ponto, i) => {
     const isActive = i === empresa.currentPhase;
     const item = temas[i];
@@ -122,15 +122,12 @@ export async function generateEsteiraImage(empresa: Empresa): Promise<string> {
     let activeMarkerHtml = "";
     if (isActive) {
       activeMarkerHtml = `
-        <g>
+        <g class="active-marker">
           <text
             x="${ponto.x}"
             y="${item.data ? ponto.y - 80 : ponto.y - 40}"
             text-anchor="middle"
-            fill="#ffcc00"
-            font-size="14px"
-            font-weight="bold"
-            font-family="Roboto, sans-serif"
+            class="active-badge"
           >
             Você está aqui
           </text>
@@ -138,10 +135,7 @@ export async function generateEsteiraImage(empresa: Empresa): Promise<string> {
             cx="${ponto.x}"
             cy="${ponto.y}"
             r="22"
-            fill="none"
-            stroke="#ffcc00"
-            stroke-width="2"
-            stroke-dasharray="4,4"
+            class="active-ring"
           />
         </g>
       `;
@@ -154,10 +148,7 @@ export async function generateEsteiraImage(empresa: Empresa): Promise<string> {
           x="${ponto.x}"
           y="${ponto.y - 34}"
           text-anchor="middle"
-          fill="#ffcc00"
-          font-size="14px"
-          font-weight="bold"
-          font-family="Roboto, sans-serif"
+          class="tema-data"
         >
           ${item.data}
         </text>
@@ -176,8 +167,7 @@ export async function generateEsteiraImage(empresa: Empresa): Promise<string> {
           cx="${ponto.x}"
           cy="${ponto.y}"
           r="${isActive ? 16 : 12}"
-          fill="${isActive ? '#ffcc00' : 'none'}"
-          stroke="${isActive ? '#ffcc00' : '#ffffff'}"
+          class="${isActive ? 'active-circle' : 'normal-circle'}"
           stroke-width="4"
         />
         ${dateHtml}
@@ -185,10 +175,7 @@ export async function generateEsteiraImage(empresa: Empresa): Promise<string> {
           x="${ponto.x}"
           y="${ponto.y + 50}"
           text-anchor="middle"
-          fill="#ffffff"
-          font-size="16px"
-          font-weight="500"
-          font-family="Roboto, sans-serif"
+          class="temas"
         >
           ${tspans}
         </text>
@@ -198,16 +185,49 @@ export async function generateEsteiraImage(empresa: Empresa): Promise<string> {
 
   const svgString = `
     <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+      <style>
+        text, tspan {
+          font-family: 'Roboto', sans-serif;
+        }
+        .empresa {
+          fill: white;
+          font-size: 48px;
+          font-weight: 800;
+        }
+        .temas {
+          fill: white;
+          font-size: 18px;
+          font-weight: 500;
+        }
+        .active-badge {
+          fill: #ffecb3;
+          font-size: 20px;
+          font-weight: 700;
+        }
+        .active-ring {
+          fill: none;
+          stroke: rgba(255, 204, 0, 0.22);
+          stroke-width: 8;
+        }
+        .active-circle {
+          fill: #ffd54f;
+          stroke: #fff;
+        }
+        .normal-circle {
+          fill: white;
+        }
+        .tema-data {
+          fill: white;
+          font-size: 18px;
+          font-weight: bold;
+        }
+      </style>
       <text
         x="750"
         y="70"
         text-anchor="middle"
         dominant-baseline="hanging"
-        fill="#ffffff"
-        font-family="Roboto, sans-serif"
-        font-size="40px"
-        font-weight="800"
-        letter-spacing="2px"
+        class="empresa"
       >
         ${empresa.nomeEmpresa || "Nome da Empresa"}
       </text>

@@ -1684,34 +1684,7 @@ export default function Home() {
               />
             </div>
 
-            <div className="form-grid-2">
-              <div className="form-group">
-                <label>Data finalização esteira</label>
-                <input
-                  type="date"
-                  value={clienteForm.dataFinalizacao || ""}
-                  onChange={(e) =>
-                    setClienteForm({
-                      ...clienteForm,
-                      dataFinalizacao: e.target.value,
-                    })
-                  }
-                />
-              </div>
-              <div className="form-group">
-                <label>Data follow-up final</label>
-                <input
-                  type="date"
-                  value={clienteForm.dataFollowUpFinal || ""}
-                  onChange={(e) =>
-                    setClienteForm({
-                      ...clienteForm,
-                      dataFollowUpFinal: e.target.value,
-                    })
-                  }
-                />
-              </div>
-            </div>
+
 
 
 

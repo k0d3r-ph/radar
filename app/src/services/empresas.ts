@@ -30,7 +30,15 @@ export function formatarTelefoneWhatsApp(telefone?: string): string {
   return limpo;
 }
 
+let cachedEmpresas: Empresa[] | null = null;
+let lastFetchEmpresas = 0;
+const CACHE_TTL = 30000; // 30 segundos
+
 export async function salvarEmpresas(empresa: Partial<Empresa>) {
+  // Invalida o cache
+  cachedEmpresas = null;
+  lastFetchEmpresas = 0;
+
   const { id, tme, progresso, farol, dias, ocorrenciaAlertaId, ...dados } = empresa as any;
 
   const dadosLimpos = Object.fromEntries(
@@ -56,17 +64,30 @@ export async function salvarEmpresas(empresa: Partial<Empresa>) {
   return docRef.id;
 }
 
-export async function listarEmpresas() {
+export async function listarEmpresas(forceRefresh = false) {
+  const now = Date.now();
+  if (cachedEmpresas && !forceRefresh && (now - lastFetchEmpresas < CACHE_TTL)) {
+    return cachedEmpresas;
+  }
+
   const snapshot = await getDocs(collection(db, COLLECTION));
 
-  return snapshot.docs
+  cachedEmpresas = snapshot.docs
     .map((doc) => ({
       id: doc.id,
       ...(doc.data() as Omit<Empresa, "id">),
     }))
-    .filter((empresa) => empresa.id);
+    .filter((empresa) => empresa.id) as Empresa[];
+
+  lastFetchEmpresas = now;
+  return cachedEmpresas;
 }
 
 export async function removerEmpresa(id: string) {
+  // Invalida o cache
+  cachedEmpresas = null;
+  lastFetchEmpresas = 0;
+
   await deleteDoc(doc(db, "empresas", id));
 }
+

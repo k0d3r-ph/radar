@@ -15,9 +15,19 @@ import type { LancamentoPonto } from "../types";
 
 const COLLECTION = "gamificacao_pontos";
 
+let cachedPontos: LancamentoPonto[] | null = null;
+let lastFetchPontos = 0;
+const CACHE_TTL = 30000; // 30 segundos
+
+function invalidarCachePontos() {
+  cachedPontos = null;
+  lastFetchPontos = 0;
+}
+
 export async function salvarLancamentoPonto(
   lancamento: Omit<LancamentoPonto, "id" | "dataLancamento">
 ): Promise<string> {
+  invalidarCachePontos();
   const dadosLimpos = Object.fromEntries(
     Object.entries(lancamento).filter(([_, v]) => v !== undefined)
   );
@@ -33,6 +43,7 @@ export async function atualizarLancamentoPonto(
   id: string,
   lancamento: Partial<Omit<LancamentoPonto, "id" | "dataLancamento">>
 ): Promise<void> {
+  invalidarCachePontos();
   const docRef = doc(db, COLLECTION, id);
   const dadosLimpos = Object.fromEntries(
     Object.entries(lancamento).filter(([_, v]) => v !== undefined)
@@ -40,17 +51,26 @@ export async function atualizarLancamentoPonto(
   await updateDoc(docRef, dadosLimpos);
 }
 
-export async function listarLancamentosPontos(): Promise<LancamentoPonto[]> {
+export async function listarLancamentosPontos(forceRefresh = false): Promise<LancamentoPonto[]> {
+  const now = Date.now();
+  if (cachedPontos && !forceRefresh && (now - lastFetchPontos < CACHE_TTL)) {
+    return cachedPontos;
+  }
+
   const q = query(collection(db, COLLECTION), orderBy("dataLancamento", "desc"));
   const snapshot = await getDocs(q);
 
-  return snapshot.docs.map((d) => ({
+  cachedPontos = snapshot.docs.map((d) => ({
     id: d.id,
     ...(d.data() as Omit<LancamentoPonto, "id">),
   }));
+
+  lastFetchPontos = now;
+  return cachedPontos;
 }
 
 export async function removerLancamentoPonto(id: string): Promise<void> {
+  invalidarCachePontos();
   await deleteDoc(doc(db, COLLECTION, id));
 }
 
@@ -59,6 +79,7 @@ export async function reassociarPontosTreinador(
   newTreinadorId: string,
   newTreinadorNome: string
 ): Promise<number> {
+  invalidarCachePontos();
   const q = query(
     collection(db, COLLECTION),
     where("treinadorId", "==", oldTreinadorId)
@@ -78,4 +99,5 @@ export async function reassociarPontosTreinador(
   await batch.commit();
   return snapshot.size;
 }
+
 

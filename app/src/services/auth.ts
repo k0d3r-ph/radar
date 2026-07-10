@@ -57,6 +57,7 @@ export async function registrarSenhaDefinida(
   role: string,
   nome: string,
 ) {
+  invalidarCacheUsuarios();
   const userDocRef = doc(db, COLLECTION_USUARIOS, uid);
   await setDoc(
     userDocRef,
@@ -81,6 +82,7 @@ export interface UsuarioDocument {
 }
 
 export async function criarNovoUsuario(email: string, senhaTemp: string, role: string, nome: string): Promise<void> {
+  invalidarCacheUsuarios();
   const tempAppName = `temp-register-${Date.now()}`;
   const tempApp = initializeApp(firebaseConfig, tempAppName);
   const tempAuth = getAuth(tempApp);
@@ -103,7 +105,21 @@ export async function criarNovoUsuario(email: string, senhaTemp: string, role: s
   }
 }
 
-export async function listarUsuarios(): Promise<UsuarioDocument[]> {
+let cachedUsuarios: UsuarioDocument[] | null = null;
+let lastFetchUsuarios = 0;
+const CACHE_TTL = 30000; // 30 segundos
+
+function invalidarCacheUsuarios() {
+  cachedUsuarios = null;
+  lastFetchUsuarios = 0;
+}
+
+export async function listarUsuarios(forceRefresh = false): Promise<UsuarioDocument[]> {
+  const now = Date.now();
+  if (cachedUsuarios && !forceRefresh && (now - lastFetchUsuarios < CACHE_TTL)) {
+    return cachedUsuarios;
+  }
+
   const querySnapshot = await getDocs(query(collection(db, COLLECTION_USUARIOS), orderBy("email")));
   const list: UsuarioDocument[] = [];
   querySnapshot.forEach((doc) => {
@@ -117,14 +133,19 @@ export async function listarUsuarios(): Promise<UsuarioDocument[]> {
       createdAt: data.createdAt
     });
   });
+
+  cachedUsuarios = list;
+  lastFetchUsuarios = now;
   return list;
 }
 
 export async function removerUsuarioFirestore(uid: string): Promise<void> {
+  invalidarCacheUsuarios();
   await deleteDoc(doc(db, COLLECTION_USUARIOS, uid));
 }
 
 export async function atualizarRoleUsuario(uid: string, role: string): Promise<void> {
+  invalidarCacheUsuarios();
   const userDocRef = doc(db, COLLECTION_USUARIOS, uid);
   await setDoc(userDocRef, { role, updatedAt: Date.now() }, { merge: true });
 }
@@ -132,4 +153,5 @@ export async function atualizarRoleUsuario(uid: string, role: string): Promise<v
 export async function enviarEmailRedefinicaoSenha(email: string): Promise<void> {
   await sendPasswordResetEmail(auth, email);
 }
+
 

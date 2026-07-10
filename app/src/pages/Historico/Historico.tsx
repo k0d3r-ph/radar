@@ -2088,11 +2088,11 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 </button>
                 {calculoScoreResult && (
                   calculoScoreResult.isNeutro ? (
-                    <span className="score-result-badge" style={{ backgroundColor: "#475569", color: "#ffffff", padding: "4px 8px", borderRadius: "6px", fontSize: "0.85rem", fontWeight: "600", display: "inline-flex", alignItems: "center" }}>
+                    <span className="score-result-badge" style={{ backgroundColor: "#1e293b", border: "1px solid rgba(255, 255, 255, 0.08)", color: "#cbd5e1", padding: "10px 14px", borderRadius: "10px", fontSize: "0.88rem", fontWeight: 500, width: "100%", boxSizing: "border-box", display: "inline-flex", alignItems: "center", gap: "6px", marginTop: "6px" }}>
                       Score: <strong>Neutro</strong> ✅
                     </span>
                   ) : (
-                    <span className={`score-result-badge ${calculoScoreResult.tipo === "Safety" ? "score-result-badge--safety" : "score-result-badge--fast"}`}>
+                    <span className={`score-result-badge ${calculoScoreResult.tipo === "Safety" ? "score-result-badge--safety" : "score-result-badge--fast"}`} style={{ marginTop: "6px" }}>
                       Score: <strong>{calculoScoreResult.score !== null ? calculoScoreResult.score.toFixed(1) : ""}</strong> ({calculoScoreResult.tipo}) ✅
                     </span>
                   )

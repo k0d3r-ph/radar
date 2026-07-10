@@ -2088,7 +2088,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 </button>
                 {calculoScoreResult && (
                   calculoScoreResult.isNeutro ? (
-                    <span className="score-result-badge" style={{ backgroundColor: "#1e293b", border: "1px solid rgba(255, 255, 255, 0.08)", color: "#cbd5e1", padding: "10px 14px", borderRadius: "10px", fontSize: "0.88rem", fontWeight: 500, width: "100%", boxSizing: "border-box", display: "inline-flex", alignItems: "center", gap: "6px", marginTop: "6px" }}>
+                    <span className="score-result-badge--neutro">
                       Score: <strong>Neutro</strong> ✅
                     </span>
                   ) : (
@@ -2689,18 +2689,6 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                     });
                     setModalScoreAberto(false);
                     toast.success("Score do cliente definido como Neutro!");
-                  }}
-                  style={{
-                    width: "auto",
-                    margin: 0,
-                    padding: "0.6rem 1.2rem",
-                    backgroundColor: "rgba(255, 255, 255, 0.08)",
-                    border: "1px solid rgba(255, 255, 255, 0.2)",
-                    color: "#cbd5e1",
-                    borderRadius: "8px",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    transition: "0.2s ease"
                   }}
                   className="btn-score-neutro"
                 >

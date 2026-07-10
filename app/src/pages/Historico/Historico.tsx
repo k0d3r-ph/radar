@@ -307,7 +307,7 @@ export function Historico() {
   const navigate = useNavigate();
   const [modalScoreAberto, setModalScoreAberto] = useState(false);
   const [respostasScore, setRespostasScore] = useState<ScoreFormAnswers>({ ...INITIAL_SCORE_ANSWERS });
-  const [calculoScoreResult, setCalculoScoreResult] = useState<{ score: number; tipo: "Fast" | "Safety" } | null>(null);
+  const [calculoScoreResult, setCalculoScoreResult] = useState<{ score: number | null; tipo: "Fast" | "Safety" | ""; isNeutro?: boolean } | null>(null);
 
   // WhatsApp Integration States
   const [whatsappConfirmModalOpen, setWhatsappConfirmModalOpen] = useState(false);
@@ -746,8 +746,8 @@ export function Historico() {
       responsavel: responsavelFinal,
       dataOcorrencia: timestamp,
       atualizacoes: ocorrenciaOriginal?.atualizacoes ?? [],
-      scoreCalculado: calculoScoreResult ? calculoScoreResult.score : ocorrenciaOriginal?.scoreCalculado,
-      scoreAnswers: calculoScoreResult ? respostasScore : ocorrenciaOriginal?.scoreAnswers,
+      scoreCalculado: calculoScoreResult ? (calculoScoreResult.isNeutro ? null : calculoScoreResult.score) : ocorrenciaOriginal?.scoreCalculado,
+      scoreAnswers: calculoScoreResult ? (calculoScoreResult.isNeutro ? null : respostasScore) : ocorrenciaOriginal?.scoreAnswers,
       temaOcorrencia: temaOcorrenciaFinal,
       isRevisao: form.tipo === "Treinamento" ? isRevisao : undefined,
       ...(form.tipo === "Treinamento" ? {
@@ -779,7 +779,7 @@ export function Historico() {
         ...empresaObjeto,
         score: novoScore,
         tipo: novoTipo,
-        scoreAnswers: respostasScore,
+        scoreAnswers: calculoScoreResult.isNeutro ? null : respostasScore,
         updatedAt: Date.now()
       });
 
@@ -790,12 +790,14 @@ export function Historico() {
 
       if (deveGerarOcorrencia) {
         let descMudanca: string;
-        if (isPrimeiroCalculo) {
+        if (calculoScoreResult.isNeutro) {
+          descMudanca = `Cliente marcado como Neutro (sem score e sem tipo).`;
+        } else if (isPrimeiroCalculo) {
           const marcadas = descreverRespostas(respostasScore);
           const marcadasTexto = marcadas.length > 0 ? "\n\nRespostas marcadas:\n" + marcadas.join("\n") : "";
-          descMudanca = `Cálculo inicial de score: ${novoTipo}
+          descMudanca = `Cálculo inicial de score: ${novoTipo || "Neutro"}
 
-Score atual: ${novoScore}${marcadasTexto}`;
+Score atual: ${novoScore !== null ? novoScore : "Neutro"}${marcadasTexto}`;
         } else {
           let mudancasTexto = "";
           if (empresaObjeto.scoreAnswers) {
@@ -805,10 +807,10 @@ Score atual: ${novoScore}${marcadasTexto}`;
             }
           }
 
-          descMudanca = `Mudança de score de ${antigoTipo || "Sem tipo"} para ${novoTipo}
+          descMudanca = `Mudança de score de ${antigoTipo || "Sem tipo"} para ${novoTipo || "Neutro"}
 
-Score antigo: ${antigoScore}
-Score atual: ${novoScore}${mudancasTexto}`;
+Score antigo: ${antigoScore !== null && antigoScore !== undefined ? antigoScore : "Sem score"}
+Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         }
 
         await salvarOcorrencia({
@@ -1059,7 +1061,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
             ...(calculoScoreResult ? {
               score: calculoScoreResult.score,
               tipo: calculoScoreResult.tipo,
-              scoreAnswers: respostasScore,
+              scoreAnswers: calculoScoreResult.isNeutro ? null : respostasScore,
             } : {}),
             temaText: novoTemaText,
             dataText: novoDataText,
@@ -1149,7 +1151,7 @@ Score atual: ${novoScore}${mudancasTexto}`;
           ...(calculoScoreResult ? {
             score: calculoScoreResult.score,
             tipo: calculoScoreResult.tipo,
-            scoreAnswers: respostasScore,
+            scoreAnswers: calculoScoreResult.isNeutro ? null : respostasScore,
           } : {}),
           temaText: novoTemaText,
           dataText: novoDataText,
@@ -2087,9 +2089,15 @@ Score atual: ${novoScore}${mudancasTexto}`;
                   📊 Calcular Score do Cliente
                 </button>
                 {calculoScoreResult && (
-                  <span className={`score-result-badge ${calculoScoreResult.tipo === "Safety" ? "score-result-badge--safety" : "score-result-badge--fast"}`}>
-                    Score: <strong>{calculoScoreResult.score.toFixed(1)}</strong> ({calculoScoreResult.tipo}) ✅
-                  </span>
+                  calculoScoreResult.isNeutro ? (
+                    <span className="score-result-badge" style={{ backgroundColor: "#475569", color: "#ffffff", padding: "4px 8px", borderRadius: "6px", fontSize: "0.85rem", fontWeight: "600", display: "inline-flex", alignItems: "center" }}>
+                      Score: <strong>Neutro</strong> ✅
+                    </span>
+                  ) : (
+                    <span className={`score-result-badge ${calculoScoreResult.tipo === "Safety" ? "score-result-badge--safety" : "score-result-badge--fast"}`}>
+                      Score: <strong>{calculoScoreResult.score !== null ? calculoScoreResult.score.toFixed(1) : ""}</strong> ({calculoScoreResult.tipo}) ✅
+                    </span>
+                  )
                 )}
               </div>
             )}
@@ -2672,34 +2680,63 @@ Score atual: ${novoScore}${mudancasTexto}`;
                   );
                 })()}
               </div>
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={() => {
-                  const possuiPerguntasNaoRespondidas =
-                    respostasScore.facilContato === "" ||
-                    respostasScore.entraComputador === "" ||
-                    respostasScore.compartilhaTela === "" ||
-                    respostasScore.fazPerguntas === "" ||
-                    respostasScore.recordaTemas === "" ||
-                    respostasScore.faltouDoisDias === "" ||
-                    respostasScore.estruturaNecessaria === "" ||
-                    respostasScore.clienteReclamante === "" ||
-                    respostasScore.clienteSumido === "";
+              <div style={{ display: "flex", gap: "10px" }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCalculoScoreResult({
+                      score: null,
+                      tipo: "",
+                      isNeutro: true,
+                    });
+                    setModalScoreAberto(false);
+                    toast.success("Score do cliente definido como Neutro!");
+                  }}
+                  style={{
+                    width: "auto",
+                    margin: 0,
+                    padding: "0.6rem 1.2rem",
+                    backgroundColor: "rgba(255, 255, 255, 0.08)",
+                    border: "1px solid rgba(255, 255, 255, 0.2)",
+                    color: "#cbd5e1",
+                    borderRadius: "8px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    transition: "0.2s ease"
+                  }}
+                  className="btn-score-neutro"
+                >
+                  Neutro
+                </button>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={() => {
+                    const possuiPerguntasNaoRespondidas =
+                      respostasScore.facilContato === "" ||
+                      respostasScore.entraComputador === "" ||
+                      respostasScore.compartilhaTela === "" ||
+                      respostasScore.fazPerguntas === "" ||
+                      respostasScore.recordaTemas === "" ||
+                      respostasScore.faltouDoisDias === "" ||
+                      respostasScore.estruturaNecessaria === "" ||
+                      respostasScore.clienteReclamante === "" ||
+                      respostasScore.clienteSumido === "";
 
-                  if (possuiPerguntasNaoRespondidas) {
-                    toast.error("Por favor, responda a todas as perguntas para confirmar o cálculo do score.");
-                    return;
-                  }
+                    if (possuiPerguntasNaoRespondidas) {
+                      toast.error("Por favor, responda a todas as perguntas para confirmar o cálculo do score.");
+                      return;
+                    }
 
-                  const res = calcularPontuacao(respostasScore);
-                  setCalculoScoreResult(res);
-                  setModalScoreAberto(false);
-                  toast.success(`Score calculado: ${res.score.toFixed(1)} (${res.tipo})`);
-                }}
-              >
-                Confirmar Cálculo
-              </button>
+                    const res = calcularPontuacao(respostasScore);
+                    setCalculoScoreResult(res);
+                    setModalScoreAberto(false);
+                    toast.success(`Score calculado: ${res.score.toFixed(1)} (${res.tipo})`);
+                  }}
+                >
+                  Confirmar Cálculo
+                </button>
+              </div>
             </div>
           </div>
         </div>

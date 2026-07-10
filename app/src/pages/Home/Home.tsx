@@ -1686,26 +1686,7 @@ export default function Home() {
 
             <div className="form-grid-2">
               <div className="form-group">
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <label>Data finalização esteira</label>
-                  {clienteForm.dataFinalizacao && (
-                    <button
-                      type="button"
-                      onClick={() => setClienteForm({ ...clienteForm, dataFinalizacao: "" })}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        color: "#ef4444",
-                        fontSize: "0.75rem",
-                        cursor: "pointer",
-                        padding: 0,
-                        fontWeight: 600,
-                      }}
-                    >
-                      Limpar
-                    </button>
-                  )}
-                </div>
+                <label>Data finalização esteira</label>
                 <input
                   type="date"
                   value={clienteForm.dataFinalizacao || ""}
@@ -1718,26 +1699,7 @@ export default function Home() {
                 />
               </div>
               <div className="form-group">
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <label>Data follow-up final</label>
-                  {clienteForm.dataFollowUpFinal && (
-                    <button
-                      type="button"
-                      onClick={() => setClienteForm({ ...clienteForm, dataFollowUpFinal: "" })}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        color: "#ef4444",
-                        fontSize: "0.75rem",
-                        cursor: "pointer",
-                        padding: 0,
-                        fontWeight: 600,
-                      }}
-                    >
-                      Limpar
-                    </button>
-                  )}
-                </div>
+                <label>Data follow-up final</label>
                 <input
                   type="date"
                   value={clienteForm.dataFollowUpFinal || ""}

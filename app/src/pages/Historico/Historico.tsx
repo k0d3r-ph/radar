@@ -337,8 +337,8 @@ export function Historico() {
   const [busca, setBusca] = useState("");
   const [filtroTipo, setFiltroTipo] = useState(() => searchParams.get("tipo") || "");
   const [filtroDepto, setFiltroDepto] = useState("");
-  const [dataInicio, setDataInicio] = useState("");
-  const [dataFim, setDataFim] = useState("");
+  const [dataInicio, setDataInicio] = useState(() => searchParams.get("dataInicio") || "");
+  const [dataFim, setDataFim] = useState(() => searchParams.get("dataFim") || "");
   const [ordenacaoData, setOrdenacaoData] = useState<"desc" | "asc">("desc");
   const [loading, setLoading] = useState(true);
   const [salvando, setSalvando] = useState(false);
@@ -346,6 +346,15 @@ export function Historico() {
   const [usarTemplate, setUsarTemplate] = useState(true);
   const [temaOcorrenciaOngoingText, setTemaOcorrenciaOngoingText] = useState("");
   const [isRevisao, setIsRevisao] = useState(false);
+
+  useEffect(() => {
+    const tipo = searchParams.get("tipo") || "";
+    const start = searchParams.get("dataInicio") || "";
+    const end = searchParams.get("dataFim") || "";
+    setFiltroTipo(tipo);
+    setDataInicio(start);
+    setDataFim(end);
+  }, [searchParams]);
 
   const handleAddNota = () => {
     setForm((f) => ({
@@ -370,6 +379,7 @@ export function Historico() {
   };
   const empresaFiltro = searchParams.get("empresa") || "";
   const ocorrenciaIdFiltro = searchParams.get("ocorrencia") || "";
+  const expedienteFiltro = searchParams.get("expediente") || "";
 
   useEffect(() => {
     if (!loading && ocorrenciaIdFiltro && ocorrencias.length > 0) {
@@ -783,16 +793,14 @@ export function Historico() {
         updatedAt: Date.now()
       });
 
-      // Gera a ocorrência se for o primeiro cálculo OU se o tipo mudou.
+      // Gera a ocorrência se for o primeiro cálculo OU se o tipo mudou (desde que não seja marcado como Neutro).
       const isPrimeiroCalculo = typeof antigoScore !== "number";
       const tipoMudou = antigoTipo !== novoTipo;
-      const deveGerarOcorrencia = isPrimeiroCalculo || tipoMudou;
+      const deveGerarOcorrencia = (isPrimeiroCalculo || tipoMudou) && !calculoScoreResult.isNeutro;
 
       if (deveGerarOcorrencia) {
         let descMudanca: string;
-        if (calculoScoreResult.isNeutro) {
-          descMudanca = `Cliente marcado como Neutro (sem score e sem tipo).`;
-        } else if (isPrimeiroCalculo) {
+        if (isPrimeiroCalculo) {
           const marcadas = descreverRespostas(respostasScore);
           const marcadasTexto = marcadas.length > 0 ? "\n\nRespostas marcadas:\n" + marcadas.join("\n") : "";
           descMudanca = `Cálculo inicial de score: ${novoTipo || "Neutro"}
@@ -1359,7 +1367,21 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       dataOk = false;
     }
 
-    return bateBusca && empresaOk && tipoOk && deptoOk && dataOk;
+    let expedienteOk = true;
+    if (expedienteFiltro && timestamp > 0) {
+      const dateObj = new Date(timestamp);
+      const hour = dateObj.getHours();
+      const day = dateObj.getDay();
+      const isWeekend = day === 0 || day === 6;
+      const isFora = isWeekend || hour >= 18 || hour < 9;
+      if (expedienteFiltro === "dentro") {
+        expedienteOk = !isFora;
+      } else if (expedienteFiltro === "fora") {
+        expedienteOk = isFora;
+      }
+    }
+
+    return bateBusca && empresaOk && tipoOk && deptoOk && dataOk && expedienteOk;
   }).sort((a, b) => {
     const tA = getOcorrenciaTimestamp(a);
     const tB = getOcorrenciaTimestamp(b);
@@ -1474,7 +1496,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             />
           </div>
 
-          {(busca || filtroTipo || filtroDepto || dataInicio || dataFim) && (
+          {(busca || filtroTipo || filtroDepto || dataInicio || dataFim || empresaFiltro || expedienteFiltro) && (
             <button
               className="btn-limpar-filtros"
               onClick={() => {
@@ -1483,6 +1505,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 setFiltroDepto("");
                 setDataInicio("");
                 setDataFim("");
+                if (empresaFiltro || expedienteFiltro || searchParams.get("ocorrencia")) {
+                  navigate("/historico");
+                }
               }}
               title="Limpar todos os filtros"
             >
@@ -2090,11 +2115,11 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 </button>
                 {calculoScoreResult && (
                   calculoScoreResult.isNeutro ? (
-                    <span className="score-result-badge" style={{ backgroundColor: "#475569", color: "#ffffff", padding: "4px 8px", borderRadius: "6px", fontSize: "0.85rem", fontWeight: "600", display: "inline-flex", alignItems: "center" }}>
+                    <span className="score-result-badge--neutro">
                       Score: <strong>Neutro</strong> ✅
                     </span>
                   ) : (
-                    <span className={`score-result-badge ${calculoScoreResult.tipo === "Safety" ? "score-result-badge--safety" : "score-result-badge--fast"}`}>
+                    <span className={`score-result-badge ${calculoScoreResult.tipo === "Safety" ? "score-result-badge--safety" : "score-result-badge--fast"}`} style={{ marginTop: "6px" }}>
                       Score: <strong>{calculoScoreResult.score !== null ? calculoScoreResult.score.toFixed(1) : ""}</strong> ({calculoScoreResult.tipo}) ✅
                     </span>
                   )
@@ -2691,18 +2716,6 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                     });
                     setModalScoreAberto(false);
                     toast.success("Score do cliente definido como Neutro!");
-                  }}
-                  style={{
-                    width: "auto",
-                    margin: 0,
-                    padding: "0.6rem 1.2rem",
-                    backgroundColor: "rgba(255, 255, 255, 0.08)",
-                    border: "1px solid rgba(255, 255, 255, 0.2)",
-                    color: "#cbd5e1",
-                    borderRadius: "8px",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    transition: "0.2s ease"
                   }}
                   className="btn-score-neutro"
                 >

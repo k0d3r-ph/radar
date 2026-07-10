@@ -997,6 +997,25 @@ body.light-theme .score-hint {
   color: #475569 !important;
 }
 
+/* Botão Neutro (Score) - Light Mode */
+body.light-theme .btn-score-neutro {
+  background-color: #f1f5f9 !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #334155 !important;
+}
+
+body.light-theme .btn-score-neutro:hover {
+  background-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+/* Badge de Score Neutro - Light Mode */
+body.light-theme .score-result-badge--neutro {
+  background: #f1f5f9 !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #334155 !important;
+}
+
 body.light-theme .tipo--mudanca-score {
   background: #fff7ed !important;
   color: #c2410c !important;
@@ -1409,6 +1428,37 @@ body.dark-theme .btn-remove-nota:hover {
   color: #ffffff !important;
 }
 
+/* ── Botão e Badge do Score Neutro (Dark/Padrão) ── */
+.btn-score-neutro {
+  width: auto;
+  margin: 0;
+  padding: 0.6rem 1.2rem;
+  background-color: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #cbd5e1;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
 
+.btn-score-neutro:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+}
 
-
+.score-result-badge--neutro {
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  font-weight: 500;
+  width: 100%;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}

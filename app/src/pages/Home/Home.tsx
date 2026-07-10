@@ -2049,18 +2049,6 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={confirmarScoreNeutroHome}
-                  style={{
-                    width: "auto",
-                    margin: 0,
-                    padding: "0.6rem 1.2rem",
-                    backgroundColor: "rgba(255, 255, 255, 0.08)",
-                    border: "1px solid rgba(255, 255, 255, 0.2)",
-                    color: "#cbd5e1",
-                    borderRadius: "8px",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    transition: "0.2s ease"
-                  }}
                   className="btn-score-neutro"
                 >
                   Neutro

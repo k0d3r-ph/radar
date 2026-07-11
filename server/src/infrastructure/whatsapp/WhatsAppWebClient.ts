@@ -119,6 +119,13 @@ export class WhatsAppWebClient implements IWhatsAppService {
       } catch (error) {
         console.error('Erro crítico na inicialização do WhatsApp Web:', error);
         this.updateStatus('disconnected');
+        if (this.client) {
+          try {
+            await this.client.destroy();
+          } catch (destroyError) {
+            console.error('Erro ao destruir cliente após falha de inicialização:', destroyError);
+          }
+        }
         this.client = null;
         this.initializingPromise = null;
         throw error;

@@ -98,8 +98,8 @@ export class WhatsAppWebClient implements IWhatsAppService {
 
         this.client.on('ready', () => {
           console.log('WhatsApp Web está pronto!');
-          const name = this.client.info.pushname || 'Radar CRM';
-          const number = this.client.info.wid.user || '';
+          const name = this.client.info?.pushname || 'Radar CRM';
+          const number = this.client.info?.wid?.user || '';
           this.updateStatus('connected', undefined, { name, number });
         });
 

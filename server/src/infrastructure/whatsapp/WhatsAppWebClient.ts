@@ -173,7 +173,21 @@ export class WhatsAppWebClient implements IWhatsAppService {
         cleanNumber = '55' + cleanNumber;
       }
       
-      const chatId = `${cleanNumber}@c.us`;
+      let chatId = `${cleanNumber}@c.us`;
+      
+      // Tenta obter o ID correto registrado no WhatsApp (evita o erro "No LID for user")
+      try {
+        const resolvedId = await this.client.getNumberId(cleanNumber);
+        if (resolvedId && resolvedId._serialized) {
+          chatId = resolvedId._serialized;
+          console.log(`Telefone resolvido via getNumberId: ${chatId}`);
+        } else {
+          console.log(`Número não encontrado/registrado via getNumberId: ${cleanNumber}. Tentando enviar para o chatId padrão.`);
+        }
+      } catch (err) {
+        console.warn(`Erro ao resolver getNumberId para ${cleanNumber}:`, err);
+      }
+      
       console.log(`Enviando mensagem para: ${chatId}`);
 
       if (imageBase64) {

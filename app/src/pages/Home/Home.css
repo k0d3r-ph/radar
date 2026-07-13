@@ -524,30 +524,38 @@
   border: 1px solid rgba(255, 255, 255, 0.05);
   margin-top: 0.25rem;
   margin-bottom: 0.5rem;
+  text-align: left;
 }
 
-.info-item {
+.cliente-info-details .info-item {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
+  text-align: left;
+  align-items: flex-start;
+  justify-content: flex-start;
+  border-bottom: none;
+  padding: 0;
 }
 
-.info-item.full-width {
+.cliente-info-details .info-item.full-width {
   grid-column: span 2;
 }
 
-.info-label {
+.cliente-info-details .info-label {
   font-size: 0.7rem;
   text-transform: uppercase;
   color: #64748b;
   font-weight: 700;
   letter-spacing: 0.05em;
+  text-align: left;
 }
 
-.info-value {
+.cliente-info-details .info-value {
   font-size: 0.85rem;
   color: #cbd5e1;
   word-break: break-word;
+  text-align: left;
 }
 
 /* Novo layout em grid de 2 colunas para formulários */
@@ -784,7 +792,7 @@
     grid-template-columns: 1fr;
   }
 
-  .info-item.full-width {
+  .cliente-info-details .info-item.full-width {
     grid-column: span 1;
   }
   

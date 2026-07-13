@@ -728,9 +728,8 @@ export function Historico() {
         : null;
 
       let d: Date;
-      if (form.dataOcorrencia) {
-        const [year, month, day] = form.dataOcorrencia.split("-").map(Number);
-        d = new Date(year, month - 1, day);
+      if (editandoId && ocorrenciaOriginal?.createdAt) {
+        d = new Date(ocorrenciaOriginal.createdAt);
       } else {
         d = new Date();
       }
@@ -1168,7 +1167,8 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         };
 
         const contatoNome = empresaObjeto.contato || "Cliente";
-        const dataCompleta = new Date().toLocaleDateString("pt-BR");
+        const [year, month, day] = dataRealizacaoStr.split("-");
+        const dataCompleta = `${day}/${month}/${year}`;
         const plural = temasValidos.length > 1;
         const textoMensagem = `Olá, *${contatoNome}* (${empresaObjeto.nomeEmpresa})! 🚀\nSeu treinamento sobre ${plural ? "os temas" : "o tema"} *${temasValidos.join(", ")}* foi registrado com sucesso em *${dataCompleta}*.\n\nConfira abaixo a sua esteira de evolução atualizada:`;
 

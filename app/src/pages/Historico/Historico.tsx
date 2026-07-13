@@ -1340,7 +1340,8 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       }
     }
 
-    const bateBusca = matchesText || matchesId;
+    const isIdQuery = textoSemEspacos.startsWith("#") && /^\d+$/.test(textoSemEspacos.substring(1));
+    const bateBusca = isIdQuery ? matchesId : (matchesText || matchesId);
 
     const empresaOk =
       !empresaFiltro || normalizar(o.empresa) === normalizar(empresaFiltro);

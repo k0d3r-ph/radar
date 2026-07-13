@@ -50,7 +50,7 @@ export class WhatsAppWebClient implements IWhatsAppService {
         this.client = new Client({
           authStrategy: new LocalAuth({
             clientId: 'radar-whatsapp-session',
-            dataPath: './.wwebjs_auth'
+            dataPath: process.env.WWEBJS_AUTH_PATH || './.wwebjs_auth'
           }),
           webVersionCache: {
             type: 'remote',

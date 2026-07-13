@@ -180,8 +180,15 @@ export default function Home() {
   const [filtroCardStatus, setFiltroCardStatus] = useState<"concluidos" | "andamento" | "">(() => (sessionStorage.getItem("filtroCardStatus") as any) || "");
   const [filtroCardTipo, setFiltroCardTipo] = useState<"safety" | "fast" | "">(() => (sessionStorage.getItem("filtroCardTipo") as any) || "");
   const [filtroCardAlerta, setFiltroCardAlerta] = useState<"alerta" | "">(() => (sessionStorage.getItem("filtroCardAlerta") as any) || "");
-  const [ordenacaoContrato, setOrdenacaoContrato] = useState<"" | "maior" | "menor">(() => (sessionStorage.getItem("ordenacaoContrato") as any) || "");
-  const [ordenacaoScore, setOrdenacaoScore] = useState<"" | "maior" | "menor">(() => (sessionStorage.getItem("ordenacaoScore") as any) || "");
+  const [ordenacaoContrato, setOrdenacaoContrato] = useState<"" | "maior" | "menor">(
+    () => (sessionStorage.getItem("ordenacaoContrato") as any) || ""
+  );
+  const [ordenacaoScore, setOrdenacaoScore] = useState<"" | "maior" | "menor">(
+    () => (sessionStorage.getItem("ordenacaoScore") as any) || ""
+  );
+  const [ordenacaoPrincipal, setOrdenacaoPrincipal] = useState<"contrato" | "score" | "">(
+    () => (sessionStorage.getItem("ordenacaoPrincipal") as any) || ""
+  );
 
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
 
@@ -468,7 +475,19 @@ export default function Home() {
     sessionStorage.setItem("filtroCardAlerta", filtroCardAlerta);
     sessionStorage.setItem("ordenacaoContrato", ordenacaoContrato);
     sessionStorage.setItem("ordenacaoScore", ordenacaoScore);
-  }, [filtroCliente, filtroResponsavel, filtroCs, filtroProgresso, filtroCardStatus, filtroCardTipo, filtroCardAlerta, ordenacaoContrato, ordenacaoScore]);
+    sessionStorage.setItem("ordenacaoPrincipal", ordenacaoPrincipal);
+  }, [
+    filtroCliente,
+    filtroResponsavel,
+    filtroCs,
+    filtroProgresso,
+    filtroCardStatus,
+    filtroCardTipo,
+    filtroCardAlerta,
+    ordenacaoContrato,
+    ordenacaoScore,
+    ordenacaoPrincipal,
+  ]);
 
   const dados = useMemo(() => {
     return empresas.map((empresa) => {
@@ -572,6 +591,30 @@ export default function Home() {
     setFiltroCardAlerta((prev) => (prev === "alerta" ? "" : "alerta"));
   };
 
+  const compararScore = (a: any, b: any) => {
+    if (ordenacaoScore === "maior") {
+      const scoreA = a.score !== undefined && a.score !== null ? a.score : -999;
+      const scoreB = b.score !== undefined && b.score !== null ? b.score : -999;
+      return scoreB - scoreA;
+    }
+    if (ordenacaoScore === "menor") {
+      const scoreA = a.score !== undefined && a.score !== null ? a.score : 999;
+      const scoreB = b.score !== undefined && b.score !== null ? b.score : 999;
+      return scoreA - scoreB;
+    }
+    return 0;
+  };
+
+  const compararContrato = (a: any, b: any) => {
+    if (ordenacaoContrato === "maior") {
+      return (b.valorContrato ?? 0) - (a.valorContrato ?? 0);
+    }
+    if (ordenacaoContrato === "menor") {
+      return (a.valorContrato ?? 0) - (b.valorContrato ?? 0);
+    }
+    return 0;
+  };
+
   const dadosAtivosFiltrados = useMemo(() => {
     return dadosAtivos
       .filter((e) => {
@@ -609,28 +652,38 @@ export default function Home() {
         return clienteOk && responsavelOk && csOk && progressoOk && statusCardOk && tipoCardOk && alertaCardOk;
       })
       .sort((a, b) => {
-        if (ordenacaoScore === "maior") {
-          const scoreA = a.score !== undefined && a.score !== null ? a.score : -999;
-          const scoreB = b.score !== undefined && b.score !== null ? b.score : -999;
-          return scoreB - scoreA;
+        let prim = 0;
+        let sec = 0;
+
+        if (ordenacaoPrincipal === "score") {
+          prim = compararScore(a, b);
+          sec = compararContrato(a, b);
+        } else {
+          prim = compararContrato(a, b);
+          sec = compararScore(a, b);
         }
-        if (ordenacaoScore === "menor") {
-          const scoreA = a.score !== undefined && a.score !== null ? a.score : 999;
-          const scoreB = b.score !== undefined && b.score !== null ? b.score : 999;
-          return scoreA - scoreB;
-        }
-        if (ordenacaoContrato === "maior") {
-          return (b.valorContrato ?? 0) - (a.valorContrato ?? 0);
-        }
-        if (ordenacaoContrato === "menor") {
-          return (a.valorContrato ?? 0) - (b.valorContrato ?? 0);
-        }
+
+        if (prim !== 0) return prim;
+        if (sec !== 0) return sec;
+
         const ordem = { vermelho: 0, amarelo: 1, verde: 2, none: 3 };
         const farolDiff = (ordem[a.farol] ?? 3) - (ordem[b.farol] ?? 3);
         if (farolDiff !== 0) return farolDiff;
         return a.nomeEmpresa.localeCompare(b.nomeEmpresa, "pt-BR");
       });
-  }, [dadosAtivos, filtroCliente, filtroResponsavel, filtroCs, filtroProgresso, filtroCardStatus, filtroCardTipo, filtroCardAlerta, ordenacaoContrato, ordenacaoScore]);
+  }, [
+    dadosAtivos,
+    filtroCliente,
+    filtroResponsavel,
+    filtroCs,
+    filtroProgresso,
+    filtroCardStatus,
+    filtroCardTipo,
+    filtroCardAlerta,
+    ordenacaoContrato,
+    ordenacaoScore,
+    ordenacaoPrincipal,
+  ]);
 
   const dadosOngoingFiltrados = useMemo(() => {
     return dadosOngoing
@@ -645,25 +698,31 @@ export default function Home() {
         return clienteOk && csOk && responsavelOk;
       })
       .sort((a, b) => {
-        if (ordenacaoScore === "maior") {
-          const scoreA = a.score !== undefined && a.score !== null ? a.score : -999;
-          const scoreB = b.score !== undefined && b.score !== null ? b.score : -999;
-          return scoreB - scoreA;
+        let prim = 0;
+        let sec = 0;
+
+        if (ordenacaoPrincipal === "score") {
+          prim = compararScore(a, b);
+          sec = compararContrato(a, b);
+        } else {
+          prim = compararContrato(a, b);
+          sec = compararScore(a, b);
         }
-        if (ordenacaoScore === "menor") {
-          const scoreA = a.score !== undefined && a.score !== null ? a.score : 999;
-          const scoreB = b.score !== undefined && b.score !== null ? b.score : 999;
-          return scoreA - scoreB;
-        }
-        if (ordenacaoContrato === "maior") {
-          return (b.valorContrato ?? 0) - (a.valorContrato ?? 0);
-        }
-        if (ordenacaoContrato === "menor") {
-          return (a.valorContrato ?? 0) - (b.valorContrato ?? 0);
-        }
+
+        if (prim !== 0) return prim;
+        if (sec !== 0) return sec;
+
         return a.nomeEmpresa.localeCompare(b.nomeEmpresa, "pt-BR");
       });
-  }, [dadosOngoing, filtroCliente, filtroCs, filtroResponsavel, ordenacaoContrato, ordenacaoScore]);
+  }, [
+    dadosOngoing,
+    filtroCliente,
+    filtroCs,
+    filtroResponsavel,
+    ordenacaoContrato,
+    ordenacaoScore,
+    ordenacaoPrincipal,
+  ]);
 
   const dadosSuspensosFiltrados = useMemo(() => {
     return dadosSuspensos
@@ -678,25 +737,31 @@ export default function Home() {
         return clienteOk && csOk && responsavelOk;
       })
       .sort((a, b) => {
-        if (ordenacaoScore === "maior") {
-          const scoreA = a.score !== undefined && a.score !== null ? a.score : -999;
-          const scoreB = b.score !== undefined && b.score !== null ? b.score : -999;
-          return scoreB - scoreA;
+        let prim = 0;
+        let sec = 0;
+
+        if (ordenacaoPrincipal === "score") {
+          prim = compararScore(a, b);
+          sec = compararContrato(a, b);
+        } else {
+          prim = compararContrato(a, b);
+          sec = compararScore(a, b);
         }
-        if (ordenacaoScore === "menor") {
-          const scoreA = a.score !== undefined && a.score !== null ? a.score : 999;
-          const scoreB = b.score !== undefined && b.score !== null ? b.score : 999;
-          return scoreA - scoreB;
-        }
-        if (ordenacaoContrato === "maior") {
-          return (b.valorContrato ?? 0) - (a.valorContrato ?? 0);
-        }
-        if (ordenacaoContrato === "menor") {
-          return (a.valorContrato ?? 0) - (b.valorContrato ?? 0);
-        }
+
+        if (prim !== 0) return prim;
+        if (sec !== 0) return sec;
+
         return a.nomeEmpresa.localeCompare(b.nomeEmpresa, "pt-BR");
       });
-  }, [dadosSuspensos, filtroCliente, filtroCs, filtroResponsavel, ordenacaoContrato, ordenacaoScore]);
+  }, [
+    dadosSuspensos,
+    filtroCliente,
+    filtroCs,
+    filtroResponsavel,
+    ordenacaoContrato,
+    ordenacaoScore,
+    ordenacaoPrincipal,
+  ]);
 
   return (
     <div className="monitoramento-page">
@@ -855,8 +920,15 @@ export default function Home() {
         <select
           value={ordenacaoContrato}
           onChange={(e) => {
-            setOrdenacaoContrato(e.target.value as any);
-            setOrdenacaoScore("");
+            const val = e.target.value as any;
+            setOrdenacaoContrato(val);
+            if (val !== "") {
+              setOrdenacaoPrincipal("contrato");
+            } else if (ordenacaoScore !== "") {
+              setOrdenacaoPrincipal("score");
+            } else {
+              setOrdenacaoPrincipal("");
+            }
           }}
         >
           <option value="">Ordenar contrato: Padrão</option>
@@ -867,8 +939,15 @@ export default function Home() {
         <select
           value={ordenacaoScore}
           onChange={(e) => {
-            setOrdenacaoScore(e.target.value as any);
-            setOrdenacaoContrato("");
+            const val = e.target.value as any;
+            setOrdenacaoScore(val);
+            if (val !== "") {
+              setOrdenacaoPrincipal("score");
+            } else if (ordenacaoContrato !== "") {
+              setOrdenacaoPrincipal("contrato");
+            } else {
+              setOrdenacaoPrincipal("");
+            }
           }}
         >
           <option value="">Ordenar score: Padrão</option>
@@ -896,6 +975,7 @@ export default function Home() {
                 setFiltroCardAlerta("");
                 setOrdenacaoContrato("");
                 setOrdenacaoScore("");
+                setOrdenacaoPrincipal("");
               }}
             >
               Limpar filtros

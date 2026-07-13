@@ -206,6 +206,8 @@ export default function Home() {
     isOngoing: false,
     isSuspended: false,
     valorContrato: undefined,
+    dataFinalizacao: "",
+    dataFollowUpFinal: "",
   };
 
   const [clienteForm, setClienteForm] = useState<Empresa>(EMPTY_CLIENTE);
@@ -1635,14 +1637,14 @@ export default function Home() {
               </div>
 
               <div className="form-group">
-                <label>Data de entrada</label>
+                <label>Contato</label>
                 <input
-                  type="date"
-                  value={clienteForm.dataEntrada}
+                  placeholder="Ex: João"
+                  value={clienteForm.contato || ""}
                   onChange={(e) =>
                     setClienteForm({
                       ...clienteForm,
-                      dataEntrada: e.target.value,
+                      contato: e.target.value,
                     })
                   }
                 />
@@ -1665,13 +1667,44 @@ export default function Home() {
               </div>
 
               <div className="form-group">
-                <label>contato</label>
+                <label>Data de entrada</label>
                 <input
-                  value={clienteForm.contato || ""}
+                  type="date"
+                  value={clienteForm.dataEntrada}
                   onChange={(e) =>
                     setClienteForm({
                       ...clienteForm,
-                      contato: e.target.value,
+                      dataEntrada: e.target.value,
+                    })
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="form-grid-2">
+              <div className="form-group">
+                <label>Data de finalização da esteira</label>
+                <input
+                  type="date"
+                  value={clienteForm.dataFinalizacao || ""}
+                  onChange={(e) =>
+                    setClienteForm({
+                      ...clienteForm,
+                      dataFinalizacao: e.target.value,
+                    })
+                  }
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Data de follow-up final</label>
+                <input
+                  type="date"
+                  value={clienteForm.dataFollowUpFinal || ""}
+                  onChange={(e) =>
+                    setClienteForm({
+                      ...clienteForm,
+                      dataFollowUpFinal: e.target.value,
                     })
                   }
                 />

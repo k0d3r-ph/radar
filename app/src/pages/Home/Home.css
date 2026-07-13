@@ -557,6 +557,12 @@
   gap: 0.75rem;
 }
 
+.form-grid-2 .form-group label {
+  min-height: 2.5rem;
+  display: flex;
+  align-items: flex-end;
+}
+
 .table-footer {
   display: flex;
   justify-content: flex-end;
@@ -767,6 +773,11 @@
   
   .form-grid-2 {
     grid-template-columns: 1fr;
+  }
+  
+  .form-grid-2 .form-group label {
+    min-height: auto;
+    display: block;
   }
   
   .cliente-info-details {

@@ -201,6 +201,12 @@ body.dark-theme .tipo--mudanca-score {
   border: 1px solid rgba(249, 115, 22, 0.3) !important;
 }
 
+body.dark-theme .tipo--checkpoint {
+  background: rgba(99, 102, 241, 0.15) !important;
+  color: #c7d2fe !important;
+  border: 1px solid rgba(99, 102, 241, 0.3) !important;
+}
+
 body.dark-theme .hist-detail-grid span,
 body.dark-theme .hist-detail-desc span {
   color: #94a3b8 !important;

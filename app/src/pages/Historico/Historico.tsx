@@ -346,6 +346,8 @@ export function Historico() {
   const [usarTemplate, setUsarTemplate] = useState(true);
   const [temaOcorrenciaOngoingText, setTemaOcorrenciaOngoingText] = useState("");
   const [isRevisao, setIsRevisao] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 50;
 
   useEffect(() => {
     const tipo = searchParams.get("tipo") || "";
@@ -380,6 +382,10 @@ export function Historico() {
   const empresaFiltro = searchParams.get("empresa") || "";
   const ocorrenciaIdFiltro = searchParams.get("ocorrencia") || "";
   const expedienteFiltro = searchParams.get("expediente") || "";
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [busca, filtroTipo, filtroDepto, dataInicio, dataFim, empresaFiltro, expedienteFiltro]);
 
   useEffect(() => {
     if (!loading && ocorrenciaIdFiltro && ocorrencias.length > 0) {
@@ -1394,6 +1400,12 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
   );
   const isSelectedEmpresaOngoing = selectedEmpresaObj?.isOngoing ?? false;
 
+  const totalItems = filtradas.length;
+  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE) || 1;
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, totalItems);
+  const filtradasExibidas = filtradas.slice(startIndex, endIndex);
+
   return (
     <div className="hist-shell">
       {/* Header */}
@@ -1541,7 +1553,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
           <tbody>
             {!loading &&
-              filtradas.map((o) => {
+              filtradasExibidas.map((o) => {
                 const timestamp = getOcorrenciaTimestamp(o);
                 const data = timestamp ? new Date(timestamp) : null;
 
@@ -1633,8 +1645,31 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
           </tbody>
         </table>
 
-        <div className="hist-total-registros">
-          Total: <strong>{filtradas.length}</strong> {filtradas.length === 1 ? "ocorrência" : "ocorrências"}
+        <div className="hist-footer-paginacao">
+          <div className="hist-total-registros">
+            Exibindo de <strong>{totalItems > 0 ? startIndex + 1 : 0}</strong> a <strong>{endIndex}</strong> de <strong>{totalItems}</strong> {totalItems === 1 ? "ocorrência" : "ocorrências"}
+          </div>
+          {totalPages > 1 && (
+            <div className="hist-paginacao-controles">
+              <button
+                className="btn-paginacao"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              >
+                Anterior
+              </button>
+              <span className="hist-paginacao-info">
+                Página <strong>{currentPage}</strong> de <strong>{totalPages}</strong>
+              </span>
+              <button
+                className="btn-paginacao"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+              >
+                Próxima
+              </button>
+            </div>
+          )}
         </div>
 
         {selecionada && (

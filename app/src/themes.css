@@ -294,6 +294,45 @@ body.dark-theme .btn-ghost:hover {
   color: #ffffff !important;
 }
 
+body.dark-theme .hist-footer-paginacao {
+  background: rgba(255, 255, 255, 0.02) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+body.dark-theme .hist-total-registros {
+  color: #94a3b8 !important;
+}
+
+body.dark-theme .hist-total-registros strong {
+  color: #ffffff !important;
+}
+
+body.dark-theme .btn-paginacao {
+  background: #0f172a !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.12) !important;
+  color: #cbd5e1 !important;
+}
+
+body.dark-theme .btn-paginacao:hover:not(:disabled) {
+  border-color: #3b82f6 !important;
+  color: #ffffff !important;
+  background: rgba(59, 130, 246, 0.15) !important;
+}
+
+body.dark-theme .btn-paginacao:disabled {
+  background: #1e293b !important;
+  color: #475569 !important;
+  opacity: 0.5 !important;
+}
+
+body.dark-theme .hist-paginacao-info {
+  color: #94a3b8 !important;
+}
+
+body.dark-theme .hist-paginacao-info strong {
+  color: #ffffff !important;
+}
+
 /* Relatório de Score no Dark Mode */
 body.dark-theme .relatorio-score-header h1 {
   color: #ffffff !important;

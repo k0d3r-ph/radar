@@ -9,6 +9,7 @@ import {
   updateDoc,
   writeBatch,
   where,
+  limit,
 } from "firebase/firestore";
 import { db } from "./firebase";
 import type { LancamentoPonto } from "../types";
@@ -17,25 +18,32 @@ const COLLECTION = "gamificacao_pontos";
 
 let cachedPontos: LancamentoPonto[] | null = null;
 let lastFetchPontos = 0;
-const CACHE_TTL = 30000; // 30 segundos
-
-function invalidarCachePontos() {
-  cachedPontos = null;
-  lastFetchPontos = 0;
-}
+const CACHE_TTL = 300000; // 5 minutos (300.000 ms)
 
 export async function salvarLancamentoPonto(
   lancamento: Omit<LancamentoPonto, "id" | "dataLancamento">
 ): Promise<string> {
-  invalidarCachePontos();
   const dadosLimpos = Object.fromEntries(
     Object.entries(lancamento).filter(([_, v]) => v !== undefined)
   );
 
+  const dataLancamento = Date.now();
   const docRef = await addDoc(collection(db, COLLECTION), {
     ...dadosLimpos,
-    dataLancamento: Date.now(),
+    dataLancamento,
   });
+
+  const novoPonto = {
+    id: docRef.id,
+    dataLancamento,
+    ...lancamento,
+  } as LancamentoPonto;
+
+  // Inserção Otimista do Cache (no início devido ao orderBy("dataLancamento", "desc"))
+  if (cachedPontos) {
+    cachedPontos = [novoPonto, ...cachedPontos];
+  }
+
   return docRef.id;
 }
 
@@ -43,16 +51,33 @@ export async function atualizarLancamentoPonto(
   id: string,
   lancamento: Partial<Omit<LancamentoPonto, "id" | "dataLancamento">>
 ): Promise<void> {
-  invalidarCachePontos();
   const docRef = doc(db, COLLECTION, id);
   const dadosLimpos = Object.fromEntries(
     Object.entries(lancamento).filter(([_, v]) => v !== undefined)
   );
   await updateDoc(docRef, dadosLimpos);
+
+  // Atualização Otimista do Cache
+  if (cachedPontos) {
+    cachedPontos = cachedPontos.map((p) =>
+      p.id === id ? ({ ...p, ...lancamento, ...dadosLimpos } as LancamentoPonto) : p
+    );
+  }
 }
 
-export async function listarLancamentosPontos(forceRefresh = false): Promise<LancamentoPonto[]> {
+export async function listarLancamentosPontos(forceRefresh = false, limitCount?: number): Promise<LancamentoPonto[]> {
   const now = Date.now();
+
+  // Se for especificado um limite de registros, faz a busca sob demanda sem afetar o cache global
+  if (limitCount) {
+    const q = query(collection(db, COLLECTION), orderBy("dataLancamento", "desc"), limit(limitCount));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((d) => ({
+      id: d.id,
+      ...(d.data() as Omit<LancamentoPonto, "id">),
+    })) as LancamentoPonto[];
+  }
+
   if (cachedPontos && !forceRefresh && (now - lastFetchPontos < CACHE_TTL)) {
     return cachedPontos;
   }
@@ -70,8 +95,12 @@ export async function listarLancamentosPontos(forceRefresh = false): Promise<Lan
 }
 
 export async function removerLancamentoPonto(id: string): Promise<void> {
-  invalidarCachePontos();
   await deleteDoc(doc(db, COLLECTION, id));
+
+  // Remoção Otimista do Cache
+  if (cachedPontos) {
+    cachedPontos = cachedPontos.filter((p) => p.id !== id);
+  }
 }
 
 export async function reassociarPontosTreinador(
@@ -79,7 +108,6 @@ export async function reassociarPontosTreinador(
   newTreinadorId: string,
   newTreinadorNome: string
 ): Promise<number> {
-  invalidarCachePontos();
   const q = query(
     collection(db, COLLECTION),
     where("treinadorId", "==", oldTreinadorId)
@@ -97,7 +125,21 @@ export async function reassociarPontosTreinador(
   });
 
   await batch.commit();
+
+  // Atualização Otimista do Cache para todos os itens afetados
+  if (cachedPontos) {
+    cachedPontos = cachedPontos.map((p) => {
+      if (p.treinadorId === oldTreinadorId) {
+        return {
+          ...p,
+          treinadorId: newTreinadorId,
+          treinadorNome: newTreinadorNome,
+          updatedAt: Date.now(),
+        } as LancamentoPonto;
+      }
+      return p;
+    });
+  }
+
   return snapshot.size;
 }
-
-

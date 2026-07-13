@@ -5,6 +5,8 @@ import {
   updateDoc,
   doc,
   getDocs,
+  query,
+  limit,
 } from "firebase/firestore";
 
 import { db } from "./firebase";
@@ -32,40 +34,70 @@ export function formatarTelefoneWhatsApp(telefone?: string): string {
 
 let cachedEmpresas: Empresa[] | null = null;
 let lastFetchEmpresas = 0;
-const CACHE_TTL = 30000; // 30 segundos
+const CACHE_TTL = 300000; // 5 minutos (300.000 ms)
 
 export async function salvarEmpresas(empresa: Partial<Empresa>) {
-  // Invalida o cache
-  cachedEmpresas = null;
-  lastFetchEmpresas = 0;
-
   const { id, tme, progresso, farol, dias, ocorrenciaAlertaId, ...dados } = empresa as any;
 
   const dadosLimpos = Object.fromEntries(
     Object.entries(dados).filter(([_, v]) => v !== undefined)
   );
 
+  const updatedAt = Date.now();
+
   if (id) {
     const ref = doc(db, COLLECTION, id);
 
     await updateDoc(ref, {
       ...dadosLimpos,
-      updatedAt: Date.now(),
+      updatedAt,
     });
+
+    // Atualização Otimista do Cache
+    if (cachedEmpresas) {
+      cachedEmpresas = cachedEmpresas.map((e) =>
+        e.id === id ? ({ ...e, ...empresa, ...dadosLimpos, updatedAt } as Empresa) : e
+      );
+    }
 
     return id;
   }
 
   const docRef = await addDoc(collection(db, COLLECTION), {
     ...dadosLimpos,
-    updatedAt: Date.now(),
+    updatedAt,
   });
+
+  const novaEmpresa = {
+    id: docRef.id,
+    ...empresa,
+    ...dadosLimpos,
+    updatedAt,
+  } as Empresa;
+
+  // Inserção Otimista do Cache (no final)
+  if (cachedEmpresas) {
+    cachedEmpresas = [...cachedEmpresas, novaEmpresa];
+  }
 
   return docRef.id;
 }
 
-export async function listarEmpresas(forceRefresh = false) {
+export async function listarEmpresas(forceRefresh = false, limitCount?: number) {
   const now = Date.now();
+
+  // Se for especificado um limite de registros, faz a busca sob demanda sem afetar o cache global
+  if (limitCount) {
+    const q = query(collection(db, COLLECTION), limit(limitCount));
+    const snapshot = await getDocs(q);
+    return snapshot.docs
+      .map((doc) => ({
+        id: doc.id,
+        ...(doc.data() as Omit<Empresa, "id">),
+      }))
+      .filter((empresa) => empresa.id) as Empresa[];
+  }
+
   if (cachedEmpresas && !forceRefresh && (now - lastFetchEmpresas < CACHE_TTL)) {
     return cachedEmpresas;
   }
@@ -84,10 +116,10 @@ export async function listarEmpresas(forceRefresh = false) {
 }
 
 export async function removerEmpresa(id: string) {
-  // Invalida o cache
-  cachedEmpresas = null;
-  lastFetchEmpresas = 0;
-
   await deleteDoc(doc(db, "empresas", id));
-}
 
+  // Remoção Otimista do Cache
+  if (cachedEmpresas) {
+    cachedEmpresas = cachedEmpresas.filter((e) => e.id !== id);
+  }
+}

@@ -38,6 +38,7 @@ export const WhatsAppSettings: React.FC = () => {
   const [mensagem, setMensagem] = useState("");
   const [enviarImagem, setEnviarImagem] = useState(false);
   const [enviando, setEnviando] = useState(false);
+  const [padronizando, setPadronizando] = useState(false);
 
   // Carrega empresas para a lista de teste
   useEffect(() => {
@@ -124,7 +125,44 @@ export const WhatsAppSettings: React.FC = () => {
     }
   };
 
-
+  const handlePadronizarTelefones = async () => {
+    if (window.confirm("Deseja realmente padronizar os números de WhatsApp de todos os clientes cadastrados? (Isso adicionará o DDI '55' caso não exista e removerá caracteres especiais)")) {
+      setPadronizando(true);
+      toast.info("Iniciando a padronização dos números dos clientes no banco de dados...");
+      try {
+        const lista = await listarEmpresas();
+        let alteradas = 0;
+        
+        for (const emp of lista) {
+          if (!emp.id || !emp.telefone) continue;
+          
+          const telPadrao = formatarTelefoneWhatsApp(emp.telefone);
+          if (emp.telefone !== telPadrao) {
+            await salvarEmpresas({
+              ...emp,
+              telefone: telPadrao
+            });
+            alteradas++;
+          }
+        }
+        
+        const listaAtualizada = await listarEmpresas();
+        listaAtualizada.sort((a, b) => a.nomeEmpresa.localeCompare(b.nomeEmpresa, "pt-BR"));
+        setEmpresas(listaAtualizada);
+        
+        if (alteradas > 0) {
+          toast.success(`Padronização concluída! ${alteradas} número(s) de cliente(s) foram corrigidos.`);
+        } else {
+          toast.success("Todos os números de clientes já estão no padrão correto!");
+        }
+      } catch (err: any) {
+        console.error("Erro ao padronizar telefones:", err);
+        toast.error("Erro durante o processo de padronização.");
+      } finally {
+        setPadronizando(false);
+      }
+    }
+  };
 
   const handleEnviarMensagemTeste = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -295,6 +333,39 @@ export const WhatsAppSettings: React.FC = () => {
           </div>
           <div className="card-body">
             {renderStatusSection()}
+          </div>
+        </section>
+
+        <section className="whatsapp-card-section" style={{ marginTop: "24px" }}>
+          <div className="card-header">
+            <RefreshCw size={18} style={{ color: "#128c7e" }} />
+            <h2>Manutenção de Dados</h2>
+          </div>
+          <div className="card-body">
+            <div className="maintenance-box">
+              <p className="maintenance-desc">
+                Analisa todos os clientes cadastrados no banco de dados e padroniza seus números de telefone (removendo parênteses, traços, espaços e adicionando o DDI "55" automaticamente).
+              </p>
+              <button
+                type="button"
+                onClick={handlePadronizarTelefones}
+                disabled={padronizando}
+                className="btn-whatsapp-maintenance"
+                style={{ marginTop: "12px" }}
+              >
+                {padronizando ? (
+                  <>
+                    <Loader2 size={16} className="spinner" />
+                    <span>Padronizando Telefones...</span>
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw size={16} />
+                    <span>Padronizar Números dos Clientes</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </section>
 

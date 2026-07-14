@@ -645,3 +645,56 @@ body.light-theme .btn-whatsapp-refresh:hover {
   color: #128c7e;
   border-color: #128c7e;
 }
+
+/* ── Ferramentas de Manutenção ── */
+.maintenance-box {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.maintenance-desc {
+  font-size: 0.85rem;
+  color: var(--text-muted, rgba(255, 255, 255, 0.6));
+  line-height: 1.5;
+  margin: 0;
+}
+
+.btn-whatsapp-maintenance {
+  width: 100%;
+  background: rgba(18, 140, 126, 0.1);
+  color: #128c7e;
+  border: 1px solid rgba(18, 140, 126, 0.3);
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.btn-whatsapp-maintenance:hover:not(:disabled) {
+  background: #128c7e;
+  color: #ffffff;
+  border-color: #128c7e;
+  box-shadow: 0 4px 12px rgba(18, 140, 126, 0.25);
+}
+
+.btn-whatsapp-maintenance:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Light theme support */
+body.light-theme .btn-whatsapp-maintenance {
+  background: rgba(18, 140, 126, 0.05);
+}
+
+body.light-theme .btn-whatsapp-maintenance:hover:not(:disabled) {
+  background: #128c7e;
+  color: #ffffff;
+}

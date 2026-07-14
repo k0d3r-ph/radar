@@ -1559,7 +1559,11 @@ export default function Home() {
               <button
                 className="btn-excluir-confirm"
                 onClick={async () => {
-                  await excluirCliente(clienteSelecionado.id!);
+                  if (!clienteSelecionado.id) {
+                    toast.error("Erro: cliente sem ID válido. Não é possível excluir.");
+                    return;
+                  }
+                  await excluirCliente(clienteSelecionado.id);
                   setConfirmarExclusaoAberto(false);
                 }}
               >

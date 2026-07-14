@@ -69,10 +69,10 @@ export async function salvarEmpresas(empresa: Partial<Empresa>) {
   });
 
   const novaEmpresa = {
-    id: docRef.id,
     ...empresa,
     ...dadosLimpos,
     updatedAt,
+    id: docRef.id,   // sempre por último — garante que o ID real não seja sobrescrito por undefined
   } as Empresa;
 
   // Inserção Otimista do Cache (no final)

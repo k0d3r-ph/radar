@@ -11,6 +11,7 @@ import { Gamificacao } from "./pages/Gamificacao/Gamificacao";
 import { Relatorios } from "./pages/Relatorios/Relatorios";
 import { useTheme } from "./context/ThemeContext";
 import { WhatsAppSettings } from "./pages/WhatsApp/WhatsAppSettings";
+import { Chat } from "./pages/Chat/Chat";
 
 
 function AppRoutes() {
@@ -81,6 +82,12 @@ function AppRoutes() {
               >
                 Histórico de Ocorrências
               </NavLink>
+              <NavLink
+                to="/chat"
+                className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
+              >
+                Chat WhatsApp
+              </NavLink>
             </>
           )}
           {role !== "painel" && (role === "treinador" || role === "master") && (
@@ -138,6 +145,7 @@ function AppRoutes() {
             <Route path="/esteira/:id" element={<Esteira />} />
             <Route path="/historico" element={<Historico />} />
             <Route path="/home" element={<Home />} />
+            <Route path="/chat" element={<Chat />} />
           </>
         ) : (
           <>
@@ -145,6 +153,7 @@ function AppRoutes() {
             <Route path="/esteira/:id" element={<Navigate to="/relatorios" replace />} />
             <Route path="/historico" element={<Navigate to="/relatorios" replace />} />
             <Route path="/home" element={<Navigate to="/relatorios" replace />} />
+            <Route path="/chat" element={<Navigate to="/relatorios" replace />} />
           </>
         )}
 

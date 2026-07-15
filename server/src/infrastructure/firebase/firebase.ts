@@ -1,28 +1,49 @@
 import admin from 'firebase-admin';
 import dotenv from 'dotenv';
+import fs from 'fs';
+import path from 'path';
 
 dotenv.config();
 
 const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
 const storageBucket = process.env.FIREBASE_STORAGE_BUCKET || 'automatiza-esteira.firebasestorage.app';
 
 if (!admin.apps.length) {
+  let serviceAccount: any = null;
+
   if (serviceAccountKey) {
     try {
-      const serviceAccount = JSON.parse(serviceAccountKey);
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-        storageBucket: storageBucket
-      });
-      console.log('Firebase Admin SDK inicializado com sucesso via chave de Service Account.');
-    } catch (err) {
-      console.error('Erro ao fazer parse da FIREBASE_SERVICE_ACCOUNT_KEY. Tentando inicialização padrão...', err);
-      admin.initializeApp({
-        storageBucket: storageBucket
-      });
+      serviceAccount = JSON.parse(serviceAccountKey);
+      console.log('Carregando Service Account do Firebase via FIREBASE_SERVICE_ACCOUNT_KEY.');
+    } catch (err: any) {
+      console.error('Erro ao fazer parse da FIREBASE_SERVICE_ACCOUNT_KEY. Detalhe:', err.message);
     }
+  }
+
+  if (!serviceAccount && serviceAccountPath) {
+    try {
+      const resolvedPath = path.resolve(process.cwd(), serviceAccountPath);
+      if (fs.existsSync(resolvedPath)) {
+        const fileContent = fs.readFileSync(resolvedPath, 'utf8');
+        serviceAccount = JSON.parse(fileContent);
+        console.log(`Carregando Service Account do Firebase via arquivo: ${resolvedPath}`);
+      } else {
+        console.warn(`Arquivo de Service Account não encontrado no caminho: ${resolvedPath}`);
+      }
+    } catch (err: any) {
+      console.error('Erro ao carregar Service Account do arquivo:', err.message);
+    }
+  }
+
+  if (serviceAccount) {
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+      storageBucket: storageBucket
+    });
+    console.log('Firebase Admin SDK inicializado com sucesso.');
   } else {
-    console.log('FIREBASE_SERVICE_ACCOUNT_KEY não configurada no env. Tentando inicialização padrão...');
+    console.log('Nenhuma credencial configurada. Tentando inicialização padrão do ambiente...');
     admin.initializeApp({
       storageBucket: storageBucket
     });

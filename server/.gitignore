@@ -3,3 +3,4 @@ dist/
 .wwebjs_auth/
 .wwebjs_cache/
 .env
+serviceAccountKey.json

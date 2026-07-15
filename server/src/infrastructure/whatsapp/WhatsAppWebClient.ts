@@ -242,8 +242,22 @@ export class WhatsAppWebClient implements IWhatsAppService {
       }
 
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao enviar mensagem pelo WhatsApp:', error);
+      
+      // Auto-recuperação para erros conhecidos de queda do Puppeteer (Detached Frame / Execution Context)
+      const errorMsg = error.message ? error.message.toLowerCase() : '';
+      if (errorMsg.includes('detached frame') || errorMsg.includes('execution context') || errorMsg.includes('target closed') || errorMsg.includes('session closed')) {
+        console.warn('⚠️ Detectada falha fatal no Puppeteer (Frame Desanexado). Forçando reinicialização do cliente...');
+        this.updateStatus('disconnected');
+        if (this.client) {
+          try { await this.client.destroy(); } catch (e) {}
+          this.client = null;
+          this.initializingPromise = null;
+        }
+        throw new Error('A conexão com o WhatsApp sofreu uma instabilidade (Detached Frame). O sistema está reiniciando o serviço. Por favor, aguarde alguns segundos e tente enviar novamente (ou leia o QR Code se solicitado).');
+      }
+
       throw error;
     }
   }

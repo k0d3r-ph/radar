@@ -47,4 +47,19 @@ export class WhatsAppController {
       res.status(500).json({ success: false, error: error.message || 'Erro ao desconectar WhatsApp.' });
     }
   }
+
+  async getProfilePic(req: Request, res: Response): Promise<void> {
+    try {
+      const { number } = req.query;
+      if (!number || typeof number !== 'string') {
+        res.status(400).json({ success: false, error: 'Parâmetro "number" é obrigatório.' });
+        return;
+      }
+      const whatsappService = (this.sendMediaMessageUseCase as any).whatsappService;
+      const url = await whatsappService.getProfilePicUrl(number);
+      res.status(200).json({ success: true, url });
+    } catch (error: any) {
+      res.status(500).json({ success: false, error: error.message || 'Erro ao obter foto de perfil.' });
+    }
+  }
 }

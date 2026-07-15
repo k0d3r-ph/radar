@@ -24,6 +24,7 @@ export function createExpressApp(
   app.get('/api/whatsapp/status', (req, res) => controller.status(req, res));
   app.post('/api/whatsapp/send', (req, res) => controller.send(req, res));
   app.post('/api/whatsapp/disconnect', (req, res) => controller.disconnect(req, res));
+  app.get('/api/whatsapp/profile-pic', (req, res) => controller.getProfilePic(req, res));
 
   // Rota de depuração do Puppeteer
   app.get('/api/whatsapp/screenshot', async (req, res) => {

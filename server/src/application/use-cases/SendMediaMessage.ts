@@ -17,7 +17,7 @@ export class SendMediaMessage {
     if (!input.message) {
       throw new Error('A mensagem é obrigatória.');
     }
-    return await this.whatsappService.sendMessage(
+    return await this.whatsappService.enqueueMessage(
       input.to,
       input.message,
       input.imageBase64,

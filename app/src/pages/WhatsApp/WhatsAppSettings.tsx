@@ -12,7 +12,8 @@ import {
   CheckCircle2,
   Loader2,
   RefreshCw,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Clock
 } from "lucide-react";
 import {
   desconectarWhatsApp,
@@ -23,6 +24,7 @@ import {
 import { listarEmpresas, salvarEmpresas, formatarTelefoneWhatsApp } from "../../services/empresas";
 import { generateEsteiraImage } from "../../utils/generateEsteiraImage";
 import type { Empresa } from "../../types";
+import { db } from "../../services/firebase";
 import "./WhatsAppSettings.css";
 
 export const WhatsAppSettings: React.FC = () => {
@@ -39,6 +41,67 @@ export const WhatsAppSettings: React.FC = () => {
   const [enviarImagem, setEnviarImagem] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [padronizando, setPadronizando] = useState(false);
+
+  // Working Hours States
+  const [workingHoursActive, setWorkingHoursActive] = useState(false);
+  const [outOfHoursMessage, setOutOfHoursMessage] = useState("");
+  const [startTime, setStartTime] = useState("08:00");
+  const [endTime, setEndTime] = useState("18:00");
+  const [workingDays, setWorkingDays] = useState<number[]>([1, 2, 3, 4, 5]);
+  const [savingConfig, setSavingConfig] = useState(false);
+
+  // Carrega configurações de expediente do Firestore
+  useEffect(() => {
+    async function carregarConfig() {
+      try {
+        const { doc, getDoc } = await import("firebase/firestore");
+        const docRef = doc(db, "whatsapp_config", "whatsapp");
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setWorkingHoursActive(!!data.workingHoursActive);
+          setOutOfHoursMessage(data.outOfHoursMessage || "");
+          setStartTime(data.startTime || "08:00");
+          setEndTime(data.endTime || "18:00");
+          if (Array.isArray(data.workingDays)) {
+            setWorkingDays(data.workingDays);
+          }
+        }
+      } catch (err) {
+        console.error("Erro ao carregar configurações de expediente:", err);
+      }
+    }
+    carregarConfig();
+  }, []);
+
+  const handleSaveWorkingHours = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingConfig(true);
+    try {
+      const { doc, setDoc } = await import("firebase/firestore");
+      const docRef = doc(db, "whatsapp_config", "whatsapp");
+      await setDoc(docRef, {
+        workingHoursActive,
+        outOfHoursMessage,
+        startTime,
+        endTime,
+        workingDays,
+        updatedAt: Date.now()
+      }, { merge: true });
+      toast.success("Configurações de expediente salvas com sucesso!");
+    } catch (err: any) {
+      console.error("Erro ao salvar expediente:", err);
+      toast.error("Erro ao salvar configurações.");
+    } finally {
+      setSavingConfig(false);
+    }
+  };
+
+  const handleDayToggle = (day: number) => {
+    setWorkingDays(prev => 
+      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
+    );
+  };
 
   // Carrega empresas para a lista de teste
   useEffect(() => {
@@ -462,6 +525,123 @@ export const WhatsAppSettings: React.FC = () => {
                   <span>Você precisa parear o WhatsApp antes de poder enviar mensagens de teste.</span>
                 </div>
               )}
+            </form>
+          </div>
+        </section>
+
+        <section className="whatsapp-card-section" style={{ marginTop: "24px" }}>
+          <div className="card-header">
+            <Clock size={18} />
+            <h2>Configurações de Expediente</h2>
+          </div>
+          <div className="card-body">
+            <form onSubmit={handleSaveWorkingHours} className="test-message-form">
+              <div className="form-group-checkbox">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={workingHoursActive}
+                    onChange={(e) => setWorkingHoursActive(e.target.checked)}
+                    className="whatsapp-checkbox"
+                  />
+                  <span className="checkbox-custom"></span>
+                  <span className="checkbox-text">Ativar resposta automática fora do expediente</span>
+                </label>
+              </div>
+
+              {workingHoursActive && (
+                <div className="animate-fade-in" style={{ marginTop: "16px", display: "flex", flexDirection: "column", gap: "16px" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                    <div className="form-group">
+                      <label>Início do Expediente</label>
+                      <input
+                        type="time"
+                        value={startTime}
+                        onChange={(e) => setStartTime(e.target.value)}
+                        className="whatsapp-input"
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Fim do Expediente</label>
+                      <input
+                        type="time"
+                        value={endTime}
+                        onChange={(e) => setEndTime(e.target.value)}
+                        className="whatsapp-input"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Dias de Expediente</label>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "8px" }}>
+                      {[
+                        { label: "Dom", value: 0 },
+                        { label: "Seg", value: 1 },
+                        { label: "Ter", value: 2 },
+                        { label: "Qua", value: 3 },
+                        { label: "Qui", value: 4 },
+                        { label: "Sex", value: 5 },
+                        { label: "Sáb", value: 6 }
+                      ].map((day) => {
+                        const active = workingDays.includes(day.value);
+                        return (
+                          <button
+                            key={day.value}
+                            type="button"
+                            onClick={() => handleDayToggle(day.value)}
+                            className={`day-toggle-btn ${active ? "active" : ""}`}
+                            style={{
+                              padding: "6px 12px",
+                              borderRadius: "20px",
+                              border: active ? "1px solid #128c7e" : "1px solid rgba(255, 255, 255, 0.1)",
+                              background: active ? "rgba(18, 140, 126, 0.15)" : "transparent",
+                              color: active ? "#128c7e" : "rgba(255, 255, 255, 0.6)",
+                              fontSize: "0.82rem",
+                              fontWeight: "600",
+                              cursor: "pointer",
+                              transition: "all 0.2s"
+                            }}
+                          >
+                            {day.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="textarea-mensagem-expediente">Mensagem Automática (Fora do Horário)</label>
+                    <textarea
+                      id="textarea-mensagem-expediente"
+                      rows={4}
+                      placeholder="Digite a mensagem que o cliente receberá se escrever fora do horário de atendimento..."
+                      value={outOfHoursMessage}
+                      onChange={(e) => setOutOfHoursMessage(e.target.value)}
+                      className="whatsapp-textarea"
+                      required
+                    />
+                  </div>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={savingConfig}
+                className="btn-whatsapp-send"
+                style={{ marginTop: "16px" }}
+              >
+                {savingConfig ? (
+                  <>
+                    <Loader2 size={16} className="spinner" />
+                    <span>Salvando...</span>
+                  </>
+                ) : (
+                  <span>Salvar Configurações</span>
+                )}
+              </button>
             </form>
           </div>
         </section>

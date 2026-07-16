@@ -72,6 +72,8 @@ export async function registrarSenhaDefinida(
   );
 }
 
+export type CargoCsUsuario = "supervisor" | "analista" | "comercial" | "";
+
 export interface UsuarioDocument {
   uid: string;
   email: string;
@@ -79,6 +81,8 @@ export interface UsuarioDocument {
   nome: string;
   needsPasswordChange: boolean;
   createdAt?: number;
+  cargo?: CargoCsUsuario;
+  telefone?: string;
 }
 
 export async function criarNovoUsuario(email: string, senhaTemp: string, role: string, nome: string): Promise<void> {
@@ -130,7 +134,9 @@ export async function listarUsuarios(forceRefresh = false): Promise<UsuarioDocum
       role: data.role || "",
       nome: data.nome || "",
       needsPasswordChange: !!data.needsPasswordChange,
-      createdAt: data.createdAt
+      createdAt: data.createdAt,
+      cargo: data.cargo || "",
+      telefone: data.telefone || "",
     });
   });
 
@@ -148,6 +154,15 @@ export async function atualizarRoleUsuario(uid: string, role: string): Promise<v
   invalidarCacheUsuarios();
   const userDocRef = doc(db, COLLECTION_USUARIOS, uid);
   await setDoc(userDocRef, { role, updatedAt: Date.now() }, { merge: true });
+}
+
+export async function atualizarDadosUsuario(
+  uid: string,
+  dados: { cargo?: string; telefone?: string; nome?: string }
+): Promise<void> {
+  invalidarCacheUsuarios();
+  const userDocRef = doc(db, COLLECTION_USUARIOS, uid);
+  await setDoc(userDocRef, { ...dados, updatedAt: Date.now() }, { merge: true });
 }
 
 export async function enviarEmailRedefinicaoSenha(email: string): Promise<void> {

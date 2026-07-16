@@ -10,14 +10,17 @@ import {
   UserCheck,
   User,
   Edit2,
+  Phone,
+  Briefcase,
 } from "lucide-react";
 import {
   criarNovoUsuario,
   listarUsuarios,
   removerUsuarioFirestore,
   atualizarRoleUsuario,
+  atualizarDadosUsuario,
 } from "../../services/auth";
-import type { UsuarioDocument } from "../../services/auth";
+import type { UsuarioDocument, CargoCsUsuario } from "../../services/auth";
 import { formatarNome } from "../../utils/formatarNome";
 import { useAuth } from "../../context/AuthContext";
 import { listarLancamentosPontos, reassociarPontosTreinador } from "../../services/gamificacao";
@@ -34,6 +37,13 @@ const ROLE_DISPLAY: Record<string, string> = {
   master: "Master",
 };
 
+const CARGO_DISPLAY: Record<string, string> = {
+  supervisor: "Supervisor",
+  analista: "Analista",
+  comercial: "Comercial",
+  "": "—",
+};
+
 export const Usuarios: React.FC = () => {
   const { role: currentUserRole } = useAuth();
   const [users, setUsers] = useState<UsuarioDocument[]>([]);
@@ -41,6 +51,8 @@ export const Usuarios: React.FC = () => {
   const [email, setEmail] = useState("");
   const [senhaTemp, setSenhaTemp] = useState("");
   const [role, setRole] = useState("suporte");
+  const [cargo, setCargo] = useState<CargoCsUsuario>("");
+  const [telefone, setTelefone] = useState("");
   
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -50,6 +62,8 @@ export const Usuarios: React.FC = () => {
   // Edit role states
   const [editingUser, setEditingUser] = useState<UsuarioDocument | null>(null);
   const [editingUserRole, setEditingUserRole] = useState("suporte");
+  const [editingUserCargo, setEditingUserCargo] = useState<CargoCsUsuario>("");
+  const [editingUserTelefone, setEditingUserTelefone] = useState("");
   const [savingRole, setSavingRole] = useState(false);
 
   // Estados para reconsolidação de pontos da gamificação
@@ -191,11 +205,22 @@ export const Usuarios: React.FC = () => {
     setSubmitting(true);
     try {
       await criarNovoUsuario(email.trim(), senhaTemp.trim(), role, nome.trim());
+      // Retrieve the new user's uid to store cargo/telefone
+      const lista = await listarUsuarios(true);
+      const novoUsuario = lista.find((u) => u.email.toLowerCase() === email.trim().toLowerCase());
+      if (novoUsuario && (cargo || telefone.trim())) {
+        await atualizarDadosUsuario(novoUsuario.uid, {
+          cargo: cargo || undefined,
+          telefone: telefone.trim() || undefined,
+        });
+      }
       toast.success("Usuário pré-cadastrado com sucesso!");
       setNome("");
       setEmail("");
       setSenhaTemp("");
       setRole("suporte");
+      setCargo("");
+      setTelefone("");
       await carregarUsuarios();
     } catch (error: any) {
       console.error("Erro ao criar usuário:", error);
@@ -233,6 +258,10 @@ export const Usuarios: React.FC = () => {
     setSavingRole(true);
     try {
       await atualizarRoleUsuario(editingUser.uid, editingUserRole);
+      await atualizarDadosUsuario(editingUser.uid, {
+        cargo: editingUserCargo || undefined,
+        telefone: editingUserTelefone.trim() || undefined,
+      });
       toast.success("Perfil de acesso atualizado com sucesso!");
       setEditingUser(null);
       await carregarUsuarios();
@@ -336,6 +365,39 @@ export const Usuarios: React.FC = () => {
               </div>
             </div>
 
+            <div className="input-group">
+              <label htmlFor="cargo">Cargo (Opcional)</label>
+              <div className="input-wrapper">
+                <Briefcase className="input-icon" size={18} />
+                <select
+                  id="cargo"
+                  value={cargo}
+                  onChange={(e) => setCargo(e.target.value as CargoCsUsuario)}
+                  disabled={submitting}
+                >
+                  <option value="">— Nenhum —</option>
+                  <option value="supervisor">Supervisor</option>
+                  <option value="analista">Analista</option>
+                  <option value="comercial">Comercial</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="input-group">
+              <label htmlFor="telefone-usuario">Telefone WhatsApp (Opcional)</label>
+              <div className="input-wrapper">
+                <Phone className="input-icon" size={18} />
+                <input
+                  id="telefone-usuario"
+                  type="tel"
+                  placeholder="Ex: 5511999999999"
+                  value={telefone}
+                  onChange={(e) => setTelefone(e.target.value)}
+                  disabled={submitting}
+                />
+              </div>
+            </div>
+
             <button type="submit" className="btn-primary form-submit-btn" disabled={submitting}>
               {submitting ? <div className="spinner"></div> : "Criar Usuário"}
             </button>
@@ -364,6 +426,8 @@ export const Usuarios: React.FC = () => {
                     <th>Nome</th>
                     <th>E-mail</th>
                     <th>Perfil</th>
+                    <th>Cargo</th>
+                    <th>Telefone WA</th>
                     <th>Status</th>
                     <th className="action-col">Ações</th>
                   </tr>
@@ -379,6 +443,18 @@ export const Usuarios: React.FC = () => {
                         </span>
                       </td>
                       <td>
+                        {u.cargo ? (
+                          <span className={`role-tag role-cs`} style={{ fontSize: "11px" }}>
+                            {CARGO_DISPLAY[u.cargo] || u.cargo}
+                          </span>
+                        ) : (
+                          <span style={{ color: "#64748b", fontSize: "12px" }}>—</span>
+                        )}
+                      </td>
+                      <td style={{ fontSize: "12px", color: u.telefone ? "#a5b4fc" : "#64748b" }}>
+                        {u.telefone || "—"}
+                      </td>
+                      <td>
                         <span className={`status-badge ${u.needsPasswordChange ? "status-pending" : "status-active"}`}>
                           {u.needsPasswordChange ? "Primeiro Acesso Pendente" : "Ativo"}
                         </span>
@@ -390,6 +466,8 @@ export const Usuarios: React.FC = () => {
                             onClick={() => {
                               setEditingUser(u);
                               setEditingUserRole(u.role);
+                              setEditingUserCargo((u.cargo || "") as CargoCsUsuario);
+                              setEditingUserTelefone(u.telefone || "");
                             }}
                             title="Editar Perfil"
                             style={{ marginRight: "8px" }}
@@ -535,12 +613,13 @@ export const Usuarios: React.FC = () => {
           <div className="confirm-modal" onClick={(e) => e.stopPropagation()}>
             <div className="confirm-modal-header">
               <Shield className="confirm-modal-icon" size={24} style={{ color: "#818cf8" }} />
-              <h2>Editar Perfil de Acesso</h2>
+              <h2>Editar Perfil e Dados</h2>
             </div>
             <p className="confirm-modal-text">
-              Selecione o novo perfil para o usuário <strong>{formatarNome(editingUser.nome) || editingUser.email}</strong>:
+              Edite os dados do usuário <strong>{formatarNome(editingUser.nome) || editingUser.email}</strong>:
             </p>
             <div className="input-group" style={{ marginTop: "10px" }}>
+              <label style={{ fontSize: "12px", fontWeight: 600, color: "#9ca3af", marginBottom: "6px", display: "block" }}>Perfil de Acesso</label>
               <div className="input-wrapper">
                 <Shield className="input-icon" size={18} />
                 <select
@@ -558,6 +637,37 @@ export const Usuarios: React.FC = () => {
                   <option value="painel">Painel</option>
                   <option value="master">Master</option>
                 </select>
+              </div>
+            </div>
+            <div className="input-group" style={{ marginTop: "12px" }}>
+              <label style={{ fontSize: "12px", fontWeight: 600, color: "#9ca3af", marginBottom: "6px", display: "block" }}>Cargo</label>
+              <div className="input-wrapper">
+                <Briefcase className="input-icon" size={18} />
+                <select
+                  value={editingUserCargo}
+                  onChange={(e) => setEditingUserCargo(e.target.value as CargoCsUsuario)}
+                  className="role-edit-select"
+                  style={{ width: "100%", paddingLeft: "45px" }}
+                >
+                  <option value="">— Nenhum —</option>
+                  <option value="supervisor">Supervisor</option>
+                  <option value="analista">Analista</option>
+                  <option value="comercial">Comercial</option>
+                </select>
+              </div>
+            </div>
+            <div className="input-group" style={{ marginTop: "12px" }}>
+              <label style={{ fontSize: "12px", fontWeight: 600, color: "#9ca3af", marginBottom: "6px", display: "block" }}>Telefone WhatsApp</label>
+              <div className="input-wrapper">
+                <Phone className="input-icon" size={18} />
+                <input
+                  type="tel"
+                  placeholder="Ex: 5511999999999"
+                  value={editingUserTelefone}
+                  onChange={(e) => setEditingUserTelefone(e.target.value)}
+                  className="role-edit-select"
+                  style={{ width: "100%", paddingLeft: "45px" }}
+                />
               </div>
             </div>
             <div className="confirm-modal-actions">

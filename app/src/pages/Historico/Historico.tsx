@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
@@ -10,6 +10,7 @@ import { listarEmpresas, salvarEmpresas } from "../../services/empresas";
 import { listarUsuarios } from "../../services/auth";
 import type { UsuarioDocument } from "../../services/auth";
 import { enviarMensagemWhatsApp } from "../../services/whatsapp";
+import { notificarAlerta, notificarTreinamento } from "../../services/notificacoes";
 import { generateEsteiraImage } from "../../utils/generateEsteiraImage";
 
 import {
@@ -19,6 +20,7 @@ import {
 } from "../../services/gamificacao";
 import type { Ocorrencia, Empresa, OcorrenciaForm } from "../../types";
 import "./Historico.css";
+import { DoughnutChart } from "../../components/DoughnutChart";
 import { useAuth } from "../../context/AuthContext";
 import { formatarNome } from "../../utils/formatarNome";
 import { atribuirIdsOcorrencias, obterInfoTipoOcorrencia } from "../../utils/empresaUtils";
@@ -77,6 +79,25 @@ const TIPO_CLASS: Record<string, string> = {
   "Mudança de score": "tipo--mudanca-score",
   Problema: "tipo--problema",
   Dúvida: "tipo--duvida",
+};
+
+const TIPO_CORES: Record<string, string> = {
+  Informativa: "#6b7280",
+  Financeira: "#3b82f6",
+  Comercial: "#f59e0b",
+  Treinamento: "#a855f7",
+  Checkpoint: "#6366f1",
+  "Mudança de score": "#0ea5e9",
+  Problema: "#ef4444",
+  Dúvida: "#14b8a6",
+};
+
+const DEPARTAMENTO_CORES: Record<string, string> = {
+  Treinamento: "#a855f7",
+  CS: "#f59e0b",
+  Suporte: "#3b82f6",
+  Hardware: "#06b6d4",
+  Comercial: "#10b981",
 };
 
 function getOcorrenciaTimestamp(o: Ocorrencia): number {
@@ -308,6 +329,7 @@ export function Historico() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [modalScoreAberto, setModalScoreAberto] = useState(false);
+  const [dashboardAberto, setDashboardAberto] = useState(false);
   const [respostasScore, setRespostasScore] = useState<ScoreFormAnswers>({ ...INITIAL_SCORE_ANSWERS });
   const [calculoScoreResult, setCalculoScoreResult] = useState<{ score: number | null; tipo: "Fast" | "Safety" | ""; isNeutro?: boolean } | null>(null);
 
@@ -983,6 +1005,22 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
     const savedId = await salvarOcorrencia(editandoId ? { ...base, id: editandoId } : base);
 
+    // Notificações automáticas para supervisores (best-effort — erros não bloqueiam o fluxo)
+    if (!editandoId) {
+      // Alerta: notifica supervisores quando um alerta é marcado
+      if (form.alerta) {
+        notificarAlerta(form.empresa, savedId).catch((err) =>
+          console.error("[notificações] Falha ao notificar supervisores de alerta:", err)
+        );
+      }
+      // Treinamento: notifica supervisores quando um novo treinamento é registrado
+      if (form.tipo === "Treinamento" && !form.isRevisao) {
+        notificarTreinamento(form.empresa, savedId).catch((err) =>
+          console.error("[notificações] Falha ao notificar supervisores de treinamento:", err)
+        );
+      }
+    }
+
     if (form.retornarEsteira) {
       try {
         await salvarEmpresas({
@@ -1382,87 +1420,138 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
     return DEPARTAMENTO;
   };
 
-  const filtradas = ocorrencias.filter((o) => {
-    const texto = busca.toLowerCase();
+  const obterFiltradas = (ignoreTipo = false, ignoreDepto = false) => {
+    return ocorrencias.filter((o) => {
+      const texto = busca.toLowerCase();
 
-    const textoSemEspacos = texto.trim();
-    const matchesText =
-      normalizar(o.empresa).includes(normalizar(texto)) ||
-      o.tipo.toLowerCase().includes(texto) ||
-      o.descricao.toLowerCase().includes(texto) ||
-      o.responsavel.toLowerCase().includes(texto);
+      const textoSemEspacos = texto.trim();
+      const matchesText =
+        normalizar(o.empresa).includes(normalizar(texto)) ||
+        o.tipo.toLowerCase().includes(texto) ||
+        o.descricao.toLowerCase().includes(texto) ||
+        o.responsavel.toLowerCase().includes(texto);
 
-    let matchesId = false;
-    if (o.idSeqFormatted) {
-      const idLower = o.idSeqFormatted.toLowerCase();
-      if (idLower === textoSemEspacos || idLower.replace("#", "") === textoSemEspacos) {
-        matchesId = true;
-      }
-      if (textoSemEspacos.startsWith("#")) {
-        const queryNum = textoSemEspacos.replace("#", "");
-        const cleanId = idLower.replace("#", "");
-        if (cleanId.length > 2) {
-          const companyPrefix = cleanId.substring(0, cleanId.length - 2);
-          if (companyPrefix === queryNum) {
-            matchesId = true;
+      let matchesId = false;
+      if (o.idSeqFormatted) {
+        const idLower = o.idSeqFormatted.toLowerCase();
+        if (idLower === textoSemEspacos || idLower.replace("#", "") === textoSemEspacos) {
+          matchesId = true;
+        }
+        if (textoSemEspacos.startsWith("#")) {
+          const queryNum = textoSemEspacos.replace("#", "");
+          const cleanId = idLower.replace("#", "");
+          if (cleanId.length > 2) {
+            const companyPrefix = cleanId.substring(0, cleanId.length - 2);
+            if (companyPrefix === queryNum) {
+              matchesId = true;
+            }
           }
         }
       }
-    }
 
-    const isIdQuery = textoSemEspacos.startsWith("#") && /^\d+$/.test(textoSemEspacos.substring(1));
-    const bateBusca = isIdQuery ? matchesId : (matchesText || matchesId);
+      const isIdQuery = textoSemEspacos.startsWith("#") && /^\d+$/.test(textoSemEspacos.substring(1));
+      const bateBusca = isIdQuery ? matchesId : (matchesText || matchesId);
 
-    const empresaOk =
-      !empresaFiltro || normalizar(o.empresa) === normalizar(empresaFiltro);
+      const empresaOk =
+        !empresaFiltro || normalizar(o.empresa) === normalizar(empresaFiltro);
 
-    const tipoOk = !filtroTipo || o.tipo === filtroTipo;
-    const deptoOk = !filtroDepto || o.departamento === filtroDepto;
+      const tipoOk = ignoreTipo || !filtroTipo || o.tipo === filtroTipo;
+      const deptoOk = ignoreDepto || !filtroDepto || o.departamento === filtroDepto;
 
-    const timestamp = getOcorrenciaTimestamp(o);
-    let dataOk = true;
+      const timestamp = getOcorrenciaTimestamp(o);
+      let dataOk = true;
 
-    if (dataInicio && timestamp > 0) {
-      const [y, m, d] = dataInicio.split("-").map(Number);
-      const startOfDay = new Date(y, m - 1, d, 0, 0, 0, 0).getTime();
-      dataOk = dataOk && timestamp >= startOfDay;
-    } else if (dataInicio) {
-      dataOk = false;
-    }
-
-    if (dataFim && timestamp > 0) {
-      const [y, m, d] = dataFim.split("-").map(Number);
-      const endOfDay = new Date(y, m - 1, d, 23, 59, 59, 999).getTime();
-      dataOk = dataOk && timestamp <= endOfDay;
-    } else if (dataFim) {
-      dataOk = false;
-    }
-
-    let expedienteOk = true;
-    if (expedienteFiltro && timestamp > 0) {
-      const dateObj = new Date(timestamp);
-      const hour = dateObj.getHours();
-      const day = dateObj.getDay();
-      const isWeekend = day === 0 || day === 6;
-      const isFora = isWeekend || hour >= 18 || hour < 9;
-      if (expedienteFiltro === "dentro") {
-        expedienteOk = !isFora;
-      } else if (expedienteFiltro === "fora") {
-        expedienteOk = isFora;
+      if (dataInicio && timestamp > 0) {
+        const [y, m, d] = dataInicio.split("-").map(Number);
+        const startOfDay = new Date(y, m - 1, d, 0, 0, 0, 0).getTime();
+        dataOk = dataOk && timestamp >= startOfDay;
+      } else if (dataInicio) {
+        dataOk = false;
       }
-    }
 
-    return bateBusca && empresaOk && tipoOk && deptoOk && dataOk && expedienteOk;
-  }).sort((a, b) => {
-    const tA = getOcorrenciaTimestamp(a);
-    const tB = getOcorrenciaTimestamp(b);
-    return ordenacaoData === "desc" ? tB - tA : tA - tB;
-  });
+      if (dataFim && timestamp > 0) {
+        const [y, m, d] = dataFim.split("-").map(Number);
+        const endOfDay = new Date(y, m - 1, d, 23, 59, 59, 999).getTime();
+        dataOk = dataOk && timestamp <= endOfDay;
+      } else if (dataFim) {
+        dataOk = false;
+      }
+
+      let expedienteOk = true;
+      if (expedienteFiltro && timestamp > 0) {
+        const dateObj = new Date(timestamp);
+        const hour = dateObj.getHours();
+        const day = dateObj.getDay();
+        const isWeekend = day === 0 || day === 6;
+        const isFora = isWeekend || hour >= 18 || hour < 9;
+        if (expedienteFiltro === "dentro") {
+          expedienteOk = !isFora;
+        } else if (expedienteFiltro === "fora") {
+          expedienteOk = isFora;
+        }
+      }
+
+      return bateBusca && empresaOk && tipoOk && deptoOk && dataOk && expedienteOk;
+    });
+  };
+
+  const filtradas = useMemo(() => {
+    return obterFiltradas(false, false).sort((a, b) => {
+      const tA = getOcorrenciaTimestamp(a);
+      const tB = getOcorrenciaTimestamp(b);
+      return ordenacaoData === "desc" ? tB - tA : tA - tB;
+    });
+  }, [ocorrencias, busca, filtroTipo, filtroDepto, dataInicio, dataFim, empresaFiltro, expedienteFiltro, ordenacaoData]);
+
+  const filtradasSemTipo = useMemo(() => obterFiltradas(true, false), [ocorrencias, busca, filtroDepto, dataInicio, dataFim, empresaFiltro, expedienteFiltro]);
+  const filtradasSemDepto = useMemo(() => obterFiltradas(false, true), [ocorrencias, busca, filtroTipo, dataInicio, dataFim, empresaFiltro, expedienteFiltro]);
 
   const selectedEmpresaObj = empresasList.find(
     (e) => normalizar(e.nomeEmpresa) === normalizar(form.empresa)
   );
   const isSelectedEmpresaOngoing = selectedEmpresaObj?.isOngoing ?? false;
+
+  const tipoChartData = useMemo(() => {
+    const counts: Record<string, number> = {};
+    TIPOS.forEach((t) => {
+      counts[t] = 0;
+    });
+
+    filtradasSemTipo.forEach((o) => {
+      if (counts[o.tipo] !== undefined) {
+        counts[o.tipo]++;
+      } else {
+        counts[o.tipo] = (counts[o.tipo] || 0) + 1;
+      }
+    });
+
+    return Object.entries(counts).map(([label, value]) => ({
+      label,
+      value,
+      color: TIPO_CORES[label] || "#94a3b8",
+    }));
+  }, [filtradasSemTipo]);
+
+  const deptoChartData = useMemo(() => {
+    const counts: Record<string, number> = {};
+    DEPARTAMENTO.forEach((d) => {
+      counts[d] = 0;
+    });
+
+    filtradasSemDepto.forEach((o) => {
+      if (counts[o.departamento] !== undefined) {
+        counts[o.departamento]++;
+      } else {
+        counts[o.departamento] = (counts[o.departamento] || 0) + 1;
+      }
+    });
+
+    return Object.entries(counts).map(([label, value]) => ({
+      label,
+      value,
+      color: DEPARTAMENTO_CORES[label] || "#94a3b8",
+    }));
+  }, [filtradasSemDepto]);
 
   const totalItems = filtradas.length;
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE) || 1;
@@ -1506,12 +1595,39 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 Ver Esteira de {empresaFiltro}
               </button>
             )}
+            <button 
+              className={`btn-secondary btn-dashboard-toggle ${dashboardAberto ? "active" : ""}`} 
+              onClick={() => setDashboardAberto(prev => !prev)}
+              style={{
+                background: dashboardAberto ? "#475569" : "#0f2a5e",
+              }}
+            >
+              📊 {dashboardAberto ? "Ocultar Dashboard" : "Mostrar Dashboard"}
+            </button>
             <button className="btn-primary hist-btn-novo" onClick={abrirNovo}>
               + Nova ocorrência
             </button>
           </div>
         </div>
       </header>
+
+      {/* Dashboard Recolhível */}
+      <div className={`hist-dashboard-panel ${dashboardAberto ? "open" : ""}`}>
+        <div className="hist-dashboard-grid">
+          <DoughnutChart 
+            title="Ocorrências por Tipo" 
+            data={tipoChartData} 
+            onItemClick={(tipo) => setFiltroTipo(prev => prev === tipo ? "" : tipo)}
+            selectedLabel={filtroTipo}
+          />
+          <DoughnutChart 
+            title="Ocorrências por Departamento" 
+            data={deptoChartData} 
+            onItemClick={(depto) => setFiltroDepto(prev => prev === depto ? "" : depto)}
+            selectedLabel={filtroDepto}
+          />
+        </div>
+      </div>
 
       {/* Barra de filtros */}
       <div className="hist-filtros">

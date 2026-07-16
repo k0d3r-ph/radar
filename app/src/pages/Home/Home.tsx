@@ -195,7 +195,7 @@ export default function Home() {
   const [historico, setHistorico] = useState<Ocorrencia[]>([]);
 
   const [listaCS, setListaCS] = useState<string[]>(() => {
-    const baseCS = ["Jeferson", "Rafaela", "Luiz Felipe", "João", "Eduarda", "Clarice", "Lucas", "Ana Carolina"];
+    const baseCS = ["Jeferson", "Rafaela", "Luiz Felipe", "João", "Eduarda Melo", "Lucas Barreto", "Ana Carolina"];
     return [...baseCS].sort((a, b) => a.localeCompare(b));
   });
 
@@ -302,7 +302,7 @@ export default function Home() {
       idNumericToSave = highest + 1;
     }
 
-    const antigoNome = editandoClienteId 
+    const antigoNome = editandoClienteId
       ? empresas.find(e => e.id === editandoClienteId)?.nomeEmpresa
       : null;
 
@@ -954,7 +954,7 @@ export default function Home() {
           <option value="maior">Ordenar score: Maior nota</option>
           <option value="menor">Ordenar score: Menor nota</option>
         </select>
- 
+
         {(filtroCliente ||
           filtroResponsavel ||
           filtroCs ||
@@ -1029,7 +1029,7 @@ export default function Home() {
                   <th style={{ textAlign: "right" }}>Valor Contrato</th>
                 </tr>
               </thead>
- 
+
               <tbody>
                 {dadosAtivosFiltrados.map((empresa) => (
                   <tr
@@ -1808,7 +1808,7 @@ export default function Home() {
                 }
               />
             </div>
- 
+
             <div className="form-group">
               <label>Valor do contrato (R$)</label>
               <input

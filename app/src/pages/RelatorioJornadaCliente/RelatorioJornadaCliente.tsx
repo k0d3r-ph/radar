@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import type { Empresa, Ocorrencia } from "../../types";
 import { formatarNome } from "../../utils/formatarNome";
+import { obterInfoTipoOcorrencia } from "../../utils/empresaUtils";
 import "./RelatorioJornadaCliente.css";
 
 interface RelatorioJornadaClienteProps {
@@ -1128,7 +1129,7 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
                       <div className="jornada-focus-grid" style={{ background: "none", padding: 0, border: "none" }}>
                         <div className="jornada-focus-item" style={{ background: "rgba(15,23,42,0.15)" }}>
                           <span>Tipo de Registro</span>
-                          <strong>{etapaSelecionada.ocorrencia.tipo}</strong>
+                          <strong>{obterInfoTipoOcorrencia(etapaSelecionada.ocorrencia).label}</strong>
                         </div>
                         <div className="jornada-focus-item" style={{ background: "rgba(15,23,42,0.15)" }}>
                           <span>Responsável pelo Registro</span>
@@ -1234,7 +1235,7 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
                       <div className="jornada-focus-grid" style={{ background: "none", padding: 0, border: "none" }}>
                         <div className="jornada-focus-item" style={{ background: "rgba(15,23,42,0.15)" }}>
                           <span>Tipo de Registro</span>
-                          <strong>{etapaSelecionada.ocorrenciaFinalizadora.tipo}</strong>
+                          <strong>{obterInfoTipoOcorrencia(etapaSelecionada.ocorrenciaFinalizadora).label}</strong>
                         </div>
                         <div className="jornada-focus-item" style={{ background: "rgba(15,23,42,0.15)" }}>
                           <span>Responsável pelo Registro</span>

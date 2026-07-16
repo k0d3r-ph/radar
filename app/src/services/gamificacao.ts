@@ -21,13 +21,13 @@ let lastFetchPontos = 0;
 const CACHE_TTL = 300000; // 5 minutos (300.000 ms)
 
 export async function salvarLancamentoPonto(
-  lancamento: Omit<LancamentoPonto, "id" | "dataLancamento">
+  lancamento: Omit<LancamentoPonto, "id"> & { dataLancamento?: number }
 ): Promise<string> {
   const dadosLimpos = Object.fromEntries(
     Object.entries(lancamento).filter(([_, v]) => v !== undefined)
   );
 
-  const dataLancamento = Date.now();
+  const dataLancamento = lancamento.dataLancamento || Date.now();
   const docRef = await addDoc(collection(db, COLLECTION), {
     ...dadosLimpos,
     dataLancamento,
@@ -49,7 +49,7 @@ export async function salvarLancamentoPonto(
 
 export async function atualizarLancamentoPonto(
   id: string,
-  lancamento: Partial<Omit<LancamentoPonto, "id" | "dataLancamento">>
+  lancamento: Partial<LancamentoPonto>
 ): Promise<void> {
   const docRef = doc(db, COLLECTION, id);
   const dadosLimpos = Object.fromEntries(

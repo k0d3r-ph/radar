@@ -43,7 +43,7 @@ export async function salvarOcorrencia(ocorrencia: Ocorrencia) {
     return id;
   }
 
-  const createdAt = Date.now();
+  const createdAt = ocorrencia.createdAt || Date.now();
   const updatedAt = Date.now();
   const docRef = await addDoc(collection(db, COLLECTION), {
     ...dadosLimpos,

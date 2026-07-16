@@ -16,9 +16,10 @@ import {
   TrendingUp,
   Play,
   Pause,
+  PauseCircle,
 } from "lucide-react";
 import "../Historico/Historico.css";
-import { listarEmpresas } from "../../services/empresas";
+import { listarEmpresas, salvarEmpresas } from "../../services/empresas";
 import { listarOcorrencias } from "../../services/ocorrencias";
 import {
   calcularDiasNaEsteira,
@@ -30,6 +31,7 @@ import {
 } from "../../utils/monitoramento";
 import type { Empresa, Ocorrencia } from "../../types";
 import { formatarNome } from "../../utils/formatarNome";
+import { obterInfoTipoOcorrencia } from "../../utils/empresaUtils";
 import "./Relatorios.css";
 import { RelatorioScore } from "../RelatorioScore/RelatorioScore";
 import { RelatorioJornadaCliente } from "../RelatorioJornadaCliente/RelatorioJornadaCliente";
@@ -128,6 +130,8 @@ export const Relatorios: React.FC = () => {
   const [isAutoplayActive, setIsAutoplayActive] = useState<boolean>(false);
   const [intervaloSegundos, setIntervaloSegundos] = useState<number>(30);
   const [autoplayTimer, setAutoplayTimer] = useState<number>(30);
+
+
 
   const carregarDados = useCallback(async (silencioso = false) => {
     if (!silencioso) setLoading(true);
@@ -396,8 +400,8 @@ export const Relatorios: React.FC = () => {
         if (finalizacaoDate && finalizacaoDate.getTime() <= fimTimestamp) return false;
       }
 
-      // 3. Status live (ongoing/suspenso/concluído)
-      if (e.isOngoing || e.progresso >= 100) return false;
+      // 3. Status live (ongoing/suspenso/concluído) - Exclui suspensos que vão para o painel de CS
+      if (e.isOngoing || e.isSuspended || e.progresso >= 100) return false;
 
       // 4. Sem agendamento futuro em relação ao limite de corte
       const ocorrenciasDaEmpresa = ocorrencias.filter(
@@ -431,7 +435,79 @@ export const Relatorios: React.FC = () => {
         if (finalizacaoDate && finalizacaoDate.getTime() <= fimTimestamp) return false;
       }
 
-      // 3. Status live (ongoing/suspenso/concluído)
+      // 3. Status live (ongoing/suspenso/concluído) - Exclui suspensos
+      if (e.isOngoing || e.isSuspended || e.progresso >= 100) return false;
+
+      // 4. Sem agendamento futuro em relação ao limite de corte
+      const ocorrenciasDaEmpresa = ocorrencias.filter(
+        (o) => o.empresa.trim().toLowerCase() === e.nomeEmpresa.trim().toLowerCase()
+      );
+      const temAgendamentoFuturo = ocorrenciasDaEmpresa.some(
+        (o) =>
+          (o.tipo === "Informativa" || o.tipo === "Treinamento" || o.tipo === "Checkpoint") &&
+          o.dataOcorrencia &&
+          o.dataOcorrencia > limiteCorte
+      );
+
+      return !temAgendamentoFuturo;
+    });
+  }, [dadosEmpresas, ocorrencias, limitesSemanaComparacao]);
+
+  const emAcompanhamentoCS = useMemo(() => {
+    if (!limitesSemana) return [];
+    const fimTimestamp = limitesSemana.fim.getTime();
+    const agora = Date.now();
+    const limiteCorte = fimTimestamp > agora ? agora : fimTimestamp;
+
+    return dadosEmpresas.filter((e) => {
+      // 1. Deve ter entrado antes/durante a semana
+      const entradaDate = parseDataLocal(e.dataEntrada);
+      if (!entradaDate || entradaDate.getTime() > fimTimestamp) return false;
+
+      // 2. Não deve ter sido finalizado até o fim da semana
+      if (e.dataFinalizacao) {
+        const finalizacaoDate = parseDataLocal(e.dataFinalizacao);
+        if (finalizacaoDate && finalizacaoDate.getTime() <= fimTimestamp) return false;
+      }
+
+      // 3. Deve ser suspenso
+      if (!e.isSuspended) return false;
+      if (e.isOngoing || e.progresso >= 100) return false;
+
+      // 4. Sem agendamento futuro em relação ao limite de corte
+      const ocorrenciasDaEmpresa = ocorrencias.filter(
+        (o) => o.empresa.trim().toLowerCase() === e.nomeEmpresa.trim().toLowerCase()
+      );
+      const temAgendamentoFuturo = ocorrenciasDaEmpresa.some(
+        (o) =>
+          (o.tipo === "Informativa" || o.tipo === "Treinamento" || o.tipo === "Checkpoint") &&
+          o.dataOcorrencia &&
+          o.dataOcorrencia > limiteCorte
+      );
+
+      return !temAgendamentoFuturo;
+    });
+  }, [dadosEmpresas, ocorrencias, limitesSemana]);
+
+  const emAcompanhamentoCSComparacao = useMemo(() => {
+    if (!limitesSemanaComparacao) return [];
+    const fimTimestamp = limitesSemanaComparacao.fim.getTime();
+    const agora = Date.now();
+    const limiteCorte = fimTimestamp > agora ? agora : fimTimestamp;
+
+    return dadosEmpresas.filter((e) => {
+      // 1. Deve ter entrado antes/durante a semana de comparação
+      const entradaDate = parseDataLocal(e.dataEntrada);
+      if (!entradaDate || entradaDate.getTime() > fimTimestamp) return false;
+
+      // 2. Não deve ter sido finalizado até o fim da semana de comparação
+      if (e.dataFinalizacao) {
+        const finalizacaoDate = parseDataLocal(e.dataFinalizacao);
+        if (finalizacaoDate && finalizacaoDate.getTime() <= fimTimestamp) return false;
+      }
+
+      // 3. Deve ser suspenso
+      if (!e.isSuspended) return false;
       if (e.isOngoing || e.progresso >= 100) return false;
 
       // 4. Sem agendamento futuro em relação ao limite de corte
@@ -782,6 +858,14 @@ export const Relatorios: React.FC = () => {
       ehSazonal: true,
     },
     {
+      titulo: "Em acompanhamento com CS",
+      valor: emAcompanhamentoCS.length,
+      desc: "Suspensos temporariamente",
+      icone: <PauseCircle size={22} color="#f59e0b" />,
+      lista: emAcompanhamentoCS,
+      ehSazonal: true,
+    },
+    {
       titulo: "Acima do prazo",
       valor: acimaDoPrazo.length,
       desc: "Onboarding > 60d",
@@ -826,6 +910,9 @@ export const Relatorios: React.FC = () => {
       const semPassoComp = semProximoPassoComparacao.length;
       const pctSemPasso = formatarDiferenca(semProximoPasso.length, semPassoComp, true);
 
+      const emAcompCSComp = emAcompanhamentoCSComparacao.length;
+      const pctEmAcompCS = formatarDiferenca(emAcompanhamentoCS.length, emAcompCSComp, true);
+
       const acimaPrazoComp = acimaDoPrazoComparacao.length;
       const pctAcimaPrazo = formatarDiferenca(acimaDoPrazo.length, acimaPrazoComp, true);
 
@@ -836,8 +923,9 @@ COMPARATIVO COM A SEMANA DE: ${limitesSemanaComparacao.inicio.toLocaleDateString
 1. Entraram na esteira: ${entraramNaSemana.length} vs ${entrouComp} (${pctEntrou.texto})
 2. Concluíram a esteira: ${concluidosNaSemana.length} vs ${concluiuComp} (${pctConcluiu.texto})
 3. Sem próximo passo: ${semProximoPasso.length} vs ${semPassoComp} (${pctSemPasso.texto})
-4. Acima do prazo: ${acimaDoPrazo.length} vs ${acimaPrazoComp} (${pctAcimaPrazo.texto})
-5. Risco de Churn: ${riscoChurn.length} vs ${churnComp} (${pctChurn.texto})
+4. Em acompanhamento com CS: ${emAcompanhamentoCS.length} vs ${emAcompCSComp} (${pctEmAcompCS.texto})
+5. Acima do prazo: ${acimaDoPrazo.length} vs ${acimaPrazoComp} (${pctAcimaPrazo.texto})
+6. Risco de Churn: ${riscoChurn.length} vs ${churnComp} (${pctChurn.texto})
 
 CONTATOS COM SUPORTE:
 - Total: ${totalContatosSuporte} vs ${totalContatosSuporteComp} (${pctTotal.texto})
@@ -860,8 +948,9 @@ RESUMO DOS INDICADORES:
 2. Clientes que concluíram a esteira na semana: ${concluidosNaSemana.length}
 3. Contatos com suporte (atendimento Suporte): ${totalContatosSuporte} (Dúvidas: ${totalDuvidas}, Problemas: ${totalProblemas})
 4. Clientes sem próximo passo (farol vermelho): ${semProximoPasso.length}
-5. Clientes acima do prazo de onboarding (> 60 dias): ${acimaDoPrazo.length}
-6. Casos com risco de churn (Clientes em Alerta): ${riscoChurn.length}
+5. Clientes em acompanhamento com CS (suspensos): ${emAcompanhamentoCS.length}
+6. Clientes acima do prazo de onboarding (> 60 dias): ${acimaDoPrazo.length}
+7. Casos com risco de churn (Clientes em Alerta): ${riscoChurn.length}
 
 ==================================================
 DETALHAMENTO DOS INDICADORES:
@@ -907,7 +996,17 @@ ${semProximoPasso.length > 0
           .join("\n")
         : " - Nenhum cliente com farol vermelho e em progresso/alerta.\n"
       }
-5. CLIENTES ACIMA DO PRAZO DE ONBOARDING (> 60 dias) (${acimaDoPrazo.length})
+5. CLIENTES EM ACOMPANHAMENTO COM CS (${emAcompanhamentoCS.length})
+${emAcompanhamentoCS.length > 0
+        ? emAcompanhamentoCS
+          .map(
+            (e) =>
+              ` - ${e.nomeEmpresa}\n   Treinador: ${formatarNome(e.responsavel) || "-"}\n   CS: ${formatarNome(e.csResponsavel) || "-"}\n   Progresso: ${e.progresso}%\n   Valor do Contrato: ${e.valorContrato !== undefined ? `R$ ${e.valorContrato.toFixed(2)}` : "—"}\n`
+          )
+          .join("\n")
+        : " - Nenhum cliente suspenso nesta semana.\n"
+      }
+6. CLIENTES ACIMA DO PRAZO DE ONBOARDING (> 60 dias) (${acimaDoPrazo.length})
 ${acimaDoPrazo.length > 0
         ? acimaDoPrazo
           .map(
@@ -917,7 +1016,7 @@ ${acimaDoPrazo.length > 0
           .join("\n")
         : " - Nenhum cliente acima do prazo de 60 dias.\n"
       }
-6. CASOS COM RISCO DE CHURN (Clientes em Alerta) (${riscoChurn.length})
+7. CASOS COM RISCO DE CHURN (Clientes em Alerta) (${riscoChurn.length})
 ${riscoChurn.length > 0
         ? riscoChurn
           .map(
@@ -937,7 +1036,6 @@ ${riscoChurn.length > 0
     link.click();
     URL.revokeObjectURL(url);
   };
-
   const selectedKpi = kpis[kpiSelecionado];
 
   return (
@@ -1094,10 +1192,11 @@ ${riscoChurn.length > 0
                     else if (idx === 1) valorComp = concluidosNaSemanaComparacao.length;
                     else if (idx === 2) valorComp = totalContatosSuporteComp;
                     else if (idx === 3) valorComp = semProximoPassoComparacao.length;
-                    else if (idx === 4) valorComp = acimaDoPrazoComparacao.length;
-                    else if (idx === 5) valorComp = riscoChurnComparacao.length;
+                    else if (idx === 4) valorComp = emAcompanhamentoCSComparacao.length;
+                    else if (idx === 5) valorComp = acimaDoPrazoComparacao.length;
+                    else if (idx === 6) valorComp = riscoChurnComparacao.length;
 
-                    const menorEhMelhor = idx === 2 || idx === 3 || idx === 4 || idx === 5;
+                    const menorEhMelhor = idx === 2 || idx === 3 || idx === 4 || idx === 5 || idx === 6;
                     diffResult = formatarDiferenca(kpi.valor, valorComp, menorEhMelhor);
                   }
 
@@ -1536,9 +1635,14 @@ ${riscoChurn.length > 0
 
               <div>
                 <span>Tipo</span>
-                <strong className={`hist-item-tipo hist-item-tipo-detail ${TIPO_CLASS[ocorrenciaSelecionada.tipo] || ""}`}>
-                  {ocorrenciaSelecionada.tipo}
-                </strong>
+                {(() => {
+                  const tipoInfo = obterInfoTipoOcorrencia(ocorrenciaSelecionada);
+                  return (
+                    <strong className={`hist-item-tipo hist-item-tipo-detail ${tipoInfo.className}`}>
+                      {tipoInfo.label}
+                    </strong>
+                  );
+                })()}
               </div>
 
               <div>
@@ -1690,7 +1794,8 @@ ${riscoChurn.length > 0
               </div>
             )}
 
-            <div className="botoes" style={{ marginTop: "24px" }}>
+            <div className="botoes" style={{ marginTop: "24px", display: "flex", gap: "8px" }}>
+
               <button className="btn-secondary btn-small" onClick={() => setOcorrenciaSelecionada(null)}>
                 Fechar
               </button>

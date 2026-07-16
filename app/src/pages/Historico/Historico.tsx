@@ -21,7 +21,7 @@ import type { Ocorrencia, Empresa, OcorrenciaForm } from "../../types";
 import "./Historico.css";
 import { useAuth } from "../../context/AuthContext";
 import { formatarNome } from "../../utils/formatarNome";
-import { atribuirIdsOcorrencias } from "../../utils/empresaUtils";
+import { atribuirIdsOcorrencias, obterInfoTipoOcorrencia } from "../../utils/empresaUtils";
 import {
   Star,
   GraduationCap,
@@ -106,6 +106,8 @@ const EMPTY: OcorrenciaForm = {
   treinamentoTempoAgenda: "",
   treinamentoSolicitante: "CS",
   treinamentoNotas: [],
+  createdAt: "",
+  retornarEsteira: false,
 };
 
 interface ScoreFormAnswers {
@@ -520,6 +522,7 @@ export function Historico() {
     });
   }
 
+
   function fecharDetalhe() {
     setSelecionada(null);
     setNovaAtualizacaoAberta(false);
@@ -602,6 +605,15 @@ export function Historico() {
       hora = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
     }
 
+    let dataCriacaoFormatada = "";
+    if (o.createdAt && o.createdAt > 0 && !isNaN(o.createdAt)) {
+      const d = new Date(o.createdAt);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      dataCriacaoFormatada = `${year}-${month}-${day}`;
+    }
+
     setForm({
       empresa: o.empresa,
       tipo: o.tipo,
@@ -620,6 +632,8 @@ export function Historico() {
       treinamentoTempoAgenda: o.treinamentoTempoAgenda || "",
       treinamentoSolicitante: o.treinamentoSolicitante || "CS",
       treinamentoNotas: o.treinamentoNotas ? o.treinamentoNotas.map(String) : [],
+      createdAt: dataCriacaoFormatada,
+      retornarEsteira: o.retornarEsteira ?? false,
     });
     setTemaOcorrenciaOngoingText(o.temaOcorrencia?.join(", ") ?? "");
     setEditandoId(o.id ?? null);
@@ -754,8 +768,26 @@ export function Historico() {
         )
       : (form.temaOcorrencia ?? []);
 
+    let finalCreatedAt: number | undefined = undefined;
+    if (role === "master" && form.createdAt) {
+      const [year, month, day] = form.createdAt.split("-").map(Number);
+      const originalTime = ocorrenciaOriginal?.createdAt ? new Date(ocorrenciaOriginal.createdAt) : new Date();
+      finalCreatedAt = new Date(
+        year,
+        month - 1,
+        day,
+        originalTime.getHours(),
+        originalTime.getMinutes(),
+        originalTime.getSeconds(),
+        originalTime.getMilliseconds()
+      ).getTime();
+    } else if (ocorrenciaOriginal?.createdAt) {
+      finalCreatedAt = ocorrenciaOriginal.createdAt;
+    }
+
     const base: Ocorrencia = {
       ...form,
+      createdAt: finalCreatedAt,
       empresa: form.empresa.trim(),
       descricao: novaDescricao,
       responsavel: responsavelFinal,
@@ -921,13 +953,22 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
       if (pontoId) {
         try {
-          await atualizarLancamentoPonto(pontoId, lancamentoDados);
+          await atualizarLancamentoPonto(pontoId, {
+            ...lancamentoDados,
+            ...(finalCreatedAt !== undefined ? { dataLancamento: finalCreatedAt } : {}),
+          });
         } catch (error) {
           console.error("Erro ao atualizar lançamento de ponto:", error);
-          pontoId = await salvarLancamentoPonto(lancamentoDados);
+          pontoId = await salvarLancamentoPonto({
+            ...lancamentoDados,
+            ...(finalCreatedAt !== undefined ? { dataLancamento: finalCreatedAt } : {}),
+          });
         }
       } else {
-        pontoId = await salvarLancamentoPonto(lancamentoDados);
+        pontoId = await salvarLancamentoPonto({
+          ...lancamentoDados,
+          ...(finalCreatedAt !== undefined ? { dataLancamento: finalCreatedAt } : {}),
+        });
       }
 
       base.gamificacaoPontoId = pontoId;
@@ -941,6 +982,29 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
     }
 
     const savedId = await salvarOcorrencia(editandoId ? { ...base, id: editandoId } : base);
+
+    if (form.retornarEsteira) {
+      try {
+        await salvarEmpresas({
+          ...empresaObjeto,
+          ...(!!form.alerta !== !!empresaObjeto.alerta || form.retirarAlerta ? { alerta: !!form.alerta } : {}),
+          isSuspended: false,
+          updatedAt: Date.now(),
+        });
+      } catch (error) {
+        console.error("Erro ao remover suspensão da empresa:", error);
+      }
+    } else if (!!form.alerta !== !!empresaObjeto.alerta || form.retirarAlerta) {
+      try {
+        await salvarEmpresas({
+          ...empresaObjeto,
+          alerta: !!form.alerta,
+          updatedAt: Date.now(),
+        });
+      } catch (error) {
+        console.error("Erro ao sincronizar status de alerta na empresa:", error);
+      }
+    }
 
     if (pontoId) {
       try {
@@ -1627,11 +1691,14 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                     </td>
 
                     <td>
-                      <span
-                        className={`hist-item-tipo ${TIPO_CLASS[o.tipo] || ""}`}
-                      >
-                        {o.tipo}
-                      </span>
+                      {(() => {
+                        const tipoInfo = obterInfoTipoOcorrencia(o);
+                        return (
+                          <span className={`hist-item-tipo ${tipoInfo.className}`}>
+                            {tipoInfo.label}
+                          </span>
+                        );
+                      })()}
                     </td>
 
                     <td>👤 {formatarNome(o.responsavel) || "—"}</td>
@@ -1770,11 +1837,14 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
                 <div>
                   <span>Tipo</span>
-                  <strong
-                    className={`hist-item-tipo hist-item-tipo-detail ${TIPO_CLASS[selecionada.tipo]}`}
-                  >
-                    {selecionada.tipo}
-                  </strong>
+                  {(() => {
+                    const tipoInfo = obterInfoTipoOcorrencia(selecionada);
+                    return (
+                      <strong className={`hist-item-tipo hist-item-tipo-detail ${tipoInfo.className}`}>
+                        {tipoInfo.label}
+                      </strong>
+                    );
+                  })()}
                 </div>
 
                 <div>
@@ -2007,6 +2077,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               )}
 
               <div className="botoes">
+
                 {!novaAtualizacaoAberta && (role === "treinador" || role === "master" || (selecionada.responsavel && selecionada.responsavel.toLowerCase() === userName.toLowerCase())) && (
                   <button
                     className="btn-secondary btn-small"
@@ -2122,6 +2193,22 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                     }
                   />
                 </div>
+              </div>
+            )}
+
+            {role === "master" && (
+              <div className="hist-campo">
+                <label>Data de criação (apenas Master)</label>
+                <input
+                  type="date"
+                  value={form.createdAt ?? ""}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      createdAt: e.target.value,
+                    })
+                  }
+                />
               </div>
             )}
 
@@ -2409,6 +2496,31 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 Retirar do alerta ✅
               </label>
             </div>
+
+            {(() => {
+              const empresaObjetoForm = empresasList.find(
+                (e) => normalizar(e.nomeEmpresa) === normalizar(form.empresa)
+              );
+              const isSuspended = empresaObjetoForm?.isSuspended ?? false;
+              const canReactivate = role === "master" || role === "treinador" || role === "cs";
+              if ((isSuspended || form.retornarEsteira) && canReactivate) {
+                return (
+                  <div className="hist-campo hist-campo-row">
+                    <label className="checkbox-label" style={{ fontWeight: 600, color: "#6366f1" }}>
+                      <input
+                        type="checkbox"
+                        checked={form.retornarEsteira ?? false}
+                        onChange={(e) =>
+                          setForm({ ...form, retornarEsteira: e.target.checked })
+                        }
+                      />
+                      Retornar cliente à esteira principal 🔄 (remover suspensão)
+                    </label>
+                  </div>
+                );
+              }
+              return null;
+            })()}
 
             <div className="hist-campo">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>

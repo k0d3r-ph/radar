@@ -55,3 +55,45 @@ export function atribuirIdsOcorrencias(lista: Ocorrencia[], empresasList?: { nom
     idSeqFormatted: mapaIds.get(o),
   }));
 }
+
+export function obterInfoTipoOcorrencia(o: Ocorrencia): { label: string; className: string } {
+  if (o.tipo === "Treinamento") {
+    const temas = o.temaOcorrencia ?? [];
+    const isAusente = temas.some((t) => t.trim().toLowerCase() === "ausente");
+    const isCancelado = temas.some((t) => t.trim().toLowerCase() === "cancelado");
+
+    if (isAusente) {
+      return {
+        label: "Treinamento (Ausente)",
+        className: "tipo--treinamento-ausente",
+      };
+    }
+    if (isCancelado) {
+      return {
+        label: "Treinamento (Cancelado)",
+        className: "tipo--treinamento-cancelado",
+      };
+    }
+    return {
+      label: "Treinamento (Realizado)",
+      className: "tipo--treinamento",
+    };
+  }
+
+  const classes: Record<string, string> = {
+    Informativa: "tipo--informativa",
+    Financeira: "tipo--financeira",
+    Comercial: "tipo--comercial",
+    Treinamento: "tipo--treinamento",
+    Checkpoint: "tipo--checkpoint",
+    "Mudança de score": "tipo--mudanca-score",
+    Problema: "tipo--problema",
+    Dúvida: "tipo--duvida",
+  };
+
+  return {
+    label: o.tipo,
+    className: classes[o.tipo] || "",
+  };
+}
+

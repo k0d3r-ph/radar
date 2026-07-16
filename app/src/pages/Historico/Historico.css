@@ -2064,4 +2064,302 @@ body.dark-theme .doughnut-chart-empty-msg {
 }
 
 
+/* ============================================================
+   PAINEL DE RESUMO COM IA
+   ============================================================ */
+
+.hist-ia-panel {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.3s ease,
+              margin-bottom 0.3s ease;
+  margin-bottom: 0;
+}
+
+.hist-ia-panel.open {
+  max-height: 900px;
+  opacity: 1;
+  margin-bottom: 24px;
+}
+
+.hist-ia-inner {
+  background: linear-gradient(135deg, #1e1040 0%, #0f0a2e 100%);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: 20px;
+  padding: 28px 32px;
+  box-shadow: 0 20px 40px rgba(88, 28, 235, 0.15),
+              inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  position: relative;
+  overflow: hidden;
+}
+
+.hist-ia-inner::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #7c3aed, #a855f7, #c084fc, #7c3aed);
+  background-size: 200%;
+  animation: ia-shimmer 3s linear infinite;
+}
+
+@keyframes ia-shimmer {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+.hist-ia-header {
+  margin-bottom: 20px;
+}
+
+.hist-ia-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.hist-ia-title h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #e9d5ff;
+  letter-spacing: -0.3px;
+}
+
+.hist-ia-icon {
+  font-size: 22px;
+  filter: drop-shadow(0 0 8px rgba(167, 139, 250, 0.7));
+}
+
+.hist-ia-badge {
+  background: linear-gradient(135deg, #7c3aed, #a855f7);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.4);
+}
+
+.hist-ia-desc {
+  margin: 0;
+  font-size: 13px;
+  color: #a78bfa;
+  line-height: 1.5;
+}
+
+.hist-ia-controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.hist-ia-select {
+  flex: 1;
+  min-width: 220px;
+  height: 44px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  border-radius: 12px;
+  color: #e9d5ff;
+  font-size: 14px;
+  padding: 0 14px;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a78bfa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
+  padding-right: 36px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hist-ia-select:focus {
+  border-color: rgba(167, 139, 250, 0.7);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
+}
+
+.hist-ia-select option {
+  background: #1e1040;
+  color: #e9d5ff;
+}
+
+.hist-ia-btn {
+  height: 44px;
+  padding: 0 24px;
+  background: linear-gradient(135deg, #7c3aed, #a855f7);
+  color: #ffffff;
+  border: none;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  box-shadow: 0 4px 16px rgba(124, 58, 237, 0.4);
+  transition: all 0.2s ease;
+}
+
+.hist-ia-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(124, 58, 237, 0.55);
+}
+
+.hist-ia-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.hist-ia-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: ia-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes ia-spin {
+  to { transform: rotate(360deg); }
+}
+
+.hist-ia-erro {
+  margin-top: 16px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 12px;
+  padding: 14px 18px;
+  color: #fca5a5;
+  font-size: 13px;
+}
+
+.hist-ia-resultado {
+  margin-top: 20px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.hist-ia-resultado-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 20px;
+  background: rgba(124, 58, 237, 0.12);
+  border-bottom: 1px solid rgba(139, 92, 246, 0.2);
+  font-size: 13px;
+  color: #c4b5fd;
+}
+
+.hist-ia-resultado-header strong {
+  color: #e9d5ff;
+}
+
+.hist-ia-copy-btn {
+  background: rgba(124, 58, 237, 0.25);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  color: #c4b5fd;
+  border-radius: 8px;
+  padding: 5px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.hist-ia-copy-btn:hover {
+  background: rgba(124, 58, 237, 0.4);
+  color: #ffffff;
+}
+
+.hist-ia-texto {
+  padding: 20px 24px;
+  font-size: 14px;
+  line-height: 1.75;
+  color: #ddd6fe;
+  max-height: 500px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.hist-ia-texto::-webkit-scrollbar {
+  width: 6px;
+}
+
+.hist-ia-texto::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.hist-ia-texto::-webkit-scrollbar-thumb {
+  background: rgba(139, 92, 246, 0.35);
+  border-radius: 3px;
+}
+
+/* Light mode adjustments */
+body:not(.dark-theme) .hist-ia-inner {
+  background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+  border-color: rgba(124, 58, 237, 0.25);
+  box-shadow: 0 20px 40px rgba(88, 28, 235, 0.08);
+}
+
+body:not(.dark-theme) .hist-ia-title h3 {
+  color: #4c1d95;
+}
+
+body:not(.dark-theme) .hist-ia-desc {
+  color: #7c3aed;
+}
+
+body:not(.dark-theme) .hist-ia-select {
+  background: rgba(255, 255, 255, 0.8);
+  border-color: rgba(124, 58, 237, 0.35);
+  color: #3b0764;
+}
+
+body:not(.dark-theme) .hist-ia-select option {
+  background: #ffffff;
+  color: #3b0764;
+}
+
+body:not(.dark-theme) .hist-ia-resultado {
+  background: rgba(255, 255, 255, 0.6);
+  border-color: rgba(124, 58, 237, 0.2);
+}
+
+body:not(.dark-theme) .hist-ia-resultado-header {
+  background: rgba(124, 58, 237, 0.08);
+  color: #6d28d9;
+}
+
+body:not(.dark-theme) .hist-ia-resultado-header strong {
+  color: #4c1d95;
+}
+
+body:not(.dark-theme) .hist-ia-texto {
+  color: #3b0764;
+}
+
+body:not(.dark-theme) .hist-ia-copy-btn {
+  background: rgba(124, 58, 237, 0.1);
+  color: #7c3aed;
+}
+
+
 

@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import { WhatsAppController } from '../../adapters/controllers/WhatsAppController.js';
+import { IaController } from '../../adapters/controllers/IaController.js';
 import { WhatsAppWebClient } from '../whatsapp/WhatsAppWebClient.js';
 import { config } from '../config/env.js';
 
@@ -20,10 +21,15 @@ export function createExpressApp(
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-  // Rotas HTTP
+  // Rotas HTTP — WhatsApp
   app.get('/api/whatsapp/status', (req, res) => controller.status(req, res));
   app.post('/api/whatsapp/send', (req, res) => controller.send(req, res));
   app.post('/api/whatsapp/disconnect', (req, res) => controller.disconnect(req, res));
+
+  // Rotas HTTP — IA
+  const iaController = new IaController();
+  app.post('/api/ia/resumir', (req, res) => iaController.resumir(req, res));
+
 
   // Rota de depuração do Puppeteer
   app.get('/api/whatsapp/screenshot', async (req, res) => {

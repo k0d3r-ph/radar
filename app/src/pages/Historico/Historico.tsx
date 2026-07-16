@@ -11,6 +11,7 @@ import { listarUsuarios } from "../../services/auth";
 import type { UsuarioDocument } from "../../services/auth";
 import { enviarMensagemWhatsApp } from "../../services/whatsapp";
 import { notificarAlerta, notificarTreinamento } from "../../services/notificacoes";
+import { resumirOcorrencias } from "../../services/ia";
 import { generateEsteiraImage } from "../../utils/generateEsteiraImage";
 
 import {
@@ -106,6 +107,76 @@ function getOcorrenciaTimestamp(o: Ocorrencia): number {
   }
   return o.createdAt ?? o.dataOcorrencia ?? 0;
 }
+
+const parseInlineMarkdown = (text: string) => {
+  const parts: React.ReactNode[] = [];
+  let currentIndex = 0;
+  const boldRegex = /\*\*([^*]+)\*\*/g;
+  let match;
+
+  while ((match = boldRegex.exec(text)) !== null) {
+    if (match.index > currentIndex) {
+      parts.push(text.substring(currentIndex, match.index));
+    }
+    parts.push(
+      <strong key={match.index} style={{ fontWeight: 700, color: "inherit" }}>
+        {match[1]}
+      </strong>
+    );
+    currentIndex = boldRegex.lastIndex;
+  }
+
+  if (currentIndex < text.length) {
+    parts.push(text.substring(currentIndex));
+  }
+
+  return parts.length > 0 ? parts : text;
+};
+
+const renderMarkdown = (text: string) => {
+  if (!text) return null;
+  return text.split("\n").map((line, index) => {
+    // 1. Headers (e.g. ### 1. Visão Geral)
+    const headerMatch = line.match(/^(#{1,6})\s+(.*)$/);
+    if (headerMatch) {
+      const level = headerMatch[1].length;
+      const content = parseInlineMarkdown(headerMatch[2]);
+      const style = {
+        display: "block",
+        fontWeight: "bold" as const,
+        color: level <= 3 ? "#a5b4fc" : "#e9d5ff",
+        marginTop: index > 0 ? "16px" : "4px",
+        marginBottom: "8px",
+        fontSize: level === 1 ? "1.4rem" : level === 2 ? "1.2rem" : "1.05rem",
+      };
+      return <div key={index} style={style}>{content}</div>;
+    }
+
+    // 2. Bullet list items (e.g. • or - or *)
+    const bulletMatch = line.match(/^(\*|-|•)\s+(.*)$/);
+    if (bulletMatch) {
+      const content = parseInlineMarkdown(bulletMatch[2]);
+      return (
+        <div key={index} style={{ paddingLeft: "16px", marginBottom: "4px", display: "flex", gap: "6px", alignItems: "flex-start" }}>
+          <span style={{ color: "#a5b4fc" }}>•</span>
+          <span>{content}</span>
+        </div>
+      );
+    }
+
+    // 3. Empty lines
+    if (line.trim() === "") {
+      return <div key={index} style={{ height: "8px" }} />;
+    }
+
+    // 4. Standard text paragraphs
+    return (
+      <div key={index} style={{ marginBottom: "6px", display: "block" }}>
+        {parseInlineMarkdown(line)}
+      </div>
+    );
+  });
+};
 
 const TEMPLATE_TREINAMENTO = `Participantes: \n\nNOTA: \n\nRelatório de treinamento:\n\n• Cliente se manteve atento? \n• Cliente absorveu o conteúdo aplicado?\n• Cliente foi participativo?\n• Houve alguma interrupção?\n• Ambiente favorável (Som)?\n• Manifestou alguma insatisfação?\n• Treinamento foi gravado?\n\nRelatório do atendimento:\n\nE-mail: \nNota:\nTexto: `;
 
@@ -330,6 +401,11 @@ export function Historico() {
   const navigate = useNavigate();
   const [modalScoreAberto, setModalScoreAberto] = useState(false);
   const [dashboardAberto, setDashboardAberto] = useState(false);
+  const [painelIaAberto, setPainelIaAberto] = useState(false);
+  const [iaClienteSelecionado, setIaClienteSelecionado] = useState("");
+  const [iaResumo, setIaResumo] = useState("");
+  const [iaCarregando, setIaCarregando] = useState(false);
+  const [iaErro, setIaErro] = useState("");
   const [respostasScore, setRespostasScore] = useState<ScoreFormAnswers>({ ...INITIAL_SCORE_ANSWERS });
   const [calculoScoreResult, setCalculoScoreResult] = useState<{ score: number | null; tipo: "Fast" | "Safety" | ""; isNeutro?: boolean } | null>(null);
 
@@ -1604,6 +1680,20 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             >
               📊 {dashboardAberto ? "Ocultar Dashboard" : "Mostrar Dashboard"}
             </button>
+            <button 
+              className={`btn-secondary btn-dashboard-toggle ${painelIaAberto ? "active" : ""}`} 
+              onClick={() => {
+                setPainelIaAberto(prev => !prev);
+                if (!iaClienteSelecionado && empresaFiltro) {
+                  setIaClienteSelecionado(empresaFiltro);
+                }
+              }}
+              style={{
+                background: painelIaAberto ? "#4c1d95" : "#2e1065",
+              }}
+            >
+              ✨ {painelIaAberto ? "Fechar Resumo IA" : "Resumir com IA"}
+            </button>
             <button className="btn-primary hist-btn-novo" onClick={abrirNovo}>
               + Nova ocorrência
             </button>
@@ -1626,6 +1716,97 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             onItemClick={(depto) => setFiltroDepto(prev => prev === depto ? "" : depto)}
             selectedLabel={filtroDepto}
           />
+        </div>
+      </div>
+
+      {/* Painel de Resumo com IA */}
+      <div className={`hist-ia-panel ${painelIaAberto ? "open" : ""}`}>
+        <div className="hist-ia-inner">
+          <div className="hist-ia-header">
+            <div className="hist-ia-title">
+              <span className="hist-ia-icon">✨</span>
+              <h3>Resumo Inteligente do Cliente</h3>
+              <span className="hist-ia-badge">Gemini AI</span>
+            </div>
+            <p className="hist-ia-desc">
+              Selecione um cliente e gere um resumo executivo de todo o histórico de ocorrências com insights acionáveis.
+            </p>
+          </div>
+
+          <div className="hist-ia-controls">
+            <input
+              list="ia-clientes-datalist"
+              className="hist-ia-select"
+              value={iaClienteSelecionado}
+              onChange={(e) => {
+                setIaClienteSelecionado(e.target.value);
+                setIaResumo("");
+                setIaErro("");
+              }}
+              placeholder="Digite ou selecione um cliente..."
+            />
+            <datalist id="ia-clientes-datalist">
+              {[...new Set(ocorrencias.map(o => o.empresa))]
+                .sort((a, b) => a.localeCompare(b, "pt-BR"))
+                .map(nome => (
+                  <option key={nome} value={nome} />
+                ))
+              }
+            </datalist>
+
+            <button
+              className="hist-ia-btn"
+              disabled={!iaClienteSelecionado || iaCarregando}
+              onClick={async () => {
+                if (!iaClienteSelecionado) return;
+                setIaCarregando(true);
+                setIaResumo("");
+                setIaErro("");
+                try {
+                  const ocCliente = ocorrencias.filter(
+                    o => o.empresa.trim().toLowerCase() === iaClienteSelecionado.trim().toLowerCase()
+                  );
+                  const resultado = await resumirOcorrencias(iaClienteSelecionado, ocCliente);
+                  setIaResumo(resultado);
+                } catch (err: any) {
+                  setIaErro(err.message || "Erro ao gerar resumo.");
+                } finally {
+                  setIaCarregando(false);
+                }
+              }}
+            >
+              {iaCarregando ? (
+                <><span className="hist-ia-spinner" /> Gerando resumo...</>
+              ) : (
+                <>✨ Gerar Resumo</>
+              )}
+            </button>
+          </div>
+
+          {iaErro && (
+            <div className="hist-ia-erro">
+              ⚠️ {iaErro}
+            </div>
+          )}
+
+          {iaResumo && (
+            <div className="hist-ia-resultado">
+              <div className="hist-ia-resultado-header">
+                <span>Resumo: <strong>{iaClienteSelecionado}</strong></span>
+                <button
+                  className="hist-ia-copy-btn"
+                  onClick={() => {
+                    navigator.clipboard.writeText(iaResumo);
+                  }}
+                >
+                  📋 Copiar
+                </button>
+              </div>
+              <div className="hist-ia-texto">
+                {renderMarkdown(iaResumo)}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

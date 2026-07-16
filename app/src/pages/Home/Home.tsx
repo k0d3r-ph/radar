@@ -195,7 +195,7 @@ export default function Home() {
   const [historico, setHistorico] = useState<Ocorrencia[]>([]);
 
   const [listaCS, setListaCS] = useState<string[]>(() => {
-    const baseCS = ["Jeferson", "Rafaela", "Luiz Felipe", "João", "Eduarda Melo", "Lucas Barreto", "Ana Carolina"];
+    const baseCS = ["Jeferson Augusto", "Rafaela Agnelo", "Luiz Felipe", "João Pedro", "Eduarda Melo", "Lucas Barreto", "Ana Carolina"];
     return [...baseCS].sort((a, b) => a.localeCompare(b));
   });
 

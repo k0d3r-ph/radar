@@ -51,7 +51,17 @@ export class IaController {
       const genAI = new GoogleGenerativeAI(config.geminiApiKey);
       const model = genAI.getGenerativeModel({ model: 'gemini-3.5-flash' });
 
-      const ocorrenciasFormatadas = formatarOcorrenciasParaPrompt(ocorrencias);
+      // Ordenar por data decrescente (mais recente primeiro) e pegar as últimas 15
+      const ocorrenciasRecentes = [...ocorrencias]
+        .sort((a, b) => {
+          const timeA = a.dataOcorrencia || a.createdAt || 0;
+          const timeB = b.dataOcorrencia || b.createdAt || 0;
+          return timeB - timeA;
+        })
+        .slice(0, 15)
+        .reverse(); // Coloca em ordem cronológica (mais antiga para mais recente)
+
+      const ocorrenciasFormatadas = formatarOcorrenciasParaPrompt(ocorrenciasRecentes);
 
       const prompt = `Você é um analista de Customer Success especialista em relacionamento com clientes de software de gestão de frota.
 
@@ -69,9 +79,9 @@ Regras:
 - Se não houver dados suficientes para algum ponto, indique isso brevemente
 - Use marcadores e listas para facilitar a leitura
 
-TOTAL DE OCORRÊNCIAS: ${ocorrencias.length}
+TOTAL DE OCORRÊNCIAS DO CLIENTE: ${ocorrencias.length} (analisando as ${ocorrenciasRecentes.length} mais recentes)
 
-OCORRÊNCIAS:
+OCORRÊNCIAS ANALISADAS:
 ${ocorrenciasFormatadas}`;
 
       const result = await model.generateContent(prompt);

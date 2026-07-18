@@ -11,8 +11,21 @@ export function createExpressApp(
 ): express.Express {
   const app = express();
 
+  const allowedOrigins = config.corsOrigin
+    ? config.corsOrigin.split(',').map(o => o.trim())
+    : ['*'];
+
   app.use(cors({
-    origin: config.corsOrigin,
+    origin: (origin, callback) => {
+      // Permitir requisições sem origin (como mobile apps, curl, etc.)
+      if (!origin) return callback(null, true);
+      
+      if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(null, false);
+      }
+    },
     methods: ['GET', 'POST', 'OPTIONS'],
     credentials: true
   }));

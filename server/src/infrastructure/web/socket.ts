@@ -4,9 +4,20 @@ import { IWhatsAppService } from '../../domain/interfaces/IWhatsAppService.js';
 import { config } from '../config/env.js';
 
 export function createSocketServer(httpServer: HttpServer, whatsappService: IWhatsAppService): SocketServer {
+  const allowedOrigins = config.corsOrigin
+    ? config.corsOrigin.split(',').map(o => o.trim())
+    : ['*'];
+
   const io = new SocketServer(httpServer, {
     cors: {
-      origin: config.corsOrigin,
+      origin: (origin, callback) => {
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          callback(null, false);
+        }
+      },
       methods: ['GET', 'POST'],
       credentials: true
     }

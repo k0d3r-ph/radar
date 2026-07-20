@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import pkg from 'whatsapp-web.js';
 import qrcode from 'qrcode';
 import { IWhatsAppService } from '../../domain/interfaces/IWhatsAppService.js';
@@ -32,6 +34,22 @@ export class WhatsAppWebClient implements IWhatsAppService {
     return this.session;
   }
 
+  private cleanSingletonLock() {
+    try {
+      const dataPath = process.env.WWEBJS_AUTH_PATH || './.wwebjs_auth';
+      const clientId = 'radar-whatsapp-session';
+      const lockPath = path.join(dataPath, `session-${clientId}`, 'SingletonLock');
+      
+      if (fs.existsSync(lockPath)) {
+        console.log(`[WhatsApp] Removendo arquivo de lock do Puppeteer existente em: ${lockPath}`);
+        fs.unlinkSync(lockPath);
+        console.log('[WhatsApp] Lock de sessão limpo com sucesso.');
+      }
+    } catch (error) {
+      console.warn('[WhatsApp] Aviso ao tentar limpar SingletonLock (pode ser ignorado se não houver lock):', error);
+    }
+  }
+
   async initialize(): Promise<void> {
     if (this.client) {
       console.log('Cliente WhatsApp já instanciado. Status atual:', this.session.status);
@@ -42,7 +60,17 @@ export class WhatsAppWebClient implements IWhatsAppService {
       return this.initializingPromise;
     }
 
+    this.cleanSingletonLock();
+
     this.initializingPromise = (async () => {
+      let initTimeout: NodeJS.Timeout | null = null;
+      const clearInitTimeout = () => {
+        if (initTimeout) {
+          clearTimeout(initTimeout);
+          initTimeout = null;
+        }
+      };
+
       try {
         console.log('Iniciando instância do cliente WhatsApp...');
         this.updateStatus('authenticating');
@@ -73,7 +101,29 @@ export class WhatsAppWebClient implements IWhatsAppService {
           }
         });
 
+        // Timeout de segurança de 60 segundos para evitar travamento infinito no estado 'authenticating'
+        initTimeout = setTimeout(async () => {
+          if (this.session.status === 'authenticating') {
+            console.error('[WhatsApp] Timeout de 60s atingido durante a inicialização.');
+            this.updateStatus('disconnected');
+            if (this.client) {
+              try {
+                await this.client.destroy();
+              } catch (destroyError) {
+                console.error('[WhatsApp] Erro ao destruir cliente após timeout:', destroyError);
+              }
+            }
+            this.client = null;
+            this.initializingPromise = null;
+          }
+        }, 60000);
+
+        this.client.on('loading_screen', (percent: any, message: any) => {
+          console.log(`[WhatsApp] Carregando: ${percent}% - ${message}`);
+        });
+
         this.client.on('qr', async (qr: string) => {
+          clearInitTimeout();
           console.log('QR Code recebido. Convertendo para Base64...');
           try {
             const qrCodeBase64 = await qrcode.toDataURL(qr);
@@ -85,11 +135,13 @@ export class WhatsAppWebClient implements IWhatsAppService {
         });
 
         this.client.on('authenticated', () => {
+          clearInitTimeout();
           console.log('Cliente autenticado com sucesso!');
           this.updateStatus('authenticating');
         });
 
         this.client.on('auth_failure', (msg: any) => {
+          clearInitTimeout();
           console.error('Falha na autenticação do WhatsApp Web:', msg);
           this.updateStatus('disconnected');
           this.client = null;
@@ -97,6 +149,7 @@ export class WhatsAppWebClient implements IWhatsAppService {
         });
 
         this.client.on('ready', () => {
+          clearInitTimeout();
           console.log('WhatsApp Web está pronto!');
           const name = this.client.info?.pushname || 'Radar CRM';
           const number = this.client.info?.wid?.user || '';
@@ -104,6 +157,7 @@ export class WhatsAppWebClient implements IWhatsAppService {
         });
 
         this.client.on('disconnected', (reason: any) => {
+          clearInitTimeout();
           console.log('Cliente desconectado do WhatsApp Web. Razão:', reason);
           this.updateStatus('disconnected');
           try {
@@ -117,6 +171,7 @@ export class WhatsAppWebClient implements IWhatsAppService {
 
         await this.client.initialize();
       } catch (error) {
+        clearInitTimeout();
         console.error('Erro crítico na inicialização do WhatsApp Web:', error);
         this.updateStatus('disconnected');
         if (this.client) {

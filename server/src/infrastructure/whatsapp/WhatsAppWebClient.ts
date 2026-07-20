@@ -72,6 +72,21 @@ export class WhatsAppWebClient implements IWhatsAppService {
     }
   }
 
+  private deleteSessionFolder() {
+    try {
+      const dataPath = process.env.WWEBJS_AUTH_PATH || './.wwebjs_auth';
+      const clientId = 'radar-whatsapp-session';
+      const sessionPath = path.join(dataPath, `session-${clientId}`);
+      if (fs.existsSync(sessionPath)) {
+        console.log(`[WhatsApp] Removendo pasta de sessão do WhatsApp em: ${sessionPath}`);
+        fs.rmSync(sessionPath, { recursive: true, force: true });
+        console.log('[WhatsApp] Pasta de sessão limpa com sucesso.');
+      }
+    } catch (error) {
+      console.error('[WhatsApp] Erro ao tentar remover pasta de sessão:', error);
+    }
+  }
+
   async initialize(): Promise<void> {
     if (this.client) {
       console.log('Cliente WhatsApp já instanciado. Status atual:', this.session.status);
@@ -170,6 +185,7 @@ export class WhatsAppWebClient implements IWhatsAppService {
           clearInitTimeout();
           console.error('Falha na autenticação do WhatsApp Web:', msg);
           this.updateStatus('disconnected');
+          this.deleteSessionFolder();
           this.client = null;
           this.initializingPromise = null;
         });
@@ -186,6 +202,7 @@ export class WhatsAppWebClient implements IWhatsAppService {
           clearInitTimeout();
           console.log('Cliente desconectado do WhatsApp Web. Razão:', reason);
           this.updateStatus('disconnected');
+          this.deleteSessionFolder();
           try {
             await this.client.destroy();
           } catch (e) {

@@ -1,11 +1,33 @@
 import fs from 'fs';
 import path from 'path';
+import https from 'https';
 import pkg from 'whatsapp-web.js';
 import qrcode from 'qrcode';
 import { IWhatsAppService } from '../../domain/interfaces/IWhatsAppService.js';
 import { WhatsAppSession, ConnectionStatus } from '../../domain/entities/WhatsAppSession.js';
 
 const { Client, LocalAuth, MessageMedia } = pkg;
+
+function fetchLatestWhatsAppVersion(): Promise<string> {
+  return new Promise((resolve) => {
+    https.get('https://raw.githubusercontent.com/wppconnect-team/wa-version/main/versions.json', (res) => {
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => {
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed && parsed.currentVersion) {
+            resolve(parsed.currentVersion);
+            return;
+          }
+        } catch (e) {}
+        resolve('2.3000.1043472287-alpha');
+      });
+    }).on('error', () => {
+      resolve('2.3000.1043472287-alpha');
+    });
+  });
+}
 
 export class WhatsAppWebClient implements IWhatsAppService {
   private client: any = null;
@@ -75,6 +97,9 @@ export class WhatsAppWebClient implements IWhatsAppService {
         console.log('Iniciando instância do cliente WhatsApp...');
         this.updateStatus('authenticating');
 
+        const latestVersion = await fetchLatestWhatsAppVersion();
+        console.log(`[WhatsApp] Utilizando versão do WhatsApp Web: ${latestVersion}`);
+
         this.client = new Client({
           authStrategy: new LocalAuth({
             clientId: 'radar-whatsapp-session',
@@ -82,7 +107,7 @@ export class WhatsAppWebClient implements IWhatsAppService {
           }),
           webVersionCache: {
             type: 'remote',
-            remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html',
+            remotePath: `https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/${latestVersion}.html`,
             strict: false
           },
           puppeteer: {

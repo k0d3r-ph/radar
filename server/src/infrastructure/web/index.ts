@@ -52,6 +52,14 @@ async function bootstrap() {
   }
 }
 
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[Anti-Crash] Rejeição de promessa não tratada em:', promise, 'razão:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('[Anti-Crash] Exceção não tratada capturada:', err);
+});
+
 bootstrap().catch((err) => {
   console.error('Erro crítico ao inicializar o servidor backend:', err);
   process.exit(1);

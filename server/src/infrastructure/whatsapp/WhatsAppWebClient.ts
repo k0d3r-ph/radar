@@ -182,14 +182,14 @@ export class WhatsAppWebClient implements IWhatsAppService {
           this.updateStatus('connected', undefined, { name, number });
         });
 
-        this.client.on('disconnected', (reason: any) => {
+        this.client.on('disconnected', async (reason: any) => {
           clearInitTimeout();
           console.log('Cliente desconectado do WhatsApp Web. Razão:', reason);
           this.updateStatus('disconnected');
           try {
-            this.client.destroy();
+            await this.client.destroy();
           } catch (e) {
-            // Ignora erros ao fechar
+            console.warn('[WhatsApp] Erro ao destruir cliente no disconnected (pode ser ignorado):', e);
           }
           this.client = null;
           this.initializingPromise = null;

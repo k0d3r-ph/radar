@@ -143,10 +143,10 @@ export class WhatsAppWebClient implements IWhatsAppService {
           }
         });
 
-        // Timeout de segurança de 60 segundos para evitar travamento infinito no estado 'authenticating'
+        // Timeout de segurança de 120 segundos para evitar travamento infinito no estado 'authenticating'
         initTimeout = setTimeout(async () => {
           if (this.session.status === 'authenticating') {
-            console.error('[WhatsApp] Timeout de 60s atingido durante a inicialização.');
+            console.error('[WhatsApp] Timeout de 120s atingido durante a inicialização.');
             this.updateStatus('disconnected');
             if (this.client) {
               try {
@@ -158,7 +158,7 @@ export class WhatsAppWebClient implements IWhatsAppService {
             this.client = null;
             this.initializingPromise = null;
           }
-        }, 60000);
+        }, 120000);
 
         this.client.on('loading_screen', (percent: any, message: any) => {
           console.log(`[WhatsApp] Carregando: ${percent}% - ${message}`);
@@ -182,10 +182,15 @@ export class WhatsAppWebClient implements IWhatsAppService {
           this.updateStatus('authenticating');
         });
 
-        this.client.on('auth_failure', (msg: any) => {
+        this.client.on('auth_failure', async (msg: any) => {
           clearInitTimeout();
           console.error('Falha na autenticação do WhatsApp Web:', msg);
           this.updateStatus('disconnected');
+          try {
+            await this.client.destroy();
+          } catch (e) {
+            console.warn('[WhatsApp] Erro ao destruir cliente no auth_failure (pode ser ignorado):', e);
+          }
           this.deleteSessionFolder();
           this.client = null;
           this.initializingPromise = null;
@@ -203,12 +208,12 @@ export class WhatsAppWebClient implements IWhatsAppService {
           clearInitTimeout();
           console.log('Cliente desconectado do WhatsApp Web. Razão:', reason);
           this.updateStatus('disconnected');
-          this.deleteSessionFolder();
           try {
             await this.client.destroy();
           } catch (e) {
             console.warn('[WhatsApp] Erro ao destruir cliente no disconnected (pode ser ignorado):', e);
           }
+          this.deleteSessionFolder();
           this.client = null;
           this.initializingPromise = null;
         });

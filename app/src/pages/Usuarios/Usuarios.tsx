@@ -510,39 +510,39 @@ export const Usuarios: React.FC = () => {
                         </span>
                       </td>
                       <td className="action-col">
-                        {currentUserRole === "master" && (
+                        <div className="action-buttons-wrapper">
+                          {currentUserRole === "master" && (
+                            <button
+                              className="btn-edit-user"
+                              onClick={() => {
+                                setEditingUser(u);
+                                setEditingUserRole(u.role);
+                                setEditingUserCargo((u.cargo || "") as CargoCsUsuario);
+                                setEditingUserTelefone(u.telefone || "");
+                              }}
+                              title="Editar Perfil"
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                          )}
                           <button
-                            className="btn-edit-user"
+                            className="btn-reset-password-user"
                             onClick={() => {
-                              setEditingUser(u);
-                              setEditingUserRole(u.role);
-                              setEditingUserCargo((u.cargo || "") as CargoCsUsuario);
-                              setEditingUserTelefone(u.telefone || "");
+                              setResetPasswordUser(u);
+                              setNovaSenhaTemp("");
                             }}
-                            title="Editar Perfil"
-                            style={{ marginRight: "8px" }}
+                            title="Redefinir Senha do Usuário"
                           >
-                            <Edit2 size={16} />
+                            <KeyRound size={16} />
                           </button>
-                        )}
-                        <button
-                          className="btn-reset-password-user"
-                          onClick={() => {
-                            setResetPasswordUser(u);
-                            setNovaSenhaTemp("");
-                          }}
-                          title="Redefinir Senha do Usuário"
-                          style={{ marginRight: "8px" }}
-                        >
-                          <KeyRound size={16} />
-                        </button>
-                        <button
-                          className="btn-delete-user"
-                          onClick={() => setConfirmarExclusaoUid(u.uid)}
-                          title="Excluir Usuário"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                          <button
+                            className="btn-delete-user"
+                            onClick={() => setConfirmarExclusaoUid(u.uid)}
+                            title="Excluir Usuário"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

@@ -219,11 +219,24 @@
   border: 1px solid rgba(245, 158, 11, 0.2);
 }
 
-/* Delete User Button */
+/* Action column styling */
+.action-col {
+  text-align: center;
+  width: 140px;
+}
+
+.action-buttons-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* Base style for action buttons */
+.btn-edit-user,
+.btn-reset-password-user,
 .btn-delete-user {
   background: transparent;
-  border: 1px solid rgba(239, 68, 68, 0.2);
-  color: #f87171;
   width: 34px;
   height: 34px;
   border-radius: 8px;
@@ -232,28 +245,14 @@
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s ease;
-}
-
-.btn-delete-user:hover {
-  background-color: rgba(239, 68, 68, 0.15);
-  border-color: rgba(239, 68, 68, 0.4);
-  color: #ef4444;
-  box-shadow: 0 0 10px rgba(239, 68, 68, 0.1);
+  padding: 0;
+  box-sizing: border-box;
 }
 
 /* Edit User Button */
 .btn-edit-user {
-  background: transparent;
   border: 1px solid rgba(99, 102, 241, 0.2);
   color: #818cf8;
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
 }
 
 .btn-edit-user:hover {
@@ -263,9 +262,30 @@
   box-shadow: 0 0 10px rgba(99, 102, 241, 0.1);
 }
 
-.action-col {
-  text-align: center;
-  width: 110px;
+/* Reset Password Button */
+.btn-reset-password-user {
+  border: 1px solid rgba(251, 191, 36, 0.2);
+  color: #fbbf24;
+}
+
+.btn-reset-password-user:hover {
+  background-color: rgba(251, 191, 36, 0.15);
+  border-color: rgba(251, 191, 36, 0.4);
+  color: #f59e0b;
+  box-shadow: 0 0 10px rgba(251, 191, 36, 0.1);
+}
+
+/* Delete User Button */
+.btn-delete-user {
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+
+.btn-delete-user:hover {
+  background-color: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #ef4444;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.1);
 }
 
 /* Loader and blank states */
@@ -391,42 +411,5 @@
   }
 }
 
-/* Ações da tabela de usuários */
-.btn-edit-user,
-.btn-reset-password-user,
-.btn-delete-user {
-  background: none;
-  border: none;
-  padding: 8px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
 
-.btn-edit-user {
-  color: #818cf8;
-}
-
-.btn-edit-user:hover {
-  background-color: rgba(129, 140, 248, 0.1);
-}
-
-.btn-reset-password-user {
-  color: #fbbf24;
-}
-
-.btn-reset-password-user:hover {
-  background-color: rgba(251, 191, 36, 0.1);
-}
-
-.btn-delete-user {
-  color: #ef4444;
-}
-
-.btn-delete-user:hover {
-  background-color: rgba(239, 68, 68, 0.1);
-}
 

@@ -391,3 +391,42 @@
   }
 }
 
+/* Ações da tabela de usuários */
+.btn-edit-user,
+.btn-reset-password-user,
+.btn-delete-user {
+  background: none;
+  border: none;
+  padding: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-edit-user {
+  color: #818cf8;
+}
+
+.btn-edit-user:hover {
+  background-color: rgba(129, 140, 248, 0.1);
+}
+
+.btn-reset-password-user {
+  color: #fbbf24;
+}
+
+.btn-reset-password-user:hover {
+  background-color: rgba(251, 191, 36, 0.1);
+}
+
+.btn-delete-user {
+  color: #ef4444;
+}
+
+.btn-delete-user:hover {
+  background-color: rgba(239, 68, 68, 0.1);
+}
+

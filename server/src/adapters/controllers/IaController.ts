@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 import { config } from '../../infrastructure/config/env.js';
+
+const GEMINI_MODEL = 'gemini-3.6-flash';
 
 function formatarOcorrenciasParaPrompt(ocorrencias: any[]): string {
   if (!ocorrencias || ocorrencias.length === 0) return 'Nenhuma ocorrência encontrada.';
@@ -30,6 +32,30 @@ function formatarOcorrenciasParaPrompt(ocorrencias: any[]): string {
     .join('\n\n');
 }
 
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function gerarComRetry(ai: GoogleGenAI, prompt: string, tentativas = 3): Promise<string> {
+  let ultimoErro: any;
+  for (let i = 0; i < tentativas; i++) {
+    try {
+      const response = await ai.models.generateContent({
+        model: GEMINI_MODEL,
+        contents: prompt,
+      });
+      return response.text ?? '';
+    } catch (error: any) {
+      ultimoErro = error;
+      const status = error?.status || error?.httpStatusCode;
+      const isOverload = status === 503 || status === 429;
+      if (!isOverload || i === tentativas - 1) throw error;
+      await delay(1000 * (i + 1));
+    }
+  }
+  throw ultimoErro;
+}
+
 export class IaController {
   async resumir(req: Request, res: Response): Promise<void> {
     try {
@@ -48,8 +74,7 @@ export class IaController {
         return;
       }
 
-      const genAI = new GoogleGenerativeAI(config.geminiApiKey);
-      const model = genAI.getGenerativeModel({ model: 'gemini-3.5-flash' });
+      const ai = new GoogleGenAI({ apiKey: config.geminiApiKey });
 
       // Ordenar por data decrescente (mais recente primeiro) e pegar as últimas 15
       const ocorrenciasRecentes = [...ocorrencias]
@@ -63,29 +88,47 @@ export class IaController {
 
       const ocorrenciasFormatadas = formatarOcorrenciasParaPrompt(ocorrenciasRecentes);
 
-      const prompt = `Você é um analista de Customer Success especialista em relacionamento com clientes de software de gestão de frota.
+      const prompt = `Você é um analista que apoia a gestão multidisciplinar de clientes de um software de gestão de frota, analisando o cliente "${nomeCliente}" para gestores de várias áreas que têm pouco tempo de leitura.
 
-Analise o histórico de ocorrências abaixo do cliente "${nomeCliente}" e gere um resumo executivo em português contendo:
+As áreas envolvidas na operação são: CS, Treinamento, Suporte, Comercial e Hardware. Cada uma pode precisar agir de forma diferente sobre o mesmo cliente.
 
-**1. Visão Geral** – quantidade total de ocorrências, período coberto e tipos predominantes
-**2. Alertas e Problemas** – alertas ativos ou resolvidos e padrões de problema identificados
-**3. Progresso de Treinamento** – temas treinados, evolução e notas médias quando disponíveis
-**4. Pontos de Atenção** – riscos ou padrões negativos que merecem acompanhamento
-**5. Resumo Final** – diagnóstico geral do relacionamento com o cliente em 2 a 3 frases
+Gere um resumo curto, direto e "escaneável" em até 30 segundos de leitura. Use SOMENTE bullets de 1 linha (sem parágrafos longos, sem introduções). Priorize o que exige decisão ou ação de alguma área.
+
+Estrutura obrigatória (use "###" para os títulos, nesta ordem, omitindo seções sem conteúdo relevante):
+
+### 📊 Panorama
+2 a 3 bullets: status geral do relacionamento (Saudável / Atenção / Crítico), total de ocorrências, período coberto, tipo predominante.
+
+### 🚨 Riscos e Problemas
+Só inclua se houver algo relevante. 1 bullet por risco: alertas ativos, cancelamentos/ausências recorrentes, reclamações, chamados de suporte recorrentes, SLA estourado.
+
+### 🎓 Treinamento
+1 a 2 bullets: temas cobertos, notas/CSAT (se houver), evolução.
+
+### ✅ Ações Recomendadas por Área
+2 a 6 bullets no total, cobrindo TODAS as áreas relevantes para este cliente (não apenas CS). Cada bullet segue o formato "[Área] Verbo de ação + ação concreta e executável", por exemplo:
+- "[CS] Agendar retorno esta semana para resolver X"
+- "[Treinamento] Reforçar o tema Y, que teve nota baixa/foi cancelado repetidamente"
+- "[Suporte] Investigar causa raiz dos chamados recorrentes sobre Z"
+- "[Comercial] Avaliar risco de churn e acionar retenção"
+- "[Hardware] Verificar rastreador/equipamento reportado com falha"
+Só sugira ação para uma área se houver evidência nas ocorrências que a justifique. Se nenhuma área precisar agir, escreva um único bullet: "Nenhuma ação necessária, manter cadência atual".
+
+### 🎯 Veredito
+1 frase final com o diagnóstico geral e o nível de urgência.
 
 Regras:
-- Seja objetivo e use linguagem profissional
-- Foque em insights acionáveis para o time de CS
-- Se não houver dados suficientes para algum ponto, indique isso brevemente
-- Use marcadores e listas para facilitar a leitura
+- Português, tom profissional e direto
+- Nunca repita a mesma informação em duas seções
+- Se faltar dado para algum ponto, omita-o silenciosamente (não diga "não há dados")
+- Máximo de 16 bullets no total
 
 TOTAL DE OCORRÊNCIAS DO CLIENTE: ${ocorrencias.length} (analisando as ${ocorrenciasRecentes.length} mais recentes)
 
 OCORRÊNCIAS ANALISADAS:
 ${ocorrenciasFormatadas}`;
 
-      const result = await model.generateContent(prompt);
-      const resumo = result.response.text();
+      const resumo = await gerarComRetry(ai, prompt);
 
       res.status(200).json({ resumo });
     } catch (error: any) {

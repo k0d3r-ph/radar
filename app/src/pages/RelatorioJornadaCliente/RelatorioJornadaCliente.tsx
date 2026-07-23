@@ -18,7 +18,8 @@ import {
   FileText,
   Star,
   XCircle,
-  UserX
+  UserX,
+  HelpCircle
 } from "lucide-react";
 import type { Empresa, Ocorrencia } from "../../types";
 import { formatarNome } from "../../utils/formatarNome";
@@ -39,6 +40,7 @@ interface StageInterval {
   active: boolean;
   ocorrencia?: Ocorrencia;
   ocorrenciaFinalizadora?: Ocorrencia;
+  problemasDuvidas?: Ocorrencia[];
 }
 
 export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = ({
@@ -280,6 +282,26 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
         } else {
           mergedStages.push(current);
         }
+      }
+    }
+
+    // Associa dúvidas/problemas registrados a cada etapa, de acordo com o período em que ocorreram
+    const problemasEDuvidas = ocorrencias
+      .filter(
+        (o) =>
+          o.empresa.trim().toLowerCase() === empresa.nomeEmpresa.trim().toLowerCase() &&
+          (o.tipo === "Problema" || o.tipo === "Dúvida")
+      )
+      .map((o) => ({ ocorrencia: o, timeRef: o.createdAt ?? o.dataOcorrencia ?? 0 }))
+      .filter((o) => o.timeRef > 0)
+      .sort((a, b) => a.timeRef - b.timeRef);
+
+    for (const stage of mergedStages) {
+      const encontrados = problemasEDuvidas
+        .filter((o) => o.timeRef >= stage.startDate.getTime() && o.timeRef <= stage.endDate.getTime())
+        .map((o) => o.ocorrencia);
+      if (encontrados.length > 0) {
+        stage.problemasDuvidas = encontrados;
       }
     }
 
@@ -957,6 +979,30 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
                           {item.active && !empresaSelecionadaObj.isFinalizado && (
                             <div className="jornada-step-active-pulse" />
                           )}
+                          {item.problemasDuvidas && item.problemasDuvidas.length > 0 && (() => {
+                            const qtdProblemas = item.problemasDuvidas!.filter((o) => o.tipo === "Problema").length;
+                            const qtdDuvidas = item.problemasDuvidas!.filter((o) => o.tipo === "Dúvida").length;
+                            return (
+                              <>
+                                {qtdProblemas > 0 && (
+                                  <div
+                                    className="jornada-step-issue-badge problema"
+                                    title={`${qtdProblemas} problema(s) registrado(s) neste período. Clique para ver os detalhes.`}
+                                  >
+                                    {qtdProblemas}
+                                  </div>
+                                )}
+                                {qtdDuvidas > 0 && (
+                                  <div
+                                    className="jornada-step-issue-badge duvida"
+                                    title={`${qtdDuvidas} dúvida(s) registrada(s) neste período. Clique para ver os detalhes.`}
+                                  >
+                                    {qtdDuvidas}
+                                  </div>
+                                )}
+                              </>
+                            );
+                          })()}
                         </div>
                         <span className="jornada-step-name">
                           {item.stage === "Finalizado"
@@ -1114,6 +1160,50 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
                         <strong>Atenção: Limite de SLA Excedido!</strong> O cliente permaneceu{" "}
                         {etapaSelecionada.days} dias consecutivos sem um próximo passo de agendamento definido.
                         O prazo limite recomendado para esta etapa é de no máximo <strong>4 dias</strong>.
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Dúvidas/Problemas registrados durante o período desta etapa */}
+                  {etapaSelecionada.problemasDuvidas && etapaSelecionada.problemasDuvidas.length > 0 && (
+                    <div className="jornada-focus-ocorrencia-section" style={{ borderTop: "1px solid rgba(255, 255, 255, 0.05)", paddingTop: "1.25rem" }}>
+                      <h5 className="jornada-focus-oc-header">
+                        <AlertCircle size={14} style={{ marginRight: 6, verticalAlign: "middle" }} />
+                        Dúvidas / Problemas no Período ({etapaSelecionada.problemasDuvidas.length})
+                      </h5>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                        {etapaSelecionada.problemasDuvidas.map((oc, i) => {
+                          const isProblema = oc.tipo === "Problema";
+                          const corTipo = isProblema ? "#f87171" : "#22d3ee";
+                          return (
+                            <div
+                              key={oc.id || i}
+                              className="jornada-focus-desc"
+                              style={{ borderLeft: `3px solid ${corTipo}` }}
+                            >
+                              <h5 style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "6px" }}>
+                                <span style={{ color: corTipo, display: "inline-flex", alignItems: "center", gap: 4 }}>
+                                  {isProblema ? <AlertCircle size={13} /> : <HelpCircle size={13} />}
+                                  {obterInfoTipoOcorrencia(oc).label} ·{" "}
+                                  {new Date(oc.createdAt ?? oc.dataOcorrencia ?? 0).toLocaleDateString("pt-BR")}
+                                </span>
+                                <span style={{ textTransform: "none", fontWeight: 600, color: "#94a3b8" }}>
+                                  {formatarNome(oc.responsavel)}
+                                </span>
+                              </h5>
+                              <p>{oc.descricao}</p>
+                              {oc.temaOcorrencia && oc.temaOcorrencia.length > 0 && (
+                                <div className="temas-selecionados" style={{ marginTop: "0.75rem" }}>
+                                  {oc.temaOcorrencia.map((tema) => (
+                                    <span key={tema} className="tema-tag">
+                                      {tema}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}

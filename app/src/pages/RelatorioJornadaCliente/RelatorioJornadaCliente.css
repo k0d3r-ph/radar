@@ -515,6 +515,44 @@ body.light-theme .jornada-stepper-line {
   animation: pulse-active-stepper 2s infinite;
 }
 
+/* Badge de Dúvida/Problema registrado no período da etapa */
+.jornada-step-issue-badge {
+  position: absolute;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  border-radius: 9999px;
+  color: #ffffff;
+  font-size: 0.62rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #0f172a;
+  z-index: 4;
+  cursor: pointer;
+}
+
+/* Problema: vermelho, canto superior esquerdo */
+.jornada-step-issue-badge.problema {
+  top: -6px;
+  left: -6px;
+  background: #ef4444;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.6);
+}
+
+/* Dúvida: ciano, canto inferior esquerdo (cor distinta para não ser lida como "problema") */
+.jornada-step-issue-badge.duvida {
+  bottom: -6px;
+  left: -6px;
+  background: #06b6d4;
+  box-shadow: 0 0 6px rgba(6, 182, 212, 0.6);
+}
+
+body.light-theme .jornada-step-issue-badge {
+  border-color: #ffffff;
+}
+
 /* Nomes e Datas dos Nós */
 .jornada-step-name {
   font-size: 0.75rem;

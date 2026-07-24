@@ -3,6 +3,7 @@ import { GoogleGenAI } from '@google/genai';
 import { config } from '../../infrastructure/config/env.js';
 
 const GEMINI_MODEL = 'gemini-3.6-flash';
+const STREAM_ERROR_MARKER = '[[ERRO_IA]]';
 
 function formatarOcorrenciasParaPrompt(ocorrencias: any[]): string {
   if (!ocorrencias || ocorrencias.length === 0) return 'Nenhuma ocorrência encontrada.';
@@ -36,20 +37,26 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function gerarComRetry(ai: GoogleGenAI, prompt: string, tentativas = 3): Promise<string> {
+async function* gerarStreamComRetry(ai: GoogleGenAI, prompt: string, tentativas = 3): AsyncGenerator<string> {
   let ultimoErro: any;
   for (let i = 0; i < tentativas; i++) {
+    let algumTrechoEmitido = false;
     try {
-      const response = await ai.models.generateContent({
+      const stream = await ai.models.generateContentStream({
         model: GEMINI_MODEL,
         contents: prompt,
       });
-      return response.text ?? '';
+      for await (const chunk of stream) {
+        algumTrechoEmitido = true;
+        yield chunk.text ?? '';
+      }
+      return;
     } catch (error: any) {
       ultimoErro = error;
       const status = error?.status || error?.httpStatusCode;
       const isOverload = status === 503 || status === 429;
-      if (!isOverload || i === tentativas - 1) throw error;
+      // Já enviamos parte do texto ao cliente: não dá para reiniciar sem duplicar conteúdo.
+      if (algumTrechoEmitido || !isOverload || i === tentativas - 1) throw error;
       await delay(1000 * (i + 1));
     }
   }
@@ -128,18 +135,30 @@ TOTAL DE OCORRÊNCIAS DO CLIENTE: ${ocorrencias.length} (analisando as ${ocorren
 OCORRÊNCIAS ANALISADAS:
 ${ocorrenciasFormatadas}`;
 
-      const resumo = await gerarComRetry(ai, prompt);
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-cache');
+      // Sem efeito hoje (não há proxy na frente), mas evita buffering se um dia entrar um Nginx/Cloudflare.
+      res.setHeader('X-Accel-Buffering', 'no');
+      res.status(200);
 
-      res.status(200).json({ resumo });
+      try {
+        for await (const trecho of gerarStreamComRetry(ai, prompt)) {
+          res.write(trecho);
+        }
+        res.end();
+      } catch (error: any) {
+        console.error('[IaController] Erro ao gerar resumo (stream):', error?.message || error);
+        res.write(`\n\n${STREAM_ERROR_MARKER}`);
+        res.end();
+      }
     } catch (error: any) {
       const detalhe = error?.message || String(error);
-      const status = error?.status || error?.httpStatusCode || 500;
       console.error('[IaController] Erro ao gerar resumo:', detalhe);
-      res.status(500).json({
-        error: 'Erro ao gerar resumo com IA.',
-        details: detalhe,
-        geminiStatus: status,
-      });
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Erro ao gerar resumo com IA.', details: detalhe });
+      } else {
+        res.end();
+      }
     }
   }
 }

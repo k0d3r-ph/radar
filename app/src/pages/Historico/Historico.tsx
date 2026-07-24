@@ -1774,8 +1774,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   const ocCliente = ocorrencias.filter(
                     o => o.empresa.trim().toLowerCase() === iaClienteSelecionado.trim().toLowerCase()
                   );
-                  const resultado = await resumirOcorrencias(iaClienteSelecionado, ocCliente);
-                  setIaResumo(resultado);
+                  await resumirOcorrencias(iaClienteSelecionado, ocCliente, (textoParcial) => {
+                    setIaResumo(textoParcial);
+                  });
                 } catch (err: any) {
                   setIaErro(err.message || "Erro ao gerar resumo.");
                 } finally {

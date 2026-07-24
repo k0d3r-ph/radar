@@ -35,18 +35,20 @@ export class WhatsAppWebClient implements IWhatsAppService {
   }
 
   private cleanSingletonLock() {
-    try {
-      const dataPath = process.env.WWEBJS_AUTH_PATH || './.wwebjs_auth';
-      const clientId = 'radar-whatsapp-session';
-      const lockPath = path.join(dataPath, `session-${clientId}`, 'SingletonLock');
-      
-      if (fs.existsSync(lockPath)) {
-        console.log(`[WhatsApp] Removendo arquivo de lock do Puppeteer existente em: ${lockPath}`);
-        fs.unlinkSync(lockPath);
-        console.log('[WhatsApp] Lock de sessão limpo com sucesso.');
+    const dataPath = process.env.WWEBJS_AUTH_PATH || './.wwebjs_auth';
+    const clientId = 'radar-whatsapp-session';
+    const sessionDir = path.join(dataPath, `session-${clientId}`);
+
+    for (const fileName of ['SingletonLock', 'SingletonSocket', 'SingletonCookie']) {
+      try {
+        const filePath = path.join(sessionDir, fileName);
+        if (fs.existsSync(filePath)) {
+          console.log(`[WhatsApp] Removendo arquivo de lock do Puppeteer existente em: ${filePath}`);
+          fs.unlinkSync(filePath);
+        }
+      } catch (error) {
+        console.warn(`[WhatsApp] Aviso ao tentar limpar ${fileName} (pode ser ignorado se não houver lock):`, error);
       }
-    } catch (error) {
-      console.warn('[WhatsApp] Aviso ao tentar limpar SingletonLock (pode ser ignorado se não houver lock):', error);
     }
   }
 

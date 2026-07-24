@@ -34,6 +34,7 @@ import {
   Cpu,
   Trash2,
   X,
+  Share2,
 } from "lucide-react";
 
 const TIPOS = [
@@ -200,6 +201,7 @@ const EMPTY: OcorrenciaForm = {
   treinamentoNotas: [],
   createdAt: "",
   retornarEsteira: false,
+  temaForaEsteira: false,
 };
 
 interface ScoreFormAnswers {
@@ -446,6 +448,7 @@ export function Historico() {
   const [usarTemplate, setUsarTemplate] = useState(true);
   const [temaOcorrenciaOngoingText, setTemaOcorrenciaOngoingText] = useState("");
   const [isRevisao, setIsRevisao] = useState(false);
+  const [temaForaEsteira, setTemaForaEsteira] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 50;
 
@@ -688,6 +691,7 @@ export function Historico() {
     setRespostasScore({ ...INITIAL_SCORE_ANSWERS });
     setPainelAberto(true);
     setIsRevisao(false);
+    setTemaForaEsteira(false);
   }
 
   function abrirEdicao(o: Ocorrencia) {
@@ -739,6 +743,7 @@ export function Historico() {
     setRespostasScore({ ...INITIAL_SCORE_ANSWERS });
     setPainelAberto(true);
     setIsRevisao(o.isRevisao ?? false);
+    setTemaForaEsteira(o.temaForaEsteira ?? false);
   }
 
   function cancelar() {
@@ -750,6 +755,7 @@ export function Historico() {
     setCalculoScoreResult(null);
     setRespostasScore({ ...INITIAL_SCORE_ANSWERS });
     setIsRevisao(false);
+    setTemaForaEsteira(false);
   }
 
   function normalizar(str: string) {
@@ -895,6 +901,7 @@ export function Historico() {
       scoreAnswers: calculoScoreResult ? (calculoScoreResult.isNeutro ? null : respostasScore) : ocorrenciaOriginal?.scoreAnswers,
       temaOcorrencia: temaOcorrenciaFinal,
       isRevisao: form.tipo === "Treinamento" ? isRevisao : undefined,
+      temaForaEsteira: form.tipo === "Treinamento" ? temaForaEsteira : undefined,
       ...(form.tipo === "Treinamento" ? {
         treinamentoDataSolicitacao: form.treinamentoDataSolicitacao,
         treinamentoTempoAgenda: form.treinamentoTempoAgenda,
@@ -1165,6 +1172,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       form.tipo === "Treinamento" &&
       !isRevisao &&
       !isSelectedEmpresaOngoing &&
+      !temaForaEsteira &&
       empresaObjeto
     ) {
       const temasValidos = (form.temaOcorrencia ?? []).filter(
@@ -1309,7 +1317,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
           }
         });
 
-        if (indicesEnsinados.length > 0) {
+        if (indicesEnsinados.length > 0 && !temaForaEsteira) {
           const newTemas = [...linhasTema];
           const newDatas = [...linhasData];
           indicesEnsinados.forEach((idx) => {
@@ -2045,9 +2053,23 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               <div className="hist-detail-header">
                 <h2>Detalhes da interação {selecionada.idSeqFormatted ? `(${selecionada.idSeqFormatted})` : ""}</h2>
 
-                <button className="hist-detail-fechar" onClick={() => fecharDetalhe()} aria-label="Fechar detalhes">
-                  <X size={18} />
-                </button>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <button
+                    className="hist-detail-compartilhar"
+                    title="Copiar link direto para esta ocorrência"
+                    aria-label="Compartilhar ocorrência"
+                    onClick={() => {
+                      const url = `${window.location.origin}/historico?ocorrencia=${selecionada.id}`;
+                      navigator.clipboard.writeText(url);
+                      toast.success("Link copiado! Basta enviar para abrir direto nesta ocorrência.");
+                    }}
+                  >
+                    <Share2 size={16} />
+                  </button>
+                  <button className="hist-detail-fechar" onClick={() => fecharDetalhe()} aria-label="Fechar detalhes">
+                    <X size={18} />
+                  </button>
+                </div>
               </div>
 
               <div className="hist-detail-grid">
@@ -2568,7 +2590,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 <label>Temas abordados</label>
 
                 {/* Toggle de revisão */}
-                {!isSelectedEmpresaOngoing && (
+                {!isSelectedEmpresaOngoing && !temaForaEsteira && (
                   <label
                     className="checkbox-label revisao-toggle"
                     title="Revisões não avançam a posição na esteira"
@@ -2598,7 +2620,45 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                     </small>
                   </label>
                 )}
-                {isSelectedEmpresaOngoing ? (
+
+                {/* Toggle de tema fora da esteira */}
+                {!isSelectedEmpresaOngoing && !isRevisao && (
+                  <label
+                    className="checkbox-label tema-fora-esteira-toggle"
+                    title="Use para clientes que já concluíram a esteira (ou continuam além dela) e vão treinar um tema que não está na lista padrão"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      marginBottom: "10px",
+                      padding: "8px 12px",
+                      borderRadius: "8px",
+                      background: temaForaEsteira ? "rgba(16,185,129,0.12)" : "rgba(255,255,255,0.04)",
+                      border: temaForaEsteira ? "1px solid rgba(16,185,129,0.4)" : "1px solid rgba(255,255,255,0.08)",
+                      cursor: "pointer",
+                      transition: "all 0.2s ease",
+                      fontWeight: temaForaEsteira ? 600 : 400,
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={temaForaEsteira}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setTemaForaEsteira(checked);
+                        if (checked) {
+                          setTemaOcorrenciaOngoingText((form.temaOcorrencia ?? []).join(", "));
+                        }
+                      }}
+                      style={{ cursor: "pointer" }}
+                    />
+                    <span>🆕 Tema fora da esteira</span>
+                    <small style={{ color: "#94a3b8", fontWeight: 400 }}>
+                      {temaForaEsteira ? "(não avança a esteira — digite o tema livremente)" : "(marque para treinar um tema que não está previsto na esteira)"}
+                    </small>
+                  </label>
+                )}
+                {(isSelectedEmpresaOngoing || temaForaEsteira) ? (
                   <input
                     type="text"
                     value={temaOcorrenciaOngoingText}

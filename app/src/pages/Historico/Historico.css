@@ -521,6 +521,27 @@
   transform: rotate(90deg);
 }
 
+.hist-detail-compartilhar {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 0;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+}
+
+.hist-detail-compartilhar:hover {
+  background: #f0f4ff;
+  color: #0f2a5e;
+  transform: scale(1.1);
+}
+
 .hist-detail-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);

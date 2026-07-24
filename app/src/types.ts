@@ -71,6 +71,7 @@ export type Ocorrencia = {
   treinamentoNotaMedia?: number | null;
   isRevisao?: boolean;
   retornarEsteira?: boolean;
+  temaForaEsteira?: boolean;
 };
 
 export type OcorrenciaForm = {
@@ -94,6 +95,7 @@ export type OcorrenciaForm = {
   isRevisao?: boolean;
   createdAt?: string;
   retornarEsteira?: boolean;
+  temaForaEsteira?: boolean;
 };
 
 export type Atualizacao = {

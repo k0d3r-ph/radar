@@ -12,6 +12,7 @@ import {
   Edit2,
   Phone,
   Briefcase,
+  Lock,
 } from "lucide-react";
 import {
   criarNovoUsuario,
@@ -65,6 +66,11 @@ export const Usuarios: React.FC = () => {
   const [editingUserCargo, setEditingUserCargo] = useState<CargoCsUsuario>("");
   const [editingUserTelefone, setEditingUserTelefone] = useState("");
   const [savingRole, setSavingRole] = useState(false);
+
+  // Estados para redefinição de senha de usuários
+  const [resetPasswordUser, setResetPasswordUser] = useState<UsuarioDocument | null>(null);
+  const [novaSenhaTemp, setNovaSenhaTemp] = useState("");
+  const [resettingPassword, setResettingPassword] = useState(false);
 
   // Estados para reconsolidação de pontos da gamificação
   const [selectedOrphanId, setSelectedOrphanId] = useState("");
@@ -241,13 +247,22 @@ export const Usuarios: React.FC = () => {
   const handleExcluir = async (uid: string) => {
     setDeletingUid(uid);
     try {
-      await removerUsuarioFirestore(uid);
-      toast.success("Acesso do usuário excluído com sucesso!");
-      setConfirmarExclusaoUid(null);
-      await carregarUsuarios();
+      const response = await fetch(`http://localhost:5000/api/whatsapp/users/${uid}`, {
+        method: "DELETE"
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        toast.success("Usuário excluído por completo (Autenticação e Banco)!");
+        setConfirmarExclusaoUid(null);
+        await carregarUsuarios();
+      } else {
+        toast.error(data.error || "Erro ao excluir o registro do usuário.");
+      }
     } catch (error) {
       console.error("Erro ao excluir usuário:", error);
-      toast.error("Erro ao excluir o registro do usuário.");
+      toast.error("Erro ao tentar conectar ao servidor para excluir o usuário.");
     } finally {
       setDeletingUid(null);
     }
@@ -270,6 +285,41 @@ export const Usuarios: React.FC = () => {
       toast.error("Erro ao atualizar o perfil de acesso.");
     } finally {
       setSavingRole(false);
+    }
+  };
+
+  const handleResetPasswordConfirm = async () => {
+    if (!resetPasswordUser) return;
+    if (!novaSenhaTemp || novaSenhaTemp.length < 6) {
+      toast.error("A senha deve ter pelo menos 6 caracteres.");
+      return;
+    }
+
+    setResettingPassword(true);
+    try {
+      const response = await fetch(`http://localhost:5000/api/whatsapp/users/${resetPasswordUser.uid}/reset-password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ novaSenha: novaSenhaTemp.trim() })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        toast.success(`Senha do usuário ${resetPasswordUser.nome} redefinida com sucesso!`);
+        setResetPasswordUser(null);
+        setNovaSenhaTemp("");
+        await carregarUsuarios();
+      } else {
+        toast.error(data.error || "Erro ao redefinir a senha do usuário.");
+      }
+    } catch (error: any) {
+      console.error("Erro ao redefinir senha:", error);
+      toast.error("Erro ao tentar conectar ao servidor para redefinir a senha.");
+    } finally {
+      setResettingPassword(false);
     }
   };
 
@@ -460,28 +510,39 @@ export const Usuarios: React.FC = () => {
                         </span>
                       </td>
                       <td className="action-col">
-                        {currentUserRole === "master" && (
+                        <div className="action-buttons-wrapper">
+                          {currentUserRole === "master" && (
+                            <button
+                              className="btn-edit-user"
+                              onClick={() => {
+                                setEditingUser(u);
+                                setEditingUserRole(u.role);
+                                setEditingUserCargo((u.cargo || "") as CargoCsUsuario);
+                                setEditingUserTelefone(u.telefone || "");
+                              }}
+                              title="Editar Perfil"
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                          )}
                           <button
-                            className="btn-edit-user"
+                            className="btn-reset-password-user"
                             onClick={() => {
-                              setEditingUser(u);
-                              setEditingUserRole(u.role);
-                              setEditingUserCargo((u.cargo || "") as CargoCsUsuario);
-                              setEditingUserTelefone(u.telefone || "");
+                              setResetPasswordUser(u);
+                              setNovaSenhaTemp("");
                             }}
-                            title="Editar Perfil"
-                            style={{ marginRight: "8px" }}
+                            title="Redefinir Senha do Usuário"
                           >
-                            <Edit2 size={16} />
+                            <KeyRound size={16} />
                           </button>
-                        )}
-                        <button
-                          className="btn-delete-user"
-                          onClick={() => setConfirmarExclusaoUid(u.uid)}
-                          title="Excluir Usuário"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                          <button
+                            className="btn-delete-user"
+                            onClick={() => setConfirmarExclusaoUid(u.uid)}
+                            title="Excluir Usuário"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -683,6 +744,55 @@ export const Usuarios: React.FC = () => {
                 className="btn-cancelar-confirm"
                 onClick={() => setEditingUser(null)}
                 disabled={savingRole}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {resetPasswordUser && (
+        <div className="confirm-overlay" onClick={() => setResetPasswordUser(null)}>
+          <div className="confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="confirm-modal-header">
+              <KeyRound className="confirm-modal-icon" size={24} style={{ color: "#fbbf24" }} />
+              <h2>Redefinir Senha</h2>
+            </div>
+            <p className="confirm-modal-text">
+              Defina uma nova senha temporária para <strong>{formatarNome(resetPasswordUser.nome) || resetPasswordUser.email}</strong>. 
+              Ele será forçado a trocá-la no próximo acesso.
+            </p>
+            
+            <div className="input-group" style={{ marginTop: "15px" }}>
+              <label htmlFor="novaSenhaTemp">Nova Senha Temporária</label>
+              <div className="input-wrapper" style={{ marginTop: "8px" }}>
+                <Lock className="input-icon" size={18} />
+                <input
+                  id="novaSenhaTemp"
+                  type="text"
+                  placeholder="Mínimo 6 caracteres"
+                  value={novaSenhaTemp}
+                  onChange={(e) => setNovaSenhaTemp(e.target.value)}
+                  disabled={resettingPassword}
+                  style={{ width: "100%", paddingLeft: "45px" }}
+                />
+              </div>
+            </div>
+
+            <div className="confirm-modal-actions" style={{ marginTop: "20px" }}>
+              <button
+                className="btn-salvar-confirm"
+                onClick={handleResetPasswordConfirm}
+                disabled={resettingPassword || !novaSenhaTemp || novaSenhaTemp.length < 6}
+                style={{ background: "#fbbf24", color: "#111827", border: "1px solid #fbbf24" }}
+              >
+                {resettingPassword ? <div className="spinner"></div> : "Confirmar Reset"}
+              </button>
+              <button
+                className="btn-cancelar-confirm"
+                onClick={() => setResetPasswordUser(null)}
+                disabled={resettingPassword}
               >
                 Cancelar
               </button>

@@ -109,6 +109,59 @@ function getOcorrenciaTimestamp(o: Ocorrencia): number {
   return o.createdAt ?? o.dataOcorrencia ?? 0;
 }
 
+const normalizarTema = (s: string) =>
+  s.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+
+// Reordena a esteira de temas: qualquer tema recém-ensinado que esteja "fora
+// de sequência" (mais à frente que o próximo tema pendente) é puxado para
+// ficar logo após o último tema já ensinado — mantendo os temas ensinados
+// sempre como um prefixo contíguo, mesmo quando são ensinados em ocorrências
+// separadas (uma por vez), e não só quando vários são marcados de uma vez na
+// mesma ocorrência.
+// Ex.: temas ensinados hoje = [Videotelemetria], já ensinados antes = [0,1] →
+// Videotelemetria (originalmente na posição 6) é movido para a posição 2.
+function reordenarTemasEnsinados(
+  linhasTema: string[],
+  linhasData: string[],
+  indicesEnsinados: number[],
+  dataStr: string
+): { newTemas: string[]; newDatas: string[]; ultimoIndice: number } {
+  const newTemas = [...linhasTema];
+  const newDatas = [...linhasData];
+
+  // Fronteira atual: primeiro índice ainda sem data (fim do prefixo já ensinado)
+  let frontIndex = 0;
+  while (frontIndex < newDatas.length && newDatas[frontIndex].trim() !== "") {
+    frontIndex++;
+  }
+
+  // Processa os temas ensinados nesta ocorrência em ordem crescente de índice original
+  const indicesOrdenados = [...indicesEnsinados].sort((a, b) => a - b);
+
+  for (const idxOriginal of indicesOrdenados) {
+    const temaAlvo = linhasTema[idxOriginal];
+    const posAtual = newTemas.findIndex((t) => normalizarTema(t) === normalizarTema(temaAlvo));
+
+    if (posAtual === -1 || posAtual < frontIndex) {
+      // Já processado/ensinado antes (ou tema duplicado) — não retrocede a fronteira
+      continue;
+    }
+
+    newDatas[posAtual] = dataStr;
+
+    if (posAtual > frontIndex) {
+      const [tRemovido] = newTemas.splice(posAtual, 1);
+      const [dRemovido] = newDatas.splice(posAtual, 1);
+      newTemas.splice(frontIndex, 0, tRemovido);
+      newDatas.splice(frontIndex, 0, dRemovido);
+    }
+
+    frontIndex++;
+  }
+
+  return { newTemas, newDatas, ultimoIndice: frontIndex - 1 };
+}
+
 const parseInlineMarkdown = (text: string) => {
   const parts: React.ReactNode[] = [];
   let currentIndex = 0;
@@ -1214,43 +1267,12 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         });
 
         if (indicesEnsinados.length > 0) {
-          // Cópias mutáveis para reordenar sem afetar as originais
-          const newTemas = [...linhasTema];
-          const newDatas = [...linhasData];
-
-          // Marca a data nos temas ensinados (posições originais nos arrays copiados)
-          indicesEnsinados.forEach((idx) => {
-            newDatas[idx] = dataStr;
-          });
-
-          // Reordena: temas ensinados "fora de sequência" (com gap) são puxados
-          // para ficarem contíguos logo após o último tema ensinado consecutivo.
-          // Ex: [Gateway(2), Rastreador(3), Videotelemetria(6)]
-          //  → Videotelemetria é movido para posição 4; Tema4 e Tema5 vão para 5 e 6.
-          let lastInsertedAt = indicesEnsinados[0];
-
-          for (let i = 1; i < indicesEnsinados.length; i++) {
-            const temaAlvo = linhasTema[indicesEnsinados[i]];
-
-            // Procura a posição atual desse tema no array já em mutação
-            const posAtual = newTemas.findIndex(
-              (t, pos) => pos > lastInsertedAt && normTema(t) === normTema(temaAlvo)
-            );
-
-            if (posAtual === lastInsertedAt + 1) {
-              // Já é contíguo — sem mover
-              lastInsertedAt = posAtual;
-            } else if (posAtual > lastInsertedAt + 1) {
-              // Há gap → puxa para logo após o último ensinado consecutivo
-              const [tRemovido] = newTemas.splice(posAtual, 1);
-              const [dRemovido] = newDatas.splice(posAtual, 1);
-              newTemas.splice(lastInsertedAt + 1, 0, tRemovido);
-              newDatas.splice(lastInsertedAt + 1, 0, dRemovido);
-              lastInsertedAt = lastInsertedAt + 1;
-            }
-          }
-
-          const ultimoIndice = lastInsertedAt;
+          const { newTemas, newDatas, ultimoIndice } = reordenarTemasEnsinados(
+            linhasTema,
+            linhasData,
+            indicesEnsinados,
+            dataStr
+          );
           const novoTemaText = newTemas.join("\n");
           const novoDataText = newDatas.join("\n");
 
@@ -1318,31 +1340,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         });
 
         if (indicesEnsinados.length > 0 && !temaForaEsteira) {
-          const newTemas = [...linhasTema];
-          const newDatas = [...linhasData];
-          indicesEnsinados.forEach((idx) => {
-            newDatas[idx] = dataStr;
-          });
-
-          let lastInsertedAt = indicesEnsinados[0];
-          for (let i = 1; i < indicesEnsinados.length; i++) {
-            const temaAlvo = linhasTema[indicesEnsinados[i]];
-            const posAtual = newTemas.findIndex(
-              (t, pos) => pos > lastInsertedAt && normTema(t) === normTema(temaAlvo)
-            );
-            if (posAtual > lastInsertedAt + 1) {
-              const [tRemovido] = newTemas.splice(posAtual, 1);
-              const [dRemovido] = newDatas.splice(posAtual, 1);
-              newTemas.splice(lastInsertedAt + 1, 0, tRemovido);
-              newDatas.splice(lastInsertedAt + 1, 0, dRemovido);
-              lastInsertedAt = lastInsertedAt + 1;
-            } else if (posAtual === lastInsertedAt + 1) {
-              lastInsertedAt = posAtual;
-            }
-          }
-          ultimoIndice = lastInsertedAt;
-          novoTemaText = newTemas.join("\n");
-          novoDataText = newDatas.join("\n");
+          const reordenado = reordenarTemasEnsinados(linhasTema, linhasData, indicesEnsinados, dataStr);
+          ultimoIndice = reordenado.ultimoIndice;
+          novoTemaText = reordenado.newTemas.join("\n");
+          novoDataText = reordenado.newDatas.join("\n");
         }
 
         const empresaAtualizada: Empresa = {

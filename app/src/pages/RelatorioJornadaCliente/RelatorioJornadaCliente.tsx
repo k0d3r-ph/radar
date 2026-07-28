@@ -87,8 +87,12 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
       return oc?.temaOcorrencia?.some(t => t.trim().toLowerCase() === termo.toLowerCase()) ?? false;
     };
 
-    const isCancelado = contemTema(item.ocorrencia, "cancelado") || contemTema(item.ocorrenciaFinalizadora, "cancelado");
-    const isAusente = contemTema(item.ocorrencia, "ausente") || contemTema(item.ocorrenciaFinalizadora, "ausente");
+    // O status da etapa depende apenas da ocorrência que a INICIOU. A ocorrência
+    // que a FINALIZA (ocorrenciaFinalizadora) pertence a um evento seguinte e não
+    // deve "contaminar" retroativamente o status desta etapa (ver calcularJornada:
+    // ocorrências de Cancelado/Ausente sem reagendamento ganham etapa própria).
+    const isCancelado = contemTema(item.ocorrencia, "cancelado");
+    const isAusente = contemTema(item.ocorrencia, "ausente");
 
     if (isCancelado) return "cancelado";
     if (isAusente) return "ausente";
@@ -181,7 +185,26 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
         if (scheduledTime > 0) {
           stageType = "Em treinamento";
         } else {
-          // Se não há agendamento válido definido, ignora a transição e segue na etapa atual
+          // Sem agendamento válido definido: normalmente é apenas o relato de
+          // conclusão da etapa anterior (via ocorrenciaFinalizadora, abaixo) e não
+          // avança a régua. Porém, se for um relato de Cancelamento/Ausência, ele
+          // representa um evento próprio e deve aparecer como uma etapa distinta
+          // na régua — não pode ficar escondido nem ser confundido com a etapa
+          // anterior (que pode ter sido concluída normalmente).
+          const isCanceladoOuAusente = oc.temaOcorrencia?.some(
+            (t) => t.trim().toLowerCase() === "cancelado" || t.trim().toLowerCase() === "ausente"
+          );
+          if (oc.tipo === "Treinamento" && isCanceladoOuAusente) {
+            stages.push({
+              stage: "Em treinamento",
+              startDate: new Date(currentTime),
+              endDate: new Date(currentTime),
+              days: 0,
+              slaBreached: false,
+              active: false,
+              ocorrencia: oc,
+            });
+          }
           continue;
         }
       }
@@ -263,7 +286,14 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
         const currentEndDay = current.endDate.toLocaleDateString("pt-BR");
         const isSameDay = lastEndDay === currentEndDay;
 
-        if (last.stage === current.stage && isSameDay) {
+        // Etapas que representam um Cancelamento/Ausência são eventos distintos e
+        // nunca devem ser mescladas de volta na etapa anterior, mesmo se caírem
+        // no mesmo dia (senão voltaríamos a "contaminar" a etapa anterior).
+        const currentEhCanceladoOuAusente = current.ocorrencia?.temaOcorrencia?.some(
+          (t) => t.trim().toLowerCase() === "cancelado" || t.trim().toLowerCase() === "ausente"
+        ) ?? false;
+
+        if (last.stage === current.stage && isSameDay && !currentEhCanceladoOuAusente) {
           // Mescla as etapas estendendo a data final da primeira
           last.endDate = current.endDate;
           const diffMs = last.endDate.getTime() - last.startDate.getTime();

@@ -317,8 +317,8 @@ function Esteira() {
                   duration: 2000,
                 });
 
-                // Esteira concluída agora (não estava finalizada antes): notifica Supervisor + CS Responsável
-                if (isFinished && !empresaExistente?.dataFinalizacao) {
+                // Esteira concluída agora (não estava finalizada antes e o cliente não é Ongoing): notifica Supervisor + CS Responsável
+                if (isFinished && !empresaExistente?.dataFinalizacao && !empresaExistente?.isOngoing) {
                   const empresaConcluida: Empresa = {
                     ...(empresaExistente as Empresa),
                     id: String(novoId || empresaId),

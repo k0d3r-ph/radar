@@ -52,9 +52,10 @@ export async function obterDestinatariosGestao(empresaObjeto: Empresa): Promise<
   return destinatarios;
 }
 
-export function montarMensagemAlertaGestao(empresa: Empresa): string {
+export function montarMensagemAlertaGestao(empresa: Empresa, ocorrenciaId?: string): string {
   const csLinha = empresa.csResponsavel ? `\nCS Responsável: *${empresa.csResponsavel}*` : "";
-  return `⚠️ *ALERTA* gerado para o cliente *${empresa.nomeEmpresa}*!${csLinha}\n\nAcesse o sistema para mais detalhes.`;
+  const linkLinha = ocorrenciaId ? `\n${construirUrlOcorrencia(ocorrenciaId)}` : "";
+  return `⚠️ *ALERTA* gerado para o cliente *${empresa.nomeEmpresa}*!${csLinha}${linkLinha}\n\nAcesse o sistema para mais detalhes.`;
 }
 
 /**

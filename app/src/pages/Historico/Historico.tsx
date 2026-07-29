@@ -1166,7 +1166,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             .then((destinatarios) => {
               if (destinatarios.length === 0) return;
               setGestaoDestinatarios(destinatarios);
-              setGestaoMensagem(montarMensagemAlertaGestao(empresaObjetoAlerta));
+              setGestaoMensagem(montarMensagemAlertaGestao(empresaObjetoAlerta, savedId));
               setGestaoConfirmModalOpen(true);
             })
             .catch((err) =>

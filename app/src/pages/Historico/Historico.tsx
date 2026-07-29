@@ -10,7 +10,7 @@ import { listarEmpresas, salvarEmpresas } from "../../services/empresas";
 import { listarUsuarios } from "../../services/auth";
 import type { UsuarioDocument } from "../../services/auth";
 import { enviarMensagemWhatsApp } from "../../services/whatsapp";
-import { notificarTreinamento, obterDestinatariosGestao, montarMensagemAlertaGestao, montarMensagemConclusaoEsteiraGestao } from "../../services/notificacoes";
+import { obterDestinatariosGestao, montarMensagemAlertaGestao, montarMensagemConclusaoEsteiraGestao } from "../../services/notificacoes";
 import type { DestinatarioGestao } from "../../services/notificacoes";
 import { resumirOcorrencias } from "../../services/ia";
 import { generateEsteiraImage } from "../../utils/generateEsteiraImage";
@@ -1150,12 +1150,6 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
     // Notificações automáticas (best-effort — erros não bloqueiam o fluxo)
     if (!editandoId) {
-      // Treinamento: notifica supervisores quando um novo treinamento é registrado
-      if (form.tipo === "Treinamento" && !form.isRevisao) {
-        notificarTreinamento(form.empresa, savedId).catch((err) =>
-          console.error("[notificações] Falha ao notificar supervisores de treinamento:", err)
-        );
-      }
       // Alerta: abre popup de confirmação para notificar o Supervisor e o CS Responsável do cliente
       if (form.alerta) {
         const empresaObjetoAlerta = empresasList.find(

@@ -5,7 +5,7 @@ import type { Empresa } from "../types";
 
 const BASE_URL = window.location.origin;
 
-function construirUrlOcorrencia(id: string): string {
+export function construirUrlOcorrencia(id: string): string {
   return `${BASE_URL}/historico?ocorrencia=${id}`;
 }
 
@@ -57,9 +57,15 @@ export function montarMensagemAlertaGestao(empresa: Empresa): string {
   return `⚠️ *ALERTA* gerado para o cliente *${empresa.nomeEmpresa}*!${csLinha}\n\nAcesse o sistema para mais detalhes.`;
 }
 
-export function montarMensagemConclusaoEsteiraGestao(empresa: Empresa): string {
+/**
+ * @param ocorrenciaId - Quando a conclusão foi detectada a partir de uma ocorrência (ex: treinamento
+ * que completou a esteira), inclui o link dessa ocorrência. Quando a esteira é concluída manualmente
+ * (sem uma ocorrência associada), o parâmetro deve ser omitido.
+ */
+export function montarMensagemConclusaoEsteiraGestao(empresa: Empresa, ocorrenciaId?: string): string {
   const csLinha = empresa.csResponsavel ? `\nCS Responsável: *${empresa.csResponsavel}*` : "";
-  return `🎉 O cliente *${empresa.nomeEmpresa}* concluiu a esteira de onboarding!${csLinha}\n\nAcesse o sistema para mais detalhes.`;
+  const linkLinha = ocorrenciaId ? `\n${construirUrlOcorrencia(ocorrenciaId)}` : "";
+  return `🎉 O cliente *${empresa.nomeEmpresa}* concluiu a esteira de onboarding!${csLinha}${linkLinha}\n\nAcesse o sistema para mais detalhes.`;
 }
 
 /**

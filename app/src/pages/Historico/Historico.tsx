@@ -10,7 +10,7 @@ import { listarEmpresas, salvarEmpresas } from "../../services/empresas";
 import { listarUsuarios } from "../../services/auth";
 import type { UsuarioDocument } from "../../services/auth";
 import { enviarMensagemWhatsApp } from "../../services/whatsapp";
-import { notificarTreinamento, obterDestinatariosGestao, montarMensagemAlertaGestao } from "../../services/notificacoes";
+import { notificarTreinamento, obterDestinatariosGestao, montarMensagemAlertaGestao, montarMensagemConclusaoEsteiraGestao } from "../../services/notificacoes";
 import type { DestinatarioGestao } from "../../services/notificacoes";
 import { resumirOcorrencias } from "../../services/ia";
 import { generateEsteiraImage } from "../../utils/generateEsteiraImage";
@@ -1295,7 +1295,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
           const novoTemaText = newTemas.join("\n");
           const novoDataText = newDatas.join("\n");
 
-          await salvarEmpresas({
+          // Conclusão da esteira: último tema atingido pela primeira vez através desta ocorrência
+          const concluiuAgora = ultimoIndice === linhasTema.length - 1 && !empresaObjeto.dataFinalizacao;
+
+          const empresaAtualizadaEsteira: Empresa = {
             ...empresaObjeto,
             // Preserva o score/tipo que possa ter sido atualizado mais cedo neste mesmo salvar()
             ...(calculoScoreResult ? {
@@ -1306,8 +1309,24 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             temaText: novoTemaText,
             dataText: novoDataText,
             currentPhase: Math.max(empresaObjeto.currentPhase ?? 0, ultimoIndice),
+            ...(concluiuAgora ? { dataFinalizacao: dataRealizacaoStr } : {}),
             updatedAt: Date.now(),
-          });
+          };
+
+          await salvarEmpresas(empresaAtualizadaEsteira);
+
+          if (concluiuAgora) {
+            obterDestinatariosGestao(empresaAtualizadaEsteira)
+              .then((destinatarios) => {
+                if (destinatarios.length === 0) return;
+                setGestaoDestinatarios(destinatarios);
+                setGestaoMensagem(montarMensagemConclusaoEsteiraGestao(empresaAtualizadaEsteira, savedId));
+                setGestaoConfirmModalOpen(true);
+              })
+              .catch((err) =>
+                console.error("[notificações] Falha ao montar destinatários de conclusão:", err)
+              );
+          }
         }
       }
     }

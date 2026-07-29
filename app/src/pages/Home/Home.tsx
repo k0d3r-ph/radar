@@ -1848,15 +1848,12 @@ export default function Home() {
                     display: "flex",
                     alignItems: "center",
                     gap: "6px",
-                    cursor: role === "master" ? "pointer" : "not-allowed",
-                    opacity: role === "master" ? 1 : 0.6
+                    cursor: "pointer",
                   }}
-                  title={role !== "master" ? "Apenas administradores Master podem suspender clientes" : ""}
                 >
                   <input
                     type="checkbox"
                     checked={clienteForm.isSuspended ?? false}
-                    disabled={role !== "master"}
                     onChange={(e) =>
                       setClienteForm({ ...clienteForm, isSuspended: e.target.checked })
                     }

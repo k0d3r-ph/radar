@@ -10,9 +10,11 @@ import { listarEmpresas, salvarEmpresas } from "../../services/empresas";
 import { listarUsuarios } from "../../services/auth";
 import type { UsuarioDocument } from "../../services/auth";
 import { enviarMensagemWhatsApp } from "../../services/whatsapp";
-import { notificarAlerta, notificarTreinamento } from "../../services/notificacoes";
+import { notificarTreinamento, obterDestinatariosGestao, montarMensagemAlertaGestao } from "../../services/notificacoes";
+import type { DestinatarioGestao } from "../../services/notificacoes";
 import { resumirOcorrencias } from "../../services/ia";
 import { generateEsteiraImage } from "../../utils/generateEsteiraImage";
+import { GestaoNotificacaoModal } from "../../components/GestaoNotificacaoModal";
 
 import {
   salvarLancamentoPonto,
@@ -477,6 +479,11 @@ export function Historico() {
   const [editedWhatsAppText, setEditedWhatsAppText] = useState("");
   const [sendConveyorImage, setSendConveyorImage] = useState(true);
   const [sendingWhatsApp, setSendingWhatsApp] = useState(false);
+
+  // Notificação de Gestão (Alerta -> Supervisor + CS Responsável) via WhatsApp
+  const [gestaoConfirmModalOpen, setGestaoConfirmModalOpen] = useState(false);
+  const [gestaoDestinatarios, setGestaoDestinatarios] = useState<DestinatarioGestao[]>([]);
+  const [gestaoMensagem, setGestaoMensagem] = useState("");
 
   const [novaAtualizacaoAberta, setNovaAtualizacaoAberta] = useState(false);
   const [novaDescricaoAtual, setNovaDescricaoAtual] = useState("");
@@ -1141,19 +1148,31 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
     const savedId = await salvarOcorrencia(editandoId ? { ...base, id: editandoId } : base);
 
-    // Notificações automáticas para supervisores (best-effort — erros não bloqueiam o fluxo)
+    // Notificações automáticas (best-effort — erros não bloqueiam o fluxo)
     if (!editandoId) {
-      // Alerta: notifica supervisores quando um alerta é marcado
-      if (form.alerta) {
-        notificarAlerta(form.empresa, savedId).catch((err) =>
-          console.error("[notificações] Falha ao notificar supervisores de alerta:", err)
-        );
-      }
       // Treinamento: notifica supervisores quando um novo treinamento é registrado
       if (form.tipo === "Treinamento" && !form.isRevisao) {
         notificarTreinamento(form.empresa, savedId).catch((err) =>
           console.error("[notificações] Falha ao notificar supervisores de treinamento:", err)
         );
+      }
+      // Alerta: abre popup de confirmação para notificar o Supervisor e o CS Responsável do cliente
+      if (form.alerta) {
+        const empresaObjetoAlerta = empresasList.find(
+          (e) => normalizar(e.nomeEmpresa) === normalizar(form.empresa)
+        );
+        if (empresaObjetoAlerta) {
+          obterDestinatariosGestao(empresaObjetoAlerta)
+            .then((destinatarios) => {
+              if (destinatarios.length === 0) return;
+              setGestaoDestinatarios(destinatarios);
+              setGestaoMensagem(montarMensagemAlertaGestao(empresaObjetoAlerta));
+              setGestaoConfirmModalOpen(true);
+            })
+            .catch((err) =>
+              console.error("[notificações] Falha ao montar destinatários de alerta:", err)
+            );
+        }
       }
     }
 
@@ -1463,10 +1482,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       return ["Informativa", "Financeira", "Comercial", "Treinamento", "Checkpoint", "Problema", "Dúvida"];
     }
     if (role === "treinador") {
-      return ["Informativa", "Treinamento", "Checkpoint", "Dúvida"];
+      return ["Informativa", "Treinamento", "Checkpoint", "Dúvida", "Solicitação"];
     }
     if (role === "suporte") {
-      return ["Informativa", "Problema", "Dúvida"];
+      return ["Informativa", "Problema", "Dúvida", "Solicitação"];
     }
     if (role === "hardware") {
       return ["Informativa"];
@@ -3375,6 +3394,19 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
           </div>
         </div>
       )}
+
+      <GestaoNotificacaoModal
+        open={gestaoConfirmModalOpen}
+        titulo="⚠️ Notificar Supervisor e CS Responsável sobre o alerta?"
+        destinatarios={gestaoDestinatarios}
+        mensagem={gestaoMensagem}
+        onChangeMensagem={setGestaoMensagem}
+        onClose={() => {
+          setGestaoConfirmModalOpen(false);
+          setGestaoDestinatarios([]);
+          setGestaoMensagem("");
+        }}
+      />
     </div>
   );
 }

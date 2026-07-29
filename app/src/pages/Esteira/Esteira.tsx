@@ -11,6 +11,9 @@ import FakeSelect from "../../components/FakeSelect";
 import { toast } from "sonner";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { obterDestinatariosGestao, montarMensagemConclusaoEsteiraGestao } from "../../services/notificacoes";
+import type { DestinatarioGestao } from "../../services/notificacoes";
+import { GestaoNotificacaoModal } from "../../components/GestaoNotificacaoModal";
 
 function normalizarNome(nome: string) {
   return nome
@@ -37,6 +40,11 @@ function Esteira() {
   const empresasOrdenadas = [...empresas].sort((a, b) =>
     a.nomeEmpresa.localeCompare(b.nomeEmpresa, "pt-BR"),
   );
+
+  // Notificação de Gestão (Conclusão da esteira -> Supervisor + CS Responsável) via WhatsApp
+  const [gestaoConfirmModalOpen, setGestaoConfirmModalOpen] = useState(false);
+  const [gestaoDestinatarios, setGestaoDestinatarios] = useState<DestinatarioGestao[]>([]);
+  const [gestaoMensagem, setGestaoMensagem] = useState("");
 
   useEffect(() => {
     async function carregar() {
@@ -309,6 +317,29 @@ function Esteira() {
                   duration: 2000,
                 });
 
+                // Esteira concluída agora (não estava finalizada antes): notifica Supervisor + CS Responsável
+                if (isFinished && !empresaExistente?.dataFinalizacao) {
+                  const empresaConcluida: Empresa = {
+                    ...(empresaExistente as Empresa),
+                    id: String(novoId || empresaId),
+                    nomeEmpresa,
+                    temaText,
+                    dataText,
+                    currentPhase,
+                    dataFinalizacao,
+                  };
+                  obterDestinatariosGestao(empresaConcluida)
+                    .then((destinatarios) => {
+                      if (destinatarios.length === 0) return;
+                      setGestaoDestinatarios(destinatarios);
+                      setGestaoMensagem(montarMensagemConclusaoEsteiraGestao(empresaConcluida));
+                      setGestaoConfirmModalOpen(true);
+                    })
+                    .catch((err) =>
+                      console.error("[notificações] Falha ao montar destinatários de conclusão:", err)
+                    );
+                }
+
                 setEmpresaId("");
                 setNomeEmpresa("");
                 setTemaText("");
@@ -563,6 +594,19 @@ function Esteira() {
           })}
         </svg>
       </div>
+
+      <GestaoNotificacaoModal
+        open={gestaoConfirmModalOpen}
+        titulo="🎉 Notificar Supervisor e CS Responsável sobre a conclusão da esteira?"
+        destinatarios={gestaoDestinatarios}
+        mensagem={gestaoMensagem}
+        onChangeMensagem={setGestaoMensagem}
+        onClose={() => {
+          setGestaoConfirmModalOpen(false);
+          setGestaoDestinatarios([]);
+          setGestaoMensagem("");
+        }}
+      />
     </div>
   );
 }

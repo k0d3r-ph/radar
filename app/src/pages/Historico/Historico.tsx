@@ -844,11 +844,11 @@ export function Historico() {
       return;
     }
 
-    if (form.tipo === "Treinamento") {
-      const CanceladoOuAusente = (form.temaOcorrencia ?? []).some(
-        (t) => t.trim().toLowerCase() === "cancelado" || t.trim().toLowerCase() === "ausente"
-      );
+    const CanceladoOuAusente = (form.temaOcorrencia ?? []).some(
+      (t) => t.trim().toLowerCase() === "cancelado" || t.trim().toLowerCase() === "ausente"
+    );
 
+    if (form.tipo === "Treinamento") {
       if (!form.treinamentoDataSolicitacao) {
         toast.error("Preencha a data de solicitação.");
         return;
@@ -879,7 +879,14 @@ export function Historico() {
 
     const isOngoing = empresaObjeto.isOngoing ?? false;
 
-    if (isTreinador && !editandoId && (form.tipo === "Informativa" || form.tipo === "Treinamento") && !calculoScoreResult && !isOngoing) {
+    if (
+      isTreinador &&
+      !editandoId &&
+      (form.tipo === "Informativa" || form.tipo === "Treinamento") &&
+      !calculoScoreResult &&
+      !isOngoing &&
+      !(form.tipo === "Treinamento" && CanceladoOuAusente)
+    ) {
       toast.error("O cálculo de score é obrigatório para ocorrências do tipo Informativa ou Treinamento.");
       return;
     }

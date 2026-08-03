@@ -108,14 +108,32 @@
 .checklist-flutuante-select {
   width: 100%;
   height: 38px;
-  padding: 0 0.75rem;
+  padding: 0 2rem 0 0.75rem;
   margin-bottom: 0.75rem;
-  background: rgba(148, 163, 184, 0.08);
+  background-color: rgba(148, 163, 184, 0.08);
   border: 1px solid rgba(148, 163, 184, 0.25);
   border-radius: 8px;
   color: #e2e8f0;
   font-size: 0.88rem;
   outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 0.6rem center;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.checklist-flutuante-select:hover,
+.checklist-flutuante-select:focus {
+  border-color: #3b82f6;
+  background-color: rgba(148, 163, 184, 0.12);
+}
+
+.checklist-flutuante-select option {
+  background-color: #1e293b;
+  color: #e2e8f0;
 }
 
 .checklist-flutuante-autor {

@@ -89,6 +89,7 @@ export function obterInfoTipoOcorrencia(o: Ocorrencia): { label: string; classNa
     "Mudança de score": "tipo--mudanca-score",
     Problema: "tipo--problema",
     Dúvida: "tipo--duvida",
+    Solicitação: "tipo--solicitacao",
   };
 
   return {

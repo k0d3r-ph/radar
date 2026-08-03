@@ -48,6 +48,7 @@ const TIPOS = [
   "Mudança de score",
   "Problema",
   "Dúvida",
+  "Solicitação",
 ];
 
 const DEPARTAMENTO = [
@@ -83,6 +84,7 @@ const TIPO_CLASS: Record<string, string> = {
   "Mudança de score": "tipo--mudanca-score",
   Problema: "tipo--problema",
   Dúvida: "tipo--duvida",
+  Solicitação: "tipo--solicitacao",
 };
 
 const TIPO_CORES: Record<string, string> = {
@@ -94,6 +96,7 @@ const TIPO_CORES: Record<string, string> = {
   "Mudança de score": "#0ea5e9",
   Problema: "#ef4444",
   Dúvida: "#14b8a6",
+  Solicitação: "#f97316",
 };
 
 const DEPARTAMENTO_CORES: Record<string, string> = {
@@ -1499,7 +1502,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
   const getAllowedTypes = () => {
     if (role === "master") {
-      return ["Informativa", "Financeira", "Comercial", "Treinamento", "Checkpoint", "Problema", "Dúvida"];
+      return ["Informativa", "Financeira", "Comercial", "Treinamento", "Checkpoint", "Problema", "Dúvida", "Solicitação"];
     }
     if (role === "treinador") {
       return ["Informativa", "Treinamento", "Checkpoint", "Dúvida", "Solicitação"];

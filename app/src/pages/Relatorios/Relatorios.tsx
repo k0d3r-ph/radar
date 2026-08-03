@@ -55,6 +55,7 @@ const TIPO_CLASS: Record<string, string> = {
   "Mudança de score": "tipo--mudanca-score",
   Problema: "tipo--problema",
   Dúvida: "tipo--duvida",
+  Solicitação: "tipo--solicitacao",
 };
 
 const DEPARTAMENTO_CLASS: Record<string, string> = {
@@ -100,7 +101,7 @@ function formatarDataISO(d: Date): string {
 export const Relatorios: React.FC = () => {
   const navigate = useNavigate();
   const { role } = useAuth();
-  const [activeTab, setActiveTab] = useState<"esteira" | "score" | "jornada">("esteira");
+  const [activeTab, setActiveTab] = useState<"esteira" | "score" | "jornada" | "executiva">("esteira");
 
   useEffect(() => {
     if (role === "painel" && activeTab !== "esteira") {
@@ -1048,14 +1049,18 @@ ${riscoChurn.length > 0
             ? "Visão Geral"
             : activeTab === "jornada"
               ? "Jornada do Cliente"
-              : "Relatório Geral de Scores"}
+              : activeTab === "executiva"
+                ? "Visão Executiva"
+                : "Relatório Geral de Scores"}
         </h1>
         <p>
           {activeTab === "esteira"
             ? "Indicadores consolidados sobre o andamento e status das implantações dos clientes."
             : activeTab === "jornada"
               ? "Acompanhamento do progresso, etapas de treinamento e checkpoints de capacitação dos clientes."
-              : "Estatísticas consolidadas e listagem de clientes baseadas no último cálculo de score."}
+              : activeTab === "executiva"
+                ? "Panorama consolidado para tomada de decisão estratégica."
+                : "Estatísticas consolidadas e listagem de clientes baseadas no último cálculo de score."}
         </p>
       </header>
 
@@ -1080,6 +1085,12 @@ ${riscoChurn.length > 0
               onClick={() => setActiveTab("jornada")}
             >
               Jornada do Cliente
+            </button>
+            <button
+              className={`relatorios-tab-btn ${activeTab === "executiva" ? "active" : ""}`}
+              onClick={() => setActiveTab("executiva")}
+            >
+              Visão Executiva
             </button>
           </>
         )}
@@ -1529,6 +1540,11 @@ ${riscoChurn.length > 0
         </>
       ) : activeTab === "score" ? (
         <RelatorioScore />
+      ) : activeTab === "executiva" ? (
+        <div className="relatorio-empty">
+          <span className="relatorio-empty-icon">📊</span>
+          <p>Visão Executiva em construção.</p>
+        </div>
       ) : (
         <RelatorioJornadaCliente empresas={empresas} ocorrencias={ocorrencias} />
       )}

@@ -835,6 +835,12 @@
   border-color: #fee2e2;
 }
 
+.tipo--solicitacao {
+  background: #ffedd5;
+  color: #c2410c;
+  border-color: #fed7aa;
+}
+
 .departamento-suporte {
   background: #fef3c7;
   color: #92400e;

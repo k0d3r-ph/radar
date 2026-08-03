@@ -1,76 +1,93 @@
 import { useEffect, useState } from "react";
 import { ListChecks, X } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { listarTarefasChecklist, criarTarefaChecklist, atualizarTarefaChecklist, removerTarefaChecklist } from "../services/checklist";
+import { listarUsuarios, type UsuarioDocument } from "../services/auth";
+import type { TarefaChecklist } from "../types";
 import "./ChecklistTarefas.css";
 
-interface Tarefa {
-  id: string;
-  descricao: string;
-  concluida: boolean;
-}
-
-function chaveStorage(uid: string) {
-  return `tarefas_${uid}`;
-}
-
-function carregarTarefas(uid: string): Tarefa[] {
-  try {
-    const bruto = localStorage.getItem(chaveStorage(uid));
-    return bruto ? JSON.parse(bruto) : [];
-  } catch {
-    return [];
-  }
-}
-
 export default function ChecklistTarefas() {
-  const { user } = useAuth();
+  const { user, role, userName } = useAuth();
 
   const [aberto, setAberto] = useState(false);
-  const [tarefas, setTarefas] = useState<Tarefa[]>([]);
+  const [tarefas, setTarefas] = useState<TarefaChecklist[]>([]);
   const [novaDescricao, setNovaDescricao] = useState("");
+  const [trainers, setTrainers] = useState<UsuarioDocument[]>([]);
+  const [blocoAtivo, setBlocoAtivo] = useState("");
+
+  const isMaster = role === "master";
 
   useEffect(() => {
     if (!user) return;
-    setTarefas(carregarTarefas(user.uid));
+    setBlocoAtivo(user.uid);
   }, [user]);
 
   useEffect(() => {
     if (!user) return;
-    localStorage.setItem(chaveStorage(user.uid), JSON.stringify(tarefas));
-  }, [tarefas, user]);
+    listarTarefasChecklist(aberto).then(setTarefas);
+  }, [user, aberto]);
 
-  function adicionarTarefa() {
-    const descricao = novaDescricao.trim();
-    if (!descricao) return;
-
-    setTarefas((prev) => [
-      { id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, descricao, concluida: false },
-      ...prev,
-    ]);
-    setNovaDescricao("");
-  }
-
-  function alternarConclusao(id: string) {
-    setTarefas((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, concluida: !t.concluida } : t)),
-    );
-  }
-
-  function excluirTarefa(id: string) {
-    setTarefas((prev) => prev.filter((t) => t.id !== id));
-  }
+  useEffect(() => {
+    if (!isMaster || !aberto) return;
+    listarUsuarios().then((lista) => {
+      const apenasTreinadores = lista.filter(
+        (u) => u.role === "treinador" || u.role === "master"
+      );
+      setTrainers(apenasTreinadores);
+    });
+  }, [isMaster, aberto]);
 
   if (!user) return null;
 
-  const pendentes = tarefas.filter((t) => !t.concluida);
-  const concluidas = tarefas.filter((t) => t.concluida);
+  const nomeBlocoAtivo =
+    blocoAtivo === user.uid ? userName : trainers.find((t) => t.uid === blocoAtivo)?.nome || "";
+
+  async function adicionarTarefa() {
+    if (!user) return;
+    const descricao = novaDescricao.trim();
+    if (!descricao) return;
+
+    const dados = {
+      treinadorId: blocoAtivo,
+      treinadorNome: nomeBlocoAtivo,
+      descricao,
+      concluida: false,
+      criadoPorId: user.uid,
+      criadoPorNome: userName,
+      createdAt: Date.now(),
+    };
+
+    const id = await criarTarefaChecklist(dados);
+    setTarefas((prev) => [{ id, ...dados }, ...prev]);
+    setNovaDescricao("");
+  }
+
+  async function alternarConclusao(tarefa: TarefaChecklist) {
+    if (!tarefa.id) return;
+    const concluida = !tarefa.concluida;
+    await atualizarTarefaChecklist(tarefa.id, { concluida });
+    setTarefas((prev) => prev.map((t) => (t.id === tarefa.id ? { ...t, concluida } : t)));
+  }
+
+  async function excluirTarefa(id?: string) {
+    if (!id) return;
+    await removerTarefaChecklist(id);
+    setTarefas((prev) => prev.filter((t) => t.id !== id));
+  }
+
+  const tarefasDoBloco = tarefas.filter((t) => t.treinadorId === blocoAtivo);
+  const pendentes = tarefasDoBloco.filter((t) => !t.concluida);
+  const concluidas = tarefasDoBloco.filter((t) => t.concluida);
+  const percentual = tarefasDoBloco.length
+    ? Math.round((concluidas.length / tarefasDoBloco.length) * 100)
+    : 0;
 
   return (
     <div className="checklist-flutuante">
       {aberto && (
         <div className="checklist-flutuante-painel">
           <div className="checklist-flutuante-header">
-            <h2>Minhas Tarefas</h2>
+            <h2>{blocoAtivo === user.uid ? "Minhas Tarefas" : `Tarefas de ${nomeBlocoAtivo}`} · {percentual}%</h2>
             <button
               type="button"
               className="checklist-flutuante-fechar"
@@ -80,6 +97,30 @@ export default function ChecklistTarefas() {
               <X size={16} />
             </button>
           </div>
+
+          <div className="checklist-flutuante-progresso">
+            <div
+              className="checklist-flutuante-progresso-preenchido"
+              style={{ width: `${percentual}%` }}
+            />
+          </div>
+
+          {isMaster && (
+            <select
+              className="checklist-flutuante-select"
+              value={blocoAtivo}
+              onChange={(e) => setBlocoAtivo(e.target.value)}
+            >
+              <option value={user.uid}>Minhas tarefas</option>
+              {trainers
+                .filter((t) => t.uid !== user.uid)
+                .map((t) => (
+                  <option key={t.uid} value={t.uid}>
+                    {t.nome}
+                  </option>
+                ))}
+            </select>
+          )}
 
           <div className="checklist-flutuante-form">
             <input
@@ -101,7 +142,7 @@ export default function ChecklistTarefas() {
             </button>
           </div>
 
-          {tarefas.length === 0 ? (
+          {tarefasDoBloco.length === 0 ? (
             <p className="checklist-flutuante-vazio">Nenhuma tarefa por aqui.</p>
           ) : (
             <ul className="checklist-flutuante-lista">
@@ -111,9 +152,16 @@ export default function ChecklistTarefas() {
                     <input
                       type="checkbox"
                       checked={tarefa.concluida}
-                      onChange={() => alternarConclusao(tarefa.id)}
+                      onChange={() => alternarConclusao(tarefa)}
                     />
-                    <span>{tarefa.descricao}</span>
+                    <span>
+                      {tarefa.descricao}
+                      {tarefa.criadoPorId !== tarefa.treinadorId && (
+                        <span className="checklist-flutuante-autor">
+                          adicionado por {tarefa.criadoPorNome}
+                        </span>
+                      )}
+                    </span>
                   </label>
                   <button
                     type="button"
@@ -132,9 +180,16 @@ export default function ChecklistTarefas() {
                     <input
                       type="checkbox"
                       checked={tarefa.concluida}
-                      onChange={() => alternarConclusao(tarefa.id)}
+                      onChange={() => alternarConclusao(tarefa)}
                     />
-                    <span>{tarefa.descricao}</span>
+                    <span>
+                      {tarefa.descricao}
+                      {tarefa.criadoPorId !== tarefa.treinadorId && (
+                        <span className="checklist-flutuante-autor">
+                          adicionado por {tarefa.criadoPorNome}
+                        </span>
+                      )}
+                    </span>
                   </label>
                   <button
                     type="button"

@@ -89,6 +89,42 @@
   color: #e2e8f0;
 }
 
+.checklist-flutuante-progresso {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.15);
+  overflow: hidden;
+  margin-bottom: 0.75rem;
+}
+
+.checklist-flutuante-progresso-preenchido {
+  height: 100%;
+  background: #3b82f6;
+  border-radius: 999px;
+  transition: width 0.2s ease;
+}
+
+.checklist-flutuante-select {
+  width: 100%;
+  height: 38px;
+  padding: 0 0.75rem;
+  margin-bottom: 0.75rem;
+  background: rgba(148, 163, 184, 0.08);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 8px;
+  color: #e2e8f0;
+  font-size: 0.88rem;
+  outline: none;
+}
+
+.checklist-flutuante-autor {
+  display: block;
+  font-size: 0.72rem;
+  color: #64748b;
+  margin-top: 0.15rem;
+}
+
 .checklist-flutuante-form {
   display: flex;
   gap: 0.5rem;

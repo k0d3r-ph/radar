@@ -143,3 +143,14 @@ export interface LancamentoPonto {
   isAlerta?: boolean;
 }
 
+export interface TarefaChecklist {
+  id?: string;
+  treinadorId: string;
+  treinadorNome: string;
+  descricao: string;
+  concluida: boolean;
+  criadoPorId: string;
+  criadoPorNome: string;
+  createdAt: number;
+}
+

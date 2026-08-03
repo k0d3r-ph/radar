@@ -11,6 +11,7 @@ import { Gamificacao } from "./pages/Gamificacao/Gamificacao";
 import { Relatorios } from "./pages/Relatorios/Relatorios";
 import { useTheme } from "./context/ThemeContext";
 import { WhatsAppSettings } from "./pages/WhatsApp/WhatsAppSettings";
+import ChecklistTarefas from "./components/ChecklistTarefas";
 
 
 function AppRoutes() {
@@ -171,6 +172,8 @@ function AppRoutes() {
         
         <Route path="*" element={<Navigate to={role === "painel" ? "/relatorios" : "/home"} replace />} />
       </Routes>
+
+      <ChecklistTarefas />
     </>
   );
 }

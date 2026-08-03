@@ -6,7 +6,7 @@ import {
   listarOcorrencias,
   removerOcorrencia,
 } from "../../services/ocorrencias";
-import { listarEmpresas, salvarEmpresas } from "../../services/empresas";
+import { listarEmpresas, salvarEmpresas, formatarTelefoneWhatsApp } from "../../services/empresas";
 import { listarUsuarios } from "../../services/auth";
 import type { UsuarioDocument } from "../../services/auth";
 import { enviarMensagemWhatsApp } from "../../services/whatsapp";
@@ -472,8 +472,7 @@ export function Historico() {
   // WhatsApp Integration States
   const [whatsappConfirmModalOpen, setWhatsappConfirmModalOpen] = useState(false);
   const [pendingWhatsAppMessage, setPendingWhatsAppMessage] = useState<{
-    to: string;
-    contato: string;
+    destinatarios: { nome: string; telefone: string }[];
     empresaNome: string;
     temas: string[];
     dataStr: string;
@@ -1343,8 +1342,17 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       : [];
 
     if (form.tipo === "Treinamento" && !isRevisao && empresaObjeto && temasValidos.length > 0) {
-      const telefoneLimpo = (empresaObjeto.telefone || "").replace(/\D/g, "");
-      if (!telefoneLimpo) {
+      const contatosBase = empresaObjeto.contatos && empresaObjeto.contatos.length > 0
+        ? empresaObjeto.contatos
+        : empresaObjeto.telefone || empresaObjeto.contato
+          ? [{ nome: empresaObjeto.contato || "", telefone: empresaObjeto.telefone || "" }]
+          : [];
+
+      const destinatarios = contatosBase
+        .map((c) => ({ nome: c.nome || "Cliente", telefone: formatarTelefoneWhatsApp(c.telefone) }))
+        .filter((c) => c.telefone);
+
+      if (destinatarios.length === 0) {
         toast.warning("Ocorrência registrada! No entanto, o cliente não possui telefone de contato cadastrado para envio do WhatsApp.");
         await carregar();
         setSalvando(false);
@@ -1401,20 +1409,14 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
           updatedAt: Date.now(),
         };
 
-        const contatoNome = empresaObjeto.contato || "Cliente";
+        const contatoNome = destinatarios[0]?.nome || "Cliente";
         const [year, month, day] = dataRealizacaoStr.split("-");
         const dataCompleta = `${day}/${month}/${year}`;
         const plural = temasValidos.length > 1;
         const textoMensagem = `Olá, *${contatoNome}* (${empresaObjeto.nomeEmpresa})! 🚀\nSeu treinamento sobre ${plural ? "os temas" : "o tema"} *${temasValidos.join(", ")}* foi registrado com sucesso em *${dataCompleta}*.\n\nConfira abaixo a sua esteira de evolução atualizada:`;
 
-        let telefoneFormatado = telefoneLimpo;
-        if (telefoneLimpo.length === 10 || telefoneLimpo.length === 11) {
-          telefoneFormatado = "55" + telefoneLimpo;
-        }
-
         setPendingWhatsAppMessage({
-          to: telefoneFormatado,
-          contato: contatoNome,
+          destinatarios,
           empresaNome: empresaObjeto.nomeEmpresa,
           temas: temasValidos,
           dataStr: dataCompleta,
@@ -3320,15 +3322,13 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               
               <div style={{ marginBottom: "16px" }}>
                 <label style={{ display: "block", fontSize: "0.8rem", fontWeight: "600", marginBottom: "6px", color: "var(--text-color, #ffffff)" }}>
-                  Destinatário (WhatsApp do cliente)
+                  Destinatários (WhatsApp do cliente)
                 </label>
-                <input
-                  type="text"
-                  value={`+${pendingWhatsAppMessage.to} (${pendingWhatsAppMessage.contato})`}
-                  disabled
-                  className="whatsapp-input"
-                  style={{ opacity: 0.7, background: "rgba(255, 255, 255, 0.05)", width: "100%", padding: "10px 14px", border: "1px solid var(--border-color, rgba(255,255,255,0.08))", borderRadius: "8px" }}
-                />
+                <div style={{ fontSize: "0.85rem", color: "var(--text-muted, #94a3b8)" }}>
+                  {pendingWhatsAppMessage.destinatarios
+                    .map((d) => `${d.nome} (+${d.telefone})`)
+                    .join(", ")}
+                </div>
               </div>
 
               <div style={{ marginBottom: "16px" }}>
@@ -3389,14 +3389,25 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                     }
                     
                     toast.info("Disparando mensagem para o WhatsApp...");
-                    await enviarMensagemWhatsApp({
-                      to: pendingWhatsAppMessage.to,
-                      message: editedWhatsAppText,
-                      imageBase64,
-                      filename: `esteira_${pendingWhatsAppMessage.empresaNome}.png`
-                    });
-                    
-                    toast.success("Mensagem do WhatsApp enviada com sucesso!");
+                    const resultados = await Promise.allSettled(
+                      pendingWhatsAppMessage.destinatarios.map((d) =>
+                        enviarMensagemWhatsApp({
+                          to: d.telefone,
+                          message: editedWhatsAppText,
+                          imageBase64,
+                          filename: `esteira_${pendingWhatsAppMessage.empresaNome}.png`
+                        })
+                      )
+                    );
+
+                    const falhas = resultados.filter((r) => r.status === "rejected").length;
+                    if (falhas === 0) {
+                      toast.success("Mensagem do WhatsApp enviada com sucesso!");
+                    } else if (falhas < resultados.length) {
+                      toast.warning(`Mensagem enviada, mas falhou para ${falhas} de ${resultados.length} destinatário(s).`);
+                    } else {
+                      throw new Error("Falha ao enviar a mensagem para todos os destinatários.");
+                    }
                   } catch (err: any) {
                     console.error("Erro ao enviar mensagem pelo WhatsApp:", err);
                     toast.error(`Erro ao enviar WhatsApp: ${err.message || err}`);

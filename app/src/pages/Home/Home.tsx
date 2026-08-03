@@ -215,6 +215,7 @@ export default function Home() {
     valorContrato: undefined,
     dataFinalizacao: "",
     dataFollowUpFinal: "",
+    contatos: [],
   };
 
   const [clienteForm, setClienteForm] = useState<Empresa>(EMPTY_CLIENTE);
@@ -251,6 +252,17 @@ export default function Home() {
     return d.toLocaleDateString("pt-BR");
   }
 
+  function nomesContatos(empresa: Empresa) {
+    const contatos = empresa.contatos && empresa.contatos.length > 0
+      ? empresa.contatos
+      : empresa.contato
+        ? [{ nome: empresa.contato, telefone: empresa.telefone || "" }]
+        : [];
+
+    if (contatos.length === 0) return "-";
+    return contatos.map((c) => c.nome || "-").join(", ");
+  }
+
   function abrirCliente(empresa: Empresa) {
     setClienteSelecionado(empresa);
   }
@@ -267,7 +279,13 @@ export default function Home() {
   }
 
   function editarCliente(empresa: Empresa) {
-    setClienteForm(empresa);
+    const temContatos = empresa.contatos && empresa.contatos.length > 0;
+    const contatosMigrados =
+      !temContatos && (empresa.telefone || empresa.contato)
+        ? [{ nome: empresa.contato || "", telefone: empresa.telefone || "" }]
+        : empresa.contatos || [];
+
+    setClienteForm({ ...empresa, contatos: contatosMigrados });
 
     setEditandoClienteId(empresa.id || null);
 
@@ -306,6 +324,10 @@ export default function Home() {
       ? empresas.find(e => e.id === editandoClienteId)?.nomeEmpresa
       : null;
 
+    const contatosValidos = (clienteForm.contatos || []).filter(
+      (c) => c.nome.trim() || c.telefone.trim(),
+    );
+
     await salvarEmpresas({
       ...clienteForm,
       nomeEmpresa: nomeFinal,
@@ -313,6 +335,9 @@ export default function Home() {
       comercialResponsavel: comercialFormatted,
       id: editandoClienteId || undefined,
       updatedAt: Date.now(),
+      contatos: contatosValidos,
+      contato: contatosValidos[0]?.nome || "",
+      telefone: contatosValidos[0]?.telefone || "",
     });
 
     if (antigoNome && antigoNome.trim().toLowerCase() !== nomeFinal.trim().toLowerCase()) {
@@ -1209,7 +1234,7 @@ export default function Home() {
                       )}
                     </td>
 
-                    <td>{empresa.contato || "-"}</td>
+                    <td>{nomesContatos(empresa)}</td>
 
                     <td>{formatarNome(empresa.csResponsavel) || "-"}</td>
 
@@ -1311,7 +1336,7 @@ export default function Home() {
                       )}
                     </td>
 
-                    <td>{empresa.contato || "-"}</td>
+                    <td>{nomesContatos(empresa)}</td>
 
                     <td>{formatarNome(empresa.csResponsavel) || "-"}</td>
 
@@ -1396,21 +1421,27 @@ export default function Home() {
                 </span>
               </div>
               <div className="info-item">
-                <span className="info-label">Telefone</span>
-                <span className="info-value">
-                  {clienteSelecionado.telefone || "-"}
-                </span>
-              </div>
-              <div className="info-item">
                 <span className="info-label">Persona</span>
                 <span className="info-value">
                   {clienteSelecionado.persona || "-"}
                 </span>
               </div>
-              <div className="info-item">
-                <span className="info-label">contato</span>
+              <div className="info-item full-width">
+                <span className="info-label">Contatos</span>
                 <span className="info-value">
-                  {clienteSelecionado.contato || "-"}
+                  {(() => {
+                    const contatos = clienteSelecionado.contatos && clienteSelecionado.contatos.length > 0
+                      ? clienteSelecionado.contatos
+                      : clienteSelecionado.contato
+                        ? [{ nome: clienteSelecionado.contato, telefone: clienteSelecionado.telefone || "" }]
+                        : [];
+
+                    if (contatos.length === 0) return "-";
+
+                    return contatos
+                      .map((c) => `${c.nome || "-"}${c.telefone ? ` (${c.telefone})` : ""}`)
+                      .join(" | ");
+                  })()}
                 </span>
               </div>
               <div className="info-item full-width">
@@ -1705,34 +1736,110 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="form-grid-2">
-              <div className="form-group">
-                <label>Telefone de contato</label>
-                <input
-                  placeholder="Ex: (11) 99999-9999"
-                  value={clienteForm.telefone || ""}
-                  onChange={(e) =>
-                    setClienteForm({
-                      ...clienteForm,
-                      telefone: e.target.value,
-                    })
-                  }
-                />
+            <div className="form-group">
+              <label>Contatos</label>
+
+              {(clienteForm.contatos || []).length === 0 && (
+                <p style={{ margin: 0, fontSize: "0.85rem", color: "#64748b", fontStyle: "italic" }}>
+                  Nenhum contato cadastrado ainda.
+                </p>
+              )}
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem", marginTop: (clienteForm.contatos || []).length > 0 ? "0.4rem" : 0 }}>
+                {(clienteForm.contatos || []).map((c, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr auto",
+                      gap: "0.6rem",
+                      alignItems: "end",
+                      background: "rgba(255, 255, 255, 0.03)",
+                      border: "1px solid rgba(255, 255, 255, 0.08)",
+                      borderRadius: "10px",
+                      padding: "0.6rem",
+                    }}
+                  >
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem", minWidth: 0 }}>
+                      <label style={{ fontSize: "0.7rem", fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                        Nome
+                      </label>
+                      <input
+                        placeholder="Ex: João"
+                        value={c.nome}
+                        onChange={(e) => {
+                          const novaLista = [...(clienteForm.contatos || [])];
+                          novaLista[idx] = { ...novaLista[idx], nome: e.target.value };
+                          setClienteForm({ ...clienteForm, contatos: novaLista });
+                        }}
+                      />
+                    </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem", minWidth: 0 }}>
+                      <label style={{ fontSize: "0.7rem", fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                        Telefone
+                      </label>
+                      <input
+                        placeholder="Ex: (11) 99999-9999"
+                        value={c.telefone}
+                        onChange={(e) => {
+                          const novaLista = [...(clienteForm.contatos || [])];
+                          novaLista[idx] = { ...novaLista[idx], telefone: e.target.value };
+                          setClienteForm({ ...clienteForm, contatos: novaLista });
+                        }}
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      title="Remover contato"
+                      onClick={() => {
+                        const novaLista = (clienteForm.contatos || []).filter((_, i) => i !== idx);
+                        setClienteForm({ ...clienteForm, contatos: novaLista });
+                      }}
+                      style={{
+                        width: "2.4rem",
+                        height: "2.4rem",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        borderRadius: "8px",
+                        border: "1px solid rgba(220, 38, 38, 0.35)",
+                        background: "rgba(220, 38, 38, 0.12)",
+                        color: "#f87171",
+                        fontSize: "1.2rem",
+                        lineHeight: 1,
+                        cursor: "pointer",
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
               </div>
 
-              <div className="form-group">
-                <label>Contato</label>
-                <input
-                  placeholder="Ex: João"
-                  value={clienteForm.contato || ""}
-                  onChange={(e) =>
-                    setClienteForm({
-                      ...clienteForm,
-                      contato: e.target.value,
-                    })
-                  }
-                />
-              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  setClienteForm({
+                    ...clienteForm,
+                    contatos: [...(clienteForm.contatos || []), { nome: "", telefone: "" }],
+                  })
+                }
+                style={{
+                  marginTop: "0.6rem",
+                  padding: "0.55rem 1rem",
+                  borderRadius: "8px",
+                  border: "1px dashed rgba(255, 255, 255, 0.2)",
+                  background: "transparent",
+                  color: "#94a3b8",
+                  fontSize: "0.85rem",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                + Adicionar contato
+              </button>
             </div>
 
             <div className="form-grid-2">

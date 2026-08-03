@@ -1,5 +1,10 @@
 export type CS = string;
 
+export type ContatoCliente = {
+  nome: string;
+  telefone: string;
+};
+
 export type Empresa = {
   id?: string;
 
@@ -30,6 +35,8 @@ export type Empresa = {
   persona?: string;
 
   contato?: string;
+
+  contatos?: ContatoCliente[];
 
   localizacao?: string;
 

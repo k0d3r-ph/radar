@@ -920,6 +920,11 @@ export function Historico() {
       return;
     }
 
+    if (form.tipo === "Dúvida" && (form.temaOcorrencia ?? []).length === 0) {
+      toast.error("Selecione ao menos um assunto da dúvida.");
+      return;
+    }
+
     const isOngoing = empresaObjeto.isOngoing ?? false;
 
     if (
@@ -2726,7 +2731,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
             {form.tipo === "Dúvida" && (
               <div className="hist-campo">
-                <label>Assunto da dúvida</label>
+                <label>Assunto da dúvida *</label>
                 <div className="temas-lista">
                   {DUVIDA_OPCOES.map((opcao) => (
                     <label key={opcao} className="tema-opcao">

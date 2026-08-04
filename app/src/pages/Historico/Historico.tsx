@@ -59,6 +59,42 @@ const DEPARTAMENTO = [
   "Comercial",
 ];
 
+const DUVIDA_OPCOES = [
+  "Acesso a plataforma",
+  "Configurar/apontar câmera",
+  "Apontar rastreador tradicional (QS)",
+  "Cadastrar cliente",
+  "Cadastrar rastreador",
+  "Cadastrar veículo",
+  "Cadastrar gateway",
+  "Cadastrar Chip/operadora",
+  "Cadastrar/configurar pessoas",
+  "Unidades Organizacional",
+  "Debug",
+  "Áreas e Rotas",
+  "Comandos",
+  "Rastreador desatualizado",
+  "Correção de odômetro/horímetro",
+  "Funções da tela operacional",
+  "Hardware",
+  "Identificação de motorista",
+  "Perfil de acesso",
+  "Rastreador integrado ao SSX",
+  "Regras",
+  "Relatório",
+  "Templates",
+  "Reset de senha",
+  "SSX Mobile",
+  "Desassociar rastreador",
+  "Uso de TAGs",
+  "Performance",
+  "Logistics",
+  "Jornada de Trabalho",
+  "Videotelemetria",
+  "Abastecimento",
+  "Manutenção",
+];
+
 const DEPARTAMENTO_CLASS: Record<string, string> = {
   Treinamento: "departamento-treinamento",
   CS: "departamento-cs",
@@ -738,6 +774,10 @@ export function Historico() {
         next.temaOcorrencia = [];
         setTemaOcorrenciaOngoingText("");
       }
+      if (campo === "tipo" && f.tipo !== valor && (f.tipo === "Treinamento" || f.tipo === "Dúvida")) {
+        next.temaOcorrencia = [];
+        setTemaOcorrenciaOngoingText("");
+      }
       return next;
     });
   }
@@ -1412,8 +1452,11 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         const contatoNome = destinatarios[0]?.nome || "Cliente";
         const [year, month, day] = dataRealizacaoStr.split("-");
         const dataCompleta = `${day}/${month}/${year}`;
-        const plural = temasValidos.length > 1;
-        const textoMensagem = `Olá, *${contatoNome}* (${empresaObjeto.nomeEmpresa})! 🚀\nSeu treinamento sobre ${plural ? "os temas" : "o tema"} *${temasValidos.join(", ")}* foi registrado com sucesso em *${dataCompleta}*.\n\nConfira abaixo a sua esteira de evolução atualizada:`;
+        const temasParaMensagem = temasValidos.filter(
+          (t) => normTema(t) !== "inicio" && normTema(t) !== "conclusao"
+        );
+        const plural = temasParaMensagem.length > 1;
+        const textoMensagem = `Olá, *${contatoNome}*! 🚀\nSeu treinamento sobre ${plural ? "os temas" : "o tema"} *${temasParaMensagem.join(", ")}* foi registrado com sucesso em *${dataCompleta}*.\n\nConfira acima a sua esteira de evolução atualizada:`;
 
         setPendingWhatsAppMessage({
           destinatarios,
@@ -2306,7 +2349,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 {selecionada.temaOcorrencia &&
                   selecionada.temaOcorrencia.length > 0 && (
                     <div className="hist-detail-desc">
-                      <span>Temas abordados</span>
+                      <span>{selecionada.tipo === "Dúvida" ? "Assunto da dúvida" : "Temas abordados"}</span>
                       <div className="temas-selecionados">
                         {selecionada.temaOcorrencia.map((tema) => (
                           <span
@@ -2630,6 +2673,33 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 ))}
               </select>
             </div>
+
+            {form.tipo === "Dúvida" && (
+              <div className="hist-campo">
+                <label>Assunto da dúvida</label>
+                <div className="temas-lista">
+                  {DUVIDA_OPCOES.map((opcao) => (
+                    <label key={opcao} className="tema-opcao">
+                      <input
+                        type="checkbox"
+                        checked={form.temaOcorrencia?.includes(opcao) ?? false}
+                        onChange={(e) => {
+                          const atual = form.temaOcorrencia ?? [];
+                          const novoTema = e.target.checked
+                            ? [...atual, opcao]
+                            : atual.filter((t) => t !== opcao);
+                          setForm({
+                            ...form,
+                            temaOcorrencia: novoTema,
+                          });
+                        }}
+                      />
+                      {opcao}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {form.tipo === "Treinamento" && (
               <div className="hist-campo">

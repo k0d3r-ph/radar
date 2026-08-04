@@ -327,8 +327,8 @@ export const Relatorios: React.FC = () => {
     const statsMap = new Map<
       string,
       {
-        dentro: { duvidas: number; problemas: number; total: number };
-        fora: { duvidas: number; problemas: number; total: number };
+        dentro: { duvidas: number; problemas: number; solicitacoes: number; total: number };
+        fora: { duvidas: number; problemas: number; solicitacoes: number; total: number };
         total: number;
       }
     >();
@@ -338,8 +338,9 @@ export const Relatorios: React.FC = () => {
         const tipoLower = (o.tipo || "").toLowerCase();
         const eDuvida = tipoLower.includes("duvida") || tipoLower.includes("dúvida");
         const eProblema = tipoLower.includes("problema");
+        const eSolicitacao = tipoLower.includes("solicita");
 
-        if (eDuvida || eProblema) {
+        if (eDuvida || eProblema || eSolicitacao) {
           const t = o.dataOcorrencia || o.createdAt || 0;
           if (t >= inicio.getTime() && t <= fim.getTime()) {
             const dateObj = new Date(t);
@@ -350,20 +351,16 @@ export const Relatorios: React.FC = () => {
 
             const key = o.empresa.trim().toLowerCase();
             const stats = statsMap.get(key) || {
-              dentro: { duvidas: 0, problemas: 0, total: 0 },
-              fora: { duvidas: 0, problemas: 0, total: 0 },
+              dentro: { duvidas: 0, problemas: 0, solicitacoes: 0, total: 0 },
+              fora: { duvidas: 0, problemas: 0, solicitacoes: 0, total: 0 },
               total: 0,
             };
 
-            if (isFora) {
-              if (eDuvida) stats.fora.duvidas += 1;
-              else stats.fora.problemas += 1;
-              stats.fora.total += 1;
-            } else {
-              if (eDuvida) stats.dentro.duvidas += 1;
-              else stats.dentro.problemas += 1;
-              stats.dentro.total += 1;
-            }
+            const alvo = isFora ? stats.fora : stats.dentro;
+            if (eDuvida) alvo.duvidas += 1;
+            else if (eProblema) alvo.problemas += 1;
+            else alvo.solicitacoes += 1;
+            alvo.total += 1;
             stats.total += 1;
             statsMap.set(key, stats);
           }
@@ -672,8 +669,8 @@ export const Relatorios: React.FC = () => {
     const statsMap = new Map<
       string,
       {
-        dentro: { duvidas: number; problemas: number; total: number };
-        fora: { duvidas: number; problemas: number; total: number };
+        dentro: { duvidas: number; problemas: number; solicitacoes: number; total: number };
+        fora: { duvidas: number; problemas: number; solicitacoes: number; total: number };
         total: number;
       }
     >();
@@ -683,8 +680,9 @@ export const Relatorios: React.FC = () => {
         const tipoLower = (o.tipo || "").toLowerCase();
         const eDuvida = tipoLower.includes("duvida") || tipoLower.includes("dúvida");
         const eProblema = tipoLower.includes("problema");
+        const eSolicitacao = tipoLower.includes("solicita");
 
-        if (eDuvida || eProblema) {
+        if (eDuvida || eProblema || eSolicitacao) {
           const t = o.dataOcorrencia || o.createdAt || 0;
           if (t >= inicio.getTime() && t <= fim.getTime()) {
             const dateObj = new Date(t);
@@ -695,20 +693,16 @@ export const Relatorios: React.FC = () => {
 
             const key = o.empresa.trim().toLowerCase();
             const stats = statsMap.get(key) || {
-              dentro: { duvidas: 0, problemas: 0, total: 0 },
-              fora: { duvidas: 0, problemas: 0, total: 0 },
+              dentro: { duvidas: 0, problemas: 0, solicitacoes: 0, total: 0 },
+              fora: { duvidas: 0, problemas: 0, solicitacoes: 0, total: 0 },
               total: 0,
             };
 
-            if (isFora) {
-              if (eDuvida) stats.fora.duvidas += 1;
-              else stats.fora.problemas += 1;
-              stats.fora.total += 1;
-            } else {
-              if (eDuvida) stats.dentro.duvidas += 1;
-              else stats.dentro.problemas += 1;
-              stats.dentro.total += 1;
-            }
+            const alvo = isFora ? stats.fora : stats.dentro;
+            if (eDuvida) alvo.duvidas += 1;
+            else if (eProblema) alvo.problemas += 1;
+            else alvo.solicitacoes += 1;
+            alvo.total += 1;
             stats.total += 1;
             statsMap.set(key, stats);
           }
@@ -790,6 +784,14 @@ export const Relatorios: React.FC = () => {
     return contatosSuporteComparacao.reduce((acc, curr) => acc + (curr as any).dentroExpediente.problemas + (curr as any).foraExpediente.problemas, 0);
   }, [contatosSuporteComparacao]);
 
+  const totalSolicitacoes = useMemo(() => {
+    return contatosSuporte.reduce((acc, curr) => acc + (curr as any).dentroExpediente.solicitacoes + (curr as any).foraExpediente.solicitacoes, 0);
+  }, [contatosSuporte]);
+
+  const totalSolicitacoesComp = useMemo(() => {
+    return contatosSuporteComparacao.reduce((acc, curr) => acc + (curr as any).dentroExpediente.solicitacoes + (curr as any).foraExpediente.solicitacoes, 0);
+  }, [contatosSuporteComparacao]);
+
   const foraExpedienteTotal = useMemo(() => {
     return contatosSuporte.reduce((acc, curr) => acc + (curr as any).foraExpediente.total, 0);
   }, [contatosSuporte]);
@@ -845,7 +847,7 @@ export const Relatorios: React.FC = () => {
     {
       titulo: "Contato com suporte",
       valor: totalContatosSuporte,
-      desc: `Dúvidas: ${totalDuvidas} | Problemas: ${totalProblemas}`,
+      desc: `Dúvidas: ${totalDuvidas} | Problemas: ${totalProblemas} | Solicitações: ${totalSolicitacoes}`,
       icone: <Clock size={22} />,
       lista: contatosSuporte,
       ehSazonal: true,
@@ -896,6 +898,7 @@ export const Relatorios: React.FC = () => {
       const pctTotal = formatarDiferenca(totalContatosSuporte, totalContatosSuporteComp, true);
       const pctDuvidas = formatarDiferenca(totalDuvidas, totalDuvidasComp, true);
       const pctProblemas = formatarDiferenca(totalProblemas, totalProblemasComp, true);
+      const pctSolicitacoes = formatarDiferenca(totalSolicitacoes, totalSolicitacoesComp, true);
       const pctDentro = formatarDiferenca(dentroExpedienteTotal, dentroExpedienteTotalComp, true);
       const pctFora = formatarDiferenca(foraExpedienteTotal, foraExpedienteTotalComp, true);
 
@@ -932,6 +935,7 @@ CONTATOS COM SUPORTE:
 - Total: ${totalContatosSuporte} vs ${totalContatosSuporteComp} (${pctTotal.texto})
 - Dúvidas: ${totalDuvidas} vs ${totalDuvidasComp} (${pctDuvidas.texto})
 - Problemas: ${totalProblemas} vs ${totalProblemasComp} (${pctProblemas.texto})
+- Solicitações: ${totalSolicitacoes} vs ${totalSolicitacoesComp} (${pctSolicitacoes.texto})
 - Dentro do Expediente: ${dentroExpedienteTotal} vs ${dentroExpedienteTotalComp} (${pctDentro.texto})
 - Fora do Expediente: ${foraExpedienteTotal} vs ${foraExpedienteTotalComp} (${pctFora.texto})
 ==================================================
@@ -947,7 +951,7 @@ ${comparacaoStr}
 RESUMO DOS INDICADORES:
 1. Clientes que entraram na esteira na semana: ${entraramNaSemana.length}
 2. Clientes que concluíram a esteira na semana: ${concluidosNaSemana.length}
-3. Contatos com suporte (atendimento Suporte): ${totalContatosSuporte} (Dúvidas: ${totalDuvidas}, Problemas: ${totalProblemas})
+3. Contatos com suporte (atendimento Suporte): ${totalContatosSuporte} (Dúvidas: ${totalDuvidas}, Problemas: ${totalProblemas}, Solicitações: ${totalSolicitacoes})
 4. Clientes sem próximo passo (farol vermelho): ${semProximoPasso.length}
 5. Clientes em acompanhamento com CS (suspensos): ${emAcompanhamentoCS.length}
 6. Clientes acima do prazo de onboarding (> 60 dias): ${acimaDoPrazo.length}
@@ -977,12 +981,12 @@ ${concluidosNaSemana.length > 0
           .join("\n")
         : " - Nenhum cliente concluído nesta semana.\n"
       }
-3. CONTATOS COM SUPORTE (${totalContatosSuporte} - Dúvidas: ${totalDuvidas}, Problemas: ${totalProblemas})
+3. CONTATOS COM SUPORTE (${totalContatosSuporte} - Dúvidas: ${totalDuvidas}, Problemas: ${totalProblemas}, Solicitações: ${totalSolicitacoes})
 ${contatosSuporte.length > 0
         ? contatosSuporte
           .map(
             (e) =>
-              ` - ${e.nomeEmpresa}\n   Treinador: ${formatarNome(e.responsavel) || "-"}\n   CS: ${formatarNome(e.csResponsavel) || "-"}\n   Dentro do Expediente: ${(e as any).dentroExpediente.total} (Dúvidas: ${(e as any).dentroExpediente.duvidas}, Problemas: ${(e as any).dentroExpediente.problemas})\n   Fora do Expediente: ${(e as any).foraExpediente.total} (Dúvidas: ${(e as any).foraExpediente.duvidas}, Problemas: ${(e as any).foraExpediente.problemas})\n   Total de Contatos: ${(e as any).totalContatos}\n   Valor do Contrato: ${e.valorContrato !== undefined ? `R$ ${e.valorContrato.toFixed(2)}` : "—"}\n`
+              ` - ${e.nomeEmpresa}\n   Treinador: ${formatarNome(e.responsavel) || "-"}\n   CS: ${formatarNome(e.csResponsavel) || "-"}\n   Dentro do Expediente: ${(e as any).dentroExpediente.total} (Dúvidas: ${(e as any).dentroExpediente.duvidas}, Problemas: ${(e as any).dentroExpediente.problemas}, Solicitações: ${(e as any).dentroExpediente.solicitacoes})\n   Fora do Expediente: ${(e as any).foraExpediente.total} (Dúvidas: ${(e as any).foraExpediente.duvidas}, Problemas: ${(e as any).foraExpediente.problemas}, Solicitações: ${(e as any).foraExpediente.solicitacoes})\n   Total de Contatos: ${(e as any).totalContatos}\n   Valor do Contrato: ${e.valorContrato !== undefined ? `R$ ${e.valorContrato.toFixed(2)}` : "—"}\n`
           )
           .join("\n")
         : " - Nenhum atendimento de suporte registrado nesta semana.\n"
@@ -1246,7 +1250,7 @@ ${riscoChurn.length > 0
               <div className="relatorio-detalhe-section">
                 <div className="relatorio-detalhe-header">
                   <h3>
-                    📋 {selectedKpi.titulo} {kpiSelecionado === 2 ? `(Total: ${totalContatosSuporte} | Dúvidas: ${totalDuvidas} | Problemas: ${totalProblemas})` : `(${selectedKpi.valor})`}
+                    📋 {selectedKpi.titulo} {kpiSelecionado === 2 ? `(Total: ${totalContatosSuporte} | Dúvidas: ${totalDuvidas} | Problemas: ${totalProblemas} | Solicitações: ${totalSolicitacoes})` : `(${selectedKpi.valor})`}
                   </h3>
                   <button className="btn-export-txt" onClick={exportarTXT}>
                     <Download size={16} />
@@ -1264,6 +1268,7 @@ ${riscoChurn.length > 0
                         const pctTotalResult = formatarDiferenca(totalContatosSuporte, totalContatosSuporteComp, true);
                         const pctDuvidasResult = formatarDiferenca(totalDuvidas, totalDuvidasComp, true);
                         const pctProblemasResult = formatarDiferenca(totalProblemas, totalProblemasComp, true);
+                        const pctSolicitacoesResult = formatarDiferenca(totalSolicitacoes, totalSolicitacoesComp, true);
                         const pctDentroResult = formatarDiferenca(dentroExpedienteTotal, dentroExpedienteTotalComp, true);
                         const pctForaResult = formatarDiferenca(foraExpedienteTotal, foraExpedienteTotalComp, true);
 
@@ -1302,6 +1307,18 @@ ${riscoChurn.length > 0
                               </div>
                               <span className={`comp-item-pct ${pctProblemasResult.classe}`}>
                                 {pctProblemasResult.texto} {pctProblemasResult.diff > 0 ? "a mais" : pctProblemasResult.diff < 0 ? "a menos" : "sem alteração"}
+                              </span>
+                            </div>
+
+                            <div className="comparacao-card-item">
+                              <span className="comp-item-label">Total de Solicitações</span>
+                              <div className="comp-item-values">
+                                <span className="comp-val-atual">{totalSolicitacoes}</span>
+                                <span className="comp-val-separator">vs</span>
+                                <span className="comp-val-anterior">{totalSolicitacoesComp}</span>
+                              </div>
+                              <span className={`comp-item-pct ${pctSolicitacoesResult.classe}`}>
+                                {pctSolicitacoesResult.texto} {pctSolicitacoesResult.diff > 0 ? "a mais" : pctSolicitacoesResult.diff < 0 ? "a menos" : "sem alteração"}
                               </span>
                             </div>
 
@@ -1450,6 +1467,27 @@ ${riscoChurn.length > 0
                                           </button>
                                         )}
                                       </span>
+                                      <span style={{ display: "inline-flex", alignItems: "center", gap: "3px" }}>
+                                        S: {(e as any).dentroExpediente.solicitacoes}
+                                        {(e as any).dentroExpediente.solicitacoes > 0 && (
+                                          <button
+                                            onClick={() => navigate(`/historico?empresa=${encodeURIComponent(e.nomeEmpresa)}&tipo=Solicitação&dataInicio=${dataInicioSemanaStr}&dataFim=${dataFimSemanaStr}&expediente=dentro`)}
+                                            style={{
+                                              background: "rgba(16, 185, 129, 0.15)",
+                                              color: "#34d399",
+                                              border: "1px solid rgba(16, 185, 129, 0.25)",
+                                              borderRadius: "4px",
+                                              padding: "1px 4px",
+                                              cursor: "pointer",
+                                              display: "inline-flex",
+                                              alignItems: "center"
+                                            }}
+                                            title="Ver solicitações"
+                                          >
+                                            <Eye size={10} />
+                                          </button>
+                                        )}
+                                      </span>
                                     </div>
                                   </div>
                                 </td>
@@ -1496,6 +1534,27 @@ ${riscoChurn.length > 0
                                               alignItems: "center"
                                             }}
                                             title="Ver problemas"
+                                          >
+                                            <Eye size={10} />
+                                          </button>
+                                        )}
+                                      </span>
+                                      <span style={{ display: "inline-flex", alignItems: "center", gap: "3px" }}>
+                                        S: {(e as any).foraExpediente.solicitacoes}
+                                        {(e as any).foraExpediente.solicitacoes > 0 && (
+                                          <button
+                                            onClick={() => navigate(`/historico?empresa=${encodeURIComponent(e.nomeEmpresa)}&tipo=Solicitação&dataInicio=${dataInicioSemanaStr}&dataFim=${dataFimSemanaStr}&expediente=fora`)}
+                                            style={{
+                                              background: "rgba(16, 185, 129, 0.15)",
+                                              color: "#34d399",
+                                              border: "1px solid rgba(16, 185, 129, 0.25)",
+                                              borderRadius: "4px",
+                                              padding: "1px 4px",
+                                              cursor: "pointer",
+                                              display: "inline-flex",
+                                              alignItems: "center"
+                                            }}
+                                            title="Ver solicitações"
                                           >
                                             <Eye size={10} />
                                           </button>

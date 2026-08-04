@@ -24,6 +24,58 @@ function normalizarNome(nome: string) {
     .replace(/\s+/g, ""); // remove todos os espaços
 }
 
+type TemplateEsteira = {
+  id: string;
+  nome: string;
+  descricao: string;
+  temas: string;
+};
+
+const TEMPLATES_ESTEIRA: TemplateEsteira[] = [
+  {
+    id: "basico",
+    nome: "Template Básico",
+    descricao: "Fluxo padrão de implantação",
+    temas:
+      "Início\nCadastro de Gateway\nDebug\nCadastro de Rastreador\nCadastro de Veículo\nCadastro de Cliente\nTela Operacional\nPessoas\nSSX Mobile\nRegras\nRelatório\nConclusão",
+  },
+  {
+    id: "template1",
+    nome: "Template 1",
+    descricao: "Central que já precisa atender seus clientes",
+    temas:
+      "Início\nFunções da Tela Operacional\nHistórico de Posições\nReset de Senha\nFunções do Aplicativo\nCadastrar Novo Cliente\nCadastrar Novo Veículo\nCadastro de Pessoas\nApontar Novo Rastreador\nDesassociar Rastreador\nCriar Templates\nCriar Regras, Áreas e Rotas\nApresentar Relatórios\nConclusão",
+  },
+  {
+    id: "template2",
+    nome: "Template 2",
+    descricao: "Central que utilizará apenas Videotelemetria",
+    temas:
+      "Início\nCadastrar Câmeras\nCadastrar Veículos\nDesassociar Rastreador\nFunções da Tela Operacional\nApresentar Videotelemetria\nCriar Templates\nCriar Regras, Áreas e Rotas\nApresentar Relatórios\nConclusão",
+  },
+  {
+    id: "template3",
+    nome: "Template 3",
+    descricao: "Central que utiliza ERP integrado ao SSX",
+    temas:
+      "Início\nFunções da Tela Operacional\nEntender o Debug\nCadastro de Pessoas\nDesassociar Rastreador\nCriar Templates\nCriar Regras, Áreas e Rotas\nApresentar Relatórios\nConclusão",
+  },
+  {
+    id: "template4",
+    nome: "Template 4",
+    descricao: "Central sem experiência em rastreamento",
+    temas:
+      "Início\nVisão Geral de Rastreamento\nCadastrar Gateway\nEntender o Debug\nChecar Cadastro de Rastreador\nCadastrar Cliente\nCadastrar Veículo\nCadastro de Pessoas\nFunções da Tela Operacional\nCriar Templates\nCriar Regras, Áreas e Rotas\nApresentar Relatórios\nConclusão",
+  },
+  {
+    id: "template5",
+    nome: "Template 5",
+    descricao: "Central com experiência em rastreamento",
+    temas:
+      "Início\nCadastrar Gateway\nEntender o Debug\nChecar Cadastro de Rastreador\nCadastrar Cliente\nCadastrar Veículo\nCadastro de Pessoas\nFunções da Tela Operacional\nCriar Templates\nCriar Regras, Áreas e Rotas\nApresentar Relatórios\nConclusão",
+  },
+];
+
 function Esteira() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -32,6 +84,7 @@ function Esteira() {
 
   const [empresaId, setEmpresaId] = useState("");
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [templatesAbertos, setTemplatesAbertos] = useState(false);
 
   const [nomeEmpresa, setNomeEmpresa] = useState("");
   const [temaText, setTemaText] = useState(``);
@@ -71,11 +124,10 @@ function Esteira() {
     carregar();
   }, [id]);
 
-  const aplicarTemplateBasico = () => {
-    setTemaText(
-      "Início\nCadastro de Gateway\nDebug\nCadastro de Rastreador\nCadastro de Veículo\nCadastro de Cliente\nTela Operacional\nPessoas\nSSX Mobile\nRegras\nRelatório\nConclusão"
-    );
-    toast.success("Template Básico aplicado!");
+  const aplicarTemplate = (template: TemplateEsteira) => {
+    setTemaText(template.temas);
+    setTemplatesAbertos(false);
+    toast.success(`${template.nome} aplicado!`);
   };
 
   type TemaItem = {
@@ -473,9 +525,9 @@ function Esteira() {
             <button
               type="button"
               className="btn-secondary"
-              onClick={aplicarTemplateBasico}
+              onClick={() => setTemplatesAbertos(true)}
             >
-              Template Básico
+              Templates
             </button>
           )}
 
@@ -607,6 +659,42 @@ function Esteira() {
           setGestaoMensagem("");
         }}
       />
+
+      {templatesAbertos && (
+        <div
+          className="templates-modal-overlay"
+          onClick={() => setTemplatesAbertos(false)}
+        >
+          <div
+            className="templates-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="templates-modal-header">
+              <h3>Escolha um template</h3>
+              <button
+                type="button"
+                className="templates-modal-close"
+                onClick={() => setTemplatesAbertos(false)}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="templates-modal-list">
+              {TEMPLATES_ESTEIRA.map((template) => (
+                <div
+                  key={template.id}
+                  className="templates-modal-item"
+                  onClick={() => aplicarTemplate(template)}
+                >
+                  <span className="templates-modal-item-nome">{template.nome}</span>
+                  <span className="templates-modal-item-desc">{template.descricao}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

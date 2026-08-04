@@ -212,6 +212,7 @@ export default function Home() {
     updatedAt: 0,
     isOngoing: false,
     isSuspended: false,
+    isCancelled: false,
     valorContrato: undefined,
     dataFinalizacao: "",
     dataFollowUpFinal: "",
@@ -230,6 +231,7 @@ export default function Home() {
   const [tabelaAtivaAberta, setTabelaAtivaAberta] = useState(true);
   const [tabelaOngoingAberta, setTabelaOngoingAberta] = useState(true);
   const [tabelaSuspensaAberta, setTabelaSuspensaAberta] = useState(false);
+  const [tabelaCanceladosAberta, setTabelaCanceladosAberta] = useState(false);
 
   async function excluirCliente(id: string) {
     await removerEmpresa(id);
@@ -581,15 +583,19 @@ export default function Home() {
   }, [empresas, historico]);
 
   const dadosAtivos = useMemo(() => {
-    return dados.filter((e) => !e.isOngoing && !e.isSuspended);
+    return dados.filter((e) => !e.isOngoing && !e.isSuspended && !e.isCancelled);
   }, [dados]);
 
   const dadosOngoing = useMemo(() => {
-    return dados.filter((e) => !!e.isOngoing && !e.isSuspended);
+    return dados.filter((e) => !!e.isOngoing && !e.isSuspended && !e.isCancelled);
   }, [dados]);
 
   const dadosSuspensos = useMemo(() => {
-    return dados.filter((e) => !!e.isSuspended);
+    return dados.filter((e) => !!e.isSuspended && !e.isCancelled);
+  }, [dados]);
+
+  const dadosCancelados = useMemo(() => {
+    return dados.filter((e) => !!e.isCancelled);
   }, [dados]);
 
   const stats = useMemo(() => {
@@ -780,6 +786,45 @@ export default function Home() {
       });
   }, [
     dadosSuspensos,
+    filtroCliente,
+    filtroCs,
+    filtroResponsavel,
+    ordenacaoContrato,
+    ordenacaoScore,
+    ordenacaoPrincipal,
+  ]);
+
+  const dadosCanceladosFiltrados = useMemo(() => {
+    return dadosCancelados
+      .filter((e) => {
+        const clienteOk =
+          !filtroCliente ||
+          e.nomeEmpresa.toLowerCase().includes(filtroCliente.toLowerCase());
+        const csOk = !filtroCs || e.csResponsavel === filtroCs;
+        const responsavelOk =
+          !filtroResponsavel || formatarNome(e.responsavel) === filtroResponsavel;
+
+        return clienteOk && csOk && responsavelOk;
+      })
+      .sort((a, b) => {
+        let prim = 0;
+        let sec = 0;
+
+        if (ordenacaoPrincipal === "score") {
+          prim = compararScore(a, b);
+          sec = compararContrato(a, b);
+        } else {
+          prim = compararContrato(a, b);
+          sec = compararScore(a, b);
+        }
+
+        if (prim !== 0) return prim;
+        if (sec !== 0) return sec;
+
+        return a.nomeEmpresa.localeCompare(b.nomeEmpresa, "pt-BR");
+      });
+  }, [
+    dadosCancelados,
     filtroCliente,
     filtroCs,
     filtroResponsavel,
@@ -1291,6 +1336,7 @@ export default function Home() {
                 <col style={{ width: "5%" }} />
                 <col style={{ width: "5%" }} />
                 <col style={{ width: "5%" }} />
+                <col style={{ width: "5%" }} />
               </colgroup>
               <thead>
                 <tr>
@@ -1298,6 +1344,7 @@ export default function Home() {
                   <th>Contato</th>
                   <th>CS Responsável</th>
                   <th>Comercial Responsável</th>
+                  <th className="td-progresso">Progresso</th>
                   <th style={{ textAlign: "right" }}>Valor Contrato</th>
                 </tr>
               </thead>
@@ -1341,6 +1388,9 @@ export default function Home() {
                     <td>{formatarNome(empresa.csResponsavel) || "-"}</td>
 
                     <td>{formatarNome(empresa.comercialResponsavel) || "-"}</td>
+                    <td className="td-progresso">
+                      <ProgressBar value={empresa.progresso} />
+                    </td>
                     <td style={{ textAlign: "right", fontWeight: 600 }}>
                       {empresa.valorContrato !== undefined && empresa.valorContrato !== null
                         ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(empresa.valorContrato)
@@ -1350,7 +1400,7 @@ export default function Home() {
                 ))}
                 {dadosSuspensosFiltrados.length === 0 && (
                   <tr>
-                    <td colSpan={5} style={{ textAlign: "center", color: "#64748b", padding: "2rem" }}>
+                    <td colSpan={6} style={{ textAlign: "center", color: "#64748b", padding: "2rem" }}>
                       Nenhum cliente temporariamente suspenso.
                     </td>
                   </tr>
@@ -1361,6 +1411,83 @@ export default function Home() {
             <div className="table-footer">
               <span>
                 Mostrando <strong>{dadosSuspensosFiltrados.length}</strong> de <strong>{dadosSuspensos.length}</strong> {dadosSuspensos.length === 1 ? "cliente" : "clientes"}
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Tabela de Clientes Cancelados */}
+      <div className="collapsible-section" style={{ marginTop: "2rem" }}>
+        <div
+          className="collapsible-header"
+          onClick={() => setTabelaCanceladosAberta((prev) => !prev)}
+        >
+          <div className="collapsible-title-wrapper">
+            <h2>Clientes Cancelados ❌</h2>
+            <span className="collapsible-count-badge" style={{ background: "rgba(220, 38, 38, 0.2)", color: "#f87171" }}>
+              {dadosCanceladosFiltrados.length}
+            </span>
+          </div>
+          <span className="collapsible-arrow">
+            {tabelaCanceladosAberta ? "▼" : "▶"}
+          </span>
+        </div>
+
+        {!loading && tabelaCanceladosAberta && (
+          <div className="table-wrapper">
+            <table>
+              <colgroup>
+                <col style={{ width: "5%" }} />
+                <col style={{ width: "5%" }} />
+                <col style={{ width: "5%" }} />
+                <col style={{ width: "5%" }} />
+                <col style={{ width: "5%" }} />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>Cliente</th>
+                  <th>Contato</th>
+                  <th>CS Responsável</th>
+                  <th>Comercial Responsável</th>
+                  <th style={{ textAlign: "right" }}>Valor Contrato</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {dadosCanceladosFiltrados.map((empresa) => (
+                  <tr
+                    key={empresa.id}
+                    className="linha-cliente"
+                    onClick={() => abrirCliente(empresa)}
+                  >
+                    <td>{empresa.nomeEmpresa}</td>
+
+                    <td>{nomesContatos(empresa)}</td>
+
+                    <td>{formatarNome(empresa.csResponsavel) || "-"}</td>
+
+                    <td>{formatarNome(empresa.comercialResponsavel) || "-"}</td>
+                    <td style={{ textAlign: "right", fontWeight: 600 }}>
+                      {empresa.valorContrato !== undefined && empresa.valorContrato !== null
+                        ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(empresa.valorContrato)
+                        : "—"}
+                    </td>
+                  </tr>
+                ))}
+                {dadosCanceladosFiltrados.length === 0 && (
+                  <tr>
+                    <td colSpan={5} style={{ textAlign: "center", color: "#64748b", padding: "2rem" }}>
+                      Nenhum cliente cancelado.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+
+            <div className="table-footer">
+              <span>
+                Mostrando <strong>{dadosCanceladosFiltrados.length}</strong> de <strong>{dadosCancelados.length}</strong> {dadosCancelados.length === 1 ? "cliente" : "clientes"}
               </span>
             </div>
           </div>
@@ -1461,7 +1588,9 @@ export default function Home() {
               <div className="info-item">
                 <span className="info-label">Status Temporário</span>
                 <span className="info-value">
-                  {clienteSelecionado.isSuspended ? (
+                  {clienteSelecionado.isCancelled ? (
+                    <span style={{ color: "#dc2626", fontWeight: "bold" }}>❌ Cancelado</span>
+                  ) : clienteSelecionado.isSuspended ? (
                     <span style={{ color: "#f59e0b", fontWeight: "bold" }}>⏸️ Suspenso Temporariamente</span>
                   ) : (
                     <span style={{ color: "#10b981", fontWeight: "bold" }}>▶️ Ativo</span>
@@ -1966,6 +2095,24 @@ export default function Home() {
                     }
                   />
                   Suspenso Temporariamente ⏸️
+                </label>
+                <label
+                  className="checkbox-label"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    cursor: "pointer",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={clienteForm.isCancelled ?? false}
+                    onChange={(e) =>
+                      setClienteForm({ ...clienteForm, isCancelled: e.target.checked })
+                    }
+                  />
+                  Cliente Cancelado ❌
                 </label>
               </div>
             </div>

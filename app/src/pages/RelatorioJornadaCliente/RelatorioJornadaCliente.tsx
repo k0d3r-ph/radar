@@ -59,6 +59,25 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
     return new Date(parts[0], parts[1] - 1, parts[2]);
   };
 
+  // Conta apenas dias úteis (segunda a sexta) entre dois timestamps, ignorando finais de semana.
+  // Usado para a etapa "Sem próximo passo definido", já que o SLA de 4 dias é comercial: um cliente
+  // que entra na quinta e só tem retorno na segunda não deve estourar o SLA por causa do fim de semana.
+  const calcularDiasUteis = (startMs: number, endMs: number): number => {
+    if (endMs <= startMs) return 0;
+    const cur = new Date(startMs);
+    cur.setHours(0, 0, 0, 0);
+    const endDay = new Date(endMs);
+    endDay.setHours(0, 0, 0, 0);
+    const endTime = endDay.getTime();
+    let count = 0;
+    while (cur.getTime() < endTime) {
+      cur.setDate(cur.getDate() + 1);
+      const dow = cur.getDay();
+      if (dow !== 0 && dow !== 6) count++;
+    }
+    return count;
+  };
+
   // Formata o período de permanência de forma resumida para a régua
   const formatarPeriodoResumido = (start: Date, end: Date, active: boolean, isFinalizado: boolean, stage: string) => {
     const formatDayMonth = (d: Date) => {
@@ -162,13 +181,13 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
         const diffMs = creationTime - currentTime;
         // Só considera gap real se tiver durado pelo menos 24 horas (evita registrar gaps para reagendamentos rápidos de poucas horas)
         if (diffMs >= 24 * 60 * 60 * 1000) {
-          const days = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+          const days = calcularDiasUteis(currentTime, creationTime);
           stages.push({
             stage: "Sem próximo passo definido",
             startDate: new Date(currentTime),
             endDate: new Date(creationTime),
             days,
-            slaBreached: diffMs > 4 * 24 * 60 * 60 * 1000, // SLA de 4 dias
+            slaBreached: days > 4, // SLA de 4 dias úteis
             active: false,
             ocorrenciaFinalizadora: oc,
           });
@@ -259,14 +278,13 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
 
     // Se após processar todas as ocorrências ainda não chegamos ao fim da jornada
     if (currentTime < endJourneyTime) {
-      const diffMs = endJourneyTime - currentTime;
-      const days = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+      const days = calcularDiasUteis(currentTime, endJourneyTime);
       stages.push({
         stage: "Sem próximo passo definido",
         startDate: new Date(currentTime),
         endDate: new Date(endJourneyTime),
         days,
-        slaBreached: diffMs > 4 * 24 * 60 * 60 * 1000,
+        slaBreached: days > 4,
         active: false,
       });
       currentTime = endJourneyTime;
@@ -296,10 +314,12 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
         if (last.stage === current.stage && isSameDay && !currentEhCanceladoOuAusente) {
           // Mescla as etapas estendendo a data final da primeira
           last.endDate = current.endDate;
-          const diffMs = last.endDate.getTime() - last.startDate.getTime();
-          last.days = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
           if (last.stage === "Sem próximo passo definido") {
-            last.slaBreached = diffMs > 4 * 24 * 60 * 60 * 1000;
+            last.days = calcularDiasUteis(last.startDate.getTime(), last.endDate.getTime());
+            last.slaBreached = last.days > 4;
+          } else {
+            const diffMs = last.endDate.getTime() - last.startDate.getTime();
+            last.days = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
           }
           last.active = last.active || current.active;
           // Atualiza as ocorrências vinculadas para a mais recente
@@ -370,11 +390,11 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
       if (currentStageObj) {
         diasNaEtapaAtual = currentStageObj.days;
         if (currentStageObj.stage === "Sem próximo passo definido" && !isFinalizado) {
-          // Se está atualmente sem próximo passo e a duração até hoje é > 4 dias
+          // Se está atualmente sem próximo passo e a duração até hoje é > 4 dias úteis
           const startJourneyTime = currentStageObj.startDate.getTime();
-          const tempoSemPasso = Date.now() - startJourneyTime;
-          slaEstouradoAtual = tempoSemPasso > 4 * 24 * 60 * 60 * 1000;
-          diasNaEtapaAtual = Math.max(0, Math.floor(tempoSemPasso / (1000 * 60 * 60 * 24)));
+          const diasUteis = calcularDiasUteis(startJourneyTime, Date.now());
+          slaEstouradoAtual = diasUteis > 4;
+          diasNaEtapaAtual = diasUteis;
         }
       }
 
@@ -672,20 +692,20 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
     // ─── 5. Estado atual: preso sem passo ───────────────────────────
     const etapaAtiva = jornada.find((s) => s.active);
     if (etapaAtiva?.stage === "Sem próximo passo definido" && !empresaSelecionadaObj.isFinalizado) {
-      const diasPreso = Math.floor((Date.now() - etapaAtiva.startDate.getTime()) / (1000 * 60 * 60 * 24));
+      const diasPreso = calcularDiasUteis(etapaAtiva.startDate.getTime(), Date.now());
       if (diasPreso > 4) {
         itens.push({
           tipo: "critico",
           emoji: "🔴",
-          titulo: `Atualmente sem passo definido há ${diasPreso} dias`,
-          descricao: "O cliente está parado agora e já ultrapassou o SLA recomendado de 4 dias. É urgente definir um próximo agendamento.",
+          titulo: `Atualmente sem passo definido há ${diasPreso} dias úteis`,
+          descricao: "O cliente está parado agora e já ultrapassou o SLA recomendado de 4 dias úteis. É urgente definir um próximo agendamento.",
         });
       } else if (diasPreso > 0) {
         itens.push({
           tipo: "alerta",
           emoji: "⏰",
-          titulo: `Sem próximo passo há ${diasPreso} dia${diasPreso > 1 ? "s" : ""}`,
-          descricao: "O cliente está aguardando agendamento. Ainda está dentro do SLA, mas atenção para não ultrapassar 4 dias.",
+          titulo: `Sem próximo passo há ${diasPreso} dia${diasPreso > 1 ? "s" : ""} úteis`,
+          descricao: "O cliente está aguardando agendamento. Ainda está dentro do SLA, mas atenção para não ultrapassar 4 dias úteis.",
         });
       }
     }
@@ -1188,8 +1208,8 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
                       <AlertCircle className="jornada-focus-sla-icon" size={18} />
                       <div>
                         <strong>Atenção: Limite de SLA Excedido!</strong> O cliente permaneceu{" "}
-                        {etapaSelecionada.days} dias consecutivos sem um próximo passo de agendamento definido.
-                        O prazo limite recomendado para esta etapa é de no máximo <strong>4 dias</strong>.
+                        {etapaSelecionada.days} dias úteis sem um próximo passo de agendamento definido.
+                        O prazo limite recomendado para esta etapa é de no máximo <strong>4 dias úteis</strong>.
                       </div>
                     </div>
                   )}

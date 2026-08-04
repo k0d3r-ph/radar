@@ -1375,6 +1375,32 @@
   box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
 }
 
+.filtros-data-grupo select {
+  background-color: rgba(31, 41, 55, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 14px;
+  color: #ffffff;
+  outline: none;
+  font-family: inherit;
+  transition: all 0.2s ease;
+  height: 42px;
+  box-sizing: border-box;
+  max-width: 200px;
+  cursor: pointer;
+}
+
+.filtros-data-grupo select:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+.filtros-data-grupo select option {
+  background-color: #1f2937;
+  color: #ffffff;
+}
+
 .btn-limpar-filtros {
   background: rgba(239, 68, 68, 0.1) !important;
   border: 1px solid rgba(239, 68, 68, 0.2) !important;
@@ -1442,7 +1468,12 @@
     flex: 1;
     max-width: 200px;
   }
-  
+
+  .filtros-data-grupo select {
+    flex: 1;
+    max-width: none;
+  }
+
   .btn-limpar-filtros {
     width: 100%;
   }

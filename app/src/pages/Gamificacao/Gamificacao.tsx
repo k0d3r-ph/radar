@@ -399,6 +399,10 @@ export const Gamificacao: React.FC = () => {
     return `${year}-${monthStr}-${String(lastDay).padStart(2, "0")}`;
   });
 
+  // Filtro por treinador e motivo do lançamento
+  const [filtroTreinadorId, setFiltroTreinadorId] = useState("");
+  const [filtroTipoAcao, setFiltroTipoAcao] = useState("");
+
   const acoesFiltradas = useMemo(() => {
     const baseList = ACOES_DISPONIVEIS.filter((a) => a.tipo !== "treinamento");
     if (role === "treinador") {
@@ -528,7 +532,19 @@ export const Gamificacao: React.FC = () => {
     carregarDados();
   }, [user, role]);
 
-  // Filtro de lançamentos por período
+  // Opções de motivo (tipo de ação) disponíveis para filtro, com base nas ações conhecidas
+  // e em quaisquer tipos que já existam nos lançamentos (garante que nada fique de fora).
+  const motivoOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    ACOES_DISPONIVEIS.forEach((a) => map.set(a.tipo, a.label));
+    entries.forEach((e) => {
+      if (e.tipoAcao && !map.has(e.tipoAcao)) map.set(e.tipoAcao, e.tipoAcao);
+    });
+    return Array.from(map.entries()).map(([tipo, label]) => ({ tipo, label }));
+  }, [entries]);
+
+  // Filtro de lançamentos por período (usado no cálculo do ranking, que deve
+  // sempre considerar todos os treinadores e motivos do período selecionado)
   const filteredEntries = useMemo(() => {
     return entries.filter((entry) => {
       // Excluir lançamentos do usuário Painel
@@ -548,6 +564,16 @@ export const Gamificacao: React.FC = () => {
       return true;
     });
   }, [entries, filtroDataInicio, filtroDataFim]);
+
+  // Filtro adicional por treinador e motivo, aplicado apenas na tabela de
+  // Atividades Recentes (não deve afetar o cálculo do ranking/score).
+  const historyEntries = useMemo(() => {
+    return filteredEntries.filter((entry) => {
+      if (filtroTreinadorId && entry.treinadorId !== filtroTreinadorId) return false;
+      if (filtroTipoAcao && entry.tipoAcao !== filtroTipoAcao) return false;
+      return true;
+    });
+  }, [filteredEntries, filtroTreinadorId, filtroTipoAcao]);
 
   // Compute scores and rank trainers
   const rankedTrainers = useMemo(() => {
@@ -945,13 +971,45 @@ export const Gamificacao: React.FC = () => {
                   onChange={(e) => setFiltroDataFim(e.target.value)}
                 />
               </div>
-              {(filtroDataInicio || filtroDataFim) && (
+              <div className="filtros-data-grupo">
+                <label htmlFor="filtro-treinador">Treinador</label>
+                <select
+                  id="filtro-treinador"
+                  value={filtroTreinadorId}
+                  onChange={(e) => setFiltroTreinadorId(e.target.value)}
+                >
+                  <option value="">Todos</option>
+                  {trainers.map((t) => (
+                    <option key={t.uid} value={t.uid}>
+                      {formatarNome(t.nome) || t.email}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="filtros-data-grupo">
+                <label htmlFor="filtro-motivo">Motivo</label>
+                <select
+                  id="filtro-motivo"
+                  value={filtroTipoAcao}
+                  onChange={(e) => setFiltroTipoAcao(e.target.value)}
+                >
+                  <option value="">Todos</option>
+                  {motivoOptions.map((m) => (
+                    <option key={m.tipo} value={m.tipo}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {(filtroDataInicio || filtroDataFim || filtroTreinadorId || filtroTipoAcao) && (
                 <button
                   type="button"
                   className="btn-limpar-filtros"
                   onClick={() => {
                     setFiltroDataInicio("");
                     setFiltroDataFim("");
+                    setFiltroTreinadorId("");
+                    setFiltroTipoAcao("");
                   }}
                 >
                   Limpar Filtros
@@ -1161,11 +1219,11 @@ export const Gamificacao: React.FC = () => {
                   </h2>
                 </div>
 
-                {filteredEntries.length === 0 ? (
+                {historyEntries.length === 0 ? (
                   <p className="no-data-msg">
                     {entries.length === 0
                       ? "Nenhum lançamento de pontos registrado ainda."
-                      : "Nenhum lançamento encontrado para o período selecionado."}
+                      : "Nenhum lançamento encontrado para os filtros selecionados."}
                   </p>
                 ) : (
                   <div className="table-responsive">
@@ -1181,7 +1239,7 @@ export const Gamificacao: React.FC = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {filteredEntries.map((entry) => {
+                        {historyEntries.map((entry) => {
                           const actionConfig = ACOES_DISPONIVEIS.find((a) => a.tipo === entry.tipoAcao);
                           const ocInfo = pontoOcorrenciaMap[entry.id || ""];
                           const ocorrenciaId = ocInfo?.id || entry.ocorrenciaId;

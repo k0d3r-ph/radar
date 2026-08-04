@@ -24,6 +24,7 @@ import {
 import type { Ocorrencia, Empresa, OcorrenciaForm } from "../../types";
 import "./Historico.css";
 import { DoughnutChart } from "../../components/DoughnutChart";
+import { BarChart } from "../../components/BarChart";
 import { useAuth } from "../../context/AuthContext";
 import { formatarNome } from "../../utils/formatarNome";
 import { atribuirIdsOcorrencias, obterInfoTipoOcorrencia } from "../../utils/empresaUtils";
@@ -1725,6 +1726,27 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
     }));
   }, [filtradasSemDepto]);
 
+  const duvidaTemasChartData = useMemo(() => {
+    const counts: Record<string, number> = {};
+    DUVIDA_OPCOES.forEach((op) => {
+      counts[op] = 0;
+    });
+
+    filtradasSemTipo
+      .filter((o) => o.tipo === "Dúvida")
+      .forEach((o) => {
+        (o.temaOcorrencia ?? []).forEach((tema) => {
+          if (counts[tema] !== undefined) {
+            counts[tema]++;
+          }
+        });
+      });
+
+    return Object.entries(counts)
+      .map(([label, value]) => ({ label, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [filtradasSemTipo]);
+
   const totalItems = filtradas.length;
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE) || 1;
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -1797,23 +1819,51 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         </div>
       </header>
 
-      {/* Dashboard Recolhível */}
-      <div className={`hist-dashboard-panel ${dashboardAberto ? "open" : ""}`}>
-        <div className="hist-dashboard-grid">
-          <DoughnutChart 
-            title="Ocorrências por Tipo" 
-            data={tipoChartData} 
-            onItemClick={(tipo) => setFiltroTipo(prev => prev === tipo ? "" : tipo)}
-            selectedLabel={filtroTipo}
-          />
-          <DoughnutChart 
-            title="Ocorrências por Departamento" 
-            data={deptoChartData} 
-            onItemClick={(depto) => setFiltroDepto(prev => prev === depto ? "" : depto)}
-            selectedLabel={filtroDepto}
-          />
+      {/* Popup do Dashboard */}
+      {dashboardAberto && (
+        <div
+          className="dashboard-modal-overlay"
+          onClick={() => setDashboardAberto(false)}
+        >
+          <div
+            className="dashboard-modal-card"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="dashboard-modal-header">
+              <h2>📊 Dashboard de Ocorrências</h2>
+              <button
+                className="dashboard-modal-fechar"
+                onClick={() => setDashboardAberto(false)}
+                aria-label="Fechar dashboard"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="dashboard-modal-body">
+              <div className="dashboard-modal-grid">
+                <DoughnutChart
+                  title="Ocorrências por Tipo"
+                  data={tipoChartData}
+                  onItemClick={(tipo) => setFiltroTipo(prev => prev === tipo ? "" : tipo)}
+                  selectedLabel={filtroTipo}
+                />
+                <DoughnutChart
+                  title="Ocorrências por Departamento"
+                  data={deptoChartData}
+                  onItemClick={(depto) => setFiltroDepto(prev => prev === depto ? "" : depto)}
+                  selectedLabel={filtroDepto}
+                />
+              </div>
+
+              <BarChart
+                title="Assuntos das Dúvidas Registradas"
+                data={duvidaTemasChartData}
+              />
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Painel de Resumo com IA */}
       <div className={`hist-ia-panel ${painelIaAberto ? "open" : ""}`}>

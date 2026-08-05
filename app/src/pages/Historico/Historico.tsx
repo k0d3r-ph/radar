@@ -2061,7 +2061,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               <th>Hora</th>
               <th>Departamento</th>
               <th>Tipo de registro</th>
-              <th>WhatsApp</th>
+              {role === "master" && <th>WhatsApp</th>}
               <th>Responsável</th>
               <th>ID</th>
             </tr>
@@ -2153,29 +2153,31 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       })()}
                     </td>
 
-                    <td>
-                      {o.whatsappStatus === "enviado" && (
-                        <span style={{ color: "#16a34a", fontWeight: "bold" }} title={`Enviado${o.whatsappEnviadoEm ? " em " + new Date(o.whatsappEnviadoEm).toLocaleString("pt-BR") : ""}`}>
-                          ✅ Enviado
-                        </span>
-                      )}
-                      {o.whatsappStatus === "parcial" && (
-                        <span style={{ color: "#d97706", fontWeight: "bold" }} title={(o.whatsappDestinatarios || []).map((d) => `${d.nome}: ${d.status}${d.erro ? " (" + d.erro + ")" : ""}`).join("\n")}>
-                          ⚠️ Parcial
-                        </span>
-                      )}
-                      {o.whatsappStatus === "falhou" && (
-                        <span style={{ color: "#dc2626", fontWeight: "bold" }} title={(o.whatsappDestinatarios || []).map((d) => d.erro || "").filter(Boolean).join("\n")}>
-                          ❌ Falhou
-                        </span>
-                      )}
-                      {o.whatsappStatus === "nao_enviado" && (
-                        <span style={{ color: "#64748b" }} title="O usuário optou por não enviar">
-                          🚫 Não enviado
-                        </span>
-                      )}
-                      {!o.whatsappStatus && <span style={{ color: "#64748b" }}>—</span>}
-                    </td>
+                    {role === "master" && (
+                      <td>
+                        {o.whatsappStatus === "enviado" && (
+                          <span style={{ color: "#16a34a", fontWeight: "bold" }} title={`Enviado${o.whatsappEnviadoEm ? " em " + new Date(o.whatsappEnviadoEm).toLocaleString("pt-BR") : ""}`}>
+                            ✅ Enviado
+                          </span>
+                        )}
+                        {o.whatsappStatus === "parcial" && (
+                          <span style={{ color: "#d97706", fontWeight: "bold" }} title={(o.whatsappDestinatarios || []).map((d) => `${d.nome}: ${d.status}${d.erro ? " (" + d.erro + ")" : ""}`).join("\n")}>
+                            ⚠️ Parcial
+                          </span>
+                        )}
+                        {o.whatsappStatus === "falhou" && (
+                          <span style={{ color: "#dc2626", fontWeight: "bold" }} title={(o.whatsappDestinatarios || []).map((d) => d.erro || "").filter(Boolean).join("\n")}>
+                            ❌ Falhou
+                          </span>
+                        )}
+                        {o.whatsappStatus === "nao_enviado" && (
+                          <span style={{ color: "#64748b" }} title="O usuário optou por não enviar">
+                            🚫 Não enviado
+                          </span>
+                        )}
+                        {!o.whatsappStatus && <span style={{ color: "#64748b" }}>—</span>}
+                      </td>
+                    )}
 
                     <td>👤 {formatarNome(o.responsavel) || "—"}</td>
 

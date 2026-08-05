@@ -339,6 +339,7 @@ const EMPTY: OcorrenciaForm = {
   treinamentoSolicitante: "CS",
   treinamentoNotas: [],
   createdAt: "",
+  horaCriacao: "",
   retornarEsteira: false,
   temaForaEsteira: false,
 };
@@ -856,12 +857,14 @@ export function Historico() {
     }
 
     let dataCriacaoFormatada = "";
+    let horaCriacaoFormatada = "";
     if (o.createdAt && o.createdAt > 0 && !isNaN(o.createdAt)) {
       const d = new Date(o.createdAt);
       const year = d.getFullYear();
       const month = String(d.getMonth() + 1).padStart(2, "0");
       const day = String(d.getDate()).padStart(2, "0");
       dataCriacaoFormatada = `${year}-${month}-${day}`;
+      horaCriacaoFormatada = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
     }
 
     setForm({
@@ -883,6 +886,7 @@ export function Historico() {
       treinamentoSolicitante: o.treinamentoSolicitante || "CS",
       treinamentoNotas: o.treinamentoNotas ? o.treinamentoNotas.map(String) : [],
       createdAt: dataCriacaoFormatada,
+      horaCriacao: horaCriacaoFormatada,
       retornarEsteira: o.retornarEsteira ?? false,
     });
     setTemaOcorrenciaOngoingText(o.temaOcorrencia?.join(", ") ?? "");
@@ -1036,14 +1040,17 @@ export function Historico() {
     if (role === "master" && form.createdAt) {
       const [year, month, day] = form.createdAt.split("-").map(Number);
       const originalTime = ocorrenciaOriginal?.createdAt ? new Date(ocorrenciaOriginal.createdAt) : new Date();
+      const [hours, minutes] = form.horaCriacao
+        ? form.horaCriacao.split(":").map(Number)
+        : [originalTime.getHours(), originalTime.getMinutes()];
       finalCreatedAt = new Date(
         year,
         month - 1,
         day,
-        originalTime.getHours(),
-        originalTime.getMinutes(),
-        originalTime.getSeconds(),
-        originalTime.getMilliseconds()
+        hours,
+        minutes,
+        form.horaCriacao ? 0 : originalTime.getSeconds(),
+        form.horaCriacao ? 0 : originalTime.getMilliseconds()
       ).getTime();
     } else if (ocorrenciaOriginal?.createdAt) {
       finalCreatedAt = ocorrenciaOriginal.createdAt;
@@ -2733,18 +2740,31 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             )}
 
             {role === "master" && (
-              <div className="hist-campo">
-                <label>Data de criação (apenas Master)</label>
-                <input
-                  type="date"
-                  value={form.createdAt ?? ""}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      createdAt: e.target.value,
-                    })
-                  }
-                />
+              <div className="hist-campo hist-campo-row">
+                <div>
+                  <label>Data de criação (apenas Master)</label>
+                  <input
+                    type="date"
+                    value={form.createdAt ?? ""}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        createdAt: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label>Hora de criação (apenas Master)</label>
+                  <input
+                    type="time"
+                    value={form.horaCriacao ?? ""}
+                    onChange={(e) =>
+                      setForm({ ...form, horaCriacao: e.target.value })
+                    }
+                  />
+                </div>
               </div>
             )}
 

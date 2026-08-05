@@ -110,6 +110,7 @@ export type OcorrenciaForm = {
   treinamentoNotas?: string[];
   isRevisao?: boolean;
   createdAt?: string;
+  horaCriacao?: string;
   retornarEsteira?: boolean;
   temaForaEsteira?: boolean;
 };

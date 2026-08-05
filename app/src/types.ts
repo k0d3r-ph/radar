@@ -80,6 +80,14 @@ export type Ocorrencia = {
   isRevisao?: boolean;
   retornarEsteira?: boolean;
   temaForaEsteira?: boolean;
+  whatsappStatus?: "enviado" | "falhou" | "parcial" | "nao_enviado";
+  whatsappEnviadoEm?: number;
+  whatsappDestinatarios?: {
+    nome: string;
+    telefone: string;
+    status: "enviado" | "falhou";
+    erro?: string;
+  }[];
 };
 
 export type OcorrenciaForm = {

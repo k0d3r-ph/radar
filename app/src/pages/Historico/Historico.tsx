@@ -509,6 +509,7 @@ export function Historico() {
   // WhatsApp Integration States
   const [whatsappConfirmModalOpen, setWhatsappConfirmModalOpen] = useState(false);
   const [pendingWhatsAppMessage, setPendingWhatsAppMessage] = useState<{
+    ocorrenciaId: string;
     destinatarios: { nome: string; telefone: string }[];
     empresaNome: string;
     temas: string[];
@@ -1465,6 +1466,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         const textoMensagem = `Olá, *${contatoNome}*! 🚀\nSeu treinamento sobre ${plural ? "os temas" : "o tema"} *${temasParaMensagem.join(", ")}* foi registrado com sucesso em *${dataCompleta}*.\n\nConfira acima a sua esteira de evolução atualizada:`;
 
         setPendingWhatsAppMessage({
+          ocorrenciaId: savedId,
           destinatarios,
           empresaNome: empresaObjeto.nomeEmpresa,
           temas: temasValidos,
@@ -2059,6 +2061,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               <th>Hora</th>
               <th>Departamento</th>
               <th>Tipo de registro</th>
+              <th>WhatsApp</th>
               <th>Responsável</th>
               <th>ID</th>
             </tr>
@@ -2148,6 +2151,30 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                           </span>
                         );
                       })()}
+                    </td>
+
+                    <td>
+                      {o.whatsappStatus === "enviado" && (
+                        <span style={{ color: "#16a34a", fontWeight: "bold" }} title={`Enviado${o.whatsappEnviadoEm ? " em " + new Date(o.whatsappEnviadoEm).toLocaleString("pt-BR") : ""}`}>
+                          ✅ Enviado
+                        </span>
+                      )}
+                      {o.whatsappStatus === "parcial" && (
+                        <span style={{ color: "#d97706", fontWeight: "bold" }} title={(o.whatsappDestinatarios || []).map((d) => `${d.nome}: ${d.status}${d.erro ? " (" + d.erro + ")" : ""}`).join("\n")}>
+                          ⚠️ Parcial
+                        </span>
+                      )}
+                      {o.whatsappStatus === "falhou" && (
+                        <span style={{ color: "#dc2626", fontWeight: "bold" }} title={(o.whatsappDestinatarios || []).map((d) => d.erro || "").filter(Boolean).join("\n")}>
+                          ❌ Falhou
+                        </span>
+                      )}
+                      {o.whatsappStatus === "nao_enviado" && (
+                        <span style={{ color: "#64748b" }} title="O usuário optou por não enviar">
+                          🚫 Não enviado
+                        </span>
+                      )}
+                      {!o.whatsappStatus && <span style={{ color: "#64748b" }}>—</span>}
                     </td>
 
                     <td>👤 {formatarNome(o.responsavel) || "—"}</td>
@@ -3489,6 +3516,14 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 className="btn-secondary"
                 disabled={sendingWhatsApp}
                 onClick={async () => {
+                  try {
+                    await salvarOcorrencia({
+                      id: pendingWhatsAppMessage.ocorrenciaId,
+                      whatsappStatus: "nao_enviado",
+                    } as Ocorrencia);
+                  } catch (error) {
+                    console.error("Erro ao registrar recusa de envio do WhatsApp:", error);
+                  }
                   setWhatsappConfirmModalOpen(false);
                   setPendingWhatsAppMessage(null);
                   await carregar();
@@ -3525,7 +3560,28 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       )
                     );
 
+                    const whatsappDestinatarios = pendingWhatsAppMessage.destinatarios.map((d, idx) => {
+                      const r = resultados[idx];
+                      return r.status === "fulfilled"
+                        ? { nome: d.nome, telefone: d.telefone, status: "enviado" as const }
+                        : { nome: d.nome, telefone: d.telefone, status: "falhou" as const, erro: String(r.reason?.message || r.reason || "Erro desconhecido") };
+                    });
+
                     const falhas = resultados.filter((r) => r.status === "rejected").length;
+                    const whatsappStatus: Ocorrencia["whatsappStatus"] =
+                      falhas === 0 ? "enviado" : falhas < resultados.length ? "parcial" : "falhou";
+
+                    try {
+                      await salvarOcorrencia({
+                        id: pendingWhatsAppMessage.ocorrenciaId,
+                        whatsappStatus,
+                        whatsappEnviadoEm: Date.now(),
+                        whatsappDestinatarios,
+                      } as Ocorrencia);
+                    } catch (error) {
+                      console.error("Erro ao registrar status de envio do WhatsApp:", error);
+                    }
+
                     if (falhas === 0) {
                       toast.success("Mensagem do WhatsApp enviada com sucesso!");
                     } else if (falhas < resultados.length) {

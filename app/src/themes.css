@@ -365,6 +365,17 @@ body.light-theme {
   background-color: #f1f5f9 !important;
   background-image: linear-gradient(180deg, #e9f1ff 0%, #f7fbff 100%) !important;
   color: #1e293b;
+
+  /* Variáveis usadas por componentes que fazem var(--x, #fallback-escuro)
+     (GestaoNotificacaoModal, ChecklistTarefas, WhatsAppSettings). Sem essa
+     definição, esses componentes sempre caem no fallback escuro, mesmo no
+     Light Mode, e o texto pode ficar ilegível quando o resto do bloco é
+     recolorido pelas regras de alto contraste abaixo. */
+  --bg: #f1f5f9;
+  --card-bg: #ffffff;
+  --text-color: #1e293b;
+  --text-muted: #475569;
+  --border-color: #e2e8f0;
 }
 
 /* Forçar cores de letras com alto contraste no Light Mode */
@@ -1506,4 +1517,174 @@ body.dark-theme .btn-remove-nota:hover {
   align-items: center;
   gap: 6px;
   margin-top: 6px;
+}
+
+/* ==========================================
+   4. ESTEIRA (ONBOARDING) NO LIGHT MODE
+   Esteira.css é 100% escuro por padrão (sem nenhuma variável de tema), então
+   sem estas regras o painel de controles e o modal de Templates ficam com
+   texto escuro (forçado pela regra global de span/label no topo deste
+   arquivo) sobre fundo também escuro — texto some por completo.
+   ========================================== */
+body.light-theme .controls {
+  background: #ffffff !important;
+  color: #1e293b !important;
+  border: 1px solid #eaedfa !important;
+  box-shadow: 0 18px 60px rgba(15, 23, 42, 0.08) !important;
+}
+
+body.light-theme .controls input,
+body.light-theme .controls textarea,
+body.light-theme .controls select {
+  background: #f8fafc !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #1e293b !important;
+}
+
+body.light-theme .controls input::placeholder,
+body.light-theme .controls textarea::placeholder {
+  color: #64748b !important;
+}
+
+body.light-theme .phase-label {
+  color: #1e293b !important;
+}
+
+body.light-theme .btn-small {
+  background: #f1f5f9 !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #1e293b !important;
+}
+
+body.light-theme .btn-secondary {
+  background: #f1f5f9 !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #1e293b !important;
+  box-shadow: none !important;
+}
+
+body.light-theme .btn-secondary:hover {
+  background: #e2e8f0 !important;
+  border-color: #94a3b8 !important;
+}
+
+/* Dropdown "Empresas salvas" (componente FakeSelect) */
+body.light-theme .fake-select-button {
+  background: #f8fafc !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #1e293b !important;
+}
+
+body.light-theme .fake-select-dropdown {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12) !important;
+}
+
+body.light-theme .fake-option {
+  color: #1e293b !important;
+}
+
+body.light-theme .fake-option:hover {
+  background: #f1f5f9 !important;
+}
+
+body.light-theme .fake-select-search {
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+body.light-theme .fake-option--empty {
+  color: #64748b !important;
+}
+
+/* Modal de Templates */
+body.light-theme .templates-modal {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.15) !important;
+}
+
+body.light-theme .templates-modal-header {
+  border-bottom: 1px solid #f1f5f9 !important;
+}
+
+body.light-theme .templates-modal-header h3 {
+  color: #0f2a5e !important;
+}
+
+body.light-theme .templates-modal-close {
+  color: #64748b !important;
+}
+
+body.light-theme .templates-modal-close:hover {
+  background: #f1f5f9 !important;
+  color: #1e293b !important;
+}
+
+body.light-theme .templates-modal-item:hover {
+  background: #f1f5f9 !important;
+}
+
+body.light-theme .templates-modal-item-nome {
+  color: #1e293b !important;
+}
+
+body.light-theme .templates-modal-item-desc {
+  color: #475569 !important;
+}
+
+/* ==========================================
+   5. CHECKLIST FLUTUANTE NO LIGHT MODE
+   O painel usa var(--card-bg) (já coberto pela seção 2), mas alguns detalhes
+   específicos (select nativo, texto secundário) têm cor fixa e precisam de
+   ajuste manual para não sumir sobre o novo fundo claro.
+   ========================================== */
+body.light-theme .checklist-flutuante-select {
+  color: #1e293b !important;
+  background-color: #f8fafc !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+body.light-theme .checklist-flutuante-select option {
+  background-color: #ffffff !important;
+  color: #1e293b !important;
+}
+
+body.light-theme .checklist-flutuante-form input {
+  background: #f8fafc !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #1e293b !important;
+}
+
+body.light-theme .checklist-flutuante-form input::placeholder {
+  color: #64748b !important;
+}
+
+body.light-theme .checklist-flutuante-fechar {
+  color: #64748b !important;
+}
+
+body.light-theme .checklist-flutuante-fechar:hover {
+  background: #f1f5f9 !important;
+  color: #1e293b !important;
+}
+
+body.light-theme .checklist-flutuante-progresso {
+  background: #e2e8f0 !important;
+}
+
+body.light-theme .checklist-flutuante-item {
+  background: #f8fafc !important;
+}
+
+body.light-theme .checklist-flutuante-autor {
+  color: #475569 !important;
+}
+
+body.light-theme .checklist-flutuante-item.concluida span {
+  color: #94a3b8 !important;
+}
+
+body.light-theme .checklist-flutuante-remover {
+  color: #64748b !important;
 }

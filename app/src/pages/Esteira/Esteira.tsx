@@ -11,7 +11,10 @@ import FakeSelect from "../../components/FakeSelect";
 import { toast } from "sonner";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { obterDestinatariosGestao, montarMensagemConclusaoEsteiraGestao } from "../../services/notificacoes";
+import {
+  obterDestinatariosGestao,
+  montarMensagemConclusaoEsteiraGestao,
+} from "../../services/notificacoes";
 import type { DestinatarioGestao } from "../../services/notificacoes";
 import { GestaoNotificacaoModal } from "../../components/GestaoNotificacaoModal";
 
@@ -51,7 +54,7 @@ const TEMPLATES_ESTEIRA: TemplateEsteira[] = [
     nome: "Template 2",
     descricao: "Central que utilizará apenas Videotelemetria",
     temas:
-      "Início\nCadastrar Câmeras\nCadastrar Veículos\nDesassociar Rastreador\nFunções da Tela Operacional\nApresentar Videotelemetria\nCriar Templates\nCriar Regras, Áreas e Rotas\nApresentar Relatórios\nConclusão",
+      "Início\nCadastrar Câmeras\nCadastrar Veículos\nDesassociar Rastreador\nFunções da Tela Operacional\nCadastro de cliente e Calculadora\nApresentar Videotelemetria\nCriar Templates\nCriar Regras, Áreas e Rotas\nApresentar Relatórios\nConclusão",
   },
   {
     id: "template3",
@@ -96,7 +99,9 @@ function Esteira() {
 
   // Notificação de Gestão (Conclusão da esteira -> Supervisor + CS Responsável) via WhatsApp
   const [gestaoConfirmModalOpen, setGestaoConfirmModalOpen] = useState(false);
-  const [gestaoDestinatarios, setGestaoDestinatarios] = useState<DestinatarioGestao[]>([]);
+  const [gestaoDestinatarios, setGestaoDestinatarios] = useState<
+    DestinatarioGestao[]
+  >([]);
   const [gestaoMensagem, setGestaoMensagem] = useState("");
 
   useEffect(() => {
@@ -264,14 +269,23 @@ function Esteira() {
         </div>
 
         {nomeEmpresa && (
-          <div className="control-row" style={{ marginTop: "-12px", marginBottom: "24px" }}>
+          <div
+            className="control-row"
+            style={{ marginTop: "-12px", marginBottom: "24px" }}
+          >
             <button
               type="button"
               className="btn-secondary"
               onClick={() => {
-                navigate(`/historico?empresa=${encodeURIComponent(nomeEmpresa)}`);
+                navigate(
+                  `/historico?empresa=${encodeURIComponent(nomeEmpresa)}`,
+                );
               }}
-              style={{ width: "100%", padding: "10px 14px", fontSize: "0.85rem" }}
+              style={{
+                width: "100%",
+                padding: "10px 14px",
+                fontSize: "0.85rem",
+              }}
             >
               Ver Ocorrências de {nomeEmpresa}
             </button>
@@ -325,7 +339,7 @@ function Esteira() {
                 const nomeDuplicado = empresas.some(
                   (e) =>
                     normalizarNome(e.nomeEmpresa) ===
-                    normalizarNome(nomeEmpresa) && String(e.id) !== empresaId,
+                      normalizarNome(nomeEmpresa) && String(e.id) !== empresaId,
                 );
 
                 if (nomeDuplicado) {
@@ -345,7 +359,7 @@ function Esteira() {
                 const dataHoje = `${year}-${month}-${day}`;
 
                 const dataFinalizacao = isFinished
-                  ? (empresaExistente?.dataFinalizacao || dataHoje)
+                  ? empresaExistente?.dataFinalizacao || dataHoje
                   : "";
 
                 const novoId = await salvarEmpresas({
@@ -370,7 +384,11 @@ function Esteira() {
                 });
 
                 // Esteira concluída agora (não estava finalizada antes e o cliente não é Ongoing): notifica Supervisor + CS Responsável
-                if (isFinished && !empresaExistente?.dataFinalizacao && !empresaExistente?.isOngoing) {
+                if (
+                  isFinished &&
+                  !empresaExistente?.dataFinalizacao &&
+                  !empresaExistente?.isOngoing
+                ) {
                   const empresaConcluida: Empresa = {
                     ...(empresaExistente as Empresa),
                     id: String(novoId || empresaId),
@@ -384,11 +402,16 @@ function Esteira() {
                     .then((destinatarios) => {
                       if (destinatarios.length === 0) return;
                       setGestaoDestinatarios(destinatarios);
-                      setGestaoMensagem(montarMensagemConclusaoEsteiraGestao(empresaConcluida));
+                      setGestaoMensagem(
+                        montarMensagemConclusaoEsteiraGestao(empresaConcluida),
+                      );
                       setGestaoConfirmModalOpen(true);
                     })
                     .catch((err) =>
-                      console.error("[notificações] Falha ao montar destinatários de conclusão:", err)
+                      console.error(
+                        "[notificações] Falha ao montar destinatários de conclusão:",
+                        err,
+                      ),
                     );
                 }
 
@@ -402,7 +425,6 @@ function Esteira() {
               Salvar empresa
             </button>
           )}
-
 
           <button
             className="btn-primary"
@@ -530,7 +552,6 @@ function Esteira() {
               Templates
             </button>
           )}
-
         </div>
 
         <div className="control-row">
@@ -665,10 +686,7 @@ function Esteira() {
           className="templates-modal-overlay"
           onClick={() => setTemplatesAbertos(false)}
         >
-          <div
-            className="templates-modal"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="templates-modal" onClick={(e) => e.stopPropagation()}>
             <div className="templates-modal-header">
               <h3>Escolha um template</h3>
               <button
@@ -687,8 +705,12 @@ function Esteira() {
                   className="templates-modal-item"
                   onClick={() => aplicarTemplate(template)}
                 >
-                  <span className="templates-modal-item-nome">{template.nome}</span>
-                  <span className="templates-modal-item-desc">{template.descricao}</span>
+                  <span className="templates-modal-item-nome">
+                    {template.nome}
+                  </span>
+                  <span className="templates-modal-item-desc">
+                    {template.descricao}
+                  </span>
                 </div>
               ))}
             </div>

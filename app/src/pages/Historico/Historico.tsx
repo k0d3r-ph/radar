@@ -238,11 +238,14 @@ function reordenarTemasEnsinados(
     ...(conclusaoItem ? [conclusaoItem.data] : []),
   ];
 
-  // Última posição (no array final) que faz parte do prefixo contíguo já preenchido
-  let ultimoIndice = -1;
-  for (let i = 0; i < datasFinais.length; i++) {
-    if (datasFinais[i].trim() === "") break;
-    ultimoIndice = i;
+  // Última posição (no array final) que faz parte do progresso já concluído.
+  // "Início" conta como concluída assim que ocupa a posição fixa (não trava o
+  // progresso dos demais temas por falta da própria data — empresas antigas
+  // podem nunca ter tido essa data preenchida). "Conclusão" só conta quando
+  // todos os temas do meio já estiverem preenchidos E ela própria tiver data.
+  let ultimoIndice = (inicioItem ? 1 : 0) + frontIndex - 1;
+  if (conclusaoItem && conclusaoItem.data.trim() !== "" && frontIndex === newTemas.length) {
+    ultimoIndice = temasFinais.length - 1;
   }
 
   return { newTemas: temasFinais, newDatas: datasFinais, ultimoIndice };

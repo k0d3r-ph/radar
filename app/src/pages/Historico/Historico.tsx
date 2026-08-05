@@ -162,16 +162,31 @@ const normalizarTema = (s: string) =>
 // mesma ocorrência.
 // Ex.: temas ensinados hoje = [Videotelemetria], já ensinados antes = [0,1] →
 // Videotelemetria (originalmente na posição 6) é movido para a posição 2.
+//
+// "Início" e "Conclusão" são âncoras fixas: independentemente de onde estejam
+// cadastradas na esteira, "Início" é sempre tratada como o primeiro tema e
+// "Conclusão" como o último — nunca entram no embaralhamento acima, e nenhum
+// outro tema pode ser puxado para antes de "Início" ou para depois de "Conclusão".
 function reordenarTemasEnsinados(
   linhasTema: string[],
   linhasData: string[],
   indicesEnsinados: number[],
   dataStr: string
 ): { newTemas: string[]; newDatas: string[]; ultimoIndice: number } {
-  const newTemas = [...linhasTema];
-  const newDatas = [...linhasData];
+  const idxInicio = linhasTema.findIndex((t) => normalizarTema(t) === "inicio");
+  const idxConclusao = linhasTema.findIndex((t) => normalizarTema(t) === "conclusao");
 
-  // Fronteira atual: primeiro índice ainda sem data (fim do prefixo já ensinado)
+  const inicioItem = idxInicio !== -1 ? { tema: linhasTema[idxInicio], data: linhasData[idxInicio] ?? "" } : null;
+  const conclusaoItem = idxConclusao !== -1 ? { tema: linhasTema[idxConclusao], data: linhasData[idxConclusao] ?? "" } : null;
+
+  // "Meio": todos os temas exceto as âncoras fixas — é nele que a reordenação por sequência ocorre
+  const newTemas = linhasTema.filter((_, idx) => idx !== idxInicio && idx !== idxConclusao);
+  const newDatas = linhasTema
+    .map((_, idx) => idx)
+    .filter((idx) => idx !== idxInicio && idx !== idxConclusao)
+    .map((idx) => linhasData[idx] ?? "");
+
+  // Fronteira atual: primeiro índice (dentro do meio) ainda sem data
   let frontIndex = 0;
   while (frontIndex < newDatas.length && newDatas[frontIndex].trim() !== "") {
     frontIndex++;
@@ -183,23 +198,19 @@ function reordenarTemasEnsinados(
   for (const idxOriginal of indicesOrdenados) {
     const temaAlvo = linhasTema[idxOriginal];
     const normalizado = normalizarTema(temaAlvo);
-    const posAtual = newTemas.findIndex((t) => normalizarTema(t) === normalizado);
 
-    if (posAtual === -1) continue;
-
-    // "Início" e "Conclusão" são âncoras fixas (sempre primeiro/último tema) e
-    // nunca são movidas de posição, mesmo quando marcadas fora de ordem.
-    if (normalizado === "inicio" || normalizado === "conclusao") {
-      if (newDatas[posAtual].trim() === "") {
-        newDatas[posAtual] = dataStr;
-      }
-      if (posAtual === frontIndex) {
-        frontIndex++;
-      }
+    if (normalizado === "inicio") {
+      if (inicioItem && inicioItem.data.trim() === "") inicioItem.data = dataStr;
+      continue;
+    }
+    if (normalizado === "conclusao") {
+      if (conclusaoItem && conclusaoItem.data.trim() === "") conclusaoItem.data = dataStr;
       continue;
     }
 
-    if (posAtual < frontIndex) {
+    const posAtual = newTemas.findIndex((t) => normalizarTema(t) === normalizado);
+
+    if (posAtual === -1 || posAtual < frontIndex) {
       // Já processado/ensinado antes (ou tema duplicado) — não retrocede a fronteira
       continue;
     }
@@ -216,7 +227,25 @@ function reordenarTemasEnsinados(
     frontIndex++;
   }
 
-  return { newTemas, newDatas, ultimoIndice: frontIndex - 1 };
+  const temasFinais = [
+    ...(inicioItem ? [inicioItem.tema] : []),
+    ...newTemas,
+    ...(conclusaoItem ? [conclusaoItem.tema] : []),
+  ];
+  const datasFinais = [
+    ...(inicioItem ? [inicioItem.data] : []),
+    ...newDatas,
+    ...(conclusaoItem ? [conclusaoItem.data] : []),
+  ];
+
+  // Última posição (no array final) que faz parte do prefixo contíguo já preenchido
+  let ultimoIndice = -1;
+  for (let i = 0; i < datasFinais.length; i++) {
+    if (datasFinais[i].trim() === "") break;
+    ultimoIndice = i;
+  }
+
+  return { newTemas: temasFinais, newDatas: datasFinais, ultimoIndice };
 }
 
 const parseInlineMarkdown = (text: string) => {

@@ -96,6 +96,14 @@ const DUVIDA_OPCOES = [
   "Manutenção",
 ];
 
+const SOLICITACAO_OPCOES = [
+  "Mascaramento da URL",
+  "Liberação/Exclusão de Gateway",
+  "Material de apoio",
+  "Troca de email do usuário Admin",
+  "Troca de nome da central",
+];
+
 const DEPARTAMENTO_CLASS: Record<string, string> = {
   Treinamento: "departamento-treinamento",
   CS: "departamento-cs",
@@ -2489,7 +2497,13 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 {selecionada.temaOcorrencia &&
                   selecionada.temaOcorrencia.length > 0 && (
                     <div className="hist-detail-desc">
-                      <span>{selecionada.tipo === "Dúvida" ? "Assunto da dúvida" : "Temas abordados"}</span>
+                      <span>
+                        {selecionada.tipo === "Dúvida"
+                          ? "Assunto da dúvida"
+                          : selecionada.tipo === "Solicitação"
+                            ? "Assunto da solicitação"
+                            : "Temas abordados"}
+                      </span>
                       <div className="temas-selecionados">
                         {selecionada.temaOcorrencia.map((tema) => (
                           <span
@@ -2832,6 +2846,33 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 <label>Assunto da dúvida *</label>
                 <div className="temas-lista">
                   {DUVIDA_OPCOES.map((opcao) => (
+                    <label key={opcao} className="tema-opcao">
+                      <input
+                        type="checkbox"
+                        checked={form.temaOcorrencia?.includes(opcao) ?? false}
+                        onChange={(e) => {
+                          const atual = form.temaOcorrencia ?? [];
+                          const novoTema = e.target.checked
+                            ? [...atual, opcao]
+                            : atual.filter((t) => t !== opcao);
+                          setForm({
+                            ...form,
+                            temaOcorrencia: novoTema,
+                          });
+                        }}
+                      />
+                      {opcao}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {form.tipo === "Solicitação" && (
+              <div className="hist-campo">
+                <label>Assunto da solicitação</label>
+                <div className="temas-lista">
+                  {SOLICITACAO_OPCOES.map((opcao) => (
                     <label key={opcao} className="tema-opcao">
                       <input
                         type="checkbox"

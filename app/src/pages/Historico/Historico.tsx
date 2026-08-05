@@ -1432,14 +1432,16 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       }
     }
 
-    // Fluxo de Disparo do WhatsApp
-    const temasValidos = form.tipo === "Treinamento" && !isRevisao && empresaObjeto
+    // Fluxo de Disparo do WhatsApp — só oferece o envio ao criar a ocorrência.
+    // Em edições (ex.: apenas corrigir data/hora), não repete a oferta para não
+    // sobrescrever o status de envio já registrado na criação original.
+    const temasValidos = !editandoId && form.tipo === "Treinamento" && !isRevisao && empresaObjeto
       ? (form.temaOcorrencia ?? []).filter(
           (t) => t.trim().toLowerCase() !== "ausente" && t.trim().toLowerCase() !== "cancelado"
         )
       : [];
 
-    if (form.tipo === "Treinamento" && !isRevisao && empresaObjeto && temasValidos.length > 0) {
+    if (!editandoId && form.tipo === "Treinamento" && !isRevisao && empresaObjeto && temasValidos.length > 0) {
       const contatosBase = empresaObjeto.contatos && empresaObjeto.contatos.length > 0
         ? empresaObjeto.contatos
         : empresaObjeto.telefone || empresaObjeto.contato

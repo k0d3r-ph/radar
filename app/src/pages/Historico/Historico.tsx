@@ -182,9 +182,24 @@ function reordenarTemasEnsinados(
 
   for (const idxOriginal of indicesOrdenados) {
     const temaAlvo = linhasTema[idxOriginal];
-    const posAtual = newTemas.findIndex((t) => normalizarTema(t) === normalizarTema(temaAlvo));
+    const normalizado = normalizarTema(temaAlvo);
+    const posAtual = newTemas.findIndex((t) => normalizarTema(t) === normalizado);
 
-    if (posAtual === -1 || posAtual < frontIndex) {
+    if (posAtual === -1) continue;
+
+    // "Início" e "Conclusão" são âncoras fixas (sempre primeiro/último tema) e
+    // nunca são movidas de posição, mesmo quando marcadas fora de ordem.
+    if (normalizado === "inicio" || normalizado === "conclusao") {
+      if (newDatas[posAtual].trim() === "") {
+        newDatas[posAtual] = dataStr;
+      }
+      if (posAtual === frontIndex) {
+        frontIndex++;
+      }
+      continue;
+    }
+
+    if (posAtual < frontIndex) {
       // Já processado/ensinado antes (ou tema duplicado) — não retrocede a fronteira
       continue;
     }

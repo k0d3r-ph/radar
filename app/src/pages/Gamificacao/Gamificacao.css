@@ -519,10 +519,28 @@
 }
 
 /* History table */
+.table-responsive {
+  width: 100%;
+}
+
 .gamificacao-table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
+}
+
+/* Rolagem horizontal da tabela de Atividades Recentes apenas em
+   mobile/tablet — na web o card tem espaço suficiente para exibir
+   todas as colunas sem precisar de scroll. */
+@media (max-width: 1024px) {
+  .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .gamificacao-table {
+    min-width: 750px;
+  }
 }
 
 .gamificacao-table th {
@@ -1461,17 +1479,23 @@
   }
   
   .filtros-data-grupo {
-    justify-content: space-between;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
   }
-  
+
   .filtros-data-grupo input[type="date"] {
-    flex: 1;
-    max-width: 200px;
+    flex: none;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
   }
 
   .filtros-data-grupo select {
-    flex: 1;
+    flex: none;
+    width: 100%;
     max-width: none;
+    min-width: 0;
   }
 
   .btn-limpar-filtros {
@@ -1484,13 +1508,23 @@
     gap: 12px;
   }
 
-  /* Ranking Responsive adjustments */
+  /* Ranking Responsive adjustments: lista permanece vertical; quando o
+     conteúdo de uma linha (nome + detalhes + nota) não cabe na largura
+     da tela, a própria linha vira scrollável na horizontal para o
+     usuário arrastar e ver a nota, sem quebrar a largura da página. */
   .ranking-item {
     padding: 12px 14px;
     gap: 8px;
-    grid-template-columns: auto 1fr auto;
+    grid-template-columns: 32px minmax(160px, max-content) 70px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
   }
-  
+
+  .ranking-item::-webkit-scrollbar {
+    display: none;
+  }
+
   .ranking-position {
     width: 30px;
   }
@@ -1515,18 +1549,6 @@
   .bonus-pill {
     margin-left: 0 !important;
     display: inline-block;
-  }
-
-  /* Recent Activities Table scrolling */
-  .table-responsive {
-    display: block;
-    width: 100%;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .gamificacao-table {
-    min-width: 750px;
   }
 
   /* Radio Card Responsive tweaks */

@@ -35,9 +35,11 @@ export async function salvarOcorrencia(ocorrencia: Ocorrencia) {
     });
 
     // Atualização Otimista do Cache
+    // Usa apenas dadosLimpos (sem campos undefined) para não sobrescrever
+    // valores já corretos no cache (ex: createdAt) com undefined.
     if (cachedOcorrencias) {
       cachedOcorrencias = cachedOcorrencias.map((o) =>
-        o.id === id ? ({ ...o, ...ocorrencia, ...dadosLimpos, updatedAt } as Ocorrencia) : o
+        o.id === id ? ({ ...o, ...dadosLimpos, updatedAt } as Ocorrencia) : o
       );
     }
     return id;

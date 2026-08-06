@@ -27,6 +27,12 @@ import { useAuth } from "../../context/AuthContext";
 import { formatarNome } from "../../utils/formatarNome";
 import { listarUsuarios } from "../../services/auth";
 import { toast } from "sonner";
+import {
+  obterDestinatariosGestao,
+  montarMensagemSuspensaoGestao,
+} from "../../services/notificacoes";
+import type { DestinatarioGestao } from "../../services/notificacoes";
+import { GestaoNotificacaoModal } from "../../components/GestaoNotificacaoModal";
 
 interface ScoreFormAnswers {
   facilContato: "Sim" | "Não" | "";
@@ -228,6 +234,12 @@ export default function Home() {
     null,
   );
 
+  const [gestaoConfirmModalOpen, setGestaoConfirmModalOpen] = useState(false);
+  const [gestaoDestinatarios, setGestaoDestinatarios] = useState<
+    DestinatarioGestao[]
+  >([]);
+  const [gestaoMensagem, setGestaoMensagem] = useState("");
+
   const [tabelaAtivaAberta, setTabelaAtivaAberta] = useState(true);
   const [tabelaOngoingAberta, setTabelaOngoingAberta] = useState(true);
   const [tabelaSuspensaAberta, setTabelaSuspensaAberta] = useState(false);
@@ -322,15 +334,17 @@ export default function Home() {
       idNumericToSave = highest + 1;
     }
 
-    const antigoNome = editandoClienteId
-      ? empresas.find(e => e.id === editandoClienteId)?.nomeEmpresa
+    const empresaExistente = editandoClienteId
+      ? empresas.find(e => e.id === editandoClienteId)
       : null;
+
+    const antigoNome = empresaExistente?.nomeEmpresa || null;
 
     const contatosValidos = (clienteForm.contatos || []).filter(
       (c) => c.nome.trim() || c.telefone.trim(),
     );
 
-    await salvarEmpresas({
+    const empresaSalva: Empresa = {
       ...clienteForm,
       nomeEmpresa: nomeFinal,
       idNumeric: idNumericToSave,
@@ -340,7 +354,23 @@ export default function Home() {
       contatos: contatosValidos,
       contato: contatosValidos[0]?.nome || "",
       telefone: contatosValidos[0]?.telefone || "",
-    });
+    };
+
+    await salvarEmpresas(empresaSalva);
+
+    // Cliente acabou de ser suspenso agora (não estava suspenso antes): notifica Supervisor + CS Responsável
+    if (empresaSalva.isSuspended && !empresaExistente?.isSuspended) {
+      obterDestinatariosGestao(empresaSalva)
+        .then((destinatarios) => {
+          if (destinatarios.length === 0) return;
+          setGestaoDestinatarios(destinatarios);
+          setGestaoMensagem(montarMensagemSuspensaoGestao(empresaSalva));
+          setGestaoConfirmModalOpen(true);
+        })
+        .catch((err) =>
+          console.error("[notificações] Falha ao montar destinatários de suspensão:", err)
+        );
+    }
 
     if (antigoNome && antigoNome.trim().toLowerCase() !== nomeFinal.trim().toLowerCase()) {
       const ocsParaAtualizar = historico.filter(o => o.empresa.trim().toLowerCase() === antigoNome.trim().toLowerCase());
@@ -2434,6 +2464,19 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      <GestaoNotificacaoModal
+        open={gestaoConfirmModalOpen}
+        titulo="⏸️ Notificar Supervisor e CS Responsável sobre a suspensão?"
+        destinatarios={gestaoDestinatarios}
+        mensagem={gestaoMensagem}
+        onChangeMensagem={setGestaoMensagem}
+        onClose={() => {
+          setGestaoConfirmModalOpen(false);
+          setGestaoDestinatarios([]);
+          setGestaoMensagem("");
+        }}
+      />
     </div>
   );
 }

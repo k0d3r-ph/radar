@@ -513,9 +513,9 @@ export const Gamificacao: React.FC = () => {
       setLoading(true);
       const [listaUsuarios, listaPontos, listaEmpresas, listaOcorrencias] =
         await Promise.all([
-          listarUsuarios(),
-          listarLancamentosPontos(),
-          listarEmpresas(),
+          listarUsuarios(true),
+          listarLancamentosPontos(true),
+          listarEmpresas(true),
           listarOcorrencias().catch((err) => {
             console.error("Erro ao listar ocorrências para mapeamento:", err);
             return [];
@@ -699,6 +699,10 @@ export const Gamificacao: React.FC = () => {
   // sob responsabilidade do treinador (1 pt cada, 2 pts para Pedro Henrique).
   // Vence quem tiver a MENOR pontuação, ou seja, quem está com menos carga.
   const distribuicaoRanking = useMemo(() => {
+    const diacriticos = new RegExp("[\\u0300-\\u036f]", "g");
+    const normalizarNomeComparacao = (s: string) =>
+      s.trim().toLowerCase().normalize("NFD").replace(diacriticos, "");
+
     const agora = Date.now();
     const inicioJanela = agora - DIAS_JANELA_TREINAMENTOS * 24 * 60 * 60 * 1000;
 
@@ -737,8 +741,8 @@ export const Gamificacao: React.FC = () => {
 
         const clientesEsteira = clientesAtivos.filter(
           (emp) =>
-            formatarNome(emp.responsavel).toLowerCase() ===
-            primeiroNome.toLowerCase(),
+            normalizarNomeComparacao(emp.responsavel || "") ===
+            normalizarNomeComparacao(primeiroNome),
         ).length;
 
         const cargaPorCliente =

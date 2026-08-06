@@ -67,3 +67,8 @@ export function montarMensagemConclusaoEsteiraGestao(empresa: Empresa, ocorrenci
   const linkLinha = ocorrenciaId ? `\n${construirUrlOcorrencia(ocorrenciaId)}` : "";
   return `🎉 O cliente *${empresa.nomeEmpresa}* concluiu a esteira de onboarding!${csLinha}${linkLinha}\n\nAcesse o sistema para mais detalhes.`;
 }
+
+export function montarMensagemSuspensaoGestao(empresa: Empresa): string {
+  const csLinha = empresa.csResponsavel ? `\nCS Responsável: *${empresa.csResponsavel}*` : "";
+  return `⏸️ O cliente *${empresa.nomeEmpresa}* foi *suspenso temporariamente*!${csLinha}\n\nAcesse o sistema para mais detalhes.`;
+}

@@ -787,6 +787,19 @@ body.light-theme .ranking-sub {
   color: #334155 !important; /* Mais escuro */
 }
 
+body.light-theme .btn-distribuir-cliente {
+  background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%) !important;
+  border: 1px solid #4338ca !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(67, 56, 202, 0.25) !important;
+}
+
+body.light-theme .btn-distribuir-cliente:hover {
+  background: linear-gradient(135deg, #4338ca 0%, #3730a3 100%) !important;
+  border-color: #3730a3 !important;
+  box-shadow: 0 4px 12px rgba(67, 56, 202, 0.35) !important;
+}
+
 body.light-theme .input-wrapper input,
 body.light-theme .input-wrapper select {
   background: #ffffff !important;
@@ -1687,4 +1700,61 @@ body.light-theme .checklist-flutuante-item.concluida span {
 
 body.light-theme .checklist-flutuante-remover {
   color: #64748b !important;
+}
+
+body.light-theme .checklist-flutuante-sla-icon {
+  color: #64748b !important;
+}
+
+body.light-theme .checklist-flutuante-sla-input,
+body.light-theme .checklist-flutuante-sla-inline-input {
+  color-scheme: light !important;
+  background: #f8fafc !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #1e293b !important;
+}
+
+body.light-theme .checklist-flutuante-sla-input:focus,
+body.light-theme .checklist-flutuante-sla-inline-input:focus {
+  border-color: #3b82f6 !important;
+  background: #ffffff !important;
+}
+
+body.light-theme .checklist-flutuante-sla-limpar {
+  color: #64748b !important;
+}
+
+body.light-theme .checklist-flutuante-sla-badge.sla-vazio {
+  background: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #475569 !important;
+}
+
+body.light-theme .checklist-flutuante-sla-badge.sla-vazio:hover {
+  background: #e2e8f0 !important;
+  color: #1e293b !important;
+}
+
+body.light-theme .checklist-flutuante-sla-badge.sla-normal {
+  background: rgba(5, 150, 105, 0.12) !important;
+  border-color: rgba(5, 150, 105, 0.35) !important;
+  color: #047857 !important;
+}
+
+body.light-theme .checklist-flutuante-sla-badge.sla-proximo {
+  background: rgba(217, 119, 6, 0.14) !important;
+  border-color: rgba(217, 119, 6, 0.4) !important;
+  color: #b45309 !important;
+}
+
+body.light-theme .checklist-flutuante-sla-badge.sla-urgente {
+  background: rgba(234, 88, 12, 0.16) !important;
+  border-color: rgba(234, 88, 12, 0.4) !important;
+  color: #c2410c !important;
+}
+
+body.light-theme .checklist-flutuante-sla-badge.sla-atrasado {
+  background: rgba(220, 38, 38, 0.14) !important;
+  border-color: rgba(220, 38, 38, 0.4) !important;
+  color: #b91c1c !important;
 }

@@ -266,21 +266,21 @@
   background: rgba(148, 163, 184, 0.06);
 }
 
-.checklist-flutuante-item label {
+.checklist-flutuante-item-conteudo {
   display: flex;
   align-items: flex-start;
   gap: 0.55rem;
-  cursor: pointer;
   flex: 1;
   min-width: 0;
 }
 
-.checklist-flutuante-item label input[type="checkbox"] {
+.checklist-flutuante-item-conteudo input[type="checkbox"] {
   margin-top: 0.2rem;
   flex-shrink: 0;
+  cursor: pointer;
 }
 
-.checklist-flutuante-item label span {
+.checklist-flutuante-item-conteudo span {
   overflow-wrap: anywhere;
   font-size: 0.88rem;
   display: flex;

@@ -21,6 +21,7 @@ import {
   X,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import { useTheme } from "../../context/ThemeContext";
 import { formatarNome } from "../../utils/formatarNome";
 import { listarUsuarios } from "../../services/auth";
 import type { UsuarioDocument } from "../../services/auth";
@@ -396,6 +397,7 @@ const SearchableSingleSelect: React.FC<SearchableSingleSelectProps> = ({
 export const Gamificacao: React.FC = () => {
   const navigate = useNavigate();
   const { user, userName, role } = useAuth();
+  const { theme } = useTheme();
   const [trainers, setTrainers] = useState<UsuarioDocument[]>([]);
   const [entries, setEntries] = useState<LancamentoPonto[]>([]);
   const [empresas, setEmpresas] = useState<string[]>([]);
@@ -1114,7 +1116,7 @@ export const Gamificacao: React.FC = () => {
           {podeDistribuir && (
             <button
               type="button"
-              className="btn-distribuir-cliente"
+              className={`btn-distribuir-cliente ${theme === "light" ? "btn-distribuir-cliente-light" : ""}`}
               onClick={() => setShowDistribuicaoModal(true)}
             >
               <Shuffle size={18} />

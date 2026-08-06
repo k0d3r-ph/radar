@@ -75,6 +75,19 @@
   transform: translateY(-1px);
 }
 
+.btn-distribuir-cliente-light {
+  background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+  border-color: #4338ca;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(67, 56, 202, 0.25);
+}
+
+.btn-distribuir-cliente-light:hover {
+  background: linear-gradient(135deg, #4338ca 0%, #3730a3 100%);
+  border-color: #3730a3;
+  box-shadow: 0 4px 12px rgba(67, 56, 202, 0.35);
+}
+
 /* Grid Layout */
 .gamificacao-grid {
   display: grid;

@@ -231,7 +231,7 @@ export default function ChecklistTarefas() {
                 const editando = editandoSlaId === tarefa.id;
                 return (
                   <li key={tarefa.id} className="checklist-flutuante-item">
-                    <label>
+                    <div className="checklist-flutuante-item-conteudo">
                       <input
                         type="checkbox"
                         checked={tarefa.concluida}
@@ -250,7 +250,6 @@ export default function ChecklistTarefas() {
                             className="checklist-flutuante-sla-inline-input"
                             autoFocus
                             defaultValue={formatarDataParaInput(tarefa.slaEm)}
-                            onClick={(e) => e.stopPropagation()}
                             onBlur={(e) => salvarSla(tarefa.id!, e.target.value)}
                             onKeyDown={(e) => {
                               if (e.key === "Enter") (e.target as HTMLInputElement).blur();
@@ -261,11 +260,7 @@ export default function ChecklistTarefas() {
                           <button
                             type="button"
                             className={`checklist-flutuante-sla-badge ${sla ? `sla-${sla.status}` : "sla-vazio"}`}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              setEditandoSlaId(tarefa.id || null);
-                            }}
+                            onClick={() => setEditandoSlaId(tarefa.id || null)}
                           >
                             {sla ? (
                               sla.texto
@@ -277,7 +272,7 @@ export default function ChecklistTarefas() {
                           </button>
                         )}
                       </span>
-                    </label>
+                    </div>
                     <button
                       type="button"
                       className="checklist-flutuante-remover"
@@ -292,7 +287,7 @@ export default function ChecklistTarefas() {
 
               {concluidas.map((tarefa) => (
                 <li key={tarefa.id} className="checklist-flutuante-item concluida">
-                  <label>
+                  <div className="checklist-flutuante-item-conteudo">
                     <input
                       type="checkbox"
                       checked={tarefa.concluida}
@@ -306,7 +301,7 @@ export default function ChecklistTarefas() {
                         </span>
                       )}
                     </span>
-                  </label>
+                  </div>
                   <button
                     type="button"
                     className="checklist-flutuante-remover"

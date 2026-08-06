@@ -169,5 +169,6 @@ export interface TarefaChecklist {
   criadoPorId: string;
   criadoPorNome: string;
   createdAt: number;
+  slaEm?: number;
 }
 

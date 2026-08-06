@@ -17,6 +17,8 @@ import {
   AlertOctagon,
   Edit2,
   Eye,
+  Shuffle,
+  X,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { formatarNome } from "../../utils/formatarNome";
@@ -28,9 +30,11 @@ import {
   salvarLancamentoPonto,
   atualizarLancamentoPonto,
 } from "../../services/gamificacao";
-import type { LancamentoPonto } from "../../types";
+import type { LancamentoPonto, Empresa } from "../../types";
 import { listarEmpresas } from "../../services/empresas";
 import { listarOcorrencias } from "../../services/ocorrencias";
+import { calcularProgressoPorFases } from "../../utils/monitoramento/calcularProgresso";
+import { calcularTotalFases } from "../../utils/monitoramento/calcularTotalFases";
 import "./Gamificacao.css";
 
 const ACOES_DISPONIVEIS = [
@@ -54,7 +58,8 @@ const ACOES_DISPONIVEIS = [
     tipo: "att_doc",
     label: "Atualização relevante de documentação",
     pontos: 1,
-    descricao: "Melhorias ou correções significativas em documentos existentes.",
+    descricao:
+      "Melhorias ou correções significativas em documentos existentes.",
     icon: FileText,
     colorClass: "ponto-positivo",
   },
@@ -62,7 +67,8 @@ const ACOES_DISPONIVEIS = [
     tipo: "ferramenta_aut",
     label: "Ferramenta ou automação aprovada",
     pontos: 5,
-    descricao: "Desenvolvimento e aprovação de scripts, automações ou ferramentas internas.",
+    descricao:
+      "Desenvolvimento e aprovação de scripts, automações ou ferramentas internas.",
     icon: Settings,
     colorClass: "ponto-premium",
   },
@@ -70,11 +76,18 @@ const ACOES_DISPONIVEIS = [
     tipo: "chamado_falha",
     label: "Chamado decorrente de falha de treinamento comprovada",
     pontos: -1,
-    descricao: "Incidente ou problema gerado por gap direto de treinamento comprovado.",
+    descricao:
+      "Incidente ou problema gerado por gap direto de treinamento comprovado.",
     icon: AlertOctagon,
     colorClass: "ponto-negativo",
   },
 ] as const;
+
+// Parâmetros do sistema de distribuição de próximos clientes entre treinadores
+const CARGA_POR_TREINAMENTO_15_DIAS = 1.5;
+const CARGA_POR_CLIENTE_ESTEIRA = 1;
+const CARGA_POR_CLIENTE_ESTEIRA_PEDRO_HENRIQUE = 2;
+const DIAS_JANELA_TREINAMENTOS = 15;
 
 const TEMAS_GAMIFICACAO = [
   "Cancelado",
@@ -124,7 +137,7 @@ const TEMAS_GAMIFICACAO = [
   "Rastreamento mobile",
   "Importação de arquivo",
   "Configurações de rastreador",
-  "Configurações do menu Geral"
+  "Configurações do menu Geral",
 ];
 
 interface SearchableSelectProps {
@@ -140,7 +153,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
   onChange,
   options,
   placeholder,
-  disabled
+  disabled,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -168,7 +181,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
 
   const filteredOptions = useMemo(() => {
     return options.filter((opt) =>
-      opt.toLowerCase().includes(searchTerm.toLowerCase().trim())
+      opt.toLowerCase().includes(searchTerm.toLowerCase().trim()),
     );
   }, [options, searchTerm]);
 
@@ -213,7 +226,12 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
             <span className="placeholder-value">{placeholder}</span>
           )}
         </div>
-        <span className={`select-arrow ${isOpen ? "open" : ""}`} style={{ alignSelf: "center" }}>▼</span>
+        <span
+          className={`select-arrow ${isOpen ? "open" : ""}`}
+          style={{ alignSelf: "center" }}
+        >
+          ▼
+        </span>
       </button>
 
       {isOpen && (
@@ -235,16 +253,15 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
                 return (
                   <div
                     key={opt}
-                    className={`searchable-select-option ${isSelected ? "selected" : ""
-                      }`}
+                    className={`searchable-select-option ${
+                      isSelected ? "selected" : ""
+                    }`}
                     onClick={() => {
                       handleToggleOption(opt);
                     }}
                   >
                     <span>{opt}</span>
-                    {isSelected && (
-                      <span className="selected-check">✓</span>
-                    )}
+                    {isSelected && <span className="selected-check">✓</span>}
                   </div>
                 );
               })
@@ -273,7 +290,7 @@ const SearchableSingleSelect: React.FC<SearchableSingleSelectProps> = ({
   onChange,
   options,
   placeholder,
-  disabled
+  disabled,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -301,7 +318,7 @@ const SearchableSingleSelect: React.FC<SearchableSingleSelectProps> = ({
 
   const filteredOptions = useMemo(() => {
     return options.filter((opt) =>
-      opt.toLowerCase().includes(searchTerm.toLowerCase().trim())
+      opt.toLowerCase().includes(searchTerm.toLowerCase().trim()),
     );
   }, [options, searchTerm]);
 
@@ -326,7 +343,12 @@ const SearchableSingleSelect: React.FC<SearchableSingleSelectProps> = ({
             <span className="placeholder-value">{placeholder}</span>
           )}
         </div>
-        <span className={`select-arrow ${isOpen ? "open" : ""}`} style={{ alignSelf: "center" }}>▼</span>
+        <span
+          className={`select-arrow ${isOpen ? "open" : ""}`}
+          style={{ alignSelf: "center" }}
+        >
+          ▼
+        </span>
       </button>
 
       {isOpen && (
@@ -355,9 +377,7 @@ const SearchableSingleSelect: React.FC<SearchableSingleSelectProps> = ({
                     }}
                   >
                     <span>{opt}</span>
-                    {isSelected && (
-                      <span className="selected-check">✓</span>
-                    )}
+                    {isSelected && <span className="selected-check">✓</span>}
                   </div>
                 );
               })
@@ -379,7 +399,11 @@ export const Gamificacao: React.FC = () => {
   const [trainers, setTrainers] = useState<UsuarioDocument[]>([]);
   const [entries, setEntries] = useState<LancamentoPonto[]>([]);
   const [empresas, setEmpresas] = useState<string[]>([]);
-  const [pontoOcorrenciaMap, setPontoOcorrenciaMap] = useState<Record<string, { id: string; alerta?: boolean }>>({});
+  const [empresasCompletas, setEmpresasCompletas] = useState<Empresa[]>([]);
+  const [showDistribuicaoModal, setShowDistribuicaoModal] = useState(false);
+  const [pontoOcorrenciaMap, setPontoOcorrenciaMap] = useState<
+    Record<string, { id: string; alerta?: boolean }>
+  >({});
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -414,7 +438,12 @@ export const Gamificacao: React.FC = () => {
   // Form states
   const [selectedTrainerUid, setSelectedTrainerUid] = useState("");
   const [selectedActionType, setSelectedActionType] = useState<
-    "treinamento" | "nova_doc" | "att_doc" | "ferramenta_aut" | "chamado_falha" | ""
+    | "treinamento"
+    | "nova_doc"
+    | "att_doc"
+    | "ferramenta_aut"
+    | "chamado_falha"
+    | ""
   >("");
 
   useEffect(() => {
@@ -430,14 +459,18 @@ export const Gamificacao: React.FC = () => {
   // Treinamento extra states
   const [treinamentoEmpresa, setTreinamentoEmpresa] = useState("");
   const [treinamentoTemas, setTreinamentoTemas] = useState<string[]>([]);
-  const [treinamentoDataSolicitacao, setTreinamentoDataSolicitacao] = useState("");
-  const [treinamentoDataRealizacao, setTreinamentoDataRealizacao] = useState("");
+  const [treinamentoDataSolicitacao, setTreinamentoDataSolicitacao] =
+    useState("");
+  const [treinamentoDataRealizacao, setTreinamentoDataRealizacao] =
+    useState("");
   const [treinamentoTempoAgenda, setTreinamentoTempoAgenda] = useState("");
   const [treinamentoSolicitante, setTreinamentoSolicitante] = useState("CS");
   const [treinamentoNotas, setTreinamentoNotas] = useState<string[]>([]);
 
   // Edit states
-  const [editingEntry, setEditingEntry] = useState<LancamentoPonto | null>(null);
+  const [editingEntry, setEditingEntry] = useState<LancamentoPonto | null>(
+    null,
+  );
   const [editEmpresa, setEditEmpresa] = useState("");
   const [editTemas, setEditTemas] = useState<string[]>([]);
   const [editDataSolicitacao, setEditDataSolicitacao] = useState("");
@@ -454,7 +487,8 @@ export const Gamificacao: React.FC = () => {
     copy[index] = val;
     setTreinamentoNotas(copy);
   };
-  const handleRemoveNota = (index: number) => setTreinamentoNotas(treinamentoNotas.filter((_, i) => i !== index));
+  const handleRemoveNota = (index: number) =>
+    setTreinamentoNotas(treinamentoNotas.filter((_, i) => i !== index));
 
   // Helper functions for dynamic notes (Edit)
   const handleAddEditNota = () => setEditNotas([...editNotas, ""]);
@@ -463,24 +497,28 @@ export const Gamificacao: React.FC = () => {
     copy[index] = val;
     setEditNotas(copy);
   };
-  const handleRemoveEditNota = (index: number) => setEditNotas(editNotas.filter((_, i) => i !== index));
+  const handleRemoveEditNota = (index: number) =>
+    setEditNotas(editNotas.filter((_, i) => i !== index));
 
   // Delete modal state
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [confirmarExclusaoId, setConfirmarExclusaoId] = useState<string | null>(null);
+  const [confirmarExclusaoId, setConfirmarExclusaoId] = useState<string | null>(
+    null,
+  );
 
   const carregarDados = async () => {
     try {
       setLoading(true);
-      const [listaUsuarios, listaPontos, listaEmpresas, listaOcorrencias] = await Promise.all([
-        listarUsuarios(),
-        listarLancamentosPontos(),
-        listarEmpresas(),
-        listarOcorrencias().catch((err) => {
-          console.error("Erro ao listar ocorrências para mapeamento:", err);
-          return [];
-        }),
-      ]);
+      const [listaUsuarios, listaPontos, listaEmpresas, listaOcorrencias] =
+        await Promise.all([
+          listarUsuarios(),
+          listarLancamentosPontos(),
+          listarEmpresas(),
+          listarOcorrencias().catch((err) => {
+            console.error("Erro ao listar ocorrências para mapeamento:", err);
+            return [];
+          }),
+        ]);
 
       // Filter only users with "treinador" or "master" role who completed their first access
       const apenasTreinadores = listaUsuarios.filter(
@@ -488,17 +526,16 @@ export const Gamificacao: React.FC = () => {
           (u.role === "treinador" || u.role === "master") &&
           !u.needsPasswordChange &&
           u.nome.trim().toLowerCase() !== "painel" &&
-          !u.email.toLowerCase().includes("painel")
+          !u.email.toLowerCase().includes("painel"),
       );
       setTrainers(apenasTreinadores);
       setEntries(listaPontos);
+      setEmpresasCompletas(listaEmpresas);
 
       const nomesEmpresas = Array.from(
         new Set(
-          listaEmpresas
-            .map((e) => e.nomeEmpresa?.trim())
-            .filter(Boolean)
-        )
+          listaEmpresas.map((e) => e.nomeEmpresa?.trim()).filter(Boolean),
+        ),
       ).sort((a, b) => a.localeCompare(b));
       setEmpresas(nomesEmpresas);
 
@@ -554,11 +591,15 @@ export const Gamificacao: React.FC = () => {
       if (isPainel) return false;
 
       if (filtroDataInicio) {
-        const startTimestamp = new Date(filtroDataInicio + "T00:00:00").getTime();
+        const startTimestamp = new Date(
+          filtroDataInicio + "T00:00:00",
+        ).getTime();
         if (entry.dataLancamento < startTimestamp) return false;
       }
       if (filtroDataFim) {
-        const endTimestamp = new Date(filtroDataFim + "T23:59:59.999").getTime();
+        const endTimestamp = new Date(
+          filtroDataFim + "T23:59:59.999",
+        ).getTime();
         if (entry.dataLancamento > endTimestamp) return false;
       }
       return true;
@@ -569,7 +610,8 @@ export const Gamificacao: React.FC = () => {
   // Atividades Recentes (não deve afetar o cálculo do ranking/score).
   const historyEntries = useMemo(() => {
     return filteredEntries.filter((entry) => {
-      if (filtroTreinadorId && entry.treinadorId !== filtroTreinadorId) return false;
+      if (filtroTreinadorId && entry.treinadorId !== filtroTreinadorId)
+        return false;
       if (filtroTipoAcao && entry.tipoAcao !== filtroTipoAcao) return false;
       return true;
     });
@@ -579,41 +621,56 @@ export const Gamificacao: React.FC = () => {
   const rankedTrainers = useMemo(() => {
     return trainers
       .map((t) => {
-        const trainerEntries = filteredEntries.filter((e) => e.treinadorId === t.uid);
-        const baseScore = trainerEntries.reduce((acc, curr) => acc + curr.pontos, 0);
+        const trainerEntries = filteredEntries.filter(
+          (e) => e.treinadorId === t.uid,
+        );
+        const baseScore = trainerEntries.reduce(
+          (acc, curr) => acc + curr.pontos,
+          0,
+        );
 
         // Filter realized trainings (excluding canceled/absent)
         const realizedTrainings = trainerEntries.filter((e) => {
           if (e.tipoAcao !== "treinamento" || !e.treinamentoTema) return false;
-          const themes = e.treinamentoTema.split(",").map((theme) => theme.trim().toLowerCase());
+          const themes = e.treinamentoTema
+            .split(",")
+            .map((theme) => theme.trim().toLowerCase());
           return !themes.includes("cancelado") && !themes.includes("ausente");
         });
 
         // Count realized trainings that have CSAT responses
         const answeredTrainings = realizedTrainings.filter(
-          (e) => e.treinamentoNotas && e.treinamentoNotas.length > 0
+          (e) => e.treinamentoNotas && e.treinamentoNotas.length > 0,
         );
 
         const totalTrainingsCount = realizedTrainings.length;
         const answeredTrainingsCount = answeredTrainings.length;
-        const taxaResposta = totalTrainingsCount > 0 ? answeredTrainingsCount / totalTrainingsCount : 0;
+        const taxaResposta =
+          totalTrainingsCount > 0
+            ? answeredTrainingsCount / totalTrainingsCount
+            : 0;
 
         let bonus = 0;
-        if (taxaResposta >= 0.90) bonus = 0.30;
-        else if (taxaResposta >= 0.80) bonus = 0.20;
-        else if (taxaResposta >= 0.70) bonus = 0.10;
+        if (taxaResposta >= 0.9) bonus = 0.3;
+        else if (taxaResposta >= 0.8) bonus = 0.2;
+        else if (taxaResposta >= 0.7) bonus = 0.1;
 
         const score = parseFloat((baseScore * (1 + bonus)).toFixed(1));
         const qtdAcoes = trainerEntries.filter((e) => {
           if (e.tipoAcao === "chamado_falha") return false;
           if (e.tipoAcao === "treinamento" && e.treinamentoTema) {
-            const themes = e.treinamentoTema.split(",").map((theme) => theme.trim().toLowerCase());
-            if (themes.includes("cancelado") || themes.includes("ausente")) return false;
+            const themes = e.treinamentoTema
+              .split(",")
+              .map((theme) => theme.trim().toLowerCase());
+            if (themes.includes("cancelado") || themes.includes("ausente"))
+              return false;
           }
           return true;
         }).length;
 
-        const qtdFalhas = trainerEntries.filter((e) => e.tipoAcao === "chamado_falha").length;
+        const qtdFalhas = trainerEntries.filter(
+          (e) => e.tipoAcao === "chamado_falha",
+        ).length;
 
         return {
           ...t,
@@ -627,16 +684,98 @@ export const Gamificacao: React.FC = () => {
           bonusPercentage: Math.round(bonus * 100),
         };
       })
-      .sort((a, b) => b.score - a.score || a.qtdFalhas - b.qtdFalhas || a.nome.localeCompare(b.nome));
+      .sort(
+        (a, b) =>
+          b.score - a.score ||
+          a.qtdFalhas - b.qtdFalhas ||
+          a.nome.localeCompare(b.nome),
+      );
   }, [trainers, filteredEntries]);
+
+  // Ranking de distribuição do próximo cliente: baseado em treinamentos dos
+  // últimos 15 dias (1,5 pts cada) e clientes atualmente ativos na esteira
+  // sob responsabilidade do treinador (1 pt cada, 2 pts para Pedro Henrique).
+  // Vence quem tiver a MENOR pontuação, ou seja, quem está com menos carga.
+  const distribuicaoRanking = useMemo(() => {
+    const agora = Date.now();
+    const inicioJanela = agora - DIAS_JANELA_TREINAMENTOS * 24 * 60 * 60 * 1000;
+
+    const clientesAtivos = empresasCompletas.filter((emp) => {
+      if (emp.isOngoing || emp.isSuspended || emp.isCancelled) return false;
+      const totalFases = calcularTotalFases(emp.temaText || "");
+      const progresso = calcularProgressoPorFases(emp.currentPhase, totalFases);
+      return progresso < 100;
+    });
+
+    const treinadoresElegiveis = trainers.filter((t) => {
+      const primeiroNome =
+        formatarNome(t.nome).split(" ")[0]?.toLowerCase() || "";
+      return primeiroNome !== "jean" && primeiroNome !== "jeff";
+    });
+
+    return treinadoresElegiveis
+      .map((t) => {
+        const nomeFormatado = formatarNome(t.nome);
+        const primeiroNome = nomeFormatado.split(" ")[0] || "";
+
+        const treinamentosRecentes = entries.filter((entry) => {
+          const isPainel =
+            entry.treinadorNome?.trim().toLowerCase() === "painel" ||
+            entry.treinadorNome?.toLowerCase().includes("painel");
+          if (isPainel) return false;
+          if (entry.treinadorId !== t.uid) return false;
+          if (entry.tipoAcao !== "treinamento" || !entry.treinamentoTema)
+            return false;
+          if (entry.dataLancamento < inicioJanela) return false;
+          const temas = entry.treinamentoTema
+            .split(",")
+            .map((tema) => tema.trim().toLowerCase());
+          return !temas.includes("cancelado") && !temas.includes("ausente");
+        }).length;
+
+        const clientesEsteira = clientesAtivos.filter(
+          (emp) =>
+            formatarNome(emp.responsavel).toLowerCase() ===
+            primeiroNome.toLowerCase(),
+        ).length;
+
+        const cargaPorCliente =
+          nomeFormatado.toLowerCase() === "pedro henrique"
+            ? CARGA_POR_CLIENTE_ESTEIRA_PEDRO_HENRIQUE
+            : CARGA_POR_CLIENTE_ESTEIRA;
+
+        const cargaDistribuicao = parseFloat(
+          (
+            treinamentosRecentes * CARGA_POR_TREINAMENTO_15_DIAS +
+            clientesEsteira * cargaPorCliente
+          ).toFixed(2),
+        );
+
+        return {
+          ...t,
+          treinamentosRecentes,
+          clientesEsteira,
+          cargaPorCliente,
+          cargaDistribuicao,
+        };
+      })
+      .sort(
+        (a, b) =>
+          a.cargaDistribuicao - b.cargaDistribuicao ||
+          a.nome.localeCompare(b.nome),
+      );
+  }, [trainers, entries, empresasCompletas]);
+
+  const podeDistribuir = role === "treinador" || role === "master";
 
   const handleLancar = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const CanceladoOuAusente = treinamentoTemas.some((t) =>
-      t.trim().toLocaleLowerCase() === "cancelado" || t.trim().toLocaleLowerCase() === "ausente"
+    const CanceladoOuAusente = treinamentoTemas.some(
+      (t) =>
+        t.trim().toLocaleLowerCase() === "cancelado" ||
+        t.trim().toLocaleLowerCase() === "ausente",
     );
-
 
     if (!selectedTrainerUid || !selectedActionType) {
       toast.error("Preencha todos os campos do lançamento.");
@@ -668,7 +807,9 @@ export const Gamificacao: React.FC = () => {
     }
 
     const trainer = trainers.find((t) => t.uid === selectedTrainerUid);
-    const actionConfig = acoesFiltradas.find((a) => a.tipo === selectedActionType);
+    const actionConfig = acoesFiltradas.find(
+      (a) => a.tipo === selectedActionType,
+    );
 
     if (!trainer || !actionConfig) {
       toast.error("Treinador ou ação inválida.");
@@ -685,7 +826,9 @@ export const Gamificacao: React.FC = () => {
       let computedMedia: number | null = null;
 
       if (selectedActionType === "treinamento") {
-        const normalizedTemas = treinamentoTemas.map(t => t.trim().toLowerCase());
+        const normalizedTemas = treinamentoTemas.map((t) =>
+          t.trim().toLowerCase(),
+        );
         const isZeroPoints =
           normalizedTemas.includes("cancelado") ||
           normalizedTemas.includes("ausente");
@@ -713,9 +856,14 @@ export const Gamificacao: React.FC = () => {
           return;
         }
 
-        computedMedia = validNotas.length > 0
-          ? parseFloat((validNotas.reduce((sum, n) => sum + n, 0) / validNotas.length).toFixed(2))
-          : null;
+        computedMedia =
+          validNotas.length > 0
+            ? parseFloat(
+                (
+                  validNotas.reduce((sum, n) => sum + n, 0) / validNotas.length
+                ).toFixed(2),
+              )
+            : null;
 
         finalDescricao = `Empresa: ${treinamentoEmpresa} | Tema: ${treinamentoTemas.join(", ")} | Solicitado: ${dataSol} | Realizado: ${dataReal} | Tempo: ${treinamentoTempoAgenda.trim()} | Solicitante: ${treinamentoSolicitante}`;
 
@@ -738,16 +886,18 @@ export const Gamificacao: React.FC = () => {
         descricao: finalDescricao,
         criadoPorId: user?.uid || "",
         criadoPorNome,
-        ...(selectedActionType === "treinamento" ? {
-          treinamentoEmpresa,
-          treinamentoTema: treinamentoTemas.join(", "),
-          treinamentoDataSolicitacao,
-          treinamentoDataRealizacao,
-          treinamentoTempoAgenda: treinamentoTempoAgenda.trim(),
-          treinamentoSolicitante,
-          treinamentoNotas: validNotas,
-          treinamentoNotaMedia: computedMedia,
-        } : {})
+        ...(selectedActionType === "treinamento"
+          ? {
+              treinamentoEmpresa,
+              treinamentoTema: treinamentoTemas.join(", "),
+              treinamentoDataSolicitacao,
+              treinamentoDataRealizacao,
+              treinamentoTempoAgenda: treinamentoTempoAgenda.trim(),
+              treinamentoSolicitante,
+              treinamentoNotas: validNotas,
+              treinamentoNotaMedia: computedMedia,
+            }
+          : {}),
       });
 
       toast.success("Pontuação registrada com sucesso!");
@@ -774,12 +924,18 @@ export const Gamificacao: React.FC = () => {
   const handleStartEdit = (entry: LancamentoPonto) => {
     setEditingEntry(entry);
     setEditEmpresa(entry.treinamentoEmpresa || "");
-    setEditTemas(entry.treinamentoTema ? entry.treinamentoTema.split(",").map(t => t.trim()) : []);
+    setEditTemas(
+      entry.treinamentoTema
+        ? entry.treinamentoTema.split(",").map((t) => t.trim())
+        : [],
+    );
     setEditDataSolicitacao(entry.treinamentoDataSolicitacao || "");
     setEditDataRealizacao(entry.treinamentoDataRealizacao || "");
     setEditTempoAgenda(entry.treinamentoTempoAgenda || "");
     setEditSolicitante(entry.treinamentoSolicitante || "CS");
-    setEditNotas(entry.treinamentoNotas ? entry.treinamentoNotas.map(String) : []);
+    setEditNotas(
+      entry.treinamentoNotas ? entry.treinamentoNotas.map(String) : [],
+    );
 
     let obs = "";
     if (entry.tipoAcao === "treinamento" && entry.descricao) {
@@ -795,8 +951,10 @@ export const Gamificacao: React.FC = () => {
 
   const handleSalvarEdicao = async (e: React.FormEvent) => {
     e.preventDefault();
-    const CanceladoOuAusente = editTemas.some((t) =>
-      t.trim().toLocaleLowerCase() === "cancelado" || t.trim().toLocaleLowerCase() === "ausente"
+    const CanceladoOuAusente = editTemas.some(
+      (t) =>
+        t.trim().toLocaleLowerCase() === "cancelado" ||
+        t.trim().toLocaleLowerCase() === "ausente",
     );
 
     if (!editingEntry || !editingEntry.id) return;
@@ -829,12 +987,16 @@ export const Gamificacao: React.FC = () => {
           return;
         }
 
-        const normalizedEditTemas = editTemas.map(t => t.trim().toLowerCase());
+        const normalizedEditTemas = editTemas.map((t) =>
+          t.trim().toLowerCase(),
+        );
         const isZeroPoints =
           normalizedEditTemas.includes("cancelado") ||
           normalizedEditTemas.includes("ausente");
 
-        const actionConfig = ACOES_DISPONIVEIS.find((a) => a.tipo === "treinamento");
+        const actionConfig = ACOES_DISPONIVEIS.find(
+          (a) => a.tipo === "treinamento",
+        );
         pontosAAplicar = isZeroPoints ? 0 : (actionConfig?.pontos ?? 1);
 
         const formatarDataInput = (dataStr: string) => {
@@ -856,9 +1018,14 @@ export const Gamificacao: React.FC = () => {
           return;
         }
 
-        const computedMedia = validNotas.length > 0
-          ? parseFloat((validNotas.reduce((sum, n) => sum + n, 0) / validNotas.length).toFixed(2))
-          : null;
+        const computedMedia =
+          validNotas.length > 0
+            ? parseFloat(
+                (
+                  validNotas.reduce((sum, n) => sum + n, 0) / validNotas.length
+                ).toFixed(2),
+              )
+            : null;
 
         finalDescricao = `Empresa: ${editEmpresa} | Tema: ${editTemas.join(", ")} | Solicitado: ${dataSol} | Realizado: ${dataReal} | Tempo: ${editTempoAgenda.trim()} | Solicitante: ${editSolicitante}`;
 
@@ -936,8 +1103,25 @@ export const Gamificacao: React.FC = () => {
       <div className="gamificacao-glow"></div>
 
       <header className="gamificacao-header">
-        <h1>Gamificação dos Treinadores</h1>
-        <p>Acompanhe o ranking de pontos e lance novas atividades realizadas pela equipe.</p>
+        <div className="gamificacao-header-top">
+          <div>
+            <h1>Gamificação dos Treinadores</h1>
+            <p>
+              Acompanhe o ranking de pontos e lance novas atividades realizadas
+              pela equipe.
+            </p>
+          </div>
+          {podeDistribuir && (
+            <button
+              type="button"
+              className="btn-distribuir-cliente"
+              onClick={() => setShowDistribuicaoModal(true)}
+            >
+              <Shuffle size={18} />
+              Próximo Cliente
+            </button>
+          )}
+        </div>
       </header>
 
       {loading ? (
@@ -1001,7 +1185,10 @@ export const Gamificacao: React.FC = () => {
                   ))}
                 </select>
               </div>
-              {(filtroDataInicio || filtroDataFim || filtroTreinadorId || filtroTipoAcao) && (
+              {(filtroDataInicio ||
+                filtroDataFim ||
+                filtroTreinadorId ||
+                filtroTipoAcao) && (
                 <button
                   type="button"
                   className="btn-limpar-filtros"
@@ -1027,12 +1214,15 @@ export const Gamificacao: React.FC = () => {
                   Placar de Líderes
                 </h2>
                 <span className="badge-count">
-                  {rankedTrainers.length} {rankedTrainers.length === 1 ? "Treinador" : "Treinadores"}
+                  {rankedTrainers.length}{" "}
+                  {rankedTrainers.length === 1 ? "Treinador" : "Treinadores"}
                 </span>
               </div>
 
               {rankedTrainers.length === 0 ? (
-                <p className="no-data-msg">Nenhum treinador cadastrado no sistema.</p>
+                <p className="no-data-msg">
+                  Nenhum treinador cadastrado no sistema.
+                </p>
               ) : (
                 <div className="ranking-list">
                   {rankedTrainers.map((t, index) => {
@@ -1048,32 +1238,66 @@ export const Gamificacao: React.FC = () => {
                       TrophyIcon = <Trophy className="trophy-gold" size={24} />;
                     } else if (isTop2) {
                       rankClass = "rank-second";
-                      TrophyIcon = <Award className="trophy-silver" size={22} />;
+                      TrophyIcon = (
+                        <Award className="trophy-silver" size={22} />
+                      );
                     } else if (isTop3) {
                       rankClass = "rank-third";
-                      TrophyIcon = <Award className="trophy-bronze" size={20} />;
+                      TrophyIcon = (
+                        <Award className="trophy-bronze" size={20} />
+                      );
                     }
 
                     return (
                       <div key={t.uid} className={`ranking-item ${rankClass}`}>
                         <div className="ranking-position">
-                          {TrophyIcon ? TrophyIcon : <span className="position-number">{index + 1}</span>}
+                          {TrophyIcon ? (
+                            TrophyIcon
+                          ) : (
+                            <span className="position-number">{index + 1}</span>
+                          )}
                         </div>
 
                         <div className="ranking-details">
                           <div className="ranking-name">
                             {formatarNome(t.nome) || t.email}
-                            {t.uid === user?.uid && <span className="me-badge">Você</span>}
+                            {t.uid === user?.uid && (
+                              <span className="me-badge">Você</span>
+                            )}
                           </div>
                           <div className="ranking-sub">
                             <div>
-                              {t.qtdAcoes} {t.qtdAcoes === 1 ? "atividade" : "atividades"}
+                              {t.qtdAcoes}{" "}
+                              {t.qtdAcoes === 1 ? "atividade" : "atividades"}
                             </div>
                             {t.totalTrainingsCount > 0 && (
-                              <div className="csat-rate-info" style={{ fontSize: "11px", color: "#94a3b8", marginTop: "4px" }}>
-                                CSAT: <strong>{Math.round(t.taxaResposta * 100)}%</strong> ({t.answeredTrainingsCount}/{t.totalTrainingsCount})
+                              <div
+                                className="csat-rate-info"
+                                style={{
+                                  fontSize: "11px",
+                                  color: "#94a3b8",
+                                  marginTop: "4px",
+                                }}
+                              >
+                                CSAT:{" "}
+                                <strong>
+                                  {Math.round(t.taxaResposta * 100)}%
+                                </strong>{" "}
+                                ({t.answeredTrainingsCount}/
+                                {t.totalTrainingsCount})
                                 {t.bonusPercentage > 0 && (
-                                  <span className="bonus-pill" style={{ marginLeft: "6px", color: "#34d399", background: "rgba(16, 185, 129, 0.1)", padding: "2px 6px", borderRadius: "4px", fontSize: "10px", fontWeight: "bold" }}>
+                                  <span
+                                    className="bonus-pill"
+                                    style={{
+                                      marginLeft: "6px",
+                                      color: "#34d399",
+                                      background: "rgba(16, 185, 129, 0.1)",
+                                      padding: "2px 6px",
+                                      borderRadius: "4px",
+                                      fontSize: "10px",
+                                      fontWeight: "bold",
+                                    }}
+                                  >
                                     +{t.bonusPercentage}% Bônus
                                   </span>
                                 )}
@@ -1083,7 +1307,9 @@ export const Gamificacao: React.FC = () => {
                         </div>
 
                         <div className="ranking-score-wrapper">
-                          <span className={`ranking-score ${t.score >= 0 ? "positive-score" : "negative-score"}`}>
+                          <span
+                            className={`ranking-score ${t.score >= 0 ? "positive-score" : "negative-score"}`}
+                          >
                             {t.score > 0 ? `+${t.score}` : t.score}
                           </span>
                           <span className="score-label">pts</span>
@@ -1104,12 +1330,23 @@ export const Gamificacao: React.FC = () => {
                     <PlusCircle size={20} className="card-icon" />
                     Registrar Nova Ação
                   </h2>
-                  <div style={{ padding: "16px", color: "var(--text-secondary, #a0aec0)", fontSize: "14px", lineHeight: "1.6" }}>
+                  <div
+                    style={{
+                      padding: "16px",
+                      color: "var(--text-secondary, #a0aec0)",
+                      fontSize: "14px",
+                      lineHeight: "1.6",
+                    }}
+                  >
                     <p style={{ marginBottom: "12px" }}>
-                      O registro de treinamentos agora deve ser realizado através da aba <strong>Histórico</strong>, registrando a ocorrência correspondente.
+                      O registro de treinamentos agora deve ser realizado
+                      através da aba <strong>Histórico</strong>, registrando a
+                      ocorrência correspondente.
                     </p>
                     <p>
-                      Dessa forma, seus pontos serão computados e exibidos aqui na Gamificação de maneira <strong>100% automática</strong>.
+                      Dessa forma, seus pontos serão computados e exibidos aqui
+                      na Gamificação de maneira <strong>100% automática</strong>
+                      .
                     </p>
                   </div>
                 </section>
@@ -1122,14 +1359,22 @@ export const Gamificacao: React.FC = () => {
 
                   <form onSubmit={handleLancar} className="lancar-form">
                     <div className="input-group">
-                      <label htmlFor={role === "master" ? "trainer-select" : "trainer-input"}>Treinador</label>
+                      <label
+                        htmlFor={
+                          role === "master" ? "trainer-select" : "trainer-input"
+                        }
+                      >
+                        Treinador
+                      </label>
                       <div className="input-wrapper">
                         <User className="input-icon" size={18} />
                         {role === "master" ? (
                           <select
                             id="trainer-select"
                             value={selectedTrainerUid}
-                            onChange={(e) => setSelectedTrainerUid(e.target.value)}
+                            onChange={(e) =>
+                              setSelectedTrainerUid(e.target.value)
+                            }
                             required
                             disabled={submitting}
                           >
@@ -1168,19 +1413,27 @@ export const Gamificacao: React.FC = () => {
                                   name="acao-tipo"
                                   value={acao.tipo}
                                   checked={isSelected}
-                                  onChange={() => setSelectedActionType(acao.tipo)}
+                                  onChange={() =>
+                                    setSelectedActionType(acao.tipo)
+                                  }
                                   disabled={submitting}
                                 />
                                 <div className="acao-radio-content">
                                   <div className="acao-radio-left">
                                     <Icon className="acao-icon" size={18} />
                                     <div className="acao-radio-text">
-                                      <span className="acao-label">{acao.label}</span>
-                                      <span className="acao-desc">{acao.descricao}</span>
+                                      <span className="acao-label">
+                                        {acao.label}
+                                      </span>
+                                      <span className="acao-desc">
+                                        {acao.descricao}
+                                      </span>
                                     </div>
                                   </div>
                                   <span className="acao-points-badge">
-                                    {acao.pontos > 0 ? `+${acao.pontos}` : acao.pontos}
+                                    {acao.pontos > 0
+                                      ? `+${acao.pontos}`
+                                      : acao.pontos}
                                   </span>
                                 </div>
                               </label>
@@ -1191,7 +1444,9 @@ export const Gamificacao: React.FC = () => {
                     </div>
 
                     <div className="input-group">
-                      <label htmlFor="descricao-input">Descrição / Detalhes (Opcional)</label>
+                      <label htmlFor="descricao-input">
+                        Descrição / Detalhes (Opcional)
+                      </label>
                       <textarea
                         id="descricao-input"
                         placeholder="Ex: Documentação de onboarding revisada, playbook criado..."
@@ -1203,8 +1458,16 @@ export const Gamificacao: React.FC = () => {
                       />
                     </div>
 
-                    <button type="submit" className="btn-primary lancar-submit-btn" disabled={submitting}>
-                      {submitting ? <div className="spinner"></div> : "Lançar Pontuação"}
+                    <button
+                      type="submit"
+                      className="btn-primary lancar-submit-btn"
+                      disabled={submitting}
+                    >
+                      {submitting ? (
+                        <div className="spinner"></div>
+                      ) : (
+                        "Lançar Pontuação"
+                      )}
                     </button>
                   </form>
                 </section>
@@ -1240,7 +1503,9 @@ export const Gamificacao: React.FC = () => {
                       </thead>
                       <tbody>
                         {historyEntries.map((entry) => {
-                          const actionConfig = ACOES_DISPONIVEIS.find((a) => a.tipo === entry.tipoAcao);
+                          const actionConfig = ACOES_DISPONIVEIS.find(
+                            (a) => a.tipo === entry.tipoAcao,
+                          );
                           const ocInfo = pontoOcorrenciaMap[entry.id || ""];
                           const ocorrenciaId = ocInfo?.id || entry.ocorrenciaId;
                           const isAlerta = ocInfo?.alerta || entry.isAlerta;
@@ -1251,24 +1516,37 @@ export const Gamificacao: React.FC = () => {
                           return (
                             <tr
                               key={entry.id}
-                              className={isUserLostPoints ? "user-lost-points-row" : ""}
+                              className={
+                                isUserLostPoints ? "user-lost-points-row" : ""
+                              }
                             >
-                              <td className="trainer-cell">{entry.treinadorNome}</td>
+                              <td className="trainer-cell">
+                                {entry.treinadorNome}
+                              </td>
                               <td className="action-cell">
                                 <span className="action-label-text">
-                                  {actionConfig ? actionConfig.label : entry.tipoAcao}
+                                  {actionConfig
+                                    ? actionConfig.label
+                                    : entry.tipoAcao}
                                 </span>
                               </td>
                               <td className="desc-cell" title={entry.descricao}>
                                 {entry.descricao || "—"}
                               </td>
-                              <td className="date-cell">{formatarData(entry.dataLancamento)}</td>
+                              <td className="date-cell">
+                                {formatarData(entry.dataLancamento)}
+                              </td>
                               <td className="points-cell">
                                 <span
-                                  className={`points-tag ${entry.pontos > 0 ? "tag-positive" : "tag-negative"
-                                    }`}
+                                  className={`points-tag ${
+                                    entry.pontos > 0
+                                      ? "tag-positive"
+                                      : "tag-negative"
+                                  }`}
                                 >
-                                  {entry.pontos > 0 ? `+${entry.pontos}` : entry.pontos}
+                                  {entry.pontos > 0
+                                    ? `+${entry.pontos}`
+                                    : entry.pontos}
                                 </span>
                               </td>
                               <td className="action-col">
@@ -1276,30 +1554,47 @@ export const Gamificacao: React.FC = () => {
                                   {ocorrenciaId && (
                                     <button
                                       className={`btn-view-occurrence ${isAlerta ? "alerta-ativo" : ""}`}
-                                      onClick={() => navigate(`/historico?ocorrencia=${ocorrenciaId}`)}
-                                      title={isAlerta ? "Ver ocorrência de treinamento (Alerta Ativo 🔥)" : "Ver ocorrência de treinamento"}
+                                      onClick={() =>
+                                        navigate(
+                                          `/historico?ocorrencia=${ocorrenciaId}`,
+                                        )
+                                      }
+                                      title={
+                                        isAlerta
+                                          ? "Ver ocorrência de treinamento (Alerta Ativo 🔥)"
+                                          : "Ver ocorrência de treinamento"
+                                      }
                                     >
                                       <Eye size={14} />
                                     </button>
                                   )}
-                                  {entry.tipoAcao !== "treinamento" && (role === "master" || (entry.treinadorId === user?.uid && entry.criadoPorId === user?.uid)) && (
-                                    <button
-                                      className="btn-edit-entry"
-                                      onClick={() => handleStartEdit(entry)}
-                                      title="Editar lançamento"
-                                    >
-                                      <Edit2 size={14} />
-                                    </button>
-                                  )}
-                                  {entry.tipoAcao !== "treinamento" && (role === "master" || entry.criadoPorId === user?.uid) && (
-                                    <button
-                                      className="btn-delete-entry"
-                                      onClick={() => setConfirmarExclusaoId(entry.id || null)}
-                                      title="Remover lançamento"
-                                    >
-                                      <Trash2 size={14} />
-                                    </button>
-                                  )}
+                                  {entry.tipoAcao !== "treinamento" &&
+                                    (role === "master" ||
+                                      (entry.treinadorId === user?.uid &&
+                                        entry.criadoPorId === user?.uid)) && (
+                                      <button
+                                        className="btn-edit-entry"
+                                        onClick={() => handleStartEdit(entry)}
+                                        title="Editar lançamento"
+                                      >
+                                        <Edit2 size={14} />
+                                      </button>
+                                    )}
+                                  {entry.tipoAcao !== "treinamento" &&
+                                    (role === "master" ||
+                                      entry.criadoPorId === user?.uid) && (
+                                      <button
+                                        className="btn-delete-entry"
+                                        onClick={() =>
+                                          setConfirmarExclusaoId(
+                                            entry.id || null,
+                                          )
+                                        }
+                                        title="Remover lançamento"
+                                      >
+                                        <Trash2 size={14} />
+                                      </button>
+                                    )}
                                 </div>
                               </td>
                             </tr>
@@ -1317,15 +1612,25 @@ export const Gamificacao: React.FC = () => {
 
       {/* Modal de Confirmação de Exclusão de Lançamento */}
       {confirmarExclusaoId && entryParaExcluir && (
-        <div className="confirm-overlay" onClick={() => setConfirmarExclusaoId(null)}>
+        <div
+          className="confirm-overlay"
+          onClick={() => setConfirmarExclusaoId(null)}
+        >
           <div className="confirm-modal" onClick={(e) => e.stopPropagation()}>
             <div className="confirm-modal-header">
               <AlertTriangle className="confirm-modal-icon warning" size={24} />
               <h2>Confirmar Cancelamento</h2>
             </div>
             <p className="confirm-modal-text">
-              Deseja realmente cancelar o lançamento de <strong>{entryParaExcluir.pontos > 0 ? `+${entryParaExcluir.pontos}` : entryParaExcluir.pontos} pontos</strong> para{" "}
-              <strong>{entryParaExcluir.treinadorNome}</strong>? A pontuação será ajustada no ranking imediatamente.
+              Deseja realmente cancelar o lançamento de{" "}
+              <strong>
+                {entryParaExcluir.pontos > 0
+                  ? `+${entryParaExcluir.pontos}`
+                  : entryParaExcluir.pontos}{" "}
+                pontos
+              </strong>{" "}
+              para <strong>{entryParaExcluir.treinadorNome}</strong>? A
+              pontuação será ajustada no ranking imediatamente.
             </p>
             <div className="confirm-modal-actions">
               <button
@@ -1333,7 +1638,11 @@ export const Gamificacao: React.FC = () => {
                 onClick={() => handleExcluir(entryParaExcluir.id!)}
                 disabled={deletingId !== null}
               >
-                {deletingId ? <div className="spinner"></div> : "Confirmar exclusão"}
+                {deletingId ? (
+                  <div className="spinner"></div>
+                ) : (
+                  "Confirmar exclusão"
+                )}
               </button>
               <button
                 className="btn-cancelar-confirm"
@@ -1350,7 +1659,11 @@ export const Gamificacao: React.FC = () => {
       {/* Modal de Edição de Lançamento */}
       {editingEntry && (
         <div className="confirm-overlay" onClick={() => setEditingEntry(null)}>
-          <form className="edit-modal" onClick={(e) => e.stopPropagation()} onSubmit={handleSalvarEdicao}>
+          <form
+            className="edit-modal"
+            onClick={(e) => e.stopPropagation()}
+            onSubmit={handleSalvarEdicao}
+          >
             <div className="edit-modal-header">
               <Edit2 className="card-icon" size={22} />
               <h2>Editar Lançamento</h2>
@@ -1361,7 +1674,9 @@ export const Gamificacao: React.FC = () => {
                 <>
                   <div className="form-grid-2">
                     <div className="input-group">
-                      <label htmlFor="edit-treinamento-empresa">Nome da Empresa *</label>
+                      <label htmlFor="edit-treinamento-empresa">
+                        Nome da Empresa *
+                      </label>
                       <SearchableSingleSelect
                         value={editEmpresa}
                         onChange={setEditEmpresa}
@@ -1385,7 +1700,9 @@ export const Gamificacao: React.FC = () => {
 
                   <div className="form-grid-2">
                     <div className="input-group">
-                      <label htmlFor="edit-treinamento-data-solicitacao">Data de Solicitação *</label>
+                      <label htmlFor="edit-treinamento-data-solicitacao">
+                        Data de Solicitação *
+                      </label>
                       <input
                         type="date"
                         id="edit-treinamento-data-solicitacao"
@@ -1396,7 +1713,9 @@ export const Gamificacao: React.FC = () => {
                     </div>
 
                     <div className="input-group">
-                      <label htmlFor="edit-treinamento-data-realizacao">Data da Realização *</label>
+                      <label htmlFor="edit-treinamento-data-realizacao">
+                        Data da Realização *
+                      </label>
                       <input
                         type="date"
                         id="edit-treinamento-data-realizacao"
@@ -1410,11 +1729,14 @@ export const Gamificacao: React.FC = () => {
                   <div className="form-grid-2">
                     <div className="input-group">
                       <label htmlFor="edit-treinamento-tempo-agenda">
-                        Tempo de Agenda {
-                          editTemas.some(
-                            (t) => t.trim().toLowerCase() === "cancelado" || t.trim().toLowerCase() === "ausente"
-                          ) ? "" : "*"
-                        }
+                        Tempo de Agenda{" "}
+                        {editTemas.some(
+                          (t) =>
+                            t.trim().toLowerCase() === "cancelado" ||
+                            t.trim().toLowerCase() === "ausente",
+                        )
+                          ? ""
+                          : "*"}
                       </label>
                       <input
                         type="time"
@@ -1423,14 +1745,18 @@ export const Gamificacao: React.FC = () => {
                         onChange={(e) => setEditTempoAgenda(e.target.value)}
                         required={
                           !editTemas.some(
-                            (t) => t.trim().toLowerCase() === "cancelado" || t.trim().toLowerCase() === "ausente"
+                            (t) =>
+                              t.trim().toLowerCase() === "cancelado" ||
+                              t.trim().toLowerCase() === "ausente",
                           )
                         }
                       />
                     </div>
 
                     <div className="input-group">
-                      <label htmlFor="edit-treinamento-solicitante">Quem Solicitou *</label>
+                      <label htmlFor="edit-treinamento-solicitante">
+                        Quem Solicitou *
+                      </label>
                       <select
                         id="edit-treinamento-solicitante"
                         value={editSolicitante}
@@ -1460,7 +1786,9 @@ export const Gamificacao: React.FC = () => {
                       </button>
                     </div>
                     {editNotas.length === 0 ? (
-                      <span className="no-notas-msg">Nenhuma nota registrada (treinamento sem resposta CSAT).</span>
+                      <span className="no-notas-msg">
+                        Nenhuma nota registrada (treinamento sem resposta CSAT).
+                      </span>
                     ) : (
                       <div className="notas-inputs-grid">
                         {editNotas.map((nota, idx) => (
@@ -1473,7 +1801,9 @@ export const Gamificacao: React.FC = () => {
                               max="10"
                               step="1"
                               value={nota}
-                              onChange={(e) => handleUpdateEditNota(idx, e.target.value)}
+                              onChange={(e) =>
+                                handleUpdateEditNota(idx, e.target.value)
+                              }
                               required
                             />
                             <button
@@ -1491,7 +1821,9 @@ export const Gamificacao: React.FC = () => {
                   </div>
 
                   <div className="input-group">
-                    <label htmlFor="edit-descricao-input">Observações (Opcional)</label>
+                    <label htmlFor="edit-descricao-input">
+                      Observações (Opcional)
+                    </label>
                     <textarea
                       id="edit-descricao-input"
                       placeholder="Ex: Treinamento avançado de APIs..."
@@ -1504,7 +1836,9 @@ export const Gamificacao: React.FC = () => {
                 </>
               ) : (
                 <div className="input-group">
-                  <label htmlFor="edit-descricao-geral">Descrição / Detalhes *</label>
+                  <label htmlFor="edit-descricao-geral">
+                    Descrição / Detalhes *
+                  </label>
                   <textarea
                     id="edit-descricao-geral"
                     placeholder="Ex: Documentação de onboarding revisada..."
@@ -1519,8 +1853,16 @@ export const Gamificacao: React.FC = () => {
             </div>
 
             <div className="edit-modal-actions">
-              <button type="submit" className="btn-edit-confirm" disabled={submitting}>
-                {submitting ? <div className="spinner"></div> : "Salvar Alterações"}
+              <button
+                type="submit"
+                className="btn-edit-confirm"
+                disabled={submitting}
+              >
+                {submitting ? (
+                  <div className="spinner"></div>
+                ) : (
+                  "Salvar Alterações"
+                )}
               </button>
               <button
                 type="button"
@@ -1532,6 +1874,80 @@ export const Gamificacao: React.FC = () => {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Modal de Distribuição do Próximo Cliente */}
+      {showDistribuicaoModal && (
+        <div
+          className="confirm-overlay"
+          onClick={() => setShowDistribuicaoModal(false)}
+        >
+          <div
+            className="distribuicao-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="distribuicao-modal-header">
+              <div className="distribuicao-modal-title">
+                <Shuffle className="card-icon" size={22} />
+                <h2>Próximo Cliente</h2>
+              </div>
+              <button
+                type="button"
+                className="btn-fechar-modal"
+                onClick={() => setShowDistribuicaoModal(false)}
+                title="Fechar"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {distribuicaoRanking.length === 0 ? (
+              <p className="no-data-msg">
+                Nenhum treinador disponível para distribuição.
+              </p>
+            ) : (
+              <>
+                <div className="distribuicao-vencedor">
+                  <Trophy className="trophy-gold" size={28} />
+                  <div>
+                    <span className="distribuicao-vencedor-label">
+                      Deve ficar com o próximo cliente
+                    </span>
+                    <span className="distribuicao-vencedor-nome">
+                      {formatarNome(distribuicaoRanking[0].nome) ||
+                        distribuicaoRanking[0].email}
+                    </span>
+                  </div>
+                  <span className="distribuicao-vencedor-score">
+                    Carga: {distribuicaoRanking[0].cargaDistribuicao}
+                  </span>
+                </div>
+
+                <div className="distribuicao-lista">
+                  {distribuicaoRanking.map((t, index) => (
+                    <div
+                      key={t.uid}
+                      className={`distribuicao-item ${index === 0 ? "distribuicao-item-vencedor" : ""}`}
+                    >
+                      <span className="distribuicao-posicao">{index + 1}</span>
+                      <div className="distribuicao-info">
+                        <span className="distribuicao-nome">
+                          {formatarNome(t.nome) || t.email}
+                          {t.uid === user?.uid && (
+                            <span className="me-badge">Você</span>
+                          )}
+                        </span>
+                      </div>
+                      <span className="distribuicao-score">
+                        Carga: {t.cargaDistribuicao}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         </div>
       )}
     </div>

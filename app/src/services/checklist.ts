@@ -2,6 +2,7 @@ import {
   collection,
   addDoc,
   deleteDoc,
+  deleteField,
   doc,
   getDocs,
   query,
@@ -52,7 +53,16 @@ export async function atualizarTarefaChecklist(
   id: string,
   updates: Partial<TarefaChecklist>
 ): Promise<void> {
-  await updateDoc(doc(db, COLLECTION, id), updates);
+  // Firestore não aceita `undefined` em updateDoc; campos undefined viram
+  // deleteField() para permitir remover valores opcionais (ex: SLA).
+  const payload: Record<string, unknown> = { ...updates };
+  Object.keys(payload).forEach((key) => {
+    if (payload[key] === undefined) {
+      payload[key] = deleteField();
+    }
+  });
+
+  await updateDoc(doc(db, COLLECTION, id), payload);
 
   if (cachedTarefas) {
     cachedTarefas = cachedTarefas.map((t) => (t.id === id ? { ...t, ...updates } : t));

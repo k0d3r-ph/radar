@@ -49,8 +49,9 @@
 }
 
 .checklist-flutuante-painel {
-  width: 320px;
-  max-height: 60vh;
+  width: 380px;
+  max-width: calc(100vw - 3rem);
+  max-height: 68vh;
   display: flex;
   flex-direction: column;
   background: var(--card-bg, #1e293b);
@@ -191,6 +192,55 @@
   cursor: not-allowed;
 }
 
+.checklist-flutuante-sla-form {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+
+.checklist-flutuante-sla-icon {
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.checklist-flutuante-sla-input {
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  padding: 0 0.5rem;
+  background: rgba(148, 163, 184, 0.08);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 8px;
+  color: #e2e8f0;
+  font-size: 0.78rem;
+  outline: none;
+  transition: border-color 0.15s ease, background 0.15s ease;
+  color-scheme: dark;
+}
+
+.checklist-flutuante-sla-input:focus {
+  border-color: #3b82f6;
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.checklist-flutuante-sla-limpar {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  border-radius: 6px;
+  transition: background 0.2s, color 0.2s;
+}
+
+.checklist-flutuante-sla-limpar:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
 .checklist-flutuante-vazio {
   color: #94a3b8;
   font-size: 0.85rem;
@@ -218,21 +268,99 @@
 
 .checklist-flutuante-item label {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.55rem;
   cursor: pointer;
   flex: 1;
   min-width: 0;
 }
 
+.checklist-flutuante-item label input[type="checkbox"] {
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+}
+
 .checklist-flutuante-item label span {
   overflow-wrap: anywhere;
   font-size: 0.88rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3rem;
 }
 
 .checklist-flutuante-item.concluida span {
   text-decoration: line-through;
   color: #64748b;
+}
+
+.checklist-flutuante-sla-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.checklist-flutuante-sla-badge.sla-vazio {
+  background: rgba(148, 163, 184, 0.1);
+  border-color: rgba(148, 163, 184, 0.25);
+  color: #94a3b8;
+}
+
+.checklist-flutuante-sla-badge.sla-vazio:hover {
+  background: rgba(148, 163, 184, 0.18);
+  color: #cbd5e1;
+}
+
+.checklist-flutuante-sla-badge.sla-normal {
+  background: rgba(52, 211, 153, 0.12);
+  border-color: rgba(52, 211, 153, 0.3);
+  color: #34d399;
+}
+
+.checklist-flutuante-sla-badge.sla-proximo {
+  background: rgba(251, 191, 36, 0.12);
+  border-color: rgba(251, 191, 36, 0.3);
+  color: #fbbf24;
+}
+
+.checklist-flutuante-sla-badge.sla-urgente {
+  background: rgba(249, 115, 22, 0.15);
+  border-color: rgba(249, 115, 22, 0.35);
+  color: #fb923c;
+  animation: sla-pulse 2s infinite;
+}
+
+.checklist-flutuante-sla-badge.sla-atrasado {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #f87171;
+  animation: sla-pulse 2s infinite;
+}
+
+@keyframes sla-pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.6; }
+  100% { opacity: 1; }
+}
+
+.checklist-flutuante-sla-inline-input {
+  height: 30px;
+  padding: 0 0.5rem;
+  background: rgba(148, 163, 184, 0.08);
+  border: 1px solid #3b82f6;
+  border-radius: 8px;
+  color: #e2e8f0;
+  font-size: 0.75rem;
+  outline: none;
+  color-scheme: dark;
 }
 
 .checklist-flutuante-remover {

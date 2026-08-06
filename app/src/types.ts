@@ -160,6 +160,8 @@ export interface LancamentoPonto {
   isAlerta?: boolean;
 }
 
+export type PrioridadeTarefa = "baixa" | "normal" | "alta" | "urgente";
+
 export interface TarefaChecklist {
   id?: string;
   treinadorId: string;
@@ -170,5 +172,6 @@ export interface TarefaChecklist {
   criadoPorNome: string;
   createdAt: number;
   slaEm?: number;
+  prioridade?: PrioridadeTarefa;
 }
 

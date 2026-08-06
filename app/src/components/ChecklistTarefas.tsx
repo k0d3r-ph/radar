@@ -3,8 +3,35 @@ import { ListChecks, X, Clock, AlarmClockOff } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { listarTarefasChecklist, criarTarefaChecklist, atualizarTarefaChecklist, removerTarefaChecklist } from "../services/checklist";
 import { listarUsuarios, type UsuarioDocument } from "../services/auth";
-import type { TarefaChecklist } from "../types";
+import type { TarefaChecklist, PrioridadeTarefa } from "../types";
 import "./ChecklistTarefas.css";
+
+const PRIORIDADE_LABEL: Record<PrioridadeTarefa, string> = {
+  baixa: "Baixa",
+  normal: "Normal",
+  alta: "Alta",
+  urgente: "Urgente",
+};
+
+// Quantas horas a prioridade "adianta" (ou atrasa, se negativo) a tarefa na fila,
+// combinado com o tempo restante até o SLA — ver calcularUrgencia().
+const PRIORIDADE_BONUS_HORAS: Record<PrioridadeTarefa, number> = {
+  baixa: -12,
+  normal: 0,
+  alta: 24,
+  urgente: 72,
+};
+
+// Tarefas sem SLA são tratadas como se vencessem daqui a 10 dias, apenas para
+// que a prioridade ainda consiga reordená-las entre si e na frente de tarefas
+// com SLA distante — sem nunca ultrapassar uma tarefa com prazo real próximo.
+const SEM_SLA_HORAS = 240;
+
+function calcularUrgencia(tarefa: TarefaChecklist, agora: number): number {
+  const horasRestantes = tarefa.slaEm != null ? (tarefa.slaEm - agora) / 3600000 : SEM_SLA_HORAS;
+  const bonus = PRIORIDADE_BONUS_HORAS[tarefa.prioridade || "normal"];
+  return horasRestantes - bonus;
+}
 
 function formatarDataParaInput(timestamp?: number): string {
   if (!timestamp) return "";
@@ -44,6 +71,7 @@ export default function ChecklistTarefas() {
   const [tarefas, setTarefas] = useState<TarefaChecklist[]>([]);
   const [novaDescricao, setNovaDescricao] = useState("");
   const [novaSla, setNovaSla] = useState("");
+  const [novaPrioridade, setNovaPrioridade] = useState<PrioridadeTarefa>("normal");
   const [trainers, setTrainers] = useState<UsuarioDocument[]>([]);
   const [blocoAtivo, setBlocoAtivo] = useState("");
   const [editandoSlaId, setEditandoSlaId] = useState<string | null>(null);
@@ -96,6 +124,7 @@ export default function ChecklistTarefas() {
       criadoPorId: user.uid,
       criadoPorNome: userName,
       createdAt: Date.now(),
+      prioridade: novaPrioridade,
       ...(novaSla ? { slaEm: new Date(novaSla).getTime() } : {}),
     };
 
@@ -103,6 +132,12 @@ export default function ChecklistTarefas() {
     setTarefas((prev) => [{ id, ...dados }, ...prev]);
     setNovaDescricao("");
     setNovaSla("");
+    setNovaPrioridade("normal");
+  }
+
+  async function alterarPrioridade(id: string, prioridade: PrioridadeTarefa) {
+    await atualizarTarefaChecklist(id, { prioridade });
+    setTarefas((prev) => prev.map((t) => (t.id === id ? { ...t, prioridade } : t)));
   }
 
   async function alternarConclusao(tarefa: TarefaChecklist) {
@@ -134,12 +169,9 @@ export default function ChecklistTarefas() {
     ? Math.round((concluidas.length / tarefasDoBloco.length) * 100)
     : 0;
 
-  const pendentesOrdenadas = [...pendentes].sort((a, b) => {
-    if (a.slaEm == null && b.slaEm == null) return 0;
-    if (a.slaEm == null) return 1;
-    if (b.slaEm == null) return -1;
-    return a.slaEm - b.slaEm;
-  });
+  const pendentesOrdenadas = [...pendentes].sort(
+    (a, b) => calcularUrgencia(a, agora) - calcularUrgencia(b, agora)
+  );
 
   return (
     <div className="checklist-flutuante">
@@ -220,6 +252,18 @@ export default function ChecklistTarefas() {
                 <X size={13} />
               </button>
             )}
+            <select
+              className={`checklist-flutuante-prioridade-select prioridade-${novaPrioridade}`}
+              value={novaPrioridade}
+              onChange={(e) => setNovaPrioridade(e.target.value as PrioridadeTarefa)}
+              title="Prioridade da nova tarefa"
+            >
+              {(Object.keys(PRIORIDADE_LABEL) as PrioridadeTarefa[]).map((p) => (
+                <option key={p} value={p}>
+                  {PRIORIDADE_LABEL[p]}
+                </option>
+              ))}
+            </select>
           </div>
 
           {tarefasDoBloco.length === 0 ? (
@@ -244,33 +288,49 @@ export default function ChecklistTarefas() {
                             adicionado por {tarefa.criadoPorNome}
                           </span>
                         )}
-                        {editando ? (
-                          <input
-                            type="datetime-local"
-                            className="checklist-flutuante-sla-inline-input"
-                            autoFocus
-                            defaultValue={formatarDataParaInput(tarefa.slaEm)}
-                            onBlur={(e) => salvarSla(tarefa.id!, e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                              if (e.key === "Escape") setEditandoSlaId(null);
-                            }}
-                          />
-                        ) : (
-                          <button
-                            type="button"
-                            className={`checklist-flutuante-sla-badge ${sla ? `sla-${sla.status}` : "sla-vazio"}`}
-                            onClick={() => setEditandoSlaId(tarefa.id || null)}
+                        <span className="checklist-flutuante-badges-row">
+                          {editando ? (
+                            <input
+                              type="datetime-local"
+                              className="checklist-flutuante-sla-inline-input"
+                              autoFocus
+                              defaultValue={formatarDataParaInput(tarefa.slaEm)}
+                              onBlur={(e) => salvarSla(tarefa.id!, e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                                if (e.key === "Escape") setEditandoSlaId(null);
+                              }}
+                            />
+                          ) : (
+                            <button
+                              type="button"
+                              className={`checklist-flutuante-sla-badge ${sla ? `sla-${sla.status}` : "sla-vazio"}`}
+                              onClick={() => setEditandoSlaId(tarefa.id || null)}
+                            >
+                              {sla ? (
+                                sla.texto
+                              ) : (
+                                <>
+                                  <AlarmClockOff size={11} /> Definir SLA
+                                </>
+                              )}
+                            </button>
+                          )}
+                          <select
+                            className={`checklist-flutuante-prioridade-badge prioridade-${tarefa.prioridade || "normal"}`}
+                            value={tarefa.prioridade || "normal"}
+                            onChange={(e) =>
+                              alterarPrioridade(tarefa.id!, e.target.value as PrioridadeTarefa)
+                            }
+                            title="Prioridade da tarefa"
                           >
-                            {sla ? (
-                              sla.texto
-                            ) : (
-                              <>
-                                <AlarmClockOff size={11} /> Definir SLA
-                              </>
-                            )}
-                          </button>
-                        )}
+                            {(Object.keys(PRIORIDADE_LABEL) as PrioridadeTarefa[]).map((p) => (
+                              <option key={p} value={p}>
+                                {PRIORIDADE_LABEL[p]}
+                              </option>
+                            ))}
+                          </select>
+                        </span>
                       </span>
                     </div>
                     <button

@@ -351,6 +351,82 @@
   100% { opacity: 1; }
 }
 
+.checklist-flutuante-prioridade-select {
+  flex-shrink: 0;
+  height: 32px;
+  padding: 0 1.5rem 0 0.5rem;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-repeat: no-repeat;
+  background-position: right 0.4rem center;
+  background-size: 12px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+}
+
+.checklist-flutuante-badges-row {
+  display: flex;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.checklist-flutuante-prioridade-badge {
+  flex-shrink: 0;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 0.15rem 1.3rem 0.15rem 0.55rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  background-repeat: no-repeat;
+  background-position: right 0.45rem center;
+  background-size: 9px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+}
+
+.checklist-flutuante-prioridade-select.prioridade-baixa,
+.checklist-flutuante-prioridade-badge.prioridade-baixa {
+  background-color: rgba(148, 163, 184, 0.1);
+  border-color: rgba(148, 163, 184, 0.25);
+  color: #94a3b8;
+}
+
+.checklist-flutuante-prioridade-select.prioridade-normal,
+.checklist-flutuante-prioridade-badge.prioridade-normal {
+  background-color: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.3);
+  color: #60a5fa;
+}
+
+.checklist-flutuante-prioridade-select.prioridade-alta,
+.checklist-flutuante-prioridade-badge.prioridade-alta {
+  background-color: rgba(249, 115, 22, 0.15);
+  border-color: rgba(249, 115, 22, 0.35);
+  color: #fb923c;
+}
+
+.checklist-flutuante-prioridade-select.prioridade-urgente,
+.checklist-flutuante-prioridade-badge.prioridade-urgente {
+  background-color: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #f87171;
+}
+
+.checklist-flutuante-prioridade-select option,
+.checklist-flutuante-prioridade-badge option {
+  background-color: #1e293b;
+  color: #e2e8f0;
+}
+
 .checklist-flutuante-sla-inline-input {
   height: 30px;
   padding: 0 0.5rem;

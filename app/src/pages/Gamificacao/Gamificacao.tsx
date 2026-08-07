@@ -774,6 +774,24 @@ export const Gamificacao: React.FC = () => {
 
   const podeDistribuir = role === "treinador" || role === "master";
 
+  const formatarNumeroCarga = (valor: number) =>
+    valor.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+
+  // Memória de cálculo da carga, para deixar claro de onde vem cada ponto
+  const descreverCarga = (item: {
+    treinamentosRecentes: number;
+    clientesEsteira: number;
+    cargaPorCliente: number;
+  }) => {
+    const treinos = `${item.treinamentosRecentes} ${
+      item.treinamentosRecentes === 1 ? "treino" : "treinos"
+    } × ${formatarNumeroCarga(CARGA_POR_TREINAMENTO_15_DIAS)}`;
+    const clientes = `${item.clientesEsteira} ${
+      item.clientesEsteira === 1 ? "cliente" : "clientes"
+    } × ${formatarNumeroCarga(item.cargaPorCliente)}`;
+    return `${treinos} + ${clientes}`;
+  };
+
   const handleLancar = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -1924,9 +1942,15 @@ export const Gamificacao: React.FC = () => {
                       {formatarNome(distribuicaoRanking[0].nome) ||
                         distribuicaoRanking[0].email}
                     </span>
+                    <span className="distribuicao-detalhes">
+                      {descreverCarga(distribuicaoRanking[0])}
+                    </span>
                   </div>
                   <span className="distribuicao-vencedor-score">
-                    Carga: {distribuicaoRanking[0].cargaDistribuicao}
+                    Carga:{" "}
+                    {formatarNumeroCarga(
+                      distribuicaoRanking[0].cargaDistribuicao,
+                    )}
                   </span>
                 </div>
 
@@ -1944,13 +1968,24 @@ export const Gamificacao: React.FC = () => {
                             <span className="me-badge">Você</span>
                           )}
                         </span>
+                        <span className="distribuicao-detalhes">
+                          {descreverCarga(t)}
+                        </span>
                       </div>
                       <span className="distribuicao-score">
-                        Carga: {t.cargaDistribuicao}
+                        Carga: {formatarNumeroCarga(t.cargaDistribuicao)}
                       </span>
                     </div>
                   ))}
                 </div>
+
+                <p className="distribuicao-modal-text">
+                  Só entram treinamentos realizados nos últimos{" "}
+                  <strong>{DIAS_JANELA_TREINAMENTOS} dias</strong>. Como a
+                  janela é deslizante, um treinamento antigo pode sair dela no
+                  mesmo dia em que você registra um novo — nesse caso a carga
+                  não muda.
+                </p>
               </>
             )}
           </div>

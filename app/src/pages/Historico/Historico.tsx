@@ -6,11 +6,12 @@ import {
   listarOcorrencias,
   removerOcorrencia,
 } from "../../services/ocorrencias";
-import { listarEmpresas, salvarEmpresas, formatarTelefoneWhatsApp } from "../../services/empresas";
+import { listarEmpresas, salvarEmpresas } from "../../services/empresas";
+import { normalizarTelefoneWhatsApp, formatarTelefoneExibicao } from "../../utils/telefone";
 import { listarUsuarios } from "../../services/auth";
 import type { UsuarioDocument } from "../../services/auth";
 import { enviarMensagemWhatsApp } from "../../services/whatsapp";
-import { obterDestinatariosGestao, montarMensagemAlertaGestao, montarMensagemConclusaoEsteiraGestao } from "../../services/notificacoes";
+import { obterDestinatariosGestao, montarMensagemAlertaGestao, montarMensagemConclusaoEsteiraGestao, aplicarNomeDestinatario, PLACEHOLDER_NOME } from "../../services/notificacoes";
 import type { DestinatarioGestao } from "../../services/notificacoes";
 import { resumirOcorrencias } from "../../services/ia";
 import { generateEsteiraImage } from "../../utils/generateEsteiraImage";
@@ -1460,7 +1461,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
           : [];
 
       const destinatarios = contatosBase
-        .map((c) => ({ nome: c.nome || "Cliente", telefone: formatarTelefoneWhatsApp(c.telefone) }))
+        .map((c) => ({ nome: c.nome || "Cliente", telefone: normalizarTelefoneWhatsApp(c.telefone) }))
         .filter((c) => c.telefone);
 
       if (destinatarios.length === 0) {
@@ -1520,14 +1521,15 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
           updatedAt: Date.now(),
         };
 
-        const contatoNome = destinatarios[0]?.nome || "Cliente";
         const [year, month, day] = dataRealizacaoStr.split("-");
         const dataCompleta = `${day}/${month}/${year}`;
         const temasParaMensagem = temasValidos.filter(
           (t) => normTema(t) !== "inicio" && normTema(t) !== "conclusao"
         );
         const plural = temasParaMensagem.length > 1;
-        const textoMensagem = `Olá, *${contatoNome}*! 🚀\nSeu treinamento sobre ${plural ? "os temas" : "o tema"} *${temasParaMensagem.join(", ")}* foi registrado com sucesso em *${dataCompleta}*.\n\nConfira acima a sua esteira de evolução atualizada:`;
+        // O marcador {nome} é trocado pelo nome de cada contato no envio, de forma
+        // que cada destinatário receba a saudação com o próprio nome.
+        const textoMensagem = `Olá, *${PLACEHOLDER_NOME}*! 🚀\nSeu treinamento sobre ${plural ? "os temas" : "o tema"} *${temasParaMensagem.join(", ")}* foi registrado com sucesso em *${dataCompleta}*.\n\nConfira acima a sua esteira de evolução atualizada:`;
 
         setPendingWhatsAppMessage({
           ocorrenciaId: savedId,
@@ -3590,7 +3592,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 </label>
                 <div style={{ fontSize: "0.85rem", color: "var(--text-muted, #94a3b8)" }}>
                   {pendingWhatsAppMessage.destinatarios
-                    .map((d) => `${d.nome} (+${d.telefone})`)
+                    .map((d) => `${d.nome} (${formatarTelefoneExibicao(d.telefone) || d.telefone})`)
                     .join(", ")}
                 </div>
               </div>
@@ -3606,7 +3608,40 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   className="whatsapp-textarea"
                   style={{ width: "100%", boxSizing: "border-box", background: "rgba(255, 255, 255, 0.03)", border: "1px solid var(--border-color, rgba(255,255,255,0.08))", borderRadius: "8px", color: "var(--text-color, #ffffff)", padding: "10px 14px" }}
                 />
+                <p style={{ margin: "6px 0 0", fontSize: "0.75rem", color: "var(--text-muted, #94a3b8)", lineHeight: "1.4" }}>
+                  Use <code style={{ background: "rgba(255,255,255,0.07)", padding: "1px 5px", borderRadius: "4px" }}>{PLACEHOLDER_NOME}</code>{" "}
+                  onde o nome do contato deve aparecer — cada destinatário recebe uma mensagem com o próprio nome.
+                </p>
               </div>
+
+              {pendingWhatsAppMessage.destinatarios.length > 1 &&
+                editedWhatsAppText.toLowerCase().includes(PLACEHOLDER_NOME) && (
+                  <div style={{ marginBottom: "16px" }}>
+                    <label style={{ display: "block", fontSize: "0.8rem", fontWeight: "600", marginBottom: "6px", color: "var(--text-color, #ffffff)" }}>
+                      Preview — serão enviadas {pendingWhatsAppMessage.destinatarios.length} mensagens
+                    </label>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                      {pendingWhatsAppMessage.destinatarios.map((d, idx) => (
+                        <div
+                          key={`${d.telefone}-${idx}`}
+                          style={{
+                            background: "rgba(255, 255, 255, 0.03)",
+                            border: "1px solid var(--border-color, rgba(255,255,255,0.08))",
+                            borderRadius: "8px",
+                            padding: "8px 12px",
+                          }}
+                        >
+                          <div style={{ fontSize: "0.7rem", fontWeight: 600, color: "var(--text-muted, #94a3b8)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>
+                            {d.nome}
+                          </div>
+                          <div style={{ fontSize: "0.8rem", color: "var(--text-color, #ffffff)", whiteSpace: "pre-wrap", lineHeight: "1.4" }}>
+                            {aplicarNomeDestinatario(editedWhatsAppText, d.nome)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
               <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "10px" }}>
                 <label className="checkbox-label" style={{ fontSize: "0.85rem", cursor: "pointer", display: "inline-flex", alignItems: "center" }}>
@@ -3665,7 +3700,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       pendingWhatsAppMessage.destinatarios.map((d) =>
                         enviarMensagemWhatsApp({
                           to: d.telefone,
-                          message: editedWhatsAppText,
+                          message: aplicarNomeDestinatario(editedWhatsAppText, d.nome),
                           imageBase64,
                           filename: `esteira_${pendingWhatsAppMessage.empresaNome}.png`
                         })

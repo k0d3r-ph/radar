@@ -1,6 +1,7 @@
 import { listarUsuarios } from "./auth";
 import type { UsuarioDocument } from "./auth";
 import type { Empresa } from "../types";
+import { normalizarTelefoneWhatsApp } from "../utils/telefone";
 
 const BASE_URL = window.location.origin;
 
@@ -12,10 +13,9 @@ function normalizarTexto(s: string): string {
   return s.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
-function formatarTelefone(telefone: string): string {
-  const limpo = telefone.replace(/\D/g, "");
-  return limpo.length === 10 || limpo.length === 11 ? `55${limpo}` : limpo;
-}
+// A normalização vive em utils/telefone para que cadastro, gestão e esteira
+// sigam exatamente a mesma regra.
+
 
 export interface DestinatarioGestao {
   nome: string;
@@ -33,7 +33,7 @@ export async function obterDestinatariosGestao(empresaObjeto: Empresa): Promise<
 
   const adicionar = (u: UsuarioDocument) => {
     if (!u.telefone || !u.telefone.trim()) return;
-    const telefone = formatarTelefone(u.telefone);
+    const telefone = normalizarTelefoneWhatsApp(u.telefone);
     if (!telefone || telefonesAdicionados.has(telefone)) return;
     telefonesAdicionados.add(telefone);
     destinatarios.push({ nome: u.nome || u.email, telefone });
@@ -49,6 +49,18 @@ export async function obterDestinatariosGestao(empresaObjeto: Empresa): Promise<
   }
 
   return destinatarios;
+}
+
+/** Marcador substituído pelo nome de cada destinatário no momento do disparo. */
+export const PLACEHOLDER_NOME = "{nome}";
+
+/**
+ * Substitui o marcador `{nome}` pelo nome do destinatário, permitindo que uma
+ * única mensagem escrita pelo treinador vire uma saudação personalizada por
+ * contato. Mensagens sem o marcador seguem inalteradas.
+ */
+export function aplicarNomeDestinatario(texto: string, nome: string): string {
+  return texto.replace(/\{nome\}/gi, nome);
 }
 
 export function montarMensagemAlertaGestao(empresa: Empresa, ocorrenciaId?: string): string {

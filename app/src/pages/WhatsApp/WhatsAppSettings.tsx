@@ -20,7 +20,8 @@ import {
   obterWhatsAppSocketUrl,
   type WhatsAppSessionState
 } from "../../services/whatsapp";
-import { listarEmpresas, salvarEmpresas, formatarTelefoneWhatsApp } from "../../services/empresas";
+import { listarEmpresas, salvarEmpresas } from "../../services/empresas";
+import { normalizarTelefoneWhatsApp } from "../../utils/telefone";
 import { generateEsteiraImage } from "../../utils/generateEsteiraImage";
 import type { Empresa } from "../../types";
 import "./WhatsAppSettings.css";
@@ -134,13 +135,31 @@ export const WhatsAppSettings: React.FC = () => {
         let alteradas = 0;
         
         for (const emp of lista) {
-          if (!emp.id || !emp.telefone) continue;
-          
-          const telPadrao = formatarTelefoneWhatsApp(emp.telefone);
-          if (emp.telefone !== telPadrao) {
+          if (!emp.id) continue;
+
+          // Números inválidos permanecem como estão, para não descartar o dado
+          // digitado — eles aparecem sinalizados no cadastro do cliente.
+          const telPadrao = emp.telefone
+            ? normalizarTelefoneWhatsApp(emp.telefone) || emp.telefone
+            : emp.telefone;
+
+          // A lista de contatos é a fonte usada no disparo da esteira, então
+          // precisa ser padronizada junto com o telefone principal.
+          const contatosPadrao = (emp.contatos || []).map((c) => ({
+            ...c,
+            telefone: normalizarTelefoneWhatsApp(c.telefone) || c.telefone,
+          }));
+
+          const telefoneMudou = emp.telefone !== telPadrao;
+          const contatosMudaram = contatosPadrao.some(
+            (c, i) => c.telefone !== (emp.contatos || [])[i]?.telefone
+          );
+
+          if (telefoneMudou || contatosMudaram) {
             await salvarEmpresas({
               ...emp,
-              telefone: telPadrao
+              telefone: telPadrao,
+              ...(emp.contatos ? { contatos: contatosPadrao } : {}),
             });
             alteradas++;
           }

@@ -25,6 +25,7 @@ import {
 import type { Empresa, Ocorrencia } from "../../types";
 import { useAuth } from "../../context/AuthContext";
 import { formatarNome } from "../../utils/formatarNome";
+import { analisarTelefoneWhatsApp, formatarTelefoneExibicao, normalizarTelefoneWhatsApp } from "../../utils/telefone";
 import { listarUsuarios } from "../../services/auth";
 import { toast } from "sonner";
 import {
@@ -340,9 +341,15 @@ export default function Home() {
 
     const antigoNome = empresaExistente?.nomeEmpresa || null;
 
-    const contatosValidos = (clienteForm.contatos || []).filter(
-      (c) => c.nome.trim() || c.telefone.trim(),
-    );
+    // Grava o telefone já normalizado (com DDI 55), para que o dado salvo seja
+    // idêntico ao que será usado no disparo. Números inválidos são mantidos como
+    // digitados, preservando o que o usuário escreveu para posterior correção.
+    const contatosValidos = (clienteForm.contatos || [])
+      .filter((c) => c.nome.trim() || c.telefone.trim())
+      .map((c) => ({
+        ...c,
+        telefone: normalizarTelefoneWhatsApp(c.telefone) || c.telefone.trim(),
+      }));
 
     const empresaSalva: Empresa = {
       ...clienteForm,
@@ -1947,6 +1954,17 @@ export default function Home() {
                           setClienteForm({ ...clienteForm, contatos: novaLista });
                         }}
                       />
+                      {(() => {
+                        if (!c.telefone.trim()) return null;
+                        const { valido, erro } = analisarTelefoneWhatsApp(c.telefone);
+                        return (
+                          <span style={{ fontSize: "0.7rem", color: valido ? "#4ade80" : "#f87171", lineHeight: 1.3 }}>
+                            {valido
+                              ? `Será enviado para ${formatarTelefoneExibicao(c.telefone)}`
+                              : erro}
+                          </span>
+                        );
+                      })()}
                     </div>
 
                     <button

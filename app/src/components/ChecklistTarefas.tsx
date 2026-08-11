@@ -40,6 +40,18 @@ function formatarDataParaInput(timestamp?: number): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+// Data/hora absoluta do SLA, exibida no tooltip do badge — o texto visível
+// mostra apenas o tempo restante.
+function formatarDataHoraCompleta(slaEm: number): string {
+  return new Date(slaEm).toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 function formatarSla(slaEm: number, agora: number): { texto: string; status: "atrasado" | "urgente" | "proximo" | "normal" } {
   const diff = slaEm - agora;
   const abs = Math.abs(diff);
@@ -306,6 +318,11 @@ export default function ChecklistTarefas() {
                               type="button"
                               className={`checklist-flutuante-sla-badge ${sla ? `sla-${sla.status}` : "sla-vazio"}`}
                               onClick={() => setEditandoSlaId(tarefa.id || null)}
+                              title={
+                                tarefa.slaEm
+                                  ? `Vence em ${formatarDataHoraCompleta(tarefa.slaEm)}`
+                                  : "Definir SLA (prazo) para esta tarefa"
+                              }
                             >
                               {sla ? (
                                 sla.texto

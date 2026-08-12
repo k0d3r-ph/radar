@@ -239,6 +239,7 @@ export default function Home() {
   const [gestaoDestinatarios, setGestaoDestinatarios] = useState<
     DestinatarioGestao[]
   >([]);
+  const [gestaoAvisos, setGestaoAvisos] = useState<string[]>([]);
   const [gestaoMensagem, setGestaoMensagem] = useState("");
 
   const [tabelaAtivaAberta, setTabelaAtivaAberta] = useState(true);
@@ -368,9 +369,10 @@ export default function Home() {
     // Cliente acabou de ser suspenso agora (não estava suspenso antes): notifica Supervisor + CS Responsável
     if (empresaSalva.isSuspended && !empresaExistente?.isSuspended) {
       obterDestinatariosGestao(empresaSalva)
-        .then((destinatarios) => {
+        .then(({ destinatarios, avisos }) => {
           if (destinatarios.length === 0) return;
           setGestaoDestinatarios(destinatarios);
+          setGestaoAvisos(avisos);
           setGestaoMensagem(montarMensagemSuspensaoGestao(empresaSalva));
           setGestaoConfirmModalOpen(true);
         })
@@ -2487,6 +2489,7 @@ export default function Home() {
         open={gestaoConfirmModalOpen}
         titulo="⏸️ Notificar Supervisor e CS Responsável sobre a suspensão?"
         destinatarios={gestaoDestinatarios}
+        avisos={gestaoAvisos}
         mensagem={gestaoMensagem}
         onChangeMensagem={setGestaoMensagem}
         onClose={() => {

@@ -102,6 +102,7 @@ function Esteira() {
   const [gestaoDestinatarios, setGestaoDestinatarios] = useState<
     DestinatarioGestao[]
   >([]);
+  const [gestaoAvisos, setGestaoAvisos] = useState<string[]>([]);
   const [gestaoMensagem, setGestaoMensagem] = useState("");
 
   useEffect(() => {
@@ -399,9 +400,10 @@ function Esteira() {
                     dataFinalizacao,
                   };
                   obterDestinatariosGestao(empresaConcluida)
-                    .then((destinatarios) => {
+                    .then(({ destinatarios, avisos }) => {
                       if (destinatarios.length === 0) return;
                       setGestaoDestinatarios(destinatarios);
+                      setGestaoAvisos(avisos);
                       setGestaoMensagem(
                         montarMensagemConclusaoEsteiraGestao(empresaConcluida),
                       );
@@ -672,6 +674,7 @@ function Esteira() {
         open={gestaoConfirmModalOpen}
         titulo="🎉 Notificar Supervisor e CS Responsável sobre a conclusão da esteira?"
         destinatarios={gestaoDestinatarios}
+        avisos={gestaoAvisos}
         mensagem={gestaoMensagem}
         onChangeMensagem={setGestaoMensagem}
         onClose={() => {

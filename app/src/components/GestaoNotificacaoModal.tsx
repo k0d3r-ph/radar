@@ -7,6 +7,8 @@ interface GestaoNotificacaoModalProps {
   open: boolean;
   titulo: string;
   destinatarios: DestinatarioGestao[];
+  /** Quem ficou de fora da lista e por quê (ex.: CS Responsável sem usuário correspondente). */
+  avisos?: string[];
   mensagem: string;
   onChangeMensagem: (texto: string) => void;
   onClose: () => void;
@@ -16,6 +18,7 @@ export function GestaoNotificacaoModal({
   open,
   titulo,
   destinatarios,
+  avisos = [],
   mensagem,
   onChangeMensagem,
   onClose,
@@ -58,6 +61,25 @@ export function GestaoNotificacaoModal({
             {destinatarios.length > 0 ? destinatarios.map((d) => d.nome).join(", ") : "Nenhum destinatário encontrado."}
           </div>
         </div>
+
+        {avisos.length > 0 && (
+          <div
+            style={{
+              marginBottom: "16px",
+              padding: "10px 14px",
+              borderRadius: "8px",
+              border: "1px solid rgba(251, 191, 36, 0.3)",
+              background: "rgba(251, 191, 36, 0.08)",
+              color: "#fbbf24",
+              fontSize: "0.8rem",
+              lineHeight: 1.5,
+            }}
+          >
+            {avisos.map((aviso) => (
+              <div key={aviso}>⚠️ {aviso}</div>
+            ))}
+          </div>
+        )}
 
         <div style={{ marginBottom: "8px" }}>
           <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, marginBottom: "6px", color: "var(--text-color, #ffffff)" }}>

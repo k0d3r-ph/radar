@@ -580,6 +580,7 @@ export function Historico() {
   // Notificação de Gestão (Alerta -> Supervisor + CS Responsável) via WhatsApp
   const [gestaoConfirmModalOpen, setGestaoConfirmModalOpen] = useState(false);
   const [gestaoDestinatarios, setGestaoDestinatarios] = useState<DestinatarioGestao[]>([]);
+  const [gestaoAvisos, setGestaoAvisos] = useState<string[]>([]);
   const [gestaoMensagem, setGestaoMensagem] = useState("");
 
   const [novaAtualizacaoAberta, setNovaAtualizacaoAberta] = useState(false);
@@ -1268,24 +1269,25 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
     const savedId = await salvarOcorrencia(editandoId ? { ...base, id: editandoId } : base);
 
     // Notificações automáticas (best-effort — erros não bloqueiam o fluxo)
-    if (!editandoId) {
-      // Alerta: abre popup de confirmação para notificar o Supervisor e o CS Responsável do cliente
-      if (form.alerta) {
-        const empresaObjetoAlerta = empresasList.find(
-          (e) => normalizar(e.nomeEmpresa) === normalizar(form.empresa)
-        );
-        if (empresaObjetoAlerta) {
-          obterDestinatariosGestao(empresaObjetoAlerta)
-            .then((destinatarios) => {
-              if (destinatarios.length === 0) return;
-              setGestaoDestinatarios(destinatarios);
-              setGestaoMensagem(montarMensagemAlertaGestao(empresaObjetoAlerta, savedId));
-              setGestaoConfirmModalOpen(true);
-            })
-            .catch((err) =>
-              console.error("[notificações] Falha ao montar destinatários de alerta:", err)
-            );
-        }
+    // Alerta: notifica quando a ocorrência *vira* alerta, seja ao criar ou ao editar.
+    // Comparar com o estado anterior evita renotificar a cada salvamento de uma
+    // ocorrência que já era alerta.
+    if (form.alerta && !ocorrenciaOriginal?.alerta) {
+      const empresaObjetoAlerta = empresasList.find(
+        (e) => normalizar(e.nomeEmpresa) === normalizar(form.empresa)
+      );
+      if (empresaObjetoAlerta) {
+        obterDestinatariosGestao(empresaObjetoAlerta)
+          .then(({ destinatarios, avisos }) => {
+            if (destinatarios.length === 0) return;
+            setGestaoDestinatarios(destinatarios);
+            setGestaoAvisos(avisos);
+            setGestaoMensagem(montarMensagemAlertaGestao(empresaObjetoAlerta, savedId));
+            setGestaoConfirmModalOpen(true);
+          })
+          .catch((err) =>
+            console.error("[notificações] Falha ao montar destinatários de alerta:", err)
+          );
       }
     }
 
@@ -1408,8 +1410,13 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
           const novoTemaText = newTemas.join("\n");
           const novoDataText = newDatas.join("\n");
 
-          // Conclusão da esteira: último tema atingido pela primeira vez através desta ocorrência
-          const concluiuAgora = ultimoIndice === linhasTema.length - 1 && !empresaObjeto.dataFinalizacao;
+          // Conclusão da esteira: último tema atingido pela primeira vez através desta
+          // ocorrência. Cliente Ongoing não tem esteira a concluir, então não notifica
+          // (mesma regra da conclusão manual em Esteira.tsx).
+          const concluiuAgora =
+            ultimoIndice === linhasTema.length - 1 &&
+            !empresaObjeto.dataFinalizacao &&
+            !empresaObjeto.isOngoing;
 
           const empresaAtualizadaEsteira: Empresa = {
             ...empresaObjeto,
@@ -1430,9 +1437,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
           if (concluiuAgora) {
             obterDestinatariosGestao(empresaAtualizadaEsteira)
-              .then((destinatarios) => {
+              .then(({ destinatarios, avisos }) => {
                 if (destinatarios.length === 0) return;
                 setGestaoDestinatarios(destinatarios);
+                setGestaoAvisos(avisos);
                 setGestaoMensagem(montarMensagemConclusaoEsteiraGestao(empresaAtualizadaEsteira, savedId));
                 setGestaoConfirmModalOpen(true);
               })
@@ -3783,6 +3791,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         open={gestaoConfirmModalOpen}
         titulo="⚠️ Notificar Supervisor e CS Responsável sobre o alerta?"
         destinatarios={gestaoDestinatarios}
+        avisos={gestaoAvisos}
         mensagem={gestaoMensagem}
         onChangeMensagem={setGestaoMensagem}
         onClose={() => {

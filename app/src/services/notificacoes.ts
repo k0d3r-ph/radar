@@ -22,33 +22,67 @@ export interface DestinatarioGestao {
   telefone: string;
 }
 
+export interface ResultadoDestinatariosGestao {
+  destinatarios: DestinatarioGestao[];
+  /** Motivos pelos quais alguém esperado ficou de fora — exibidos no modal de confirmação. */
+  avisos: string[];
+}
+
 /**
  * Monta a lista de destinatários (WhatsApp) para notificações de gestão de um cliente:
  * todos os usuários com cargo "supervisor" + o CS Responsável (cargo "analista") do cliente.
+ *
+ * Quando o CS Responsável do cliente não tem usuário correspondente, ou o usuário
+ * encontrado está sem telefone, ele não entra na lista — e isso vira um aviso, para
+ * que a omissão não passe despercebida na hora de confirmar o envio.
  */
-export async function obterDestinatariosGestao(empresaObjeto: Empresa): Promise<DestinatarioGestao[]> {
+export async function obterDestinatariosGestao(
+  empresaObjeto: Empresa
+): Promise<ResultadoDestinatariosGestao> {
   const usuarios = await listarUsuarios();
   const destinatarios: DestinatarioGestao[] = [];
+  const avisos: string[] = [];
   const telefonesAdicionados = new Set<string>();
 
   const adicionar = (u: UsuarioDocument) => {
-    if (!u.telefone || !u.telefone.trim()) return;
+    if (!u.telefone || !u.telefone.trim()) return false;
     const telefone = normalizarTelefoneWhatsApp(u.telefone);
-    if (!telefone || telefonesAdicionados.has(telefone)) return;
+    if (!telefone) return false;
+    if (telefonesAdicionados.has(telefone)) return true;
     telefonesAdicionados.add(telefone);
     destinatarios.push({ nome: u.nome || u.email, telefone });
+    return true;
   };
 
-  usuarios.filter((u) => u.cargo === "supervisor").forEach(adicionar);
-
-  if (empresaObjeto.csResponsavel) {
-    const csResponsavel = usuarios.find(
-      (u) => u.cargo === "analista" && normalizarTexto(u.nome) === normalizarTexto(empresaObjeto.csResponsavel!)
+  const supervisores = usuarios.filter((u) => u.cargo === "supervisor");
+  const supervisoresSemTelefone = supervisores.filter((u) => !adicionar(u));
+  if (supervisoresSemTelefone.length > 0) {
+    avisos.push(
+      `Sem telefone válido cadastrado: ${supervisoresSemTelefone
+        .map((u) => u.nome || u.email)
+        .join(", ")}.`
     );
-    if (csResponsavel) adicionar(csResponsavel);
   }
 
-  return destinatarios;
+  const csNome = empresaObjeto.csResponsavel;
+  if (csNome) {
+    const csResponsavel = usuarios.find(
+      (u) => u.cargo === "analista" && normalizarTexto(u.nome) === normalizarTexto(csNome)
+    );
+    if (!csResponsavel) {
+      avisos.push(
+        `O CS Responsável "${csNome}" não tem usuário com cargo Analista e nome equivalente, então não será notificado.`
+      );
+    } else if (!adicionar(csResponsavel)) {
+      avisos.push(
+        `O CS Responsável "${csNome}" está sem telefone válido cadastrado, então não será notificado.`
+      );
+    }
+  } else {
+    avisos.push("Este cliente não tem CS Responsável definido no cadastro.");
+  }
+
+  return { destinatarios, avisos };
 }
 
 /** Marcador substituído pelo nome de cada destinatário no momento do disparo. */

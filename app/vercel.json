@@ -1,5 +1,10 @@
 {
   "routes": [
+    {
+      "src": "/version.json",
+      "headers": { "cache-control": "no-store, max-age=0" },
+      "continue": true
+    },
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/index.html" }
   ]

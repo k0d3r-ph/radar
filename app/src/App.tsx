@@ -12,6 +12,7 @@ import { Relatorios } from "./pages/Relatorios/Relatorios";
 import { useTheme } from "./context/ThemeContext";
 import { WhatsAppSettings } from "./pages/WhatsApp/WhatsAppSettings";
 import ChecklistTarefas from "./components/ChecklistTarefas";
+import { useVerificaVersao } from "./utils/useVerificaVersao";
 
 
 function AppRoutes() {
@@ -179,6 +180,8 @@ function AppRoutes() {
 }
 
 function App() {
+  useVerificaVersao();
+
   return (
     <AuthProvider>
       <AppRoutes />

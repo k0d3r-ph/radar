@@ -12,6 +12,7 @@ import {
 
 import { db } from "./firebase";
 import type { Ocorrencia } from "../types";
+import { sincronizarColecao } from "./sincronizacaoIncremental";
 
 const COLLECTION = "ocorrencias";
 
@@ -85,13 +86,13 @@ export async function listarOcorrencias(forceRefresh = false, limitCount?: numbe
     return cachedOcorrencias;
   }
 
-  const q = query(collection(db, COLLECTION), orderBy("createdAt", "desc"));
-  const snapshot = await getDocs(q);
+  const ocorrencias = await sincronizarColecao<Ocorrencia>(COLLECTION, forceRefresh);
 
-  cachedOcorrencias = snapshot.docs.map((d) => ({
-    id: d.id,
-    ...(d.data() as Omit<Ocorrencia, "id">),
-  }));
+  // A ordenação sai do Firestore para o cliente: a sincronização incremental
+  // mescla base local e delta, então a ordem precisa ser reaplicada aqui.
+  cachedOcorrencias = ocorrencias.sort(
+    (a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0)
+  );
 
   lastFetchOcorrencias = now;
   return cachedOcorrencias;

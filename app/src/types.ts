@@ -145,6 +145,8 @@ export interface LancamentoPonto {
   pontos: number;
   descricao: string;
   dataLancamento: number;
+  /** Necessário para a sincronização incremental da coleção. */
+  updatedAt?: number;
   criadoPorId: string;
   criadoPorNome: string;
   // Campos específicos de treinamento para uso em relatórios/gráficos

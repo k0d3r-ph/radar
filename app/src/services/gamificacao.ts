@@ -13,6 +13,7 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 import type { LancamentoPonto } from "../types";
+import { sincronizarColecao } from "./sincronizacaoIncremental";
 
 const COLLECTION = "gamificacao_pontos";
 
@@ -28,15 +29,20 @@ export async function salvarLancamentoPonto(
   );
 
   const dataLancamento = lancamento.dataLancamento || Date.now();
+  const updatedAt = Date.now();
   const docRef = await addDoc(collection(db, COLLECTION), {
     ...dadosLimpos,
     dataLancamento,
+    updatedAt,
   });
 
+  // `dataLancamento` e `updatedAt` vêm depois do spread: são os valores já
+  // resolvidos acima e não podem ser sobrescritos por um campo indefinido.
   const novoPonto = {
     id: docRef.id,
-    dataLancamento,
     ...lancamento,
+    dataLancamento,
+    updatedAt,
   } as LancamentoPonto;
 
   // Inserção Otimista do Cache (no início devido ao orderBy("dataLancamento", "desc"))
@@ -55,12 +61,15 @@ export async function atualizarLancamentoPonto(
   const dadosLimpos = Object.fromEntries(
     Object.entries(lancamento).filter(([_, v]) => v !== undefined)
   );
-  await updateDoc(docRef, dadosLimpos);
+  const updatedAt = Date.now();
+  await updateDoc(docRef, { ...dadosLimpos, updatedAt });
 
   // Atualização Otimista do Cache
   if (cachedPontos) {
     cachedPontos = cachedPontos.map((p) =>
-      p.id === id ? ({ ...p, ...lancamento, ...dadosLimpos } as LancamentoPonto) : p
+      p.id === id
+        ? ({ ...p, ...lancamento, ...dadosLimpos, updatedAt } as LancamentoPonto)
+        : p
     );
   }
 }
@@ -82,13 +91,10 @@ export async function listarLancamentosPontos(forceRefresh = false, limitCount?:
     return cachedPontos;
   }
 
-  const q = query(collection(db, COLLECTION), orderBy("dataLancamento", "desc"));
-  const snapshot = await getDocs(q);
+  const pontos = await sincronizarColecao<LancamentoPonto>(COLLECTION, forceRefresh);
 
-  cachedPontos = snapshot.docs.map((d) => ({
-    id: d.id,
-    ...(d.data() as Omit<LancamentoPonto, "id">),
-  }));
+  // Ver comentário equivalente em `ocorrencias.ts`: a ordem vem do cliente.
+  cachedPontos = pontos.sort((a, b) => b.dataLancamento - a.dataLancamento);
 
   lastFetchPontos = now;
   return cachedPontos;

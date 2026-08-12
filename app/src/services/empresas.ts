@@ -12,6 +12,7 @@ import {
 import { db } from "./firebase";
 import type { Empresa } from "../types";
 import { normalizarTelefoneWhatsApp } from "../utils/telefone";
+import { sincronizarColecao } from "./sincronizacaoIncremental";
 
 const COLLECTION = "empresas";
 
@@ -93,14 +94,9 @@ export async function listarEmpresas(forceRefresh = false, limitCount?: number) 
     return cachedEmpresas;
   }
 
-  const snapshot = await getDocs(collection(db, COLLECTION));
+  const empresas = await sincronizarColecao<Empresa>(COLLECTION, forceRefresh);
 
-  cachedEmpresas = snapshot.docs
-    .map((doc) => ({
-      id: doc.id,
-      ...(doc.data() as Omit<Empresa, "id">),
-    }))
-    .filter((empresa) => empresa.id) as Empresa[];
+  cachedEmpresas = empresas.filter((empresa) => empresa.id);
 
   lastFetchEmpresas = now;
   return cachedEmpresas;

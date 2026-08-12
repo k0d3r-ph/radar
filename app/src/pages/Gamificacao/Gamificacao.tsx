@@ -23,6 +23,7 @@ import {
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 import { formatarNome } from "../../utils/formatarNome";
+import { atuaComoTreinador } from "../../utils/perfis";
 import { listarUsuarios } from "../../services/auth";
 import type { UsuarioDocument } from "../../services/auth";
 import {
@@ -84,11 +85,21 @@ const ACOES_DISPONIVEIS = [
   },
 ] as const;
 
-// Parâmetros do sistema de distribuição de próximos clientes entre treinadores
-const CARGA_POR_TREINAMENTO_15_DIAS = 1.5;
-const CARGA_POR_CLIENTE_ESTEIRA = 1;
-const CARGA_POR_CLIENTE_ESTEIRA_PEDRO_HENRIQUE = 2;
-const DIAS_JANELA_TREINAMENTOS = 15;
+// Parâmetros do sistema de distribuição de próximos clientes entre treinadores.
+// O peso de um treinamento decai conforme ele envelhece.
+const FAIXAS_PESO_TREINAMENTO = [
+  { ateDias: 10, peso: 1.5 },
+  { ateDias: 15, peso: 1 },
+  { ateDias: 30, peso: 0.5 },
+] as const;
+const DIAS_JANELA_TREINAMENTOS =
+  FAIXAS_PESO_TREINAMENTO[FAIXAS_PESO_TREINAMENTO.length - 1].ateDias;
+// Usado quando o treinador não tem fator de capacidade configurado no cadastro
+const FATOR_CAPACIDADE_PADRAO = 1;
+
+// Peso de um treinamento a partir da sua idade em dias (0 depois da janela)
+const pesoDoTreinamento = (idadeEmDias: number) =>
+  FAIXAS_PESO_TREINAMENTO.find((faixa) => idadeEmDias <= faixa.ateDias)?.peso ?? 0;
 
 const TEMAS_GAMIFICACAO = [
   "Cancelado",
@@ -522,10 +533,10 @@ export const Gamificacao: React.FC = () => {
           }),
         ]);
 
-      // Filter only users with "treinador" or "master" role who completed their first access
+      // Filter only users who act as trainers and completed their first access
       const apenasTreinadores = listaUsuarios.filter(
         (u) =>
-          (u.role === "treinador" || u.role === "master") &&
+          atuaComoTreinador(u.role) &&
           !u.needsPasswordChange &&
           u.nome.trim().toLowerCase() !== "painel" &&
           !u.email.toLowerCase().includes("painel"),
@@ -694,10 +705,11 @@ export const Gamificacao: React.FC = () => {
       );
   }, [trainers, filteredEntries]);
 
-  // Ranking de distribuição do próximo cliente: baseado em treinamentos dos
-  // últimos 15 dias (1,5 pts cada) e clientes atualmente ativos na esteira
-  // sob responsabilidade do treinador (1 pt cada, 2 pts para Pedro Henrique).
-  // Vence quem tiver a MENOR pontuação, ou seja, quem está com menos carga.
+  // Ranking de distribuição do próximo cliente: baseado nos treinamentos dos
+  // últimos 30 dias (com peso decrescente conforme envelhecem) e nos clientes
+  // ativos na esteira sob responsabilidade do treinador, cada um valendo o
+  // trabalho que ainda falta na esteira multiplicado pelo fator de capacidade
+  // do treinador. Vence quem tiver a MENOR carga.
   const distribuicaoRanking = useMemo(() => {
     const diacriticos = new RegExp("[\\u0300-\\u036f]", "g");
     const normalizarNomeComparacao = (s: string) =>
@@ -706,12 +718,29 @@ export const Gamificacao: React.FC = () => {
     const agora = Date.now();
     const inicioJanela = agora - DIAS_JANELA_TREINAMENTOS * 24 * 60 * 60 * 1000;
 
-    const clientesAtivos = empresasCompletas.filter((emp) => {
-      if (emp.isOngoing || emp.isSuspended || emp.isCancelled) return false;
-      const totalFases = calcularTotalFases(emp.temaText || "");
-      const progresso = calcularProgressoPorFases(emp.currentPhase, totalFases);
-      return progresso < 100;
-    });
+    // Cada cliente ativo carrega o trabalho que ainda falta (0 a 1), em vez de
+    // valer sempre 1: quem está quase concluindo pesa menos na distribuição.
+    const clientesAtivos = empresasCompletas
+      .filter((emp) => {
+        if (emp.isOngoing || emp.isSuspended || emp.isCancelled) return false;
+        const totalFases = calcularTotalFases(emp.temaText || "");
+        const progresso = calcularProgressoPorFases(
+          emp.currentPhase,
+          totalFases,
+        );
+        return progresso < 100;
+      })
+      .map((emp) => {
+        const totalFases = calcularTotalFases(emp.temaText || "");
+        const progresso = calcularProgressoPorFases(
+          emp.currentPhase,
+          totalFases,
+        );
+        return {
+          responsavel: emp.responsavel || "",
+          trabalhoRestante: Math.min(Math.max(1 - progresso / 100, 0), 1),
+        };
+      });
 
     const treinadoresElegiveis = trainers.filter((t) => {
       const primeiroNome =
@@ -724,7 +753,7 @@ export const Gamificacao: React.FC = () => {
         const nomeFormatado = formatarNome(t.nome);
         const primeiroNome = nomeFormatado.split(" ")[0] || "";
 
-        const treinamentosRecentes = entries.filter((entry) => {
+        const treinamentosNaJanela = entries.filter((entry) => {
           const isPainel =
             entry.treinadorNome?.trim().toLowerCase() === "painel" ||
             entry.treinadorNome?.toLowerCase().includes("painel");
@@ -737,31 +766,54 @@ export const Gamificacao: React.FC = () => {
             .split(",")
             .map((tema) => tema.trim().toLowerCase());
           return !temas.includes("cancelado") && !temas.includes("ausente");
-        }).length;
+        });
 
-        const clientesEsteira = clientesAtivos.filter(
+        // Quantos treinamentos caem em cada faixa de peso e a soma resultante
+        const treinamentosPorFaixa = FAIXAS_PESO_TREINAMENTO.map(() => 0);
+        let cargaTreinamentos = 0;
+        treinamentosNaJanela.forEach((entry) => {
+          const idadeEmDias =
+            (agora - entry.dataLancamento) / (24 * 60 * 60 * 1000);
+          const peso = pesoDoTreinamento(idadeEmDias);
+          if (peso === 0) return;
+          const indiceFaixa = FAIXAS_PESO_TREINAMENTO.findIndex(
+            (faixa) => idadeEmDias <= faixa.ateDias,
+          );
+          treinamentosPorFaixa[indiceFaixa] += 1;
+          cargaTreinamentos += peso;
+        });
+
+        const clientesDoTreinador = clientesAtivos.filter(
           (emp) =>
-            normalizarNomeComparacao(emp.responsavel || "") ===
+            normalizarNomeComparacao(emp.responsavel) ===
             normalizarNomeComparacao(primeiroNome),
-        ).length;
+        );
+        const clientesEsteira = clientesDoTreinador.length;
+        const trabalhoRestante = clientesDoTreinador.reduce(
+          (soma, emp) => soma + emp.trabalhoRestante,
+          0,
+        );
 
-        const cargaPorCliente =
-          nomeFormatado.toLowerCase() === "pedro henrique"
-            ? CARGA_POR_CLIENTE_ESTEIRA_PEDRO_HENRIQUE
-            : CARGA_POR_CLIENTE_ESTEIRA;
+        const fatorCapacidade =
+          typeof t.fatorCapacidade === "number" && t.fatorCapacidade > 0
+            ? t.fatorCapacidade
+            : FATOR_CAPACIDADE_PADRAO;
+
+        const cargaClientes = trabalhoRestante * fatorCapacidade;
 
         const cargaDistribuicao = parseFloat(
-          (
-            treinamentosRecentes * CARGA_POR_TREINAMENTO_15_DIAS +
-            clientesEsteira * cargaPorCliente
-          ).toFixed(2),
+          (cargaTreinamentos + cargaClientes).toFixed(2),
         );
 
         return {
           ...t,
-          treinamentosRecentes,
+          treinamentosRecentes: treinamentosNaJanela.length,
+          treinamentosPorFaixa,
+          cargaTreinamentos,
           clientesEsteira,
-          cargaPorCliente,
+          trabalhoRestante,
+          fatorCapacidade,
+          cargaClientes,
           cargaDistribuicao,
         };
       })
@@ -779,17 +831,28 @@ export const Gamificacao: React.FC = () => {
 
   // Memória de cálculo da carga, para deixar claro de onde vem cada ponto
   const descreverCarga = (item: {
-    treinamentosRecentes: number;
+    treinamentosPorFaixa: number[];
+    cargaTreinamentos: number;
     clientesEsteira: number;
-    cargaPorCliente: number;
+    trabalhoRestante: number;
+    fatorCapacidade: number;
+    cargaClientes: number;
   }) => {
-    const treinos = `${item.treinamentosRecentes} ${
-      item.treinamentosRecentes === 1 ? "treino" : "treinos"
-    } × ${formatarNumeroCarga(CARGA_POR_TREINAMENTO_15_DIAS)}`;
-    const clientes = `${item.clientesEsteira} ${
+    const parcelasTreinos = FAIXAS_PESO_TREINAMENTO.map(
+      (faixa, indice) =>
+        `${item.treinamentosPorFaixa[indice]}×${formatarNumeroCarga(faixa.peso)}`,
+    ).join(" + ");
+    const treinos = `Treinos: ${parcelasTreinos} = ${formatarNumeroCarga(
+      parseFloat(item.cargaTreinamentos.toFixed(2)),
+    )}`;
+    const clientes = `Clientes: ${item.clientesEsteira} ${
       item.clientesEsteira === 1 ? "cliente" : "clientes"
-    } × ${formatarNumeroCarga(item.cargaPorCliente)}`;
-    return `${treinos} + ${clientes}`;
+    } (restante ${formatarNumeroCarga(
+      parseFloat(item.trabalhoRestante.toFixed(2)),
+    )}) × fator ${formatarNumeroCarga(item.fatorCapacidade)} = ${formatarNumeroCarga(
+      parseFloat(item.cargaClientes.toFixed(2)),
+    )}`;
+    return `${treinos} · ${clientes}`;
   };
 
   const handleLancar = async (e: React.FormEvent) => {
@@ -1981,10 +2044,14 @@ export const Gamificacao: React.FC = () => {
 
                 <p className="distribuicao-modal-text">
                   Só entram treinamentos realizados nos últimos{" "}
-                  <strong>{DIAS_JANELA_TREINAMENTOS} dias</strong>. Como a
-                  janela é deslizante, um treinamento antigo pode sair dela no
-                  mesmo dia em que você registra um novo — nesse caso a carga
-                  não muda.
+                  <strong>{DIAS_JANELA_TREINAMENTOS} dias</strong>, com peso
+                  decrescente conforme envelhecem: até 10 dias valem{" "}
+                  <strong>1,5</strong>, de 10 a 15 dias <strong>1</strong>, de
+                  15 a 30 dias <strong>0,5</strong> e, depois de 30 dias,{" "}
+                  <strong>0</strong>. Cada cliente ativo vale o trabalho que
+                  ainda falta na esteira (quem está quase concluindo pesa
+                  menos), multiplicado pelo fator de capacidade definido no
+                  cadastro do treinador.
                 </p>
               </>
             )}

@@ -83,6 +83,12 @@ export interface UsuarioDocument {
   createdAt?: number;
   cargo?: CargoCsUsuario;
   telefone?: string;
+  /**
+   * Fator de capacidade do treinador, usado na distribuição do próximo cliente.
+   * Multiplica o peso de cada cliente ativo sob sua responsabilidade: acima de 1
+   * cada cliente pesa mais (menos capacidade), abaixo de 1 pesa menos.
+   */
+  fatorCapacidade?: number;
 }
 
 export async function criarNovoUsuario(email: string, senhaTemp: string, role: string, nome: string): Promise<void> {
@@ -137,6 +143,8 @@ export async function listarUsuarios(forceRefresh = false): Promise<UsuarioDocum
       createdAt: data.createdAt,
       cargo: data.cargo || "",
       telefone: data.telefone || "",
+      fatorCapacidade:
+        typeof data.fatorCapacidade === "number" ? data.fatorCapacidade : undefined,
     });
   });
 
@@ -158,11 +166,15 @@ export async function atualizarRoleUsuario(uid: string, role: string): Promise<v
 
 export async function atualizarDadosUsuario(
   uid: string,
-  dados: { cargo?: string; telefone?: string; nome?: string }
+  dados: { cargo?: string; telefone?: string; nome?: string; fatorCapacidade?: number }
 ): Promise<void> {
   invalidarCacheUsuarios();
   const userDocRef = doc(db, COLLECTION_USUARIOS, uid);
-  await setDoc(userDocRef, { ...dados, updatedAt: Date.now() }, { merge: true });
+  // Firestore rejeita valores undefined; só enviamos os campos preenchidos
+  const dadosLimpos = Object.fromEntries(
+    Object.entries(dados).filter(([, valor]) => valor !== undefined),
+  );
+  await setDoc(userDocRef, { ...dadosLimpos, updatedAt: Date.now() }, { merge: true });
 }
 
 export async function enviarEmailRedefinicaoSenha(email: string): Promise<void> {

@@ -1820,6 +1820,23 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       .sort((a, b) => b.value - a.value);
   }, [filtradasSemTipo]);
 
+  const topClientesDuvidasChartData = useMemo(() => {
+    const counts: Record<string, number> = {};
+
+    filtradasSemTipo
+      .filter((o) => o.tipo === "Dúvida")
+      .forEach((o) => {
+        const nome = (o.empresa || "").trim();
+        if (!nome) return;
+        counts[nome] = (counts[nome] || 0) + 1;
+      });
+
+    return Object.entries(counts)
+      .map(([label, value]) => ({ label, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 10);
+  }, [filtradasSemTipo]);
+
   const totalItems = filtradas.length;
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE) || 1;
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -1928,6 +1945,11 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   selectedLabel={filtroDepto}
                 />
               </div>
+
+              <BarChart
+                title="Top 10 Clientes com Mais Dúvidas"
+                data={topClientesDuvidasChartData}
+              />
 
               <BarChart
                 title="Assuntos das Dúvidas Registradas"

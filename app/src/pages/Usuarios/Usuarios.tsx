@@ -13,6 +13,7 @@ import {
   Phone,
   Briefcase,
   Lock,
+  Gauge,
 } from "lucide-react";
 import {
   criarNovoUsuario,
@@ -23,6 +24,7 @@ import {
 } from "../../services/auth";
 import type { UsuarioDocument, CargoCsUsuario } from "../../services/auth";
 import { formatarNome } from "../../utils/formatarNome";
+import { atuaComoTreinador } from "../../utils/perfis";
 import { useAuth } from "../../context/AuthContext";
 import { listarLancamentosPontos, reassociarPontosTreinador } from "../../services/gamificacao";
 import "./Usuarios.css";
@@ -36,6 +38,17 @@ const ROLE_DISPLAY: Record<string, string> = {
   cs: "CS",
   painel: "Painel",
   master: "Master",
+};
+
+// Fator de capacidade padrão do treinador na distribuição do próximo cliente
+const FATOR_CAPACIDADE_PADRAO = 1;
+
+const parseFatorCapacidade = (valor: string): number | undefined => {
+  const normalizado = valor.trim().replace(",", ".");
+  if (!normalizado) return undefined;
+  const numero = Number(normalizado);
+  if (!Number.isFinite(numero) || numero <= 0) return undefined;
+  return numero;
 };
 
 const CARGO_DISPLAY: Record<string, string> = {
@@ -54,7 +67,8 @@ export const Usuarios: React.FC = () => {
   const [role, setRole] = useState("suporte");
   const [cargo, setCargo] = useState<CargoCsUsuario>("");
   const [telefone, setTelefone] = useState("");
-  
+  const [fatorCapacidade, setFatorCapacidade] = useState("");
+
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [deletingUid, setDeletingUid] = useState<string | null>(null);
@@ -65,6 +79,7 @@ export const Usuarios: React.FC = () => {
   const [editingUserRole, setEditingUserRole] = useState("suporte");
   const [editingUserCargo, setEditingUserCargo] = useState<CargoCsUsuario>("");
   const [editingUserTelefone, setEditingUserTelefone] = useState("");
+  const [editingUserFator, setEditingUserFator] = useState("");
   const [savingRole, setSavingRole] = useState(false);
 
   // Estados para redefinição de senha de usuários
@@ -214,10 +229,14 @@ export const Usuarios: React.FC = () => {
       // Retrieve the new user's uid to store cargo/telefone
       const lista = await listarUsuarios(true);
       const novoUsuario = lista.find((u) => u.email.toLowerCase() === email.trim().toLowerCase());
-      if (novoUsuario && (cargo || telefone.trim())) {
+      const fator = atuaComoTreinador(role)
+        ? parseFatorCapacidade(fatorCapacidade)
+        : undefined;
+      if (novoUsuario && (cargo || telefone.trim() || fator !== undefined)) {
         await atualizarDadosUsuario(novoUsuario.uid, {
           cargo: cargo || undefined,
           telefone: telefone.trim() || undefined,
+          fatorCapacidade: fator,
         });
       }
       toast.success("Usuário pré-cadastrado com sucesso!");
@@ -227,6 +246,7 @@ export const Usuarios: React.FC = () => {
       setRole("suporte");
       setCargo("");
       setTelefone("");
+      setFatorCapacidade("");
       await carregarUsuarios();
     } catch (error: any) {
       console.error("Erro ao criar usuário:", error);
@@ -276,6 +296,10 @@ export const Usuarios: React.FC = () => {
       await atualizarDadosUsuario(editingUser.uid, {
         cargo: editingUserCargo || undefined,
         telefone: editingUserTelefone.trim() || undefined,
+        // Campo vazio volta ao padrão, em vez de manter o valor anterior
+        fatorCapacidade: atuaComoTreinador(editingUserRole)
+          ? (parseFatorCapacidade(editingUserFator) ?? FATOR_CAPACIDADE_PADRAO)
+          : undefined,
       });
       toast.success("Perfil de acesso atualizado com sucesso!");
       setEditingUser(null);
@@ -448,6 +472,31 @@ export const Usuarios: React.FC = () => {
               </div>
             </div>
 
+            {atuaComoTreinador(role) && (
+              <div className="input-group">
+                <label htmlFor="fator-capacidade">
+                  Fator de Capacidade (Opcional)
+                </label>
+                <div className="input-wrapper">
+                  <Gauge className="input-icon" size={18} />
+                  <input
+                    id="fator-capacidade"
+                    type="number"
+                    step="0.1"
+                    min="0.1"
+                    placeholder={`Padrão: ${FATOR_CAPACIDADE_PADRAO}`}
+                    value={fatorCapacidade}
+                    onChange={(e) => setFatorCapacidade(e.target.value)}
+                    disabled={submitting}
+                  />
+                </div>
+                <small style={{ color: "#64748b", fontSize: "11px" }}>
+                  Multiplica o peso de cada cliente na distribuição do próximo
+                  cliente. Acima de 1 = menos capacidade.
+                </small>
+              </div>
+            )}
+
             <button type="submit" className="btn-primary form-submit-btn" disabled={submitting}>
               {submitting ? <div className="spinner"></div> : "Criar Usuário"}
             </button>
@@ -478,6 +527,7 @@ export const Usuarios: React.FC = () => {
                     <th>Perfil</th>
                     <th>Cargo</th>
                     <th>Telefone WA</th>
+                    <th>Fator Cap.</th>
                     <th>Status</th>
                     <th className="action-col">Ações</th>
                   </tr>
@@ -491,6 +541,15 @@ export const Usuarios: React.FC = () => {
                         <span className={`role-tag role-${u.role}`}>
                           {ROLE_DISPLAY[u.role] || u.role}
                         </span>
+                        {u.role !== "treinador" && atuaComoTreinador(u.role) && (
+                          <span
+                            className="role-tag role-treinador"
+                            style={{ fontSize: "11px", marginLeft: "6px" }}
+                            title="Este perfil também atua como treinador na esteira"
+                          >
+                            + Treinador
+                          </span>
+                        )}
                       </td>
                       <td>
                         {u.cargo ? (
@@ -503,6 +562,14 @@ export const Usuarios: React.FC = () => {
                       </td>
                       <td style={{ fontSize: "12px", color: u.telefone ? "#a5b4fc" : "#64748b" }}>
                         {u.telefone || "—"}
+                      </td>
+                      <td style={{ fontSize: "12px", color: "#64748b" }}>
+                        {atuaComoTreinador(u.role)
+                          ? (u.fatorCapacidade ?? FATOR_CAPACIDADE_PADRAO).toLocaleString(
+                              "pt-BR",
+                              { maximumFractionDigits: 2 },
+                            )
+                          : "—"}
                       </td>
                       <td>
                         <span className={`status-badge ${u.needsPasswordChange ? "status-pending" : "status-active"}`}>
@@ -519,6 +586,11 @@ export const Usuarios: React.FC = () => {
                                 setEditingUserRole(u.role);
                                 setEditingUserCargo((u.cargo || "") as CargoCsUsuario);
                                 setEditingUserTelefone(u.telefone || "");
+                                setEditingUserFator(
+                                  u.fatorCapacidade !== undefined
+                                    ? String(u.fatorCapacidade)
+                                    : "",
+                                );
                               }}
                               title="Editar Perfil"
                             >
@@ -731,6 +803,26 @@ export const Usuarios: React.FC = () => {
                 />
               </div>
             </div>
+            {atuaComoTreinador(editingUserRole) && (
+              <div className="input-group" style={{ marginTop: "12px" }}>
+                <label style={{ fontSize: "12px", fontWeight: 600, color: "#9ca3af", marginBottom: "6px", display: "block" }}>
+                  Fator de Capacidade
+                </label>
+                <div className="input-wrapper">
+                  <Gauge className="input-icon" size={18} />
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0.1"
+                    placeholder={`Padrão: ${FATOR_CAPACIDADE_PADRAO}`}
+                    value={editingUserFator}
+                    onChange={(e) => setEditingUserFator(e.target.value)}
+                    className="role-edit-select"
+                    style={{ width: "100%", paddingLeft: "45px" }}
+                  />
+                </div>
+              </div>
+            )}
             <div className="confirm-modal-actions">
               <button
                 className="btn-salvar-confirm"

@@ -829,31 +829,75 @@ export const Gamificacao: React.FC = () => {
   const formatarNumeroCarga = (valor: number) =>
     valor.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
 
-  // Memória de cálculo da carga, para deixar claro de onde vem cada ponto
-  const descreverCarga = (item: {
-    treinamentosPorFaixa: number[];
-    cargaTreinamentos: number;
-    clientesEsteira: number;
-    trabalhoRestante: number;
-    fatorCapacidade: number;
-    cargaClientes: number;
-  }) => {
-    const parcelasTreinos = FAIXAS_PESO_TREINAMENTO.map(
-      (faixa, indice) =>
-        `${item.treinamentosPorFaixa[indice]}×${formatarNumeroCarga(faixa.peso)}`,
-    ).join(" + ");
-    const treinos = `Treinos: ${parcelasTreinos} = ${formatarNumeroCarga(
-      parseFloat(item.cargaTreinamentos.toFixed(2)),
-    )}`;
-    const clientes = `Clientes: ${item.clientesEsteira} ${
-      item.clientesEsteira === 1 ? "cliente" : "clientes"
-    } (restante ${formatarNumeroCarga(
-      parseFloat(item.trabalhoRestante.toFixed(2)),
-    )}) × fator ${formatarNumeroCarga(item.fatorCapacidade)} = ${formatarNumeroCarga(
-      parseFloat(item.cargaClientes.toFixed(2)),
-    )}`;
-    return `${treinos} · ${clientes}`;
+  // "até 10 dias", "11 a 15 dias"... a partir das faixas configuradas
+  const rotuloFaixa = (indice: number) => {
+    const faixa = FAIXAS_PESO_TREINAMENTO[indice];
+    if (indice === 0) return `até ${faixa.ateDias} dias`;
+    const inicio = FAIXAS_PESO_TREINAMENTO[indice - 1].ateDias + 1;
+    return `${inicio} a ${faixa.ateDias} dias`;
   };
+
+  // Memória de cálculo da carga, para deixar claro de onde vem cada ponto
+  const MemoriaCarga = ({
+    item,
+  }: {
+    item: {
+      treinamentosPorFaixa: number[];
+      cargaTreinamentos: number;
+      clientesEsteira: number;
+      trabalhoRestante: number;
+      fatorCapacidade: number;
+      cargaClientes: number;
+    };
+  }) => (
+    <div className="carga-memoria">
+      <div className="carga-linha">
+        <span className="carga-rotulo">Treinos</span>
+        <div className="carga-parcelas">
+          {FAIXAS_PESO_TREINAMENTO.map((faixa, indice) => {
+            const qtd = item.treinamentosPorFaixa[indice] ?? 0;
+            return (
+              <span
+                key={faixa.ateDias}
+                className={`carga-chip ${qtd === 0 ? "carga-chip-vazio" : ""}`}
+                title={`${qtd} ${qtd === 1 ? "treinamento" : "treinamentos"} de ${rotuloFaixa(
+                  indice,
+                )} atrás, valendo ${formatarNumeroCarga(faixa.peso)} cada`}
+              >
+                <strong>{qtd}</strong> {qtd === 1 ? "treino" : "treinos"}{" "}
+                <span className="carga-chip-faixa">({rotuloFaixa(indice)})</span>{" "}
+                × {formatarNumeroCarga(faixa.peso)}
+              </span>
+            );
+          })}
+        </div>
+        <span className="carga-subtotal">
+          = {formatarNumeroCarga(parseFloat(item.cargaTreinamentos.toFixed(2)))}
+        </span>
+      </div>
+      <div className="carga-linha">
+        <span className="carga-rotulo">Clientes</span>
+        <div className="carga-parcelas">
+          <span
+            className={`carga-chip ${item.clientesEsteira === 0 ? "carga-chip-vazio" : ""}`}
+            title="Cada cliente ativo conta pela fração da esteira que ainda falta concluir: recém-iniciado vale 1, na metade vale 0,5, em 90% vale 0,1. A soma equivale a esteiras inteiras."
+          >
+            <strong>{item.clientesEsteira}</strong>{" "}
+            {item.clientesEsteira === 1 ? "cliente" : "clientes"}{" "}
+            <span className="carga-chip-faixa">
+              (={" "}
+              {formatarNumeroCarga(parseFloat(item.trabalhoRestante.toFixed(2)))}{" "}
+              esteiras por concluir)
+            </span>{" "}
+            × fator {formatarNumeroCarga(item.fatorCapacidade)}
+          </span>
+        </div>
+        <span className="carga-subtotal">
+          = {formatarNumeroCarga(parseFloat(item.cargaClientes.toFixed(2)))}
+        </span>
+      </div>
+    </div>
+  );
 
   const handleLancar = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -2005,9 +2049,7 @@ export const Gamificacao: React.FC = () => {
                       {formatarNome(distribuicaoRanking[0].nome) ||
                         distribuicaoRanking[0].email}
                     </span>
-                    <span className="distribuicao-detalhes">
-                      {descreverCarga(distribuicaoRanking[0])}
-                    </span>
+                    <MemoriaCarga item={distribuicaoRanking[0]} />
                   </div>
                   <span className="distribuicao-vencedor-score">
                     Carga:{" "}
@@ -2031,9 +2073,7 @@ export const Gamificacao: React.FC = () => {
                             <span className="me-badge">Você</span>
                           )}
                         </span>
-                        <span className="distribuicao-detalhes">
-                          {descreverCarga(t)}
-                        </span>
+                        <MemoriaCarga item={t} />
                       </div>
                       <span className="distribuicao-score">
                         Carga: {formatarNumeroCarga(t.cargaDistribuicao)}
@@ -2046,8 +2086,8 @@ export const Gamificacao: React.FC = () => {
                   Só entram treinamentos realizados nos últimos{" "}
                   <strong>{DIAS_JANELA_TREINAMENTOS} dias</strong>, com peso
                   decrescente conforme envelhecem: até 10 dias valem{" "}
-                  <strong>1,5</strong>, de 10 a 15 dias <strong>1</strong>, de
-                  15 a 30 dias <strong>0,5</strong> e, depois de 30 dias,{" "}
+                  <strong>1,5</strong>, de 11 a 15 dias <strong>1</strong>, de
+                  16 a 30 dias <strong>0,5</strong> e, depois de 30 dias,{" "}
                   <strong>0</strong>. Cada cliente ativo vale o trabalho que
                   ainda falta na esteira (quem está quase concluindo pesa
                   menos), multiplicado pelo fator de capacidade definido no

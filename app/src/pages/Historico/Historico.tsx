@@ -84,6 +84,7 @@ const DUVIDA_OPCOES = [
   "Rastreador desatualizado",
   "Correção de odômetro/horímetro",
   "Funções da tela operacional",
+  "Chamados",
   "Hardware",
   "Identificação de motorista",
   "Perfil de acesso",

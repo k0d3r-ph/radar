@@ -725,8 +725,12 @@ export const Gamificacao: React.FC = () => {
       const [listaUsuarios, listaPontos, listaEmpresas, listaOcorrencias] =
         await Promise.all([
           listarUsuarios(true),
-          listarLancamentosPontos(true),
-          listarEmpresas(true),
+          // Sem `forceRefresh`: estas duas coleções passaram a usar
+          // sincronização incremental, que já devolve dado fresco consultando
+          // apenas o que mudou. Forçar a releitura aqui descartava o cache e
+          // relia as duas coleções inteiras a cada abertura da página.
+          listarLancamentosPontos(),
+          listarEmpresas(),
           listarOcorrencias().catch((err) => {
             console.error("Erro ao listar ocorrências para mapeamento:", err);
             return [];

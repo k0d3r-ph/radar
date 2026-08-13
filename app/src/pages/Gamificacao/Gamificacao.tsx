@@ -18,6 +18,7 @@ import {
   Edit2,
   Eye,
   Shuffle,
+  BarChart3,
   X,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
@@ -32,11 +33,17 @@ import {
   salvarLancamentoPonto,
   atualizarLancamentoPonto,
 } from "../../services/gamificacao";
-import type { LancamentoPonto, Empresa } from "../../types";
+import type { LancamentoPonto, Empresa, Ocorrencia } from "../../types";
 import { listarEmpresas } from "../../services/empresas";
+import {
+  listarMetasIndicadores,
+  salvarMetasIndicadores,
+} from "../../services/metasIndicadores";
+import type { MetasIndicadores } from "../../services/metasIndicadores";
 import { listarOcorrencias } from "../../services/ocorrencias";
 import { calcularProgressoPorFases } from "../../utils/monitoramento/calcularProgresso";
 import { calcularTotalFases } from "../../utils/monitoramento/calcularTotalFases";
+import { calcularDiasNaEsteira } from "../../utils/monitoramento/calcularDiasNaEsteira";
 import "./Gamificacao.css";
 
 const ACOES_DISPONIVEIS = [
@@ -99,7 +106,192 @@ const FATOR_CAPACIDADE_PADRAO = 1;
 
 // Peso de um treinamento a partir da sua idade em dias (0 depois da janela)
 const pesoDoTreinamento = (idadeEmDias: number) =>
-  FAIXAS_PESO_TREINAMENTO.find((faixa) => idadeEmDias <= faixa.ateDias)?.peso ?? 0;
+  FAIXAS_PESO_TREINAMENTO.find((faixa) => idadeEmDias <= faixa.ateDias)?.peso ??
+  0;
+
+const DIACRITICOS = new RegExp("[\\u0300-\\u036f]", "g");
+
+/** Compara nomes ignorando caixa, acentos e espaços nas pontas. */
+const normalizarNomeComparacao = (s: string) =>
+  s.trim().toLowerCase().normalize("NFD").replace(DIACRITICOS, "");
+
+const MS_POR_DIA = 24 * 60 * 60 * 1000;
+
+/** Temas de um lançamento de treinamento, normalizados para comparação. */
+const temasDoLancamento = (entry: LancamentoPonto) =>
+  (entry.treinamentoTema || "")
+    .split(",")
+    .map((tema) => tema.trim().toLowerCase());
+
+/** "Tempo de agenda" é gravado por um <input type="time">, ou seja, "HH:MM". */
+const minutosDoTempoAgenda = (tempo?: string) => {
+  if (!tempo) return 0;
+  const [horas, minutos] = tempo.split(":").map(Number);
+  if (!Number.isFinite(horas) || !Number.isFinite(minutos)) return 0;
+  return horas * 60 + minutos;
+};
+
+const formatarDuracaoMinutos = (totalMinutos: number) => {
+  if (totalMinutos <= 0) return "0h";
+  const horas = Math.floor(totalMinutos / 60);
+  const minutos = Math.round(totalMinutos % 60);
+  if (horas === 0) return `${minutos}min`;
+  if (minutos === 0) return `${horas}h`;
+  return `${horas}h ${minutos}min`;
+};
+
+/** Diferença em dias entre duas datas "yyyy-mm-dd", lidas no fuso local. */
+const diasEntreDatas = (inicio?: string, fim?: string): number | null => {
+  if (!inicio || !fim) return null;
+  const [ay, am, ad] = inicio.split("-").map(Number);
+  const [by, bm, bd] = fim.split("-").map(Number);
+  const dataInicio = new Date(ay, am - 1, ad);
+  const dataFim = new Date(by, bm - 1, bd);
+  if (isNaN(dataInicio.getTime()) || isNaN(dataFim.getTime())) return null;
+  const dias = (dataFim.getTime() - dataInicio.getTime()) / MS_POR_DIA;
+  return dias < 0 ? null : dias;
+};
+
+const media = (valores: number[]) =>
+  valores.length === 0
+    ? null
+    : valores.reduce((acc, v) => acc + v, 0) / valores.length;
+
+/**
+ * Colunas do relatório de indicadores, na ordem em que aparecem na tabela.
+ *
+ * `unidade` é o sufixo mostrado no campo de meta, e `menorEhMelhor` inverte a
+ * cor do desvio para os indicadores em que crescer é ruim (ausências,
+ * cancelamentos, tempos de espera e contatos de Suporte): neles, ficar abaixo
+ * da meta é que conta como resultado positivo.
+ *
+ * `passo` é a menor variação visível na coluna (1 para contagens, 0,1 para a
+ * nota, um minuto para as horas). O desvio é calculado sobre o valor
+ * arredondado a esse passo, senão um total de 4,874 exibido como "4.9"
+ * apareceria abaixo de uma meta de 4,9.
+ */
+const UM_MINUTO_EM_HORAS = 1 / 60;
+
+const COLUNAS_INDICADORES = [
+  {
+    chave: "taxaCsat",
+    titulo: "Taxa CSAT",
+    unidade: "%",
+    menorEhMelhor: false,
+    passo: 1,
+    ajuda:
+      "Treinamentos realizados que receberam ao menos uma nota, sobre o total de realizados",
+  },
+  {
+    chave: "notaCsat",
+    titulo: "Nota CSAT",
+    unidade: "",
+    menorEhMelhor: false,
+    passo: 0.1,
+    ajuda: "Média de todas as notas individuais lançadas nos treinamentos",
+  },
+  {
+    chave: "treinamentosRealizados",
+    titulo: "Treinamentos realizados",
+    unidade: "",
+    menorEhMelhor: false,
+    passo: 1,
+    ajuda:
+      "Lançamentos de treinamento, excluindo os marcados como Cancelado ou Ausente",
+  },
+  {
+    chave: "treinamentosAusentes",
+    titulo: "Treinamentos ausentes",
+    unidade: "",
+    menorEhMelhor: true,
+    passo: 1,
+    ajuda: "Treinamentos com o tema Ausente",
+  },
+  {
+    chave: "treinamentosCancelados",
+    titulo: "Treinamentos cancelados",
+    unidade: "",
+    menorEhMelhor: true,
+    passo: 1,
+    ajuda: "Treinamentos com o tema Cancelado",
+  },
+  {
+    chave: "tempoMedioEspera",
+    titulo: "Tempo médio de espera",
+    unidade: "dias",
+    menorEhMelhor: true,
+    passo: 0.1,
+    ajuda:
+      "Média de dias entre a solicitação e a realização do treinamento, considerando apenas clientes ativos na esteira",
+  },
+  {
+    chave: "horasEmTreinamento",
+    titulo: "Horas em treinamento",
+    unidade: "h",
+    menorEhMelhor: false,
+    passo: UM_MINUTO_EM_HORAS,
+    ajuda: "Soma do tempo de agenda dos treinamentos realizados",
+  },
+  {
+    chave: "contatosSuporte",
+    titulo: "Contatos Suporte",
+    unidade: "",
+    menorEhMelhor: true,
+    passo: 1,
+    ajuda:
+      "Ocorrências do departamento Suporte em clientes do treinador, independentemente de quem registrou",
+  },
+  {
+    chave: "atendimentosWhatsApp",
+    titulo: "Atendimentos WhatsApp",
+    unidade: "",
+    menorEhMelhor: false,
+    passo: 1,
+    ajuda:
+      "Ocorrências do treinador no departamento Treinamento e do tipo Dúvida",
+  },
+  {
+    chave: "tempoMedioEsteira",
+    titulo: "Tempo médio na esteira",
+    unidade: "dias",
+    menorEhMelhor: true,
+    passo: 1,
+    ajuda: "Média de dias na esteira dos clientes do treinador",
+  },
+  {
+    chave: "clientesAtendidos",
+    titulo: "Clientes atendidos",
+    unidade: "",
+    menorEhMelhor: false,
+    passo: 1,
+    ajuda:
+      "Total de clientes sob responsabilidade do treinador (exceto cancelados)",
+  },
+  {
+    chave: "clientesEmAndamento",
+    titulo: "Clientes em andamento",
+    unidade: "",
+    menorEhMelhor: false,
+    passo: 1,
+    ajuda: "Clientes ativos com a esteira iniciada e ainda não concluída",
+  },
+  {
+    chave: "clientesSuspensos",
+    titulo: "Clientes suspensos",
+    unidade: "",
+    menorEhMelhor: false,
+    passo: 1,
+    ajuda: "Clientes marcados como suspensos",
+  },
+  {
+    chave: "clientesEmAlerta",
+    titulo: "Clientes em alerta",
+    unidade: "",
+    menorEhMelhor: false,
+    passo: 1,
+    ajuda: "Clientes com alerta em aberto",
+  },
+] as const;
 
 const TEMAS_GAMIFICACAO = [
   "Cancelado",
@@ -414,6 +606,14 @@ export const Gamificacao: React.FC = () => {
   const [empresas, setEmpresas] = useState<string[]>([]);
   const [empresasCompletas, setEmpresasCompletas] = useState<Empresa[]>([]);
   const [showDistribuicaoModal, setShowDistribuicaoModal] = useState(false);
+  const [showIndicadoresModal, setShowIndicadoresModal] = useState(false);
+  const [ocorrencias, setOcorrencias] = useState<Ocorrencia[]>([]);
+  // `metas` é o que está na tela; `metasSalvas` é o que está no banco. A
+  // diferença entre os dois habilita o botão de salvar.
+  const [metas, setMetas] = useState<MetasIndicadores>({});
+  const [metasSalvas, setMetasSalvas] = useState<MetasIndicadores>({});
+  const [metasCarregadas, setMetasCarregadas] = useState(false);
+  const [salvandoMetas, setSalvandoMetas] = useState(false);
   const [pontoOcorrenciaMap, setPontoOcorrenciaMap] = useState<
     Record<string, { id: string; alerta?: boolean }>
   >({});
@@ -544,6 +744,7 @@ export const Gamificacao: React.FC = () => {
       setTrainers(apenasTreinadores);
       setEntries(listaPontos);
       setEmpresasCompletas(listaEmpresas);
+      setOcorrencias(listaOcorrencias);
 
       const nomesEmpresas = Array.from(
         new Set(
@@ -711,10 +912,6 @@ export const Gamificacao: React.FC = () => {
   // trabalho que ainda falta na esteira multiplicado pelo fator de capacidade
   // do treinador. Vence quem tiver a MENOR carga.
   const distribuicaoRanking = useMemo(() => {
-    const diacriticos = new RegExp("[\\u0300-\\u036f]", "g");
-    const normalizarNomeComparacao = (s: string) =>
-      s.trim().toLowerCase().normalize("NFD").replace(diacriticos, "");
-
     const agora = Date.now();
     const inicioJanela = agora - DIAS_JANELA_TREINAMENTOS * 24 * 60 * 60 * 1000;
 
@@ -825,6 +1022,475 @@ export const Gamificacao: React.FC = () => {
   }, [trainers, entries, empresasCompletas]);
 
   const podeDistribuir = role === "treinador" || role === "master";
+  const podeVerIndicadores = role === "master";
+
+  // As metas só interessam a quem abre o relatório, então a leitura acontece
+  // na primeira abertura do modal em vez de no carregamento da página.
+  useEffect(() => {
+    if (!showIndicadoresModal || !podeVerIndicadores || metasCarregadas) return;
+
+    listarMetasIndicadores()
+      .then((salvas) => {
+        setMetas(salvas);
+        setMetasSalvas(salvas);
+        setMetasCarregadas(true);
+      })
+      .catch((err) => {
+        console.error("Erro ao carregar metas dos indicadores:", err);
+        toast.error("Não foi possível carregar as metas salvas.");
+      });
+  }, [showIndicadoresModal, podeVerIndicadores, metasCarregadas]);
+
+  // Ocorrências dentro do período selecionado, para os indicadores que vêm do
+  // histórico (contatos de Suporte e atendimentos por WhatsApp).
+  const ocorrenciasNoPeriodo = useMemo(() => {
+    const inicio = filtroDataInicio
+      ? new Date(filtroDataInicio + "T00:00:00").getTime()
+      : null;
+    const fim = filtroDataFim
+      ? new Date(filtroDataFim + "T23:59:59.999").getTime()
+      : null;
+
+    return ocorrencias.filter((o) => {
+      const data = o.dataOcorrencia || o.createdAt;
+      if (!data) return false;
+      if (inicio !== null && data < inicio) return false;
+      if (fim !== null && data > fim) return false;
+      return true;
+    });
+  }, [ocorrencias, filtroDataInicio, filtroDataFim]);
+
+  /**
+   * Empresas com alerta em aberto, pela mesma regra do Radar: vale a ocorrência
+   * mais recente que abriu ou retirou o alerta, e só na ausência dela é que se
+   * usa a flag gravada na empresa (que pode ter ficado defasada).
+   */
+  const empresasComAlerta = useMemo(() => {
+    const ultimaPorEmpresa = new Map<string, Ocorrencia>();
+
+    ocorrencias.forEach((o) => {
+      if (!o.alerta && !o.retirarAlerta) return;
+      const chave = normalizarNomeComparacao(o.empresa || "");
+      if (!chave) return;
+      const data = o.dataOcorrencia || o.createdAt || 0;
+      const atual = ultimaPorEmpresa.get(chave);
+      const dataAtual = atual
+        ? atual.dataOcorrencia || atual.createdAt || 0
+        : -1;
+      if (data >= dataAtual) ultimaPorEmpresa.set(chave, o);
+    });
+
+    const comAlerta = new Set<string>();
+    empresasCompletas.forEach((emp) => {
+      const chave = normalizarNomeComparacao(emp.nomeEmpresa || "");
+      const ultima = ultimaPorEmpresa.get(chave);
+      const ativo = ultima ? ultima.alerta === true : !!emp.alerta;
+      if (ativo) comAlerta.add(chave);
+    });
+
+    return comAlerta;
+  }, [ocorrencias, empresasCompletas]);
+
+  /**
+   * Primeiro nome do treinador responsável por cada cliente, indexado pelo
+   * nome da empresa. Permite atribuir uma ocorrência ao dono do cliente em vez
+   * de a quem a registrou.
+   */
+  const responsavelPorEmpresa = useMemo(() => {
+    const mapa = new Map<string, string>();
+    empresasCompletas.forEach((emp) => {
+      const chave = normalizarNomeComparacao(emp.nomeEmpresa || "");
+      if (chave)
+        mapa.set(chave, normalizarNomeComparacao(emp.responsavel || ""));
+    });
+    return mapa;
+  }, [empresasCompletas]);
+
+  /**
+   * Clientes que ainda estão correndo na esteira. O tempo médio de espera olha
+   * só para eles: cancelado, suspenso e ongoing têm agendamentos represados por
+   * motivo alheio ao treinador e distorceriam a média.
+   */
+  const empresasAtivasNaEsteira = useMemo(() => {
+    const ativas = new Set<string>();
+    empresasCompletas.forEach((emp) => {
+      if (emp.isCancelled || emp.isSuspended || emp.isOngoing) return;
+      const chave = normalizarNomeComparacao(emp.nomeEmpresa || "");
+      if (chave) ativas.add(chave);
+    });
+    return ativas;
+  }, [empresasCompletas]);
+
+  /**
+   * Consolida os indicadores de cada treinador cruzando as três fontes:
+   * lançamentos de pontos (treinamentos e CSAT), ocorrências do histórico
+   * (Suporte e WhatsApp) e a carteira de clientes.
+   *
+   * Atenção às janelas de tempo: lançamentos e ocorrências respeitam o filtro
+   * de período da tela, mas os números de clientes são a foto de agora — a
+   * empresa não guarda histórico de suspensão/alerta para reconstruir o
+   * passado.
+   */
+  const indicadoresPorTreinador = useMemo(() => {
+    return trainers
+      .map((t) => {
+        const nomeFormatado = formatarNome(t.nome) || t.email;
+        const primeiroNome = normalizarNomeComparacao(
+          nomeFormatado.split(" ")[0] || "",
+        );
+        const nomeCompleto = normalizarNomeComparacao(nomeFormatado);
+
+        // ── Lançamentos de pontos ──
+        const lancamentos = filteredEntries.filter(
+          (e) => e.treinadorId === t.uid,
+        );
+        const treinamentos = lancamentos.filter(
+          (e) => e.tipoAcao === "treinamento" && e.treinamentoTema,
+        );
+
+        const treinamentosAusentes = treinamentos.filter((e) =>
+          temasDoLancamento(e).includes("ausente"),
+        ).length;
+        const treinamentosCancelados = treinamentos.filter((e) =>
+          temasDoLancamento(e).includes("cancelado"),
+        ).length;
+
+        // Mesma definição de "realizado" usada no ranking, para os dois
+        // números não se contradizerem na mesma tela.
+        const realizados = treinamentos.filter((e) => {
+          const temas = temasDoLancamento(e);
+          return !temas.includes("cancelado") && !temas.includes("ausente");
+        });
+
+        const comNotas = realizados.filter(
+          (e) => e.treinamentoNotas && e.treinamentoNotas.length > 0,
+        );
+        const taxaCsat =
+          realizados.length > 0 ? comNotas.length / realizados.length : null;
+
+        // Média sobre as notas individuais, não sobre as médias por
+        // treinamento: um treinamento com 5 respostas deve pesar mais.
+        const todasAsNotas = realizados.flatMap(
+          (e) => e.treinamentoNotas || [],
+        );
+        const notaCsat = media(todasAsNotas);
+
+        const esperas = realizados
+          .filter((e) =>
+            empresasAtivasNaEsteira.has(
+              normalizarNomeComparacao(e.treinamentoEmpresa || ""),
+            ),
+          )
+          .map((e) =>
+            diasEntreDatas(
+              e.treinamentoDataSolicitacao,
+              e.treinamentoDataRealizacao,
+            ),
+          )
+          .filter((d): d is number => d !== null);
+        const tempoMedioEspera = media(esperas);
+
+        const minutosEmTreinamento = realizados.reduce(
+          (acc, e) => acc + minutosDoTempoAgenda(e.treinamentoTempoAgenda),
+          0,
+        );
+
+        // ── Ocorrências do histórico ──
+        // Contatos de Suporte medem a carga do cliente, então contam para o
+        // treinador dono do cliente, não para quem registrou a ocorrência.
+        const contatosSuporte = ocorrenciasNoPeriodo.filter((o) => {
+          if (o.departamento !== "Suporte") return false;
+          const dono = responsavelPorEmpresa.get(
+            normalizarNomeComparacao(o.empresa || ""),
+          );
+          return !!dono && dono === primeiroNome;
+        }).length;
+
+        // Atendimento é trabalho executado, então segue o responsável gravado
+        // na ocorrência (nome completo de quem registrou).
+        const atendimentosWhatsApp = ocorrenciasNoPeriodo.filter(
+          (o) =>
+            normalizarNomeComparacao(o.responsavel || "") === nomeCompleto &&
+            o.departamento === "Treinamento" &&
+            o.tipo === "Dúvida",
+        ).length;
+
+        // ── Carteira de clientes ──
+        // A empresa guarda só o primeiro nome do responsável.
+        const clientes = empresasCompletas.filter(
+          (emp) =>
+            normalizarNomeComparacao(emp.responsavel || "") === primeiroNome,
+        );
+        const clientesAtivos = clientes.filter((emp) => !emp.isCancelled);
+
+        const clientesEmAndamento = clientesAtivos.filter((emp) => {
+          if (emp.isOngoing || emp.isSuspended) return false;
+          const progresso = calcularProgressoPorFases(
+            emp.currentPhase,
+            calcularTotalFases(emp.temaText || ""),
+          );
+          return progresso > 0 && progresso < 100;
+        }).length;
+
+        const clientesSuspensos = clientesAtivos.filter(
+          (emp) => !!emp.isSuspended,
+        ).length;
+        const clientesEmAlerta = clientesAtivos.filter((emp) =>
+          empresasComAlerta.has(
+            normalizarNomeComparacao(emp.nomeEmpresa || ""),
+          ),
+        ).length;
+
+        const diasNaEsteira = clientesAtivos
+          .filter((emp) => !!emp.dataEntrada)
+          .map((emp) =>
+            calcularDiasNaEsteira(
+              emp.dataEntrada,
+              calcularProgressoPorFases(
+                emp.currentPhase,
+                calcularTotalFases(emp.temaText || ""),
+              ),
+              undefined,
+              emp.dataFinalizacao,
+            ),
+          );
+        const tempoMedioEsteira = media(diasNaEsteira);
+
+        return {
+          uid: t.uid,
+          nome: nomeFormatado,
+          taxaCsat,
+          notaCsat,
+          treinamentosRealizados: realizados.length,
+          treinamentosAusentes,
+          treinamentosCancelados,
+          tempoMedioEspera,
+          minutosEmTreinamento,
+          contatosSuporte,
+          atendimentosWhatsApp,
+          tempoMedioEsteira,
+          clientesAtendidos: clientesAtivos.length,
+          clientesEmAndamento,
+          clientesSuspensos,
+          clientesEmAlerta,
+          // Guardados para poder somar/ponderar corretamente na linha de total
+          _realizadosComNotas: comNotas.length,
+          _notas: todasAsNotas,
+          _esperas: esperas,
+          _diasNaEsteira: diasNaEsteira,
+        };
+      })
+      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  }, [
+    trainers,
+    filteredEntries,
+    ocorrenciasNoPeriodo,
+    empresasCompletas,
+    empresasComAlerta,
+    responsavelPorEmpresa,
+    empresasAtivasNaEsteira,
+  ]);
+
+  /**
+   * Linha de total da equipe. As médias (CSAT, espera, esteira) são
+   * recalculadas sobre o conjunto completo de amostras — somar e dividir pelo
+   * número de treinadores daria peso igual a quem fez 1 e a quem fez 50.
+   */
+  const totalIndicadores = useMemo(() => {
+    const soma = (
+      selecionar: (i: (typeof indicadoresPorTreinador)[number]) => number,
+    ) => indicadoresPorTreinador.reduce((acc, i) => acc + selecionar(i), 0);
+
+    const realizados = soma((i) => i.treinamentosRealizados);
+    const realizadosComNotas = soma((i) => i._realizadosComNotas);
+    const todasAsNotas = indicadoresPorTreinador.flatMap((i) => i._notas);
+    const todasAsEsperas = indicadoresPorTreinador.flatMap((i) => i._esperas);
+    const todosOsDias = indicadoresPorTreinador.flatMap(
+      (i) => i._diasNaEsteira,
+    );
+
+    return {
+      taxaCsat: realizados > 0 ? realizadosComNotas / realizados : null,
+      notaCsat: media(todasAsNotas),
+      treinamentosRealizados: realizados,
+      treinamentosAusentes: soma((i) => i.treinamentosAusentes),
+      treinamentosCancelados: soma((i) => i.treinamentosCancelados),
+      tempoMedioEspera: media(todasAsEsperas),
+      minutosEmTreinamento: soma((i) => i.minutosEmTreinamento),
+      contatosSuporte: soma((i) => i.contatosSuporte),
+      atendimentosWhatsApp: soma((i) => i.atendimentosWhatsApp),
+      tempoMedioEsteira: media(todosOsDias),
+      clientesAtendidos: soma((i) => i.clientesAtendidos),
+      clientesEmAndamento: soma((i) => i.clientesEmAndamento),
+      clientesSuspensos: soma((i) => i.clientesSuspensos),
+      clientesEmAlerta: soma((i) => i.clientesEmAlerta),
+    };
+  }, [indicadoresPorTreinador]);
+
+  /** Formata cada indicador para exibição, com "—" quando não há amostra. */
+  const celulasIndicadores = (linha: {
+    taxaCsat: number | null;
+    notaCsat: number | null;
+    treinamentosRealizados: number;
+    treinamentosAusentes: number;
+    treinamentosCancelados: number;
+    tempoMedioEspera: number | null;
+    minutosEmTreinamento: number;
+    contatosSuporte: number;
+    atendimentosWhatsApp: number;
+    tempoMedioEsteira: number | null;
+    clientesAtendidos: number;
+    clientesEmAndamento: number;
+    clientesSuspensos: number;
+    clientesEmAlerta: number;
+  }) => [
+    linha.taxaCsat === null ? "—" : `${Math.round(linha.taxaCsat * 100)}%`,
+    linha.notaCsat === null ? "—" : linha.notaCsat.toFixed(1),
+    String(linha.treinamentosRealizados),
+    String(linha.treinamentosAusentes),
+    String(linha.treinamentosCancelados),
+    linha.tempoMedioEspera === null
+      ? "—"
+      : `${linha.tempoMedioEspera.toFixed(1)} dias`,
+    formatarDuracaoMinutos(linha.minutosEmTreinamento),
+    String(linha.contatosSuporte),
+    String(linha.atendimentosWhatsApp),
+    linha.tempoMedioEsteira === null
+      ? "—"
+      : `${Math.round(linha.tempoMedioEsteira)} dias`,
+    String(linha.clientesAtendidos),
+    String(linha.clientesEmAndamento),
+    String(linha.clientesSuspensos),
+    String(linha.clientesEmAlerta),
+  ];
+
+  /**
+   * Mesma ordem de `celulasIndicadores`, mas com os valores crus para comparar
+   * com a meta. As unidades acompanham o que é exibido: taxa em pontos
+   * percentuais e tempo de treinamento em horas decimais.
+   */
+  const valoresIndicadores = (linha: {
+    taxaCsat: number | null;
+    notaCsat: number | null;
+    treinamentosRealizados: number;
+    treinamentosAusentes: number;
+    treinamentosCancelados: number;
+    tempoMedioEspera: number | null;
+    minutosEmTreinamento: number;
+    contatosSuporte: number;
+    atendimentosWhatsApp: number;
+    tempoMedioEsteira: number | null;
+    clientesAtendidos: number;
+    clientesEmAndamento: number;
+    clientesSuspensos: number;
+    clientesEmAlerta: number;
+  }): (number | null)[] => [
+    linha.taxaCsat === null ? null : linha.taxaCsat * 100,
+    linha.notaCsat,
+    linha.treinamentosRealizados,
+    linha.treinamentosAusentes,
+    linha.treinamentosCancelados,
+    linha.tempoMedioEspera,
+    linha.minutosEmTreinamento / 60,
+    linha.contatosSuporte,
+    linha.atendimentosWhatsApp,
+    linha.tempoMedioEsteira,
+    linha.clientesAtendidos,
+    linha.clientesEmAndamento,
+    linha.clientesSuspensos,
+    linha.clientesEmAlerta,
+  ];
+
+  // Valores já formatados, indexados pelo treinador. Como a tabela é
+  // transposta, cada célula é lida por [treinador][índice do indicador].
+  const celulasPorTreinador = useMemo(() => {
+    const mapa: Record<string, string[]> = {};
+    indicadoresPorTreinador.forEach((t) => {
+      mapa[t.uid] = celulasIndicadores(t);
+    });
+    return mapa;
+  }, [indicadoresPorTreinador]);
+
+  const celulasDoTotal = useMemo(
+    () => celulasIndicadores(totalIndicadores),
+    [totalIndicadores],
+  );
+
+  const valoresDoTotal = useMemo(
+    () => valoresIndicadores(totalIndicadores),
+    [totalIndicadores],
+  );
+
+  /**
+   * Desvio do total da equipe em relação à meta. `positivo` já leva em conta a
+   * direção do indicador — nos que "menos é melhor", ficar abaixo da meta é o
+   * resultado desejado.
+   *
+   * O valor é arredondado ao passo da coluna antes de comparar, para o desvio
+   * refletir o número que está na tela e não a casa decimal escondida.
+   */
+  const desvioDaMeta = (indice: number) => {
+    const coluna = COLUNAS_INDICADORES[indice];
+    const meta = metas[coluna.chave];
+    const bruto = valoresDoTotal[indice];
+
+    if (typeof meta !== "number" || bruto === null) return null;
+
+    const valor = Math.round(bruto / coluna.passo) * coluna.passo;
+    let diferenca = valor - meta;
+    // Resíduo de ponto flutuante menor que meio passo não é diferença real
+    if (Math.abs(diferenca) < coluna.passo / 2) diferenca = 0;
+
+    const positivo = coluna.menorEhMelhor ? diferenca <= 0 : diferenca >= 0;
+
+    // Percentual exige uma base diferente de zero; com meta zerada mostra a
+    // diferença absoluta, que é a única leitura possível ("+3" acima da meta).
+    if (meta === 0) {
+      const casas = coluna.passo >= 1 ? 0 : coluna.passo === 0.1 ? 1 : 2;
+      return {
+        texto: `${diferenca > 0 ? "+" : ""}${diferenca.toFixed(casas)}`,
+        positivo,
+      };
+    }
+
+    let desvio = (diferenca / Math.abs(meta)) * 100;
+    if (Math.abs(desvio) < 0.05) desvio = 0;
+
+    return {
+      texto: `${desvio > 0 ? "+" : ""}${desvio.toFixed(1)}%`,
+      positivo,
+    };
+  };
+
+  const handleMetaChange = (chave: string, texto: string) => {
+    setMetas((anterior) => {
+      const proximo = { ...anterior };
+      if (texto.trim() === "") {
+        delete proximo[chave];
+      } else {
+        const valor = Number(texto);
+        if (!Number.isFinite(valor)) return anterior;
+        proximo[chave] = valor;
+      }
+      return proximo;
+    });
+  };
+
+  const handleSalvarMetas = async () => {
+    try {
+      setSalvandoMetas(true);
+      await salvarMetasIndicadores(metas);
+      setMetasSalvas(metas);
+      toast.success("Metas salvas com sucesso!");
+    } catch (error: any) {
+      console.error("Erro ao salvar metas dos indicadores:", error);
+      toast.error(`Erro ao salvar as metas: ${error?.message || error}`);
+    } finally {
+      setSalvandoMetas(false);
+    }
+  };
+
+  const metasAlteradas = JSON.stringify(metas) !== JSON.stringify(metasSalvas);
 
   const formatarNumeroCarga = (valor: number) =>
     valor.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
@@ -865,7 +1531,9 @@ export const Gamificacao: React.FC = () => {
                 )} atrás, valendo ${formatarNumeroCarga(faixa.peso)} cada`}
               >
                 <strong>{qtd}</strong> {qtd === 1 ? "treino" : "treinos"}{" "}
-                <span className="carga-chip-faixa">({rotuloFaixa(indice)})</span>{" "}
+                <span className="carga-chip-faixa">
+                  ({rotuloFaixa(indice)})
+                </span>{" "}
                 × {formatarNumeroCarga(faixa.peso)}
               </span>
             );
@@ -886,7 +1554,9 @@ export const Gamificacao: React.FC = () => {
             {item.clientesEsteira === 1 ? "cliente" : "clientes"}{" "}
             <span className="carga-chip-faixa">
               (={" "}
-              {formatarNumeroCarga(parseFloat(item.trabalhoRestante.toFixed(2)))}{" "}
+              {formatarNumeroCarga(
+                parseFloat(item.trabalhoRestante.toFixed(2)),
+              )}{" "}
               esteiras por concluir)
             </span>{" "}
             × fator {formatarNumeroCarga(item.fatorCapacidade)}
@@ -1242,16 +1912,28 @@ export const Gamificacao: React.FC = () => {
               pela equipe.
             </p>
           </div>
-          {podeDistribuir && (
-            <button
-              type="button"
-              className={`btn-distribuir-cliente ${theme === "light" ? "btn-distribuir-cliente-light" : ""}`}
-              onClick={() => setShowDistribuicaoModal(true)}
-            >
-              <Shuffle size={18} />
-              Próximo Cliente
-            </button>
-          )}
+          <div className="gamificacao-header-acoes">
+            {podeVerIndicadores && (
+              <button
+                type="button"
+                className={`btn-indicadores ${theme === "light" ? "btn-indicadores-light" : ""}`}
+                onClick={() => setShowIndicadoresModal(true)}
+              >
+                <BarChart3 size={18} />
+                Indicadores
+              </button>
+            )}
+            {podeDistribuir && (
+              <button
+                type="button"
+                className={`btn-distribuir-cliente ${theme === "light" ? "btn-distribuir-cliente-light" : ""}`}
+                onClick={() => setShowDistribuicaoModal(true)}
+              >
+                <Shuffle size={18} />
+                Próximo Cliente
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
@@ -2009,6 +2691,141 @@ export const Gamificacao: React.FC = () => {
       )}
 
       {/* Modal de Distribuição do Próximo Cliente */}
+      {showIndicadoresModal && podeVerIndicadores && (
+        <div
+          className="confirm-overlay"
+          onClick={() => setShowIndicadoresModal(false)}
+        >
+          <div
+            className="indicadores-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="indicadores-modal-header">
+              <div className="indicadores-modal-title">
+                <BarChart3 className="card-icon" size={22} />
+                <div>
+                  <h2>Indicadores por Treinador</h2>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn-fechar-modal"
+                onClick={() => setShowIndicadoresModal(false)}
+                title="Fechar"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="indicadores-tabela-wrapper">
+              {indicadoresPorTreinador.length === 0 ? (
+                <p className="indicadores-vazio">
+                  Nenhum treinador encontrado.
+                </p>
+              ) : (
+                /* Indicadores nas linhas e treinadores nas colunas: são 14
+                   indicadores fixos contra poucos treinadores, então essa
+                   orientação cabe na largura do modal sem rolagem lateral. */
+                <table className="gamificacao-table indicadores-tabela">
+                  <thead>
+                    <tr>
+                      <th className="indicadores-col-rotulo">Indicador</th>
+                      {indicadoresPorTreinador.map((t) => (
+                        <th key={t.uid}>{t.nome}</th>
+                      ))}
+                      <th className="indicadores-col-total">Total</th>
+                      <th className="indicadores-col-meta">Meta</th>
+                      <th className="indicadores-col-desvio">vs. meta</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {COLUNAS_INDICADORES.map((indicador, idx) => {
+                      const comparacao = desvioDaMeta(idx);
+                      return (
+                        <tr key={indicador.chave}>
+                          <td
+                            className="indicadores-col-rotulo"
+                            title={indicador.ajuda}
+                          >
+                            {indicador.titulo}
+                          </td>
+                          {indicadoresPorTreinador.map((t) => (
+                            <td key={t.uid}>
+                              {celulasPorTreinador[t.uid][idx]}
+                            </td>
+                          ))}
+                          <td className="indicadores-col-total">
+                            {celulasDoTotal[idx]}
+                          </td>
+                          <td className="indicadores-col-meta">
+                            <div className="indicadores-meta-campo">
+                              <input
+                                type="number"
+                                step="any"
+                                inputMode="decimal"
+                                placeholder="—"
+                                aria-label={`Meta de ${indicador.titulo}`}
+                                value={metas[indicador.chave] ?? ""}
+                                onChange={(e) =>
+                                  handleMetaChange(
+                                    indicador.chave,
+                                    e.target.value,
+                                  )
+                                }
+                              />
+                              {indicador.unidade && (
+                                <span className="indicadores-meta-unidade">
+                                  {indicador.unidade}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="indicadores-col-desvio">
+                            {comparacao === null ? (
+                              <span className="indicadores-desvio-vazio">
+                                —
+                              </span>
+                            ) : (
+                              <span
+                                className={`indicadores-desvio ${
+                                  comparacao.positivo
+                                    ? "indicadores-desvio-positivo"
+                                    : "indicadores-desvio-negativo"
+                                }`}
+                                title={
+                                  indicador.menorEhMelhor
+                                    ? "Neste indicador, ficar abaixo da meta é o resultado desejado"
+                                    : undefined
+                                }
+                              >
+                                {comparacao.texto}
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {indicadoresPorTreinador.length > 0 && (
+              <div className="indicadores-modal-footer">
+                <button
+                  type="button"
+                  className="btn-salvar-metas"
+                  onClick={handleSalvarMetas}
+                  disabled={!metasAlteradas || salvandoMetas}
+                >
+                  {salvandoMetas ? "Salvando..." : "Salvar metas"}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {showDistribuicaoModal && (
         <div
           className="confirm-overlay"

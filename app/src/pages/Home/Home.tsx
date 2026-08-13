@@ -6,7 +6,10 @@ import "./Home.css";
 import ProgressBar from "../../components/ProgressBar";
 import StatusFarol from "../../components/StatusFarol";
 
-import { listarOcorrencias, salvarOcorrencia } from "../../services/ocorrencias";
+import {
+  listarOcorrencias,
+  salvarOcorrencia,
+} from "../../services/ocorrencias";
 
 import {
   listarEmpresas,
@@ -25,7 +28,11 @@ import {
 import type { Empresa, Ocorrencia } from "../../types";
 import { useAuth } from "../../context/AuthContext";
 import { formatarNome } from "../../utils/formatarNome";
-import { analisarTelefoneWhatsApp, formatarTelefoneExibicao, normalizarTelefoneWhatsApp } from "../../utils/telefone";
+import {
+  analisarTelefoneWhatsApp,
+  formatarTelefoneExibicao,
+  normalizarTelefoneWhatsApp,
+} from "../../utils/telefone";
 import { listarUsuarios } from "../../services/auth";
 import { toast } from "sonner";
 import {
@@ -59,7 +66,10 @@ const INITIAL_SCORE_ANSWERS: ScoreFormAnswers = {
   clienteSumido: "",
 };
 
-function calcularPontuacao(respostas: ScoreFormAnswers): { score: number; tipo: "Fast" | "Safety" } {
+function calcularPontuacao(respostas: ScoreFormAnswers): {
+  score: number;
+  tipo: "Fast" | "Safety";
+} {
   let score = 0;
 
   if (respostas.facilContato === "Sim") score += 0.5;
@@ -103,13 +113,14 @@ export default function Home() {
   );
 
   const [modalScoreHomeAberto, setModalScoreHomeAberto] = useState(false);
-  const [respostasScoreHome, setRespostasScoreHome] = useState<ScoreFormAnswers>(
-    INITIAL_SCORE_ANSWERS
-  );
+  const [respostasScoreHome, setRespostasScoreHome] =
+    useState<ScoreFormAnswers>(INITIAL_SCORE_ANSWERS);
 
   function abrirModalScoreHome() {
     if (clienteSelecionado) {
-      setRespostasScoreHome(clienteSelecionado.scoreAnswers || INITIAL_SCORE_ANSWERS);
+      setRespostasScoreHome(
+        clienteSelecionado.scoreAnswers || INITIAL_SCORE_ANSWERS,
+      );
       setModalScoreHomeAberto(true);
     }
   }
@@ -153,7 +164,9 @@ export default function Home() {
       respostasScoreHome.clienteSumido === "";
 
     if (possuiPerguntasNaoRespondidas) {
-      toast.error("Por favor, responda a todas as perguntas para confirmar o cálculo do score.");
+      toast.error(
+        "Por favor, responda a todas as perguntas para confirmar o cálculo do score.",
+      );
       return;
     }
 
@@ -173,36 +186,60 @@ export default function Home() {
       setEmpresas(lista);
       setClienteSelecionado(empresaAtualizada);
       setModalScoreHomeAberto(false);
-      toast.success(`Score registrado com sucesso: ${res.score.toFixed(1)} (${res.tipo})`);
+      toast.success(
+        `Score registrado com sucesso: ${res.score.toFixed(1)} (${res.tipo})`,
+      );
     } catch (error) {
       console.error("Erro ao salvar score do cliente:", error);
       toast.error("Erro ao registrar score do cliente.");
     }
   }
 
-  const [filtroCliente, setFiltroCliente] = useState(() => sessionStorage.getItem("filtroCliente") || "");
-  const [filtroResponsavel, setFiltroResponsavel] = useState(() => sessionStorage.getItem("filtroResponsavel") || "");
-  const [filtroCs, setFiltroCs] = useState(() => sessionStorage.getItem("filtroCs") || "");
-  const [filtroProgresso, setFiltroProgresso] = useState(() => sessionStorage.getItem("filtroProgresso") || "");
-  const [filtroCardStatus, setFiltroCardStatus] = useState<"concluidos" | "andamento" | "">(() => (sessionStorage.getItem("filtroCardStatus") as any) || "");
-  const [filtroCardTipo, setFiltroCardTipo] = useState<"safety" | "fast" | "">(() => (sessionStorage.getItem("filtroCardTipo") as any) || "");
-  const [filtroCardAlerta, setFiltroCardAlerta] = useState<"alerta" | "">(() => (sessionStorage.getItem("filtroCardAlerta") as any) || "");
-  const [ordenacaoContrato, setOrdenacaoContrato] = useState<"" | "maior" | "menor">(
-    () => (sessionStorage.getItem("ordenacaoContrato") as any) || ""
+  const [filtroCliente, setFiltroCliente] = useState(
+    () => sessionStorage.getItem("filtroCliente") || "",
   );
+  const [filtroResponsavel, setFiltroResponsavel] = useState(
+    () => sessionStorage.getItem("filtroResponsavel") || "",
+  );
+  const [filtroCs, setFiltroCs] = useState(
+    () => sessionStorage.getItem("filtroCs") || "",
+  );
+  const [filtroProgresso, setFiltroProgresso] = useState(
+    () => sessionStorage.getItem("filtroProgresso") || "",
+  );
+  const [filtroCardStatus, setFiltroCardStatus] = useState<
+    "concluidos" | "andamento" | ""
+  >(() => (sessionStorage.getItem("filtroCardStatus") as any) || "");
+  const [filtroCardTipo, setFiltroCardTipo] = useState<"safety" | "fast" | "">(
+    () => (sessionStorage.getItem("filtroCardTipo") as any) || "",
+  );
+  const [filtroCardAlerta, setFiltroCardAlerta] = useState<"alerta" | "">(
+    () => (sessionStorage.getItem("filtroCardAlerta") as any) || "",
+  );
+  const [ordenacaoContrato, setOrdenacaoContrato] = useState<
+    "" | "maior" | "menor"
+  >(() => (sessionStorage.getItem("ordenacaoContrato") as any) || "");
   const [ordenacaoScore, setOrdenacaoScore] = useState<"" | "maior" | "menor">(
-    () => (sessionStorage.getItem("ordenacaoScore") as any) || ""
+    () => (sessionStorage.getItem("ordenacaoScore") as any) || "",
   );
-  const [ordenacaoPrincipal, setOrdenacaoPrincipal] = useState<"contrato" | "score" | "">(
-    () => (sessionStorage.getItem("ordenacaoPrincipal") as any) || ""
-  );
+  const [ordenacaoPrincipal, setOrdenacaoPrincipal] = useState<
+    "contrato" | "score" | ""
+  >(() => (sessionStorage.getItem("ordenacaoPrincipal") as any) || "");
 
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
 
   const [historico, setHistorico] = useState<Ocorrencia[]>([]);
 
   const [listaCS, setListaCS] = useState<string[]>(() => {
-    const baseCS = ["Jeferson Augusto", "Rafaela Agnelo", "Luiz Felipe", "João Pedro", "Eduarda Melo", "Lucas Barreto", "Ana Carolina"];
+    const baseCS = [
+      "Jeferson Augusto",
+      "Rafaela Agnelo",
+      "Luiz Felipe",
+      "João Pedro",
+      "Eduarda Melo",
+      "Lucas Barreto",
+      "Ana Carolina",
+    ];
     return [...baseCS].sort((a, b) => a.localeCompare(b));
   });
 
@@ -270,11 +307,12 @@ export default function Home() {
   }
 
   function nomesContatos(empresa: Empresa) {
-    const contatos = empresa.contatos && empresa.contatos.length > 0
-      ? empresa.contatos
-      : empresa.contato
-        ? [{ nome: empresa.contato, telefone: empresa.telefone || "" }]
-        : [];
+    const contatos =
+      empresa.contatos && empresa.contatos.length > 0
+        ? empresa.contatos
+        : empresa.contato
+          ? [{ nome: empresa.contato, telefone: empresa.telefone || "" }]
+          : [];
 
     if (contatos.length === 0) return "-";
     return contatos.map((c) => c.nome || "-").join(", ");
@@ -329,7 +367,7 @@ export default function Home() {
 
     if (typeof idNumericToSave !== "number") {
       let highest = 0;
-      empresas.forEach(e => {
+      empresas.forEach((e) => {
         if (e.idNumeric && e.idNumeric > highest) {
           highest = e.idNumeric;
         }
@@ -338,7 +376,7 @@ export default function Home() {
     }
 
     const empresaExistente = editandoClienteId
-      ? empresas.find(e => e.id === editandoClienteId)
+      ? empresas.find((e) => e.id === editandoClienteId)
       : null;
 
     const antigoNome = empresaExistente?.nomeEmpresa || null;
@@ -378,12 +416,21 @@ export default function Home() {
           setGestaoConfirmModalOpen(true);
         })
         .catch((err) =>
-          console.error("[notificações] Falha ao montar destinatários de suspensão:", err)
+          console.error(
+            "[notificações] Falha ao montar destinatários de suspensão:",
+            err,
+          ),
         );
     }
 
-    if (antigoNome && antigoNome.trim().toLowerCase() !== nomeFinal.trim().toLowerCase()) {
-      const ocsParaAtualizar = historico.filter(o => o.empresa.trim().toLowerCase() === antigoNome.trim().toLowerCase());
+    if (
+      antigoNome &&
+      antigoNome.trim().toLowerCase() !== nomeFinal.trim().toLowerCase()
+    ) {
+      const ocsParaAtualizar = historico.filter(
+        (o) =>
+          o.empresa.trim().toLowerCase() === antigoNome.trim().toLowerCase(),
+      );
       for (let j = 0; j < ocsParaAtualizar.length; j++) {
         const oc = ocsParaAtualizar[j];
         await salvarOcorrencia({
@@ -447,7 +494,7 @@ export default function Home() {
       }
 
       let highest = 0;
-      empresasLista.forEach(e => {
+      empresasLista.forEach((e) => {
         if (e.idNumeric && e.idNumeric > highest) {
           highest = e.idNumeric;
         }
@@ -474,7 +521,11 @@ export default function Home() {
           });
           mudouAlguma = true;
 
-          const ocsParaAtualizar = ocorrenciasLista.filter(o => o.empresa.trim().toLowerCase() === antigoNome.trim().toLowerCase());
+          const ocsParaAtualizar = ocorrenciasLista.filter(
+            (o) =>
+              o.empresa.trim().toLowerCase() ===
+              antigoNome.trim().toLowerCase(),
+          );
           for (let j = 0; j < ocsParaAtualizar.length; j++) {
             const oc = ocsParaAtualizar[j];
             await salvarOcorrencia({
@@ -491,8 +542,6 @@ export default function Home() {
           mudouAlguma = true;
         }
       }
-
-
 
       if (mudouAlguma) {
         [empresasLista, ocorrenciasLista] = await Promise.all([
@@ -514,7 +563,7 @@ export default function Home() {
           const newNames = [...prev];
           dynamicCS.forEach((nome) => {
             const exists = newNames.some(
-              (c) => c.toLowerCase() === nome.toLowerCase()
+              (c) => c.toLowerCase() === nome.toLowerCase(),
             );
             if (!exists) {
               newNames.push(nome);
@@ -579,13 +628,14 @@ export default function Home() {
       const ultimaOcorrenciaAlerta = historico
         .filter(
           (o) =>
-            o.empresa.trim().toLowerCase() === empresa.nomeEmpresa.trim().toLowerCase() &&
-            (o.alerta === true || o.retirarAlerta === true)
+            o.empresa.trim().toLowerCase() ===
+              empresa.nomeEmpresa.trim().toLowerCase() &&
+            (o.alerta === true || o.retirarAlerta === true),
         )
         .sort(
           (a, b) =>
             (b.dataOcorrencia || b.createdAt || 0) -
-            (a.dataOcorrencia || a.createdAt || 0)
+            (a.dataOcorrencia || a.createdAt || 0),
         )[0];
 
       let temAlerta = false;
@@ -617,17 +667,26 @@ export default function Home() {
         tme,
         progresso,
         farol,
-        dias: calcularDiasNaEsteira(empresa.dataEntrada, progresso, dataBase, empresa.dataFinalizacao),
+        dias: calcularDiasNaEsteira(
+          empresa.dataEntrada,
+          progresso,
+          dataBase,
+          empresa.dataFinalizacao,
+        ),
       };
     });
   }, [empresas, historico]);
 
   const dadosAtivos = useMemo(() => {
-    return dados.filter((e) => !e.isOngoing && !e.isSuspended && !e.isCancelled);
+    return dados.filter(
+      (e) => !e.isOngoing && !e.isSuspended && !e.isCancelled,
+    );
   }, [dados]);
 
   const dadosOngoing = useMemo(() => {
-    return dados.filter((e) => !!e.isOngoing && !e.isSuspended && !e.isCancelled);
+    return dados.filter(
+      (e) => !!e.isOngoing && !e.isSuspended && !e.isCancelled,
+    );
   }, [dados]);
 
   const dadosSuspensos = useMemo(() => {
@@ -693,7 +752,8 @@ export default function Home() {
           !filtroCliente ||
           e.nomeEmpresa.toLowerCase().includes(filtroCliente.toLowerCase());
         const responsavelOk =
-          !filtroResponsavel || formatarNome(e.responsavel) === filtroResponsavel;
+          !filtroResponsavel ||
+          formatarNome(e.responsavel) === filtroResponsavel;
         const csOk = !filtroCs || e.csResponsavel === filtroCs;
         const progressoOk =
           !filtroProgresso ||
@@ -709,7 +769,9 @@ export default function Home() {
         const statusCardOk =
           !filtroCardStatus ||
           (filtroCardStatus === "concluidos" && e.progresso >= 100) ||
-          (filtroCardStatus === "andamento" && e.progresso > 0 && e.progresso < 100);
+          (filtroCardStatus === "andamento" &&
+            e.progresso > 0 &&
+            e.progresso < 100);
 
         const tipoCardOk =
           !filtroCardTipo ||
@@ -717,10 +779,17 @@ export default function Home() {
           (filtroCardTipo === "fast" && e.tipo === "Fast");
 
         const alertaCardOk =
-          !filtroCardAlerta ||
-          (filtroCardAlerta === "alerta" && e.alerta);
+          !filtroCardAlerta || (filtroCardAlerta === "alerta" && e.alerta);
 
-        return clienteOk && responsavelOk && csOk && progressoOk && statusCardOk && tipoCardOk && alertaCardOk;
+        return (
+          clienteOk &&
+          responsavelOk &&
+          csOk &&
+          progressoOk &&
+          statusCardOk &&
+          tipoCardOk &&
+          alertaCardOk
+        );
       })
       .sort((a, b) => {
         let prim = 0;
@@ -764,7 +833,8 @@ export default function Home() {
           e.nomeEmpresa.toLowerCase().includes(filtroCliente.toLowerCase());
         const csOk = !filtroCs || e.csResponsavel === filtroCs;
         const responsavelOk =
-          !filtroResponsavel || formatarNome(e.responsavel) === filtroResponsavel;
+          !filtroResponsavel ||
+          formatarNome(e.responsavel) === filtroResponsavel;
 
         return clienteOk && csOk && responsavelOk;
       })
@@ -803,7 +873,8 @@ export default function Home() {
           e.nomeEmpresa.toLowerCase().includes(filtroCliente.toLowerCase());
         const csOk = !filtroCs || e.csResponsavel === filtroCs;
         const responsavelOk =
-          !filtroResponsavel || formatarNome(e.responsavel) === filtroResponsavel;
+          !filtroResponsavel ||
+          formatarNome(e.responsavel) === filtroResponsavel;
 
         return clienteOk && csOk && responsavelOk;
       })
@@ -842,7 +913,8 @@ export default function Home() {
           e.nomeEmpresa.toLowerCase().includes(filtroCliente.toLowerCase());
         const csOk = !filtroCs || e.csResponsavel === filtroCs;
         const responsavelOk =
-          !filtroResponsavel || formatarNome(e.responsavel) === filtroResponsavel;
+          !filtroResponsavel ||
+          formatarNome(e.responsavel) === filtroResponsavel;
 
         return clienteOk && csOk && responsavelOk;
       })
@@ -917,7 +989,10 @@ export default function Home() {
               <p className="stat-label">Concluídos</p>
             </div>
             <p className="stat-sub">
-              {stats.total > 0 ? ((stats.concluidos / stats.total) * 100).toFixed(1) : "0.0"}% do total
+              {stats.total > 0
+                ? ((stats.concluidos / stats.total) * 100).toFixed(1)
+                : "0.0"}
+              % do total
             </p>
           </div>
         </div>
@@ -932,7 +1007,10 @@ export default function Home() {
               <p className="stat-label">Em andamento</p>
             </div>
             <p className="stat-sub">
-              {stats.total > 0 ? ((stats.emAndamento / stats.total) * 100).toFixed(1) : "0.0"}% do total
+              {stats.total > 0
+                ? ((stats.emAndamento / stats.total) * 100).toFixed(1)
+                : "0.0"}
+              % do total
             </p>
           </div>
         </div>
@@ -947,7 +1025,10 @@ export default function Home() {
               <p className="stat-label">Clientes Safety</p>
             </div>
             <p className="stat-sub">
-              {stats.total > 0 ? ((stats.safety / stats.total) * 100).toFixed(1) : "0.0"}% do total
+              {stats.total > 0
+                ? ((stats.safety / stats.total) * 100).toFixed(1)
+                : "0.0"}
+              % do total
             </p>
           </div>
         </div>
@@ -962,7 +1043,10 @@ export default function Home() {
               <p className="stat-label">Clientes Fast</p>
             </div>
             <p className="stat-sub">
-              {stats.total > 0 ? ((stats.fast / stats.total) * 100).toFixed(1) : "0.0"}% do total
+              {stats.total > 0
+                ? ((stats.fast / stats.total) * 100).toFixed(1)
+                : "0.0"}
+              % do total
             </p>
           </div>
         </div>
@@ -1004,10 +1088,7 @@ export default function Home() {
             ))}
         </select>
 
-        <select
-          value={filtroCs}
-          onChange={(e) => setFiltroCs(e.target.value)}
-        >
+        <select value={filtroCs} onChange={(e) => setFiltroCs(e.target.value)}>
           <option value="">CS responsável</option>
           {listaCS.map((c) => (
             <option key={c} value={c}>
@@ -1074,23 +1155,23 @@ export default function Home() {
           filtroCardAlerta ||
           ordenacaoContrato ||
           ordenacaoScore) && (
-            <button
-              onClick={() => {
-                setFiltroCliente("");
-                setFiltroResponsavel("");
-                setFiltroCs("");
-                setFiltroProgresso("");
-                setFiltroCardStatus("");
-                setFiltroCardTipo("");
-                setFiltroCardAlerta("");
-                setOrdenacaoContrato("");
-                setOrdenacaoScore("");
-                setOrdenacaoPrincipal("");
-              }}
-            >
-              Limpar filtros
-            </button>
-          )}
+          <button
+            onClick={() => {
+              setFiltroCliente("");
+              setFiltroResponsavel("");
+              setFiltroCs("");
+              setFiltroProgresso("");
+              setFiltroCardStatus("");
+              setFiltroCardTipo("");
+              setFiltroCardAlerta("");
+              setOrdenacaoContrato("");
+              setOrdenacaoScore("");
+              setOrdenacaoPrincipal("");
+            }}
+          >
+            Limpar filtros
+          </button>
+        )}
       </div>
 
       {/* Tabela de Clientes Ativos */}
@@ -1158,9 +1239,13 @@ export default function Home() {
                           onClick={(e) => {
                             e.stopPropagation();
                             if (empresa.ocorrenciaAlertaId) {
-                              navigate(`/historico?empresa=${encodeURIComponent(empresa.nomeEmpresa)}&ocorrencia=${empresa.ocorrenciaAlertaId}`);
+                              navigate(
+                                `/historico?empresa=${encodeURIComponent(empresa.nomeEmpresa)}&ocorrencia=${empresa.ocorrenciaAlertaId}`,
+                              );
                             } else {
-                              navigate(`/historico?empresa=${encodeURIComponent(empresa.nomeEmpresa)}`);
+                              navigate(
+                                `/historico?empresa=${encodeURIComponent(empresa.nomeEmpresa)}`,
+                              );
                             }
                           }}
                           style={{
@@ -1203,7 +1288,8 @@ export default function Home() {
                         <span
                           style={{
                             fontWeight: 600,
-                            color: empresa.tipo === "Fast" ? "#16a34a" : "#dc2626",
+                            color:
+                              empresa.tipo === "Fast" ? "#16a34a" : "#dc2626",
                           }}
                         >
                           {empresa.score.toFixed(1)}
@@ -1217,21 +1303,34 @@ export default function Home() {
 
                     <td>{empresa.dias}</td>
 
-                    <td>{empresa.tme !== null ? `${empresa.tme} dias` : "-"}</td>
+                    <td>
+                      {empresa.tme !== null ? `${empresa.tme} dias` : "-"}
+                    </td>
 
                     <td className="td-progresso">
                       <ProgressBar value={empresa.progresso} />
                     </td>
                     <td style={{ textAlign: "right", fontWeight: 600 }}>
-                      {empresa.valorContrato !== undefined && empresa.valorContrato !== null
-                        ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(empresa.valorContrato)
+                      {empresa.valorContrato !== undefined &&
+                      empresa.valorContrato !== null
+                        ? new Intl.NumberFormat("pt-BR", {
+                            style: "currency",
+                            currency: "BRL",
+                          }).format(empresa.valorContrato)
                         : "—"}
                     </td>
                   </tr>
                 ))}
                 {dadosAtivosFiltrados.length === 0 && (
                   <tr>
-                    <td colSpan={10} style={{ textAlign: "center", color: "#64748b", padding: "2rem" }}>
+                    <td
+                      colSpan={10}
+                      style={{
+                        textAlign: "center",
+                        color: "#64748b",
+                        padding: "2rem",
+                      }}
+                    >
                       Nenhum cliente ativo encontrado.
                     </td>
                   </tr>
@@ -1241,7 +1340,9 @@ export default function Home() {
 
             <div className="table-footer">
               <span>
-                Mostrando <strong>{dadosAtivosFiltrados.length}</strong> de <strong>{dadosAtivos.length}</strong> {dadosAtivos.length === 1 ? "cliente" : "clientes"}
+                Mostrando <strong>{dadosAtivosFiltrados.length}</strong> de{" "}
+                <strong>{dadosAtivos.length}</strong>{" "}
+                {dadosAtivos.length === 1 ? "cliente" : "clientes"}
               </span>
             </div>
           </div>
@@ -1256,7 +1357,13 @@ export default function Home() {
         >
           <div className="collapsible-title-wrapper">
             <h2>Clientes Ongoing 🔄</h2>
-            <span className="collapsible-count-badge" style={{ background: "rgba(16, 185, 129, 0.2)", color: "#34d399" }}>
+            <span
+              className="collapsible-count-badge"
+              style={{
+                background: "rgba(16, 185, 129, 0.2)",
+                color: "#34d399",
+              }}
+            >
               {dadosOngoingFiltrados.length}
             </span>
           </div>
@@ -1299,9 +1406,13 @@ export default function Home() {
                           onClick={(e) => {
                             e.stopPropagation();
                             if (empresa.ocorrenciaAlertaId) {
-                              navigate(`/historico?empresa=${encodeURIComponent(empresa.nomeEmpresa)}&ocorrencia=${empresa.ocorrenciaAlertaId}`);
+                              navigate(
+                                `/historico?empresa=${encodeURIComponent(empresa.nomeEmpresa)}&ocorrencia=${empresa.ocorrenciaAlertaId}`,
+                              );
                             } else {
-                              navigate(`/historico?empresa=${encodeURIComponent(empresa.nomeEmpresa)}`);
+                              navigate(
+                                `/historico?empresa=${encodeURIComponent(empresa.nomeEmpresa)}`,
+                              );
                             }
                           }}
                           style={{
@@ -1325,15 +1436,26 @@ export default function Home() {
 
                     <td>{formatarNome(empresa.comercialResponsavel) || "-"}</td>
                     <td style={{ textAlign: "right", fontWeight: 600 }}>
-                      {empresa.valorContrato !== undefined && empresa.valorContrato !== null
-                        ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(empresa.valorContrato)
+                      {empresa.valorContrato !== undefined &&
+                      empresa.valorContrato !== null
+                        ? new Intl.NumberFormat("pt-BR", {
+                            style: "currency",
+                            currency: "BRL",
+                          }).format(empresa.valorContrato)
                         : "—"}
                     </td>
                   </tr>
                 ))}
                 {dadosOngoingFiltrados.length === 0 && (
                   <tr>
-                    <td colSpan={5} style={{ textAlign: "center", color: "#64748b", padding: "2rem" }}>
+                    <td
+                      colSpan={5}
+                      style={{
+                        textAlign: "center",
+                        color: "#64748b",
+                        padding: "2rem",
+                      }}
+                    >
                       Nenhum cliente em acompanhamento contínuo (Ongoing).
                     </td>
                   </tr>
@@ -1343,7 +1465,9 @@ export default function Home() {
 
             <div className="table-footer">
               <span>
-                Mostrando <strong>{dadosOngoingFiltrados.length}</strong> de <strong>{dadosOngoing.length}</strong> {dadosOngoing.length === 1 ? "cliente" : "clientes"}
+                Mostrando <strong>{dadosOngoingFiltrados.length}</strong> de{" "}
+                <strong>{dadosOngoing.length}</strong>{" "}
+                {dadosOngoing.length === 1 ? "cliente" : "clientes"}
               </span>
             </div>
           </div>
@@ -1358,7 +1482,13 @@ export default function Home() {
         >
           <div className="collapsible-title-wrapper">
             <h2>Clientes Suspensos ⏸️</h2>
-            <span className="collapsible-count-badge" style={{ background: "rgba(245, 158, 11, 0.2)", color: "#f59e0b" }}>
+            <span
+              className="collapsible-count-badge"
+              style={{
+                background: "rgba(245, 158, 11, 0.2)",
+                color: "#f59e0b",
+              }}
+            >
               {dadosSuspensosFiltrados.length}
             </span>
           </div>
@@ -1403,9 +1533,13 @@ export default function Home() {
                           onClick={(e) => {
                             e.stopPropagation();
                             if (empresa.ocorrenciaAlertaId) {
-                              navigate(`/historico?empresa=${encodeURIComponent(empresa.nomeEmpresa)}&ocorrencia=${empresa.ocorrenciaAlertaId}`);
+                              navigate(
+                                `/historico?empresa=${encodeURIComponent(empresa.nomeEmpresa)}&ocorrencia=${empresa.ocorrenciaAlertaId}`,
+                              );
                             } else {
-                              navigate(`/historico?empresa=${encodeURIComponent(empresa.nomeEmpresa)}`);
+                              navigate(
+                                `/historico?empresa=${encodeURIComponent(empresa.nomeEmpresa)}`,
+                              );
                             }
                           }}
                           style={{
@@ -1432,15 +1566,26 @@ export default function Home() {
                       <ProgressBar value={empresa.progresso} />
                     </td>
                     <td style={{ textAlign: "right", fontWeight: 600 }}>
-                      {empresa.valorContrato !== undefined && empresa.valorContrato !== null
-                        ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(empresa.valorContrato)
+                      {empresa.valorContrato !== undefined &&
+                      empresa.valorContrato !== null
+                        ? new Intl.NumberFormat("pt-BR", {
+                            style: "currency",
+                            currency: "BRL",
+                          }).format(empresa.valorContrato)
                         : "—"}
                     </td>
                   </tr>
                 ))}
                 {dadosSuspensosFiltrados.length === 0 && (
                   <tr>
-                    <td colSpan={6} style={{ textAlign: "center", color: "#64748b", padding: "2rem" }}>
+                    <td
+                      colSpan={6}
+                      style={{
+                        textAlign: "center",
+                        color: "#64748b",
+                        padding: "2rem",
+                      }}
+                    >
                       Nenhum cliente temporariamente suspenso.
                     </td>
                   </tr>
@@ -1450,7 +1595,9 @@ export default function Home() {
 
             <div className="table-footer">
               <span>
-                Mostrando <strong>{dadosSuspensosFiltrados.length}</strong> de <strong>{dadosSuspensos.length}</strong> {dadosSuspensos.length === 1 ? "cliente" : "clientes"}
+                Mostrando <strong>{dadosSuspensosFiltrados.length}</strong> de{" "}
+                <strong>{dadosSuspensos.length}</strong>{" "}
+                {dadosSuspensos.length === 1 ? "cliente" : "clientes"}
               </span>
             </div>
           </div>
@@ -1465,7 +1612,10 @@ export default function Home() {
         >
           <div className="collapsible-title-wrapper">
             <h2>Clientes Cancelados ❌</h2>
-            <span className="collapsible-count-badge" style={{ background: "rgba(220, 38, 38, 0.2)", color: "#f87171" }}>
+            <span
+              className="collapsible-count-badge"
+              style={{ background: "rgba(220, 38, 38, 0.2)", color: "#f87171" }}
+            >
               {dadosCanceladosFiltrados.length}
             </span>
           </div>
@@ -1509,15 +1659,26 @@ export default function Home() {
 
                     <td>{formatarNome(empresa.comercialResponsavel) || "-"}</td>
                     <td style={{ textAlign: "right", fontWeight: 600 }}>
-                      {empresa.valorContrato !== undefined && empresa.valorContrato !== null
-                        ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(empresa.valorContrato)
+                      {empresa.valorContrato !== undefined &&
+                      empresa.valorContrato !== null
+                        ? new Intl.NumberFormat("pt-BR", {
+                            style: "currency",
+                            currency: "BRL",
+                          }).format(empresa.valorContrato)
                         : "—"}
                     </td>
                   </tr>
                 ))}
                 {dadosCanceladosFiltrados.length === 0 && (
                   <tr>
-                    <td colSpan={5} style={{ textAlign: "center", color: "#64748b", padding: "2rem" }}>
+                    <td
+                      colSpan={5}
+                      style={{
+                        textAlign: "center",
+                        color: "#64748b",
+                        padding: "2rem",
+                      }}
+                    >
                       Nenhum cliente cancelado.
                     </td>
                   </tr>
@@ -1527,7 +1688,9 @@ export default function Home() {
 
             <div className="table-footer">
               <span>
-                Mostrando <strong>{dadosCanceladosFiltrados.length}</strong> de <strong>{dadosCancelados.length}</strong> {dadosCancelados.length === 1 ? "cliente" : "clientes"}
+                Mostrando <strong>{dadosCanceladosFiltrados.length}</strong> de{" "}
+                <strong>{dadosCancelados.length}</strong>{" "}
+                {dadosCancelados.length === 1 ? "cliente" : "clientes"}
               </span>
             </div>
           </div>
@@ -1537,7 +1700,10 @@ export default function Home() {
       {clienteSelecionado && (
         <div className="cliente-overlay">
           <div className="cliente-modal">
-            <div className="cliente-modal-header" style={{ position: "relative" }}>
+            <div
+              className="cliente-modal-header"
+              style={{ position: "relative" }}
+            >
               <button
                 onClick={() => setClienteSelecionado(null)}
                 style={{
@@ -1557,7 +1723,7 @@ export default function Home() {
                   width: "28px",
                   height: "28px",
                   borderRadius: "50%",
-                  transition: "background 0.2s, color 0.2s"
+                  transition: "background 0.2s, color 0.2s",
                 }}
                 className="btn-fechar-modal"
                 title="Fechar"
@@ -1571,8 +1737,13 @@ export default function Home() {
             <div className="cliente-info-details">
               <div className="info-item">
                 <span className="info-label">ID do Cliente</span>
-                <span className="info-value" style={{ fontWeight: "bold", color: "#1e90ff" }}>
-                  {clienteSelecionado.idNumeric ? `#${clienteSelecionado.idNumeric}` : "Sem ID"}
+                <span
+                  className="info-value"
+                  style={{ fontWeight: "bold", color: "#1e90ff" }}
+                >
+                  {clienteSelecionado.idNumeric
+                    ? `#${clienteSelecionado.idNumeric}`
+                    : "Sem ID"}
                 </span>
               </div>
               <div className="info-item">
@@ -1603,16 +1774,26 @@ export default function Home() {
                 <span className="info-label">Contatos</span>
                 <span className="info-value">
                   {(() => {
-                    const contatos = clienteSelecionado.contatos && clienteSelecionado.contatos.length > 0
-                      ? clienteSelecionado.contatos
-                      : clienteSelecionado.contato
-                        ? [{ nome: clienteSelecionado.contato, telefone: clienteSelecionado.telefone || "" }]
-                        : [];
+                    const contatos =
+                      clienteSelecionado.contatos &&
+                      clienteSelecionado.contatos.length > 0
+                        ? clienteSelecionado.contatos
+                        : clienteSelecionado.contato
+                          ? [
+                              {
+                                nome: clienteSelecionado.contato,
+                                telefone: clienteSelecionado.telefone || "",
+                              },
+                            ]
+                          : [];
 
                     if (contatos.length === 0) return "-";
 
                     return contatos
-                      .map((c) => `${c.nome || "-"}${c.telefone ? ` (${c.telefone})` : ""}`)
+                      .map(
+                        (c) =>
+                          `${c.nome || "-"}${c.telefone ? ` (${c.telefone})` : ""}`,
+                      )
                       .join(" | ");
                   })()}
                 </span>
@@ -1626,8 +1807,12 @@ export default function Home() {
               <div className="info-item full-width">
                 <span className="info-label">Valor do Contrato</span>
                 <span className="info-value">
-                  {clienteSelecionado.valorContrato !== undefined && clienteSelecionado.valorContrato !== null
-                    ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(clienteSelecionado.valorContrato)
+                  {clienteSelecionado.valorContrato !== undefined &&
+                  clienteSelecionado.valorContrato !== null
+                    ? new Intl.NumberFormat("pt-BR", {
+                        style: "currency",
+                        currency: "BRL",
+                      }).format(clienteSelecionado.valorContrato)
                     : "—"}
                 </span>
               </div>
@@ -1635,20 +1820,39 @@ export default function Home() {
                 <span className="info-label">Status Temporário</span>
                 <span className="info-value">
                   {clienteSelecionado.isCancelled ? (
-                    <span style={{ color: "#dc2626", fontWeight: "bold" }}>❌ Cancelado</span>
+                    <span style={{ color: "#dc2626", fontWeight: "bold" }}>
+                      ❌ Cancelado
+                    </span>
                   ) : clienteSelecionado.isSuspended ? (
-                    <span style={{ color: "#f59e0b", fontWeight: "bold" }}>⏸️ Suspenso Temporariamente</span>
+                    <span style={{ color: "#f59e0b", fontWeight: "bold" }}>
+                      ⏸️ Suspenso Temporariamente
+                    </span>
                   ) : (
-                    <span style={{ color: "#10b981", fontWeight: "bold" }}>▶️ Ativo</span>
+                    <span style={{ color: "#10b981", fontWeight: "bold" }}>
+                      ▶️ Ativo
+                    </span>
                   )}
                 </span>
               </div>
               <div className="info-item">
                 <span className="info-label">Score</span>
-                <span className="info-value" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                  {clienteSelecionado.score !== undefined && clienteSelecionado.score !== null ? (
-                    <span style={{ fontWeight: "bold", color: clienteSelecionado.tipo === "Fast" ? "#10b981" : "#ef4444" }}>
-                      {clienteSelecionado.score.toFixed(1)} ({clienteSelecionado.tipo})
+                <span
+                  className="info-value"
+                  style={{ display: "flex", alignItems: "center", gap: "6px" }}
+                >
+                  {clienteSelecionado.score !== undefined &&
+                  clienteSelecionado.score !== null ? (
+                    <span
+                      style={{
+                        fontWeight: "bold",
+                        color:
+                          clienteSelecionado.tipo === "Fast"
+                            ? "#10b981"
+                            : "#ef4444",
+                      }}
+                    >
+                      {clienteSelecionado.score.toFixed(1)} (
+                      {clienteSelecionado.tipo})
                     </span>
                   ) : (
                     "—"
@@ -1685,9 +1889,15 @@ export default function Home() {
                 );
                 return (
                   <>
-                    {(progressoSel >= 100 || clienteSelecionado.dataFinalizacao) && (
+                    {(progressoSel >= 100 ||
+                      clienteSelecionado.dataFinalizacao) && (
                       <div className="info-item">
-                        <span className="info-label" style={{ fontSize: "0.68rem" }}>Finalização da Esteira</span>
+                        <span
+                          className="info-label"
+                          style={{ fontSize: "0.68rem" }}
+                        >
+                          Finalização da Esteira
+                        </span>
                         <span className="info-value">
                           {formatarData(clienteSelecionado.dataFinalizacao)}
                         </span>
@@ -1695,7 +1905,12 @@ export default function Home() {
                     )}
                     {clienteSelecionado.dataFollowUpFinal && (
                       <div className="info-item">
-                        <span className="info-label" style={{ fontSize: "0.68rem" }}>Follow-up Final</span>
+                        <span
+                          className="info-label"
+                          style={{ fontSize: "0.68rem" }}
+                        >
+                          Follow-up Final
+                        </span>
                         <span className="info-value">
                           {formatarData(clienteSelecionado.dataFollowUpFinal)}
                         </span>
@@ -1758,15 +1973,18 @@ export default function Home() {
               <h2>Confirmar Exclusão</h2>
             </div>
             <p className="confirm-modal-text">
-              Deseja realmente excluir o cliente <strong>{clienteSelecionado.nomeEmpresa}</strong>?
-              Esta ação não poderá ser desfeita.
+              Deseja realmente excluir o cliente{" "}
+              <strong>{clienteSelecionado.nomeEmpresa}</strong>? Esta ação não
+              poderá ser desfeita.
             </p>
             <div className="confirm-modal-actions">
               <button
                 className="btn-excluir-confirm"
                 onClick={async () => {
                   if (!clienteSelecionado.id) {
-                    toast.error("Erro: cliente sem ID válido. Não é possível excluir.");
+                    toast.error(
+                      "Erro: cliente sem ID válido. Não é possível excluir.",
+                    );
                     return;
                   }
                   await excluirCliente(clienteSelecionado.id);
@@ -1789,7 +2007,10 @@ export default function Home() {
       {modalClienteAberto && (
         <div className="cliente-overlay">
           <div className="cliente-modal">
-            <div className="cliente-modal-header" style={{ position: "relative" }}>
+            <div
+              className="cliente-modal-header"
+              style={{ position: "relative" }}
+            >
               <button
                 onClick={() => setModalClienteAberto(false)}
                 style={{
@@ -1809,7 +2030,7 @@ export default function Home() {
                   width: "28px",
                   height: "28px",
                   borderRadius: "50%",
-                  transition: "background 0.2s, color 0.2s"
+                  transition: "background 0.2s, color 0.2s",
                 }}
                 className="btn-fechar-modal"
                 title="Fechar"
@@ -1915,7 +2136,9 @@ export default function Home() {
               <label>Contatos</label>
 
               {(clienteForm.contatos || []).length === 0 && (
-                <p className="contatos-vazio">Nenhum contato cadastrado ainda.</p>
+                <p className="contatos-vazio">
+                  Nenhum contato cadastrado ainda.
+                </p>
               )}
 
               <div className="contatos-lista">
@@ -1934,8 +2157,14 @@ export default function Home() {
                           value={c.nome}
                           onChange={(e) => {
                             const novaLista = [...(clienteForm.contatos || [])];
-                            novaLista[idx] = { ...novaLista[idx], nome: e.target.value };
-                            setClienteForm({ ...clienteForm, contatos: novaLista });
+                            novaLista[idx] = {
+                              ...novaLista[idx],
+                              nome: e.target.value,
+                            };
+                            setClienteForm({
+                              ...clienteForm,
+                              contatos: novaLista,
+                            });
                           }}
                         />
                       </div>
@@ -1947,8 +2176,14 @@ export default function Home() {
                           value={c.telefone}
                           onChange={(e) => {
                             const novaLista = [...(clienteForm.contatos || [])];
-                            novaLista[idx] = { ...novaLista[idx], telefone: e.target.value };
-                            setClienteForm({ ...clienteForm, contatos: novaLista });
+                            novaLista[idx] = {
+                              ...novaLista[idx],
+                              telefone: e.target.value,
+                            };
+                            setClienteForm({
+                              ...clienteForm,
+                              contatos: novaLista,
+                            });
                           }}
                         />
                         <span
@@ -1967,8 +2202,13 @@ export default function Home() {
                         className="contato-remover"
                         title="Remover contato"
                         onClick={() => {
-                          const novaLista = (clienteForm.contatos || []).filter((_, i) => i !== idx);
-                          setClienteForm({ ...clienteForm, contatos: novaLista });
+                          const novaLista = (clienteForm.contatos || []).filter(
+                            (_, i) => i !== idx,
+                          );
+                          setClienteForm({
+                            ...clienteForm,
+                            contatos: novaLista,
+                          });
                         }}
                       >
                         ×
@@ -1984,7 +2224,10 @@ export default function Home() {
                 onClick={() =>
                   setClienteForm({
                     ...clienteForm,
-                    contatos: [...(clienteForm.contatos || []), { nome: "", telefone: "" }],
+                    contatos: [
+                      ...(clienteForm.contatos || []),
+                      { nome: "", telefone: "" },
+                    ],
                   })
                 }
               >
@@ -2080,7 +2323,7 @@ export default function Home() {
                 >
                   <option value="">Selecione o produto</option>
                   <option value="Pro">Pro</option>
-                  <option value="Light">Light</option>
+                  <option value="Lite">Lite</option>
                   <option value="Start">Start</option>
                 </select>
               </div>
@@ -2095,26 +2338,35 @@ export default function Home() {
                   onChange={(e) =>
                     setClienteForm({
                       ...clienteForm,
-                      valorContrato: e.target.value ? Number(e.target.value) : undefined,
+                      valorContrato: e.target.value
+                        ? Number(e.target.value)
+                        : undefined,
                     })
                   }
                 />
               </div>
             </div>
 
-
-
-
-
             <div className="form-group">
               <label>Status</label>
               <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap" }}>
-                <label className="checkbox-label" style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+                <label
+                  className="checkbox-label"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    cursor: "pointer",
+                  }}
+                >
                   <input
                     type="checkbox"
                     checked={clienteForm.isOngoing ?? false}
                     onChange={(e) =>
-                      setClienteForm({ ...clienteForm, isOngoing: e.target.checked })
+                      setClienteForm({
+                        ...clienteForm,
+                        isOngoing: e.target.checked,
+                      })
                     }
                   />
                   Cliente Ongoing 🔄
@@ -2132,7 +2384,10 @@ export default function Home() {
                     type="checkbox"
                     checked={clienteForm.isSuspended ?? false}
                     onChange={(e) =>
-                      setClienteForm({ ...clienteForm, isSuspended: e.target.checked })
+                      setClienteForm({
+                        ...clienteForm,
+                        isSuspended: e.target.checked,
+                      })
                     }
                   />
                   Suspenso Temporariamente ⏸️
@@ -2150,7 +2405,10 @@ export default function Home() {
                     type="checkbox"
                     checked={clienteForm.isCancelled ?? false}
                     onChange={(e) =>
-                      setClienteForm({ ...clienteForm, isCancelled: e.target.checked })
+                      setClienteForm({
+                        ...clienteForm,
+                        isCancelled: e.target.checked,
+                      })
                     }
                   />
                   Cliente Cancelado ❌
@@ -2158,7 +2416,9 @@ export default function Home() {
               </div>
             </div>
 
-            <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.5rem" }}>
+            <div
+              style={{ display: "flex", gap: "0.75rem", marginTop: "0.5rem" }}
+            >
               <button
                 type="button"
                 className="btn-cancelar-modal"
@@ -2173,7 +2433,7 @@ export default function Home() {
                   background: "#1e293b",
                   color: "#cbd5e1",
                   fontSize: "0.95rem",
-                  transition: "0.2s ease"
+                  transition: "0.2s ease",
                 }}
               >
                 Cancelar
@@ -2191,17 +2451,33 @@ export default function Home() {
       )}
 
       {modalScoreHomeAberto && (
-        <div className="home-score-modal-overlay" onClick={() => setModalScoreHomeAberto(false)}>
-          <div className="home-score-modal-card" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="home-score-modal-overlay"
+          onClick={() => setModalScoreHomeAberto(false)}
+        >
+          <div
+            className="home-score-modal-card"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="home-score-modal-header">
               <h2>Calcular Score do Cliente</h2>
-              <button className="home-score-modal-fechar" onClick={() => setModalScoreHomeAberto(false)}>✕</button>
+              <button
+                className="home-score-modal-fechar"
+                onClick={() => setModalScoreHomeAberto(false)}
+              >
+                ✕
+              </button>
             </div>
 
             <div className="home-score-modal-body">
               {/* Pergunta 1 */}
               <div className="home-score-pergunta">
-                <label>Contato com o cliente é fácil? * <span className="home-score-hint">(Sim = +0.5 / Não = 0)</span></label>
+                <label>
+                  Contato com o cliente é fácil? *{" "}
+                  <span className="home-score-hint">
+                    (Sim = +0.5 / Não = 0)
+                  </span>
+                </label>
                 <div className="home-radio-group-score">
                   <label>
                     <input
@@ -2209,7 +2485,12 @@ export default function Home() {
                       name="facilContato"
                       value="Sim"
                       checked={respostasScoreHome.facilContato === "Sim"}
-                      onChange={() => setRespostasScoreHome(prev => ({ ...prev, facilContato: "Sim" }))}
+                      onChange={() =>
+                        setRespostasScoreHome((prev) => ({
+                          ...prev,
+                          facilContato: "Sim",
+                        }))
+                      }
                     />
                     Sim
                   </label>
@@ -2219,7 +2500,12 @@ export default function Home() {
                       name="facilContato"
                       value="Não"
                       checked={respostasScoreHome.facilContato === "Não"}
-                      onChange={() => setRespostasScoreHome(prev => ({ ...prev, facilContato: "Não" }))}
+                      onChange={() =>
+                        setRespostasScoreHome((prev) => ({
+                          ...prev,
+                          facilContato: "Não",
+                        }))
+                      }
                     />
                     Não
                   </label>
@@ -2228,7 +2514,12 @@ export default function Home() {
 
               {/* Pergunta 2 */}
               <div className="home-score-pergunta">
-                <label>Cliente entra pelo computador? * <span className="home-score-hint">(Sim = +1.0 / Não = -1.0)</span></label>
+                <label>
+                  Cliente entra pelo computador? *{" "}
+                  <span className="home-score-hint">
+                    (Sim = +1.0 / Não = -1.0)
+                  </span>
+                </label>
                 <div className="home-radio-group-score">
                   <label>
                     <input
@@ -2236,7 +2527,12 @@ export default function Home() {
                       name="entraComputador"
                       value="Sim"
                       checked={respostasScoreHome.entraComputador === "Sim"}
-                      onChange={() => setRespostasScoreHome(prev => ({ ...prev, entraComputador: "Sim" }))}
+                      onChange={() =>
+                        setRespostasScoreHome((prev) => ({
+                          ...prev,
+                          entraComputador: "Sim",
+                        }))
+                      }
                     />
                     Sim
                   </label>
@@ -2246,7 +2542,12 @@ export default function Home() {
                       name="entraComputador"
                       value="Não"
                       checked={respostasScoreHome.entraComputador === "Não"}
-                      onChange={() => setRespostasScoreHome(prev => ({ ...prev, entraComputador: "Não" }))}
+                      onChange={() =>
+                        setRespostasScoreHome((prev) => ({
+                          ...prev,
+                          entraComputador: "Não",
+                        }))
+                      }
                     />
                     Não
                   </label>
@@ -2255,7 +2556,12 @@ export default function Home() {
 
               {/* Pergunta 3 */}
               <div className="home-score-pergunta">
-                <label>Cliente compartilha a tela? * <span className="home-score-hint">(Sim = +1.0 / Não = 0)</span></label>
+                <label>
+                  Cliente compartilha a tela? *{" "}
+                  <span className="home-score-hint">
+                    (Sim = +1.0 / Não = 0)
+                  </span>
+                </label>
                 <div className="home-radio-group-score">
                   <label>
                     <input
@@ -2263,7 +2569,12 @@ export default function Home() {
                       name="compartilhaTela"
                       value="Sim"
                       checked={respostasScoreHome.compartilhaTela === "Sim"}
-                      onChange={() => setRespostasScoreHome(prev => ({ ...prev, compartilhaTela: "Sim" }))}
+                      onChange={() =>
+                        setRespostasScoreHome((prev) => ({
+                          ...prev,
+                          compartilhaTela: "Sim",
+                        }))
+                      }
                     />
                     Sim
                   </label>
@@ -2273,7 +2584,12 @@ export default function Home() {
                       name="compartilhaTela"
                       value="Não"
                       checked={respostasScoreHome.compartilhaTela === "Não"}
-                      onChange={() => setRespostasScoreHome(prev => ({ ...prev, compartilhaTela: "Não" }))}
+                      onChange={() =>
+                        setRespostasScoreHome((prev) => ({
+                          ...prev,
+                          compartilhaTela: "Não",
+                        }))
+                      }
                     />
                     Não
                   </label>
@@ -2282,7 +2598,12 @@ export default function Home() {
 
               {/* Pergunta 4 */}
               <div className="home-score-pergunta">
-                <label>Cliente faz perguntas? * <span className="home-score-hint">(Sim = +1.5 / Não = 0)</span></label>
+                <label>
+                  Cliente faz perguntas? *{" "}
+                  <span className="home-score-hint">
+                    (Sim = +1.5 / Não = 0)
+                  </span>
+                </label>
                 <div className="home-radio-group-score">
                   <label>
                     <input
@@ -2290,7 +2611,12 @@ export default function Home() {
                       name="fazPerguntas"
                       value="Sim"
                       checked={respostasScoreHome.fazPerguntas === "Sim"}
-                      onChange={() => setRespostasScoreHome(prev => ({ ...prev, fazPerguntas: "Sim" }))}
+                      onChange={() =>
+                        setRespostasScoreHome((prev) => ({
+                          ...prev,
+                          fazPerguntas: "Sim",
+                        }))
+                      }
                     />
                     Sim
                   </label>
@@ -2300,7 +2626,12 @@ export default function Home() {
                       name="fazPerguntas"
                       value="Não"
                       checked={respostasScoreHome.fazPerguntas === "Não"}
-                      onChange={() => setRespostasScoreHome(prev => ({ ...prev, fazPerguntas: "Não" }))}
+                      onChange={() =>
+                        setRespostasScoreHome((prev) => ({
+                          ...prev,
+                          fazPerguntas: "Não",
+                        }))
+                      }
                     />
                     Não
                   </label>
@@ -2309,7 +2640,12 @@ export default function Home() {
 
               {/* Pergunta 5 */}
               <div className="home-score-pergunta">
-                <label>Cliente se recorda de temas anteriores? * <span className="home-score-hint">(Sim = +2.0 / Não = 0)</span></label>
+                <label>
+                  Cliente se recorda de temas anteriores? *{" "}
+                  <span className="home-score-hint">
+                    (Sim = +2.0 / Não = 0)
+                  </span>
+                </label>
                 <div className="home-radio-group-score">
                   <label>
                     <input
@@ -2317,7 +2653,12 @@ export default function Home() {
                       name="recordaTemas"
                       value="Sim"
                       checked={respostasScoreHome.recordaTemas === "Sim"}
-                      onChange={() => setRespostasScoreHome(prev => ({ ...prev, recordaTemas: "Sim" }))}
+                      onChange={() =>
+                        setRespostasScoreHome((prev) => ({
+                          ...prev,
+                          recordaTemas: "Sim",
+                        }))
+                      }
                     />
                     Sim
                   </label>
@@ -2327,7 +2668,12 @@ export default function Home() {
                       name="recordaTemas"
                       value="Não"
                       checked={respostasScoreHome.recordaTemas === "Não"}
-                      onChange={() => setRespostasScoreHome(prev => ({ ...prev, recordaTemas: "Não" }))}
+                      onChange={() =>
+                        setRespostasScoreHome((prev) => ({
+                          ...prev,
+                          recordaTemas: "Não",
+                        }))
+                      }
                     />
                     Não
                   </label>
@@ -2336,7 +2682,12 @@ export default function Home() {
 
               {/* Pergunta 6 */}
               <div className="home-score-pergunta">
-                <label>Cliente faltou 2 dias seguidos? * <span className="home-score-hint">(Sim = -1.0 / Não = +1.0)</span></label>
+                <label>
+                  Cliente faltou 2 dias seguidos? *{" "}
+                  <span className="home-score-hint">
+                    (Sim = -1.0 / Não = +1.0)
+                  </span>
+                </label>
                 <div className="home-radio-group-score">
                   <label>
                     <input
@@ -2344,7 +2695,12 @@ export default function Home() {
                       name="faltouDoisDias"
                       value="Sim"
                       checked={respostasScoreHome.faltouDoisDias === "Sim"}
-                      onChange={() => setRespostasScoreHome(prev => ({ ...prev, faltouDoisDias: "Sim" }))}
+                      onChange={() =>
+                        setRespostasScoreHome((prev) => ({
+                          ...prev,
+                          faltouDoisDias: "Sim",
+                        }))
+                      }
                     />
                     Sim
                   </label>
@@ -2354,7 +2710,12 @@ export default function Home() {
                       name="faltouDoisDias"
                       value="Não"
                       checked={respostasScoreHome.faltouDoisDias === "Não"}
-                      onChange={() => setRespostasScoreHome(prev => ({ ...prev, faltouDoisDias: "Não" }))}
+                      onChange={() =>
+                        setRespostasScoreHome((prev) => ({
+                          ...prev,
+                          faltouDoisDias: "Não",
+                        }))
+                      }
                     />
                     Não
                   </label>
@@ -2363,7 +2724,12 @@ export default function Home() {
 
               {/* Pergunta 7 */}
               <div className="home-score-pergunta">
-                <label>Cliente possui estrutura necessária? * <span className="home-score-hint">(Sim = +1.0 / Não = 0)</span></label>
+                <label>
+                  Cliente possui estrutura necessária? *{" "}
+                  <span className="home-score-hint">
+                    (Sim = +1.0 / Não = 0)
+                  </span>
+                </label>
                 <div className="home-radio-group-score">
                   <label>
                     <input
@@ -2371,7 +2737,12 @@ export default function Home() {
                       name="estruturaNecessaria"
                       value="Sim"
                       checked={respostasScoreHome.estruturaNecessaria === "Sim"}
-                      onChange={() => setRespostasScoreHome(prev => ({ ...prev, estruturaNecessaria: "Sim" }))}
+                      onChange={() =>
+                        setRespostasScoreHome((prev) => ({
+                          ...prev,
+                          estruturaNecessaria: "Sim",
+                        }))
+                      }
                     />
                     Sim
                   </label>
@@ -2381,7 +2752,12 @@ export default function Home() {
                       name="estruturaNecessaria"
                       value="Não"
                       checked={respostasScoreHome.estruturaNecessaria === "Não"}
-                      onChange={() => setRespostasScoreHome(prev => ({ ...prev, estruturaNecessaria: "Não" }))}
+                      onChange={() =>
+                        setRespostasScoreHome((prev) => ({
+                          ...prev,
+                          estruturaNecessaria: "Não",
+                        }))
+                      }
                     />
                     Não
                   </label>
@@ -2390,7 +2766,12 @@ export default function Home() {
 
               {/* Pergunta 8 */}
               <div className="home-score-pergunta">
-                <label>Cliente é reclamante? * <span className="home-score-hint">(Sim = -3.0 / Não = +2.0)</span></label>
+                <label>
+                  Cliente é reclamante? *{" "}
+                  <span className="home-score-hint">
+                    (Sim = -3.0 / Não = +2.0)
+                  </span>
+                </label>
                 <div className="home-radio-group-score">
                   <label>
                     <input
@@ -2398,7 +2779,12 @@ export default function Home() {
                       name="clienteReclamante"
                       value="Sim"
                       checked={respostasScoreHome.clienteReclamante === "Sim"}
-                      onChange={() => setRespostasScoreHome(prev => ({ ...prev, clienteReclamante: "Sim" }))}
+                      onChange={() =>
+                        setRespostasScoreHome((prev) => ({
+                          ...prev,
+                          clienteReclamante: "Sim",
+                        }))
+                      }
                     />
                     Sim
                   </label>
@@ -2408,7 +2794,12 @@ export default function Home() {
                       name="clienteReclamante"
                       value="Não"
                       checked={respostasScoreHome.clienteReclamante === "Não"}
-                      onChange={() => setRespostasScoreHome(prev => ({ ...prev, clienteReclamante: "Não" }))}
+                      onChange={() =>
+                        setRespostasScoreHome((prev) => ({
+                          ...prev,
+                          clienteReclamante: "Não",
+                        }))
+                      }
                     />
                     Não
                   </label>
@@ -2417,7 +2808,12 @@ export default function Home() {
 
               {/* Pergunta 9 */}
               <div className="home-score-pergunta">
-                <label>Cliente sumiu? * <span className="home-score-hint">(Sim = -5.0 / Não = 0)</span></label>
+                <label>
+                  Cliente sumiu? *{" "}
+                  <span className="home-score-hint">
+                    (Sim = -5.0 / Não = 0)
+                  </span>
+                </label>
                 <div className="home-radio-group-score">
                   <label>
                     <input
@@ -2425,7 +2821,12 @@ export default function Home() {
                       name="clienteSumido"
                       value="Sim"
                       checked={respostasScoreHome.clienteSumido === "Sim"}
-                      onChange={() => setRespostasScoreHome(prev => ({ ...prev, clienteSumido: "Sim" }))}
+                      onChange={() =>
+                        setRespostasScoreHome((prev) => ({
+                          ...prev,
+                          clienteSumido: "Sim",
+                        }))
+                      }
                     />
                     Sim
                   </label>
@@ -2435,7 +2836,12 @@ export default function Home() {
                       name="clienteSumido"
                       value="Não"
                       checked={respostasScoreHome.clienteSumido === "Não"}
-                      onChange={() => setRespostasScoreHome(prev => ({ ...prev, clienteSumido: "Não" }))}
+                      onChange={() =>
+                        setRespostasScoreHome((prev) => ({
+                          ...prev,
+                          clienteSumido: "Não",
+                        }))
+                      }
                     />
                     Não
                   </label>
@@ -2449,7 +2855,8 @@ export default function Home() {
                   const res = calcularPontuacao(respostasScoreHome);
                   return (
                     <span>
-                      Total Parcial: <strong>{res.score.toFixed(1)}</strong> ({res.tipo})
+                      Total Parcial: <strong>{res.score.toFixed(1)}</strong> (
+                      {res.tipo})
                     </span>
                   );
                 })()}

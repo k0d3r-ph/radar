@@ -88,6 +88,50 @@
   box-shadow: 0 4px 12px rgba(67, 56, 202, 0.35);
 }
 
+.gamificacao-header-acoes {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Botão de indicadores: mesma forma do "Próximo Cliente", em tom teal para
+   diferenciar as duas ações do cabeçalho. */
+.btn-indicadores {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-radius: 12px;
+  border: 1px solid rgba(20, 184, 166, 0.4);
+  background: linear-gradient(135deg, rgba(20, 184, 166, 0.25) 0%, rgba(20, 184, 166, 0.1) 100%);
+  color: #99f6e4;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.btn-indicadores:hover {
+  background: linear-gradient(135deg, rgba(20, 184, 166, 0.4) 0%, rgba(20, 184, 166, 0.18) 100%);
+  border-color: rgba(20, 184, 166, 0.6);
+  transform: translateY(-1px);
+}
+
+.btn-indicadores-light {
+  background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+  border-color: #0f766e;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(15, 118, 110, 0.25);
+}
+
+.btn-indicadores-light:hover {
+  background: linear-gradient(135deg, #0f766e 0%, #115e59 100%);
+  border-color: #115e59;
+  box-shadow: 0 4px 12px rgba(15, 118, 110, 0.35);
+}
+
 /* Grid Layout */
 .gamificacao-grid {
   display: grid;
@@ -1666,6 +1710,350 @@
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+}
+
+/* ── Modal de indicadores por treinador ── */
+.indicadores-modal {
+  width: min(1320px, 95vw);
+  max-height: 88vh;
+  background: #0f172a;
+  border-radius: 16px;
+  padding: 1.75rem;
+  border: 1px solid rgba(20, 184, 166, 0.25);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
+  animation: fadeIn 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  /* min-height 0 permite que o wrapper interno role em vez de estourar */
+  min-height: 0;
+}
+
+.indicadores-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 0.75rem;
+}
+
+.indicadores-modal-title {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.indicadores-modal-title h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  margin: 0;
+}
+
+.indicadores-modal-title p {
+  margin: 0.25rem 0 0;
+  font-size: 0.8rem;
+  color: #9ca3af;
+  line-height: 1.5;
+  max-width: 70ch;
+}
+
+/* Os indicadores ficam nas linhas e os treinadores nas colunas, então a
+   tabela cabe na largura do modal. Só rola na vertical; o cabeçalho com os
+   nomes e a coluna do indicador acompanham a rolagem. */
+.indicadores-tabela-wrapper {
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  min-height: 0;
+}
+
+.indicadores-tabela {
+  table-layout: fixed;
+}
+
+.indicadores-tabela th,
+.indicadores-tabela td {
+  padding: 12px 14px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Com table-layout: fixed, um nome maior que a coluna seria cortado — os
+   nomes dos treinadores quebram em mais de uma linha em vez disso. */
+.indicadores-tabela thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #111c33;
+  white-space: normal;
+  overflow-wrap: break-word;
+  vertical-align: bottom;
+  letter-spacing: 0.3px;
+  line-height: 1.35;
+}
+
+/* A coluna dos indicadores é a mais larga e a única que quebra linha, já que
+   os rótulos são longos e os valores são curtos. */
+.indicadores-tabela th.indicadores-col-rotulo,
+.indicadores-tabela td.indicadores-col-rotulo {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  width: 24%;
+  min-width: 200px;
+  text-align: left;
+  white-space: normal;
+  background: #0f172a;
+  font-weight: 600;
+  color: #ffffff;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.indicadores-tabela td.indicadores-col-rotulo {
+  cursor: help;
+}
+
+.indicadores-tabela thead th.indicadores-col-rotulo {
+  z-index: 3;
+  background: #111c33;
+}
+
+.indicadores-tabela .indicadores-col-total {
+  border-left: 1px solid rgba(20, 184, 166, 0.35);
+  font-weight: 700;
+  color: #99f6e4;
+}
+
+.indicadores-tabela .indicadores-col-meta,
+.indicadores-tabela .indicadores-col-desvio {
+  width: 110px;
+}
+
+.indicadores-tabela .indicadores-col-meta {
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+/* Campo de meta: input curto com a unidade colada à direita. */
+.indicadores-meta-campo {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.indicadores-meta-campo input {
+  width: 100%;
+  min-width: 0;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: #f1f5f9;
+  font-size: 13px;
+  text-align: right;
+  outline: none;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.indicadores-meta-campo input:focus {
+  border-color: rgba(20, 184, 166, 0.6);
+  background: rgba(20, 184, 166, 0.08);
+}
+
+/* Esconde as setinhas do input number, que roubam espaço numa coluna estreita */
+.indicadores-meta-campo input::-webkit-outer-spin-button,
+.indicadores-meta-campo input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.indicadores-meta-campo input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.indicadores-meta-unidade {
+  font-size: 11px;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
+.indicadores-desvio {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.indicadores-desvio-positivo {
+  background: rgba(22, 163, 74, 0.15);
+  color: #4ade80;
+}
+
+.indicadores-desvio-negativo {
+  background: rgba(220, 38, 38, 0.15);
+  color: #f87171;
+}
+
+.indicadores-desvio-vazio {
+  color: #475569;
+}
+
+.indicadores-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 1rem;
+}
+
+.indicadores-legenda {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #94a3b8;
+  line-height: 1.5;
+  max-width: 60ch;
+}
+
+.indicadores-legenda strong {
+  color: #cbd5e1;
+}
+
+.btn-salvar-metas {
+  padding: 10px 20px;
+  border-radius: 10px;
+  border: 1px solid rgba(20, 184, 166, 0.4);
+  background: linear-gradient(135deg, rgba(20, 184, 166, 0.3) 0%, rgba(20, 184, 166, 0.12) 100%);
+  color: #99f6e4;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.btn-salvar-metas:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(20, 184, 166, 0.45) 0%, rgba(20, 184, 166, 0.2) 100%);
+  border-color: rgba(20, 184, 166, 0.65);
+}
+
+.btn-salvar-metas:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.indicadores-tabela tbody tr:hover td {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+.indicadores-tabela tbody tr:hover td.indicadores-col-rotulo {
+  background-color: #16203a;
+}
+
+.indicadores-vazio {
+  text-align: center;
+  color: #64748b;
+  padding: 2rem;
+  margin: 0;
+}
+
+/* Tema claro */
+body.light-theme .indicadores-modal {
+  background: #ffffff;
+  border-color: rgba(15, 118, 110, 0.25);
+}
+
+body.light-theme .indicadores-modal-title h2 {
+  color: #0f172a;
+}
+
+body.light-theme .indicadores-modal-title p {
+  color: #64748b;
+}
+
+body.light-theme .indicadores-tabela thead th,
+body.light-theme .indicadores-tabela thead th.indicadores-col-rotulo {
+  background: #f1f5f9;
+}
+
+body.light-theme .indicadores-tabela td.indicadores-col-rotulo {
+  background: #ffffff;
+  color: #0f172a;
+}
+
+body.light-theme .indicadores-tabela tbody tr:hover td.indicadores-col-rotulo {
+  background: #f8fafc;
+}
+
+body.light-theme .indicadores-tabela .indicadores-col-total {
+  color: #0f766e;
+}
+
+body.light-theme .indicadores-meta-campo input {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+body.light-theme .indicadores-meta-campo input:focus {
+  border-color: #0d9488;
+  background: #f0fdfa;
+}
+
+body.light-theme .indicadores-desvio-positivo {
+  background: rgba(22, 163, 74, 0.12);
+  color: #15803d;
+}
+
+body.light-theme .indicadores-desvio-negativo {
+  background: rgba(220, 38, 38, 0.12);
+  color: #b91c1c;
+}
+
+body.light-theme .indicadores-legenda {
+  color: #64748b;
+}
+
+body.light-theme .indicadores-legenda strong {
+  color: #334155;
+}
+
+body.light-theme .btn-salvar-metas {
+  background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+  border-color: #0f766e;
+  color: #ffffff;
+}
+
+body.light-theme .btn-salvar-metas:hover:not(:disabled) {
+  background: linear-gradient(135deg, #0f766e 0%, #115e59 100%);
+  border-color: #115e59;
+}
+
+/* Em telas estreitas a rolagem lateral volta a ser inevitável se houver
+   muitos treinadores — o mínimo garante que os valores não fiquem espremidos. */
+@media (max-width: 768px) {
+  .indicadores-modal {
+    width: 100%;
+    padding: 1.1rem;
+  }
+
+  .indicadores-tabela th,
+  .indicadores-tabela td {
+    padding: 10px;
+    font-size: 13px;
+  }
+
+  .indicadores-tabela th.indicadores-col-rotulo,
+  .indicadores-tabela td.indicadores-col-rotulo {
+    min-width: 150px;
+  }
 }
 
 .distribuicao-modal-header {

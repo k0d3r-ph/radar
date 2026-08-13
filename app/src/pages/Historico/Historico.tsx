@@ -7,11 +7,20 @@ import {
   removerOcorrencia,
 } from "../../services/ocorrencias";
 import { listarEmpresas, salvarEmpresas } from "../../services/empresas";
-import { normalizarTelefoneWhatsApp, formatarTelefoneExibicao } from "../../utils/telefone";
+import {
+  normalizarTelefoneWhatsApp,
+  formatarTelefoneExibicao,
+} from "../../utils/telefone";
 import { listarUsuarios } from "../../services/auth";
 import type { UsuarioDocument } from "../../services/auth";
 import { enviarMensagemWhatsApp } from "../../services/whatsapp";
-import { obterDestinatariosGestao, montarMensagemAlertaGestao, montarMensagemConclusaoEsteiraGestao, aplicarNomeDestinatario, PLACEHOLDER_NOME } from "../../services/notificacoes";
+import {
+  obterDestinatariosGestao,
+  montarMensagemAlertaGestao,
+  montarMensagemConclusaoEsteiraGestao,
+  aplicarNomeDestinatario,
+  PLACEHOLDER_NOME,
+} from "../../services/notificacoes";
 import type { DestinatarioGestao } from "../../services/notificacoes";
 import { resumirOcorrencias } from "../../services/ia";
 import { generateEsteiraImage } from "../../utils/generateEsteiraImage";
@@ -28,7 +37,10 @@ import { DoughnutChart } from "../../components/DoughnutChart";
 import { BarChart } from "../../components/BarChart";
 import { useAuth } from "../../context/AuthContext";
 import { formatarNome } from "../../utils/formatarNome";
-import { atribuirIdsOcorrencias, obterInfoTipoOcorrencia } from "../../utils/empresaUtils";
+import {
+  atribuirIdsOcorrencias,
+  obterInfoTipoOcorrencia,
+} from "../../utils/empresaUtils";
 import {
   Star,
   GraduationCap,
@@ -53,13 +65,7 @@ const TIPOS = [
   "Solicitação",
 ];
 
-const DEPARTAMENTO = [
-  "Treinamento",
-  "CS",
-  "Suporte",
-  "Hardware",
-  "Comercial",
-];
+const DEPARTAMENTO = ["Treinamento", "CS", "Suporte", "Hardware", "Comercial"];
 
 const DUVIDA_OPCOES = [
   "Acesso a plataforma",
@@ -103,6 +109,7 @@ const SOLICITACAO_OPCOES = [
   "Material de apoio",
   "Troca de email do usuário Admin",
   "Troca de nome da central",
+  "Informações ou configurações de API",
 ];
 
 const DEPARTAMENTO_CLASS: Record<string, string> = {
@@ -154,7 +161,13 @@ const DEPARTAMENTO_CORES: Record<string, string> = {
 };
 
 function getOcorrenciaTimestamp(o: Ocorrencia): number {
-  if ((o.tipo === "Problema" || o.tipo === "Dúvida" || o.departamento === "Suporte") && o.dataOcorrencia && o.dataOcorrencia > 0) {
+  if (
+    (o.tipo === "Problema" ||
+      o.tipo === "Dúvida" ||
+      o.departamento === "Suporte") &&
+    o.dataOcorrencia &&
+    o.dataOcorrencia > 0
+  ) {
     return o.dataOcorrencia;
   }
   return o.createdAt ?? o.dataOcorrencia ?? 0;
@@ -180,16 +193,26 @@ function reordenarTemasEnsinados(
   linhasTema: string[],
   linhasData: string[],
   indicesEnsinados: number[],
-  dataStr: string
+  dataStr: string,
 ): { newTemas: string[]; newDatas: string[]; ultimoIndice: number } {
   const idxInicio = linhasTema.findIndex((t) => normalizarTema(t) === "inicio");
-  const idxConclusao = linhasTema.findIndex((t) => normalizarTema(t) === "conclusao");
+  const idxConclusao = linhasTema.findIndex(
+    (t) => normalizarTema(t) === "conclusao",
+  );
 
-  const inicioItem = idxInicio !== -1 ? { tema: linhasTema[idxInicio], data: linhasData[idxInicio] ?? "" } : null;
-  const conclusaoItem = idxConclusao !== -1 ? { tema: linhasTema[idxConclusao], data: linhasData[idxConclusao] ?? "" } : null;
+  const inicioItem =
+    idxInicio !== -1
+      ? { tema: linhasTema[idxInicio], data: linhasData[idxInicio] ?? "" }
+      : null;
+  const conclusaoItem =
+    idxConclusao !== -1
+      ? { tema: linhasTema[idxConclusao], data: linhasData[idxConclusao] ?? "" }
+      : null;
 
   // "Meio": todos os temas exceto as âncoras fixas — é nele que a reordenação por sequência ocorre
-  const newTemas = linhasTema.filter((_, idx) => idx !== idxInicio && idx !== idxConclusao);
+  const newTemas = linhasTema.filter(
+    (_, idx) => idx !== idxInicio && idx !== idxConclusao,
+  );
   const newDatas = linhasTema
     .map((_, idx) => idx)
     .filter((idx) => idx !== idxInicio && idx !== idxConclusao)
@@ -209,15 +232,19 @@ function reordenarTemasEnsinados(
     const normalizado = normalizarTema(temaAlvo);
 
     if (normalizado === "inicio") {
-      if (inicioItem && inicioItem.data.trim() === "") inicioItem.data = dataStr;
+      if (inicioItem && inicioItem.data.trim() === "")
+        inicioItem.data = dataStr;
       continue;
     }
     if (normalizado === "conclusao") {
-      if (conclusaoItem && conclusaoItem.data.trim() === "") conclusaoItem.data = dataStr;
+      if (conclusaoItem && conclusaoItem.data.trim() === "")
+        conclusaoItem.data = dataStr;
       continue;
     }
 
-    const posAtual = newTemas.findIndex((t) => normalizarTema(t) === normalizado);
+    const posAtual = newTemas.findIndex(
+      (t) => normalizarTema(t) === normalizado,
+    );
 
     if (posAtual === -1 || posAtual < frontIndex) {
       // Já processado/ensinado antes (ou tema duplicado) — não retrocede a fronteira
@@ -253,7 +280,11 @@ function reordenarTemasEnsinados(
   // podem nunca ter tido essa data preenchida). "Conclusão" só conta quando
   // todos os temas do meio já estiverem preenchidos E ela própria tiver data.
   let ultimoIndice = (inicioItem ? 1 : 0) + frontIndex - 1;
-  if (conclusaoItem && conclusaoItem.data.trim() !== "" && frontIndex === newTemas.length) {
+  if (
+    conclusaoItem &&
+    conclusaoItem.data.trim() !== "" &&
+    frontIndex === newTemas.length
+  ) {
     ultimoIndice = temasFinais.length - 1;
   }
 
@@ -273,7 +304,7 @@ const parseInlineMarkdown = (text: string) => {
     parts.push(
       <strong key={match.index} style={{ fontWeight: 700, color: "inherit" }}>
         {match[1]}
-      </strong>
+      </strong>,
     );
     currentIndex = boldRegex.lastIndex;
   }
@@ -301,7 +332,11 @@ const renderMarkdown = (text: string) => {
         marginBottom: "8px",
         fontSize: level === 1 ? "1.4rem" : level === 2 ? "1.2rem" : "1.05rem",
       };
-      return <div key={index} style={style}>{content}</div>;
+      return (
+        <div key={index} style={style}>
+          {content}
+        </div>
+      );
     }
 
     // 2. Bullet list items (e.g. • or - or *)
@@ -309,7 +344,16 @@ const renderMarkdown = (text: string) => {
     if (bulletMatch) {
       const content = parseInlineMarkdown(bulletMatch[2]);
       return (
-        <div key={index} style={{ paddingLeft: "16px", marginBottom: "4px", display: "flex", gap: "6px", alignItems: "flex-start" }}>
+        <div
+          key={index}
+          style={{
+            paddingLeft: "16px",
+            marginBottom: "4px",
+            display: "flex",
+            gap: "6px",
+            alignItems: "flex-start",
+          }}
+        >
           <span style={{ color: "#a5b4fc" }}>•</span>
           <span>{content}</span>
         </div>
@@ -380,7 +424,10 @@ const INITIAL_SCORE_ANSWERS: ScoreFormAnswers = {
   clienteSumido: "",
 };
 
-function calcularPontuacao(respostas: ScoreFormAnswers): { score: number; tipo: "Fast" | "Safety" } {
+function calcularPontuacao(respostas: ScoreFormAnswers): {
+  score: number;
+  tipo: "Fast" | "Safety";
+} {
   let score = 0;
 
   if (respostas.facilContato === "Sim") score += 0.5;
@@ -415,7 +462,10 @@ function calcularPontuacao(respostas: ScoreFormAnswers): { score: number; tipo: 
   return { score, tipo };
 }
 
-function descreverMudancas(antigo: ScoreFormAnswers, novo: ScoreFormAnswers): string[] {
+function descreverMudancas(
+  antigo: ScoreFormAnswers,
+  novo: ScoreFormAnswers,
+): string[] {
   const mudancas: string[] = [];
 
   const descreverSimNao = (val: string) => {
@@ -461,31 +511,49 @@ function descreverMudancas(antigo: ScoreFormAnswers, novo: ScoreFormAnswers): st
   };
 
   if (antigo.facilContato !== novo.facilContato) {
-    mudancas.push(`- Contato com o cliente: de "${descreverFacilContato(antigo.facilContato)}" para "${descreverFacilContato(novo.facilContato)}"`);
+    mudancas.push(
+      `- Contato com o cliente: de "${descreverFacilContato(antigo.facilContato)}" para "${descreverFacilContato(novo.facilContato)}"`,
+    );
   }
   if (antigo.entraComputador !== novo.entraComputador) {
-    mudancas.push(`- Cliente entra pelo computador: de "${descreverEntraComputador(antigo.entraComputador)}" para "${descreverEntraComputador(novo.entraComputador)}"`);
+    mudancas.push(
+      `- Cliente entra pelo computador: de "${descreverEntraComputador(antigo.entraComputador)}" para "${descreverEntraComputador(novo.entraComputador)}"`,
+    );
   }
   if (antigo.compartilhaTela !== novo.compartilhaTela) {
-    mudancas.push(`- Cliente compartilha a tela: de "${descreverSimNao(antigo.compartilhaTela)}" para "${descreverSimNao(novo.compartilhaTela)}"`);
+    mudancas.push(
+      `- Cliente compartilha a tela: de "${descreverSimNao(antigo.compartilhaTela)}" para "${descreverSimNao(novo.compartilhaTela)}"`,
+    );
   }
   if (antigo.fazPerguntas !== novo.fazPerguntas) {
-    mudancas.push(`- Cliente faz perguntas: de "${descreverSimNao(antigo.fazPerguntas)}" para "${descreverSimNao(novo.fazPerguntas)}"`);
+    mudancas.push(
+      `- Cliente faz perguntas: de "${descreverSimNao(antigo.fazPerguntas)}" para "${descreverSimNao(novo.fazPerguntas)}"`,
+    );
   }
   if (antigo.recordaTemas !== novo.recordaTemas) {
-    mudancas.push(`- Cliente se recorda de temas anteriores: de "${descreverSimNao(antigo.recordaTemas)}" para "${descreverSimNao(novo.recordaTemas)}"`);
+    mudancas.push(
+      `- Cliente se recorda de temas anteriores: de "${descreverSimNao(antigo.recordaTemas)}" para "${descreverSimNao(novo.recordaTemas)}"`,
+    );
   }
   if (antigo.faltouDoisDias !== novo.faltouDoisDias) {
-    mudancas.push(`- Cliente faltou 2 dias seguidos: de "${descreverFaltouDoisDias(antigo.faltouDoisDias)}" para "${descreverFaltouDoisDias(novo.faltouDoisDias)}"`);
+    mudancas.push(
+      `- Cliente faltou 2 dias seguidos: de "${descreverFaltouDoisDias(antigo.faltouDoisDias)}" para "${descreverFaltouDoisDias(novo.faltouDoisDias)}"`,
+    );
   }
   if (antigo.estruturaNecessaria !== novo.estruturaNecessaria) {
-    mudancas.push(`- Cliente possui estrutura necessária: de "${descreverEstrutura(antigo.estruturaNecessaria)}" para "${descreverEstrutura(novo.estruturaNecessaria)}"`);
+    mudancas.push(
+      `- Cliente possui estrutura necessária: de "${descreverEstrutura(antigo.estruturaNecessaria)}" para "${descreverEstrutura(novo.estruturaNecessaria)}"`,
+    );
   }
   if (antigo.clienteReclamante !== novo.clienteReclamante) {
-    mudancas.push(`- Cliente é reclamante: de "${descreverReclamante(antigo.clienteReclamante)}" para "${descreverReclamante(novo.clienteReclamante)}"`);
+    mudancas.push(
+      `- Cliente é reclamante: de "${descreverReclamante(antigo.clienteReclamante)}" para "${descreverReclamante(novo.clienteReclamante)}"`,
+    );
   }
   if (antigo.clienteSumido !== novo.clienteSumido) {
-    mudancas.push(`- Cliente sumiu: de "${descreverSumico(antigo.clienteSumido)}" para "${descreverSumico(novo.clienteSumido)}"`);
+    mudancas.push(
+      `- Cliente sumiu: de "${descreverSumico(antigo.clienteSumido)}" para "${descreverSumico(novo.clienteSumido)}"`,
+    );
   }
 
   return mudancas;
@@ -543,10 +611,9 @@ function descreverRespostas(respostas: ScoreFormAnswers): string[] {
     `- Cliente faltou 2 dias seguidos: "${descreverFaltouDoisDias(respostas.faltouDoisDias)}"`,
     `- Cliente possui estrutura necessária: "${descreverEstrutura(respostas.estruturaNecessaria)}"`,
     `- Cliente é reclamante: "${descreverReclamante(respostas.clienteReclamante)}"`,
-    `- Cliente sumiu: "${descreverSumico(respostas.clienteSumido)}"`
+    `- Cliente sumiu: "${descreverSumico(respostas.clienteSumido)}"`,
   ];
 }
-
 
 export function Historico() {
   const { role, userName, user } = useAuth();
@@ -560,11 +627,18 @@ export function Historico() {
   const [iaResumo, setIaResumo] = useState("");
   const [iaCarregando, setIaCarregando] = useState(false);
   const [iaErro, setIaErro] = useState("");
-  const [respostasScore, setRespostasScore] = useState<ScoreFormAnswers>({ ...INITIAL_SCORE_ANSWERS });
-  const [calculoScoreResult, setCalculoScoreResult] = useState<{ score: number | null; tipo: "Fast" | "Safety" | ""; isNeutro?: boolean } | null>(null);
+  const [respostasScore, setRespostasScore] = useState<ScoreFormAnswers>({
+    ...INITIAL_SCORE_ANSWERS,
+  });
+  const [calculoScoreResult, setCalculoScoreResult] = useState<{
+    score: number | null;
+    tipo: "Fast" | "Safety" | "";
+    isNeutro?: boolean;
+  } | null>(null);
 
   // WhatsApp Integration States
-  const [whatsappConfirmModalOpen, setWhatsappConfirmModalOpen] = useState(false);
+  const [whatsappConfirmModalOpen, setWhatsappConfirmModalOpen] =
+    useState(false);
   const [pendingWhatsAppMessage, setPendingWhatsAppMessage] = useState<{
     ocorrenciaId: string;
     destinatarios: { nome: string; telefone: string }[];
@@ -579,7 +653,9 @@ export function Historico() {
 
   // Notificação de Gestão (Alerta -> Supervisor + CS Responsável) via WhatsApp
   const [gestaoConfirmModalOpen, setGestaoConfirmModalOpen] = useState(false);
-  const [gestaoDestinatarios, setGestaoDestinatarios] = useState<DestinatarioGestao[]>([]);
+  const [gestaoDestinatarios, setGestaoDestinatarios] = useState<
+    DestinatarioGestao[]
+  >([]);
   const [gestaoAvisos, setGestaoAvisos] = useState<string[]>([]);
   const [gestaoMensagem, setGestaoMensagem] = useState("");
 
@@ -595,16 +671,23 @@ export function Historico() {
   const [form, setForm] = useState({ ...EMPTY });
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
-  const [filtroTipo, setFiltroTipo] = useState(() => searchParams.get("tipo") || "");
+  const [filtroTipo, setFiltroTipo] = useState(
+    () => searchParams.get("tipo") || "",
+  );
   const [filtroDepto, setFiltroDepto] = useState("");
-  const [dataInicio, setDataInicio] = useState(() => searchParams.get("dataInicio") || "");
-  const [dataFim, setDataFim] = useState(() => searchParams.get("dataFim") || "");
+  const [dataInicio, setDataInicio] = useState(
+    () => searchParams.get("dataInicio") || "",
+  );
+  const [dataFim, setDataFim] = useState(
+    () => searchParams.get("dataFim") || "",
+  );
   const [ordenacaoData, setOrdenacaoData] = useState<"desc" | "asc">("desc");
   const [loading, setLoading] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [painelAberto, setPainelAberto] = useState(false);
   const [usarTemplate, setUsarTemplate] = useState(true);
-  const [temaOcorrenciaOngoingText, setTemaOcorrenciaOngoingText] = useState("");
+  const [temaOcorrenciaOngoingText, setTemaOcorrenciaOngoingText] =
+    useState("");
   const [isRevisao, setIsRevisao] = useState(false);
   const [temaForaEsteira, setTemaForaEsteira] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -637,7 +720,9 @@ export function Historico() {
   const handleRemoveNota = (index: number) => {
     setForm((f) => ({
       ...f,
-      treinamentoNotas: (f.treinamentoNotas ?? []).filter((_, i) => i !== index),
+      treinamentoNotas: (f.treinamentoNotas ?? []).filter(
+        (_, i) => i !== index,
+      ),
     }));
   };
   const empresaFiltro = searchParams.get("empresa") || "";
@@ -646,7 +731,15 @@ export function Historico() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [busca, filtroTipo, filtroDepto, dataInicio, dataFim, empresaFiltro, expedienteFiltro]);
+  }, [
+    busca,
+    filtroTipo,
+    filtroDepto,
+    dataInicio,
+    dataFim,
+    empresaFiltro,
+    expedienteFiltro,
+  ]);
 
   useEffect(() => {
     if (!loading && ocorrenciaIdFiltro && ocorrencias.length > 0) {
@@ -657,9 +750,12 @@ export function Historico() {
     }
   }, [loading, ocorrenciaIdFiltro, ocorrencias]);
 
-
-  const temAusenteOuCancelado = form.temaOcorrencia?.some(t => t === "Ausente" || t === "Cancelado") ?? false;
-  const temOutrosTemas = form.temaOcorrencia?.some(t => t !== "Ausente" && t !== "Cancelado") ?? false;
+  const temAusenteOuCancelado =
+    form.temaOcorrencia?.some((t) => t === "Ausente" || t === "Cancelado") ??
+    false;
+  const temOutrosTemas =
+    form.temaOcorrencia?.some((t) => t !== "Ausente" && t !== "Cancelado") ??
+    false;
   const temTemaValido = temOutrosTemas && !temAusenteOuCancelado;
 
   async function carregar() {
@@ -706,7 +802,7 @@ export function Historico() {
     setNovaAtualizacaoAberta(false);
     setNovaDescricaoAtual("");
     setNovoResponsavelAtual("");
-    const updatedSelected = novasOcs.find(o => o.id === selecionada!.id);
+    const updatedSelected = novasOcs.find((o) => o.id === selecionada!.id);
     setSelecionada(updatedSelected || atualizado);
     toast.success("Atualização incluída!");
   }
@@ -733,7 +829,7 @@ export function Historico() {
     try {
       await salvarOcorrencia(atualizado);
       const novasOcs = await carregar();
-      const updatedSelected = novasOcs.find(o => o.id === selecionada!.id);
+      const updatedSelected = novasOcs.find((o) => o.id === selecionada!.id);
       setSelecionada(updatedSelected || atualizado);
       setEditingUpdateIdx(null);
       setEditingUpdateText("");
@@ -765,7 +861,9 @@ export function Historico() {
           try {
             await salvarOcorrencia(atualizado);
             const novasOcs = await carregar();
-            const updatedSelected = novasOcs.find(o => o.id === selecionada.id);
+            const updatedSelected = novasOcs.find(
+              (o) => o.id === selecionada.id,
+            );
             setSelecionada(updatedSelected || atualizado);
             toast.success("Atualização excluída com sucesso!");
           } catch (error) {
@@ -781,7 +879,6 @@ export function Historico() {
     });
   }
 
-
   function fecharDetalhe() {
     setSelecionada(null);
     setNovaAtualizacaoAberta(false);
@@ -792,7 +889,6 @@ export function Historico() {
   useEffect(() => {
     carregar();
   }, []);
-
 
   useEffect(() => {
     if (selecionada) {
@@ -810,11 +906,11 @@ export function Historico() {
 
     if (form.tipo === "Treinamento") {
       if (usarTemplate && !form.descricao.trim()) {
-        setForm(f => ({ ...f, descricao: TEMPLATE_TREINAMENTO }));
+        setForm((f) => ({ ...f, descricao: TEMPLATE_TREINAMENTO }));
       }
     } else {
       if (form.descricao === TEMPLATE_TREINAMENTO) {
-        setForm(f => ({ ...f, descricao: "" }));
+        setForm((f) => ({ ...f, descricao: "" }));
       }
     }
   }, [form.tipo, form.descricao, editandoId, usarTemplate]);
@@ -834,7 +930,11 @@ export function Historico() {
         next.temaOcorrencia = [];
         setTemaOcorrenciaOngoingText("");
       }
-      if (campo === "tipo" && f.tipo !== valor && (f.tipo === "Treinamento" || f.tipo === "Dúvida")) {
+      if (
+        campo === "tipo" &&
+        f.tipo !== valor &&
+        (f.tipo === "Treinamento" || f.tipo === "Dúvida")
+      ) {
         next.temaOcorrencia = [];
         setTemaOcorrenciaOngoingText("");
       }
@@ -845,7 +945,12 @@ export function Historico() {
   function abrirNovo() {
     const deptos = getAllowedDepartments();
     const deptoPadrao = deptos.length === 1 ? deptos[0] : "";
-    setForm({ ...EMPTY, empresa: empresaFiltro || "", responsavel: userName, departamento: deptoPadrao });
+    setForm({
+      ...EMPTY,
+      empresa: empresaFiltro || "",
+      responsavel: userName,
+      departamento: deptoPadrao,
+    });
     setTemaOcorrenciaOngoingText("");
     setEditandoId(null);
     setUsarTemplate(true);
@@ -897,7 +1002,9 @@ export function Historico() {
       treinamentoDataSolicitacao: o.treinamentoDataSolicitacao || "",
       treinamentoTempoAgenda: o.treinamentoTempoAgenda || "",
       treinamentoSolicitante: o.treinamentoSolicitante || "CS",
-      treinamentoNotas: o.treinamentoNotas ? o.treinamentoNotas.map(String) : [],
+      treinamentoNotas: o.treinamentoNotas
+        ? o.treinamentoNotas.map(String)
+        : [],
       createdAt: dataCriacaoFormatada,
       horaCriacao: horaCriacaoFormatada,
       retornarEsteira: o.retornarEsteira ?? false,
@@ -928,7 +1035,9 @@ export function Historico() {
   }
 
   async function salvar() {
-    const responsavelFinal = formatarNome(editandoId ? form.responsavel : userName);
+    const responsavelFinal = formatarNome(
+      editandoId ? form.responsavel : userName,
+    );
 
     if (
       !form.empresa.trim() ||
@@ -941,16 +1050,20 @@ export function Historico() {
     }
 
     const empresaObjeto = empresasList.find(
-      (e) => normalizar(e.nomeEmpresa) === normalizar(form.empresa)
+      (e) => normalizar(e.nomeEmpresa) === normalizar(form.empresa),
     );
 
     if (!empresaObjeto) {
-      toast.error("A empresa especificada não foi encontrada. Selecione uma empresa cadastrada válida.");
+      toast.error(
+        "A empresa especificada não foi encontrada. Selecione uma empresa cadastrada válida.",
+      );
       return;
     }
 
     const CanceladoOuAusente = (form.temaOcorrencia ?? []).some(
-      (t) => t.trim().toLowerCase() === "cancelado" || t.trim().toLowerCase() === "ausente"
+      (t) =>
+        t.trim().toLowerCase() === "cancelado" ||
+        t.trim().toLowerCase() === "ausente",
     );
 
     if (form.tipo === "Treinamento") {
@@ -969,10 +1082,16 @@ export function Historico() {
 
       const rawNotas = form.treinamentoNotas ?? [];
       const hasInvalidNota = rawNotas.some(
-        (n) => n.trim() === "" || isNaN(parseInt(n, 10)) || parseInt(n, 10) < 1 || parseInt(n, 10) > 5
+        (n) =>
+          n.trim() === "" ||
+          isNaN(parseInt(n, 10)) ||
+          parseInt(n, 10) < 1 ||
+          parseInt(n, 10) > 5,
       );
       if (hasInvalidNota) {
-        toast.error("As notas preenchidas devem ser valores inteiros entre 1 e 5.");
+        toast.error(
+          "As notas preenchidas devem ser valores inteiros entre 1 e 5.",
+        );
         return;
       }
     }
@@ -997,7 +1116,9 @@ export function Historico() {
       !isOngoing &&
       !(form.tipo === "Treinamento" && CanceladoOuAusente)
     ) {
-      toast.error("O cálculo de score é obrigatório para ocorrências do tipo Informativa ou Treinamento.");
+      toast.error(
+        "O cálculo de score é obrigatório para ocorrências do tipo Informativa ou Treinamento.",
+      );
       return;
     }
 
@@ -1024,9 +1145,14 @@ export function Historico() {
       validNotas = (form.treinamentoNotas ?? [])
         .map((n) => parseInt(n, 10))
         .filter((n) => !isNaN(n));
-      computedMedia = validNotas.length > 0
-        ? parseFloat((validNotas.reduce((sum, n) => sum + n, 0) / validNotas.length).toFixed(2))
-        : null;
+      computedMedia =
+        validNotas.length > 0
+          ? parseFloat(
+              (
+                validNotas.reduce((sum, n) => sum + n, 0) / validNotas.length
+              ).toFixed(2),
+            )
+          : null;
 
       let d: Date;
       if (editandoId && ocorrenciaOriginal?.createdAt) {
@@ -1041,18 +1167,22 @@ export function Historico() {
     }
 
     // Quando for revisão, os temas recebem prefixo "Revisão de" (exceto Ausente/Cancelado)
-    const temaOcorrenciaFinal = form.tipo === "Treinamento" && isRevisao
-      ? (form.temaOcorrencia ?? []).map((t) =>
-          t.trim().toLowerCase() === "ausente" || t.trim().toLowerCase() === "cancelado"
-            ? t
-            : `Revisão de ${t}`
-        )
-      : (form.temaOcorrencia ?? []);
+    const temaOcorrenciaFinal =
+      form.tipo === "Treinamento" && isRevisao
+        ? (form.temaOcorrencia ?? []).map((t) =>
+            t.trim().toLowerCase() === "ausente" ||
+            t.trim().toLowerCase() === "cancelado"
+              ? t
+              : `Revisão de ${t}`,
+          )
+        : (form.temaOcorrencia ?? []);
 
     let finalCreatedAt: number | undefined = undefined;
     if (role === "master" && form.createdAt) {
       const [year, month, day] = form.createdAt.split("-").map(Number);
-      const originalTime = ocorrenciaOriginal?.createdAt ? new Date(ocorrenciaOriginal.createdAt) : new Date();
+      const originalTime = ocorrenciaOriginal?.createdAt
+        ? new Date(ocorrenciaOriginal.createdAt)
+        : new Date();
       const [hours, minutes] = form.horaCriacao
         ? form.horaCriacao.split(":").map(Number)
         : [originalTime.getHours(), originalTime.getMinutes()];
@@ -1063,7 +1193,7 @@ export function Historico() {
         hours,
         minutes,
         form.horaCriacao ? 0 : originalTime.getSeconds(),
-        form.horaCriacao ? 0 : originalTime.getMilliseconds()
+        form.horaCriacao ? 0 : originalTime.getMilliseconds(),
       ).getTime();
     } else if (ocorrenciaOriginal?.createdAt) {
       finalCreatedAt = ocorrenciaOriginal.createdAt;
@@ -1077,25 +1207,36 @@ export function Historico() {
       responsavel: responsavelFinal,
       dataOcorrencia: timestamp,
       atualizacoes: ocorrenciaOriginal?.atualizacoes ?? [],
-      scoreCalculado: calculoScoreResult ? (calculoScoreResult.isNeutro ? null : calculoScoreResult.score) : ocorrenciaOriginal?.scoreCalculado,
-      scoreAnswers: calculoScoreResult ? (calculoScoreResult.isNeutro ? null : respostasScore) : ocorrenciaOriginal?.scoreAnswers,
+      scoreCalculado: calculoScoreResult
+        ? calculoScoreResult.isNeutro
+          ? null
+          : calculoScoreResult.score
+        : ocorrenciaOriginal?.scoreCalculado,
+      scoreAnswers: calculoScoreResult
+        ? calculoScoreResult.isNeutro
+          ? null
+          : respostasScore
+        : ocorrenciaOriginal?.scoreAnswers,
       temaOcorrencia: temaOcorrenciaFinal,
       isRevisao: form.tipo === "Treinamento" ? isRevisao : undefined,
-      temaForaEsteira: form.tipo === "Treinamento" ? temaForaEsteira : undefined,
-      ...(form.tipo === "Treinamento" ? {
-        treinamentoDataSolicitacao: form.treinamentoDataSolicitacao,
-        treinamentoTempoAgenda: form.treinamentoTempoAgenda,
-        treinamentoSolicitante: form.treinamentoSolicitante,
-        treinamentoNotas: validNotas,
-        treinamentoNotaMedia: computedMedia,
-      } : {
-        treinamentoDataSolicitacao: undefined,
-        treinamentoTempoAgenda: undefined,
-        treinamentoSolicitante: undefined,
-        treinamentoNotas: undefined,
-        treinamentoNotaMedia: undefined,
-        gamificacaoPontoId: undefined,
-      })
+      temaForaEsteira:
+        form.tipo === "Treinamento" ? temaForaEsteira : undefined,
+      ...(form.tipo === "Treinamento"
+        ? {
+            treinamentoDataSolicitacao: form.treinamentoDataSolicitacao,
+            treinamentoTempoAgenda: form.treinamentoTempoAgenda,
+            treinamentoSolicitante: form.treinamentoSolicitante,
+            treinamentoNotas: validNotas,
+            treinamentoNotaMedia: computedMedia,
+          }
+        : {
+            treinamentoDataSolicitacao: undefined,
+            treinamentoTempoAgenda: undefined,
+            treinamentoSolicitante: undefined,
+            treinamentoNotas: undefined,
+            treinamentoNotaMedia: undefined,
+            gamificacaoPontoId: undefined,
+          }),
     };
 
     setSalvando(true);
@@ -1112,28 +1253,36 @@ export function Historico() {
         score: novoScore,
         tipo: novoTipo,
         scoreAnswers: calculoScoreResult.isNeutro ? null : respostasScore,
-        updatedAt: Date.now()
+        updatedAt: Date.now(),
       });
 
       // Gera a ocorrência se for o primeiro cálculo OU se o tipo mudou (desde que não seja marcado como Neutro).
       const isPrimeiroCalculo = typeof antigoScore !== "number";
       const tipoMudou = antigoTipo !== novoTipo;
-      const deveGerarOcorrencia = (isPrimeiroCalculo || tipoMudou) && !calculoScoreResult.isNeutro;
+      const deveGerarOcorrencia =
+        (isPrimeiroCalculo || tipoMudou) && !calculoScoreResult.isNeutro;
 
       if (deveGerarOcorrencia) {
         let descMudanca: string;
         if (isPrimeiroCalculo) {
           const marcadas = descreverRespostas(respostasScore);
-          const marcadasTexto = marcadas.length > 0 ? "\n\nRespostas marcadas:\n" + marcadas.join("\n") : "";
+          const marcadasTexto =
+            marcadas.length > 0
+              ? "\n\nRespostas marcadas:\n" + marcadas.join("\n")
+              : "";
           descMudanca = `Cálculo inicial de score: ${novoTipo || "Neutro"}
 
 Score atual: ${novoScore !== null ? novoScore : "Neutro"}${marcadasTexto}`;
         } else {
           let mudancasTexto = "";
           if (empresaObjeto.scoreAnswers) {
-            const mudancas = descreverMudancas(empresaObjeto.scoreAnswers, respostasScore);
+            const mudancas = descreverMudancas(
+              empresaObjeto.scoreAnswers,
+              respostasScore,
+            );
             if (mudancas.length > 0) {
-              mudancasTexto = "\n\nAlterações detalhadas:\n" + mudancas.join("\n");
+              mudancasTexto =
+                "\n\nAlterações detalhadas:\n" + mudancas.join("\n");
             }
           }
 
@@ -1149,14 +1298,20 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
           descricao: descMudanca,
           responsavel: responsavelFinal,
           departamento: form.departamento || "CS",
-          dataOcorrencia: 0
+          dataOcorrencia: 0,
         });
       }
     }
 
     // Se a ocorrência foi desmarcada como retirarAlerta mas tinha um alertaOriginalId vinculado
-    if (editandoId && !form.retirarAlerta && ocorrenciaOriginal?.alertaOriginalId) {
-      const origDoc = ocorrencias.find((o) => o.id === ocorrenciaOriginal.alertaOriginalId);
+    if (
+      editandoId &&
+      !form.retirarAlerta &&
+      ocorrenciaOriginal?.alertaOriginalId
+    ) {
+      const origDoc = ocorrencias.find(
+        (o) => o.id === ocorrenciaOriginal.alertaOriginalId,
+      );
       if (origDoc) {
         await salvarOcorrencia({
           ...origDoc,
@@ -1167,8 +1322,14 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
     }
 
     // Se a ocorrência foi desmarcada como alerta mas tinha um alertaResolvidoPorId vinculado
-    if (editandoId && !form.alerta && ocorrenciaOriginal?.alertaResolvidoPorId) {
-      const resDoc = ocorrencias.find((o) => o.id === ocorrenciaOriginal.alertaResolvidoPorId);
+    if (
+      editandoId &&
+      !form.alerta &&
+      ocorrenciaOriginal?.alertaResolvidoPorId
+    ) {
+      const resDoc = ocorrencias.find(
+        (o) => o.id === ocorrenciaOriginal.alertaResolvidoPorId,
+      );
       if (resDoc) {
         await salvarOcorrencia({
           ...resDoc,
@@ -1182,7 +1343,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
     if (form.tipo === "Treinamento" && user?.uid) {
       const isZeroPoints = (form.temaOcorrencia ?? []).some(
-        (t) => t.trim().toLowerCase() === "cancelado" || t.trim().toLowerCase() === "ausente"
+        (t) =>
+          t.trim().toLowerCase() === "cancelado" ||
+          t.trim().toLowerCase() === "ausente",
       );
       const pontosAAplicar = isZeroPoints ? 0 : 1;
 
@@ -1206,15 +1369,19 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       }
 
       let finalTreinadorId = user.uid;
-      let finalTreinadorNome = formatarNome(userName) || user.email || "Treinador";
+      let finalTreinadorNome =
+        formatarNome(userName) || user.email || "Treinador";
 
       if (usuariosList.length > 0 && responsavelFinal) {
         const trainerObj = usuariosList.find(
-          (u) => formatarNome(u.nome).toLowerCase() === formatarNome(responsavelFinal).toLowerCase()
+          (u) =>
+            formatarNome(u.nome).toLowerCase() ===
+            formatarNome(responsavelFinal).toLowerCase(),
         );
         if (trainerObj) {
           finalTreinadorId = trainerObj.uid;
-          finalTreinadorNome = formatarNome(trainerObj.nome) || trainerObj.email || "Treinador";
+          finalTreinadorNome =
+            formatarNome(trainerObj.nome) || trainerObj.email || "Treinador";
         }
       }
 
@@ -1240,19 +1407,25 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         try {
           await atualizarLancamentoPonto(pontoId, {
             ...lancamentoDados,
-            ...(finalCreatedAt !== undefined ? { dataLancamento: finalCreatedAt } : {}),
+            ...(finalCreatedAt !== undefined
+              ? { dataLancamento: finalCreatedAt }
+              : {}),
           });
         } catch (error) {
           console.error("Erro ao atualizar lançamento de ponto:", error);
           pontoId = await salvarLancamentoPonto({
             ...lancamentoDados,
-            ...(finalCreatedAt !== undefined ? { dataLancamento: finalCreatedAt } : {}),
+            ...(finalCreatedAt !== undefined
+              ? { dataLancamento: finalCreatedAt }
+              : {}),
           });
         }
       } else {
         pontoId = await salvarLancamentoPonto({
           ...lancamentoDados,
-          ...(finalCreatedAt !== undefined ? { dataLancamento: finalCreatedAt } : {}),
+          ...(finalCreatedAt !== undefined
+            ? { dataLancamento: finalCreatedAt }
+            : {}),
         });
       }
 
@@ -1266,7 +1439,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       base.gamificacaoPontoId = "";
     }
 
-    const savedId = await salvarOcorrencia(editandoId ? { ...base, id: editandoId } : base);
+    const savedId = await salvarOcorrencia(
+      editandoId ? { ...base, id: editandoId } : base,
+    );
 
     // Notificações automáticas (best-effort — erros não bloqueiam o fluxo)
     // Alerta: notifica quando a ocorrência *vira* alerta, seja ao criar ou ao editar.
@@ -1274,7 +1449,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
     // ocorrência que já era alerta.
     if (form.alerta && !ocorrenciaOriginal?.alerta) {
       const empresaObjetoAlerta = empresasList.find(
-        (e) => normalizar(e.nomeEmpresa) === normalizar(form.empresa)
+        (e) => normalizar(e.nomeEmpresa) === normalizar(form.empresa),
       );
       if (empresaObjetoAlerta) {
         obterDestinatariosGestao(empresaObjetoAlerta)
@@ -1282,11 +1457,16 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             if (destinatarios.length === 0) return;
             setGestaoDestinatarios(destinatarios);
             setGestaoAvisos(avisos);
-            setGestaoMensagem(montarMensagemAlertaGestao(empresaObjetoAlerta, savedId));
+            setGestaoMensagem(
+              montarMensagemAlertaGestao(empresaObjetoAlerta, savedId),
+            );
             setGestaoConfirmModalOpen(true);
           })
           .catch((err) =>
-            console.error("[notificações] Falha ao montar destinatários de alerta:", err)
+            console.error(
+              "[notificações] Falha ao montar destinatários de alerta:",
+              err,
+            ),
           );
       }
     }
@@ -1295,7 +1475,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       try {
         await salvarEmpresas({
           ...empresaObjeto,
-          ...(!!form.alerta !== !!empresaObjeto.alerta || form.retirarAlerta ? { alerta: !!form.alerta } : {}),
+          ...(!!form.alerta !== !!empresaObjeto.alerta || form.retirarAlerta
+            ? { alerta: !!form.alerta }
+            : {}),
           isSuspended: false,
           updatedAt: Date.now(),
         });
@@ -1310,7 +1492,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
           updatedAt: Date.now(),
         });
       } catch (error) {
-        console.error("Erro ao sincronizar status de alerta na empresa:", error);
+        console.error(
+          "Erro ao sincronizar status de alerta na empresa:",
+          error,
+        );
       }
     }
 
@@ -1321,7 +1506,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
           isAlerta: form.alerta || false,
         });
       } catch (error) {
-        console.error("Erro ao vincular ocorrência ao ponto de gamificação:", error);
+        console.error(
+          "Erro ao vincular ocorrência ao ponto de gamificação:",
+          error,
+        );
       }
     }
 
@@ -1333,9 +1521,13 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             normalizar(o.empresa) === normalizar(form.empresa) &&
             o.alerta === true &&
             !o.alertaResolvidoPorId &&
-            o.id !== savedId
+            o.id !== savedId,
         )
-        .sort((a, b) => (b.dataOcorrencia || b.createdAt || 0) - (a.dataOcorrencia || a.createdAt || 0))[0];
+        .sort(
+          (a, b) =>
+            (b.dataOcorrencia || b.createdAt || 0) -
+            (a.dataOcorrencia || a.createdAt || 0),
+        )[0];
 
       if (alertaOriginal) {
         // Atualiza a ocorrência de alerta original para apontar para esta resolução
@@ -1363,14 +1555,22 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       empresaObjeto
     ) {
       const temasValidos = (form.temaOcorrencia ?? []).filter(
-        (t) => t.trim().toLowerCase() !== "ausente" && t.trim().toLowerCase() !== "cancelado"
+        (t) =>
+          t.trim().toLowerCase() !== "ausente" &&
+          t.trim().toLowerCase() !== "cancelado",
       );
 
       if (temasValidos.length > 0) {
         const normTema = (s: string) =>
-          s.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+          s
+            .trim()
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "");
 
-        const linhasTema = (empresaObjeto.temaText || "").split("\n").map((l) => l.trim());
+        const linhasTema = (empresaObjeto.temaText || "")
+          .split("\n")
+          .map((l) => l.trim());
         const linhasData = (empresaObjeto.dataText || "")
           .split("\n")
           .map((l) => l.trim());
@@ -1405,7 +1605,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             linhasTema,
             linhasData,
             indicesEnsinados,
-            dataStr
+            dataStr,
           );
           const novoTemaText = newTemas.join("\n");
           const novoDataText = newDatas.join("\n");
@@ -1421,14 +1621,21 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
           const empresaAtualizadaEsteira: Empresa = {
             ...empresaObjeto,
             // Preserva o score/tipo que possa ter sido atualizado mais cedo neste mesmo salvar()
-            ...(calculoScoreResult ? {
-              score: calculoScoreResult.score,
-              tipo: calculoScoreResult.tipo,
-              scoreAnswers: calculoScoreResult.isNeutro ? null : respostasScore,
-            } : {}),
+            ...(calculoScoreResult
+              ? {
+                  score: calculoScoreResult.score,
+                  tipo: calculoScoreResult.tipo,
+                  scoreAnswers: calculoScoreResult.isNeutro
+                    ? null
+                    : respostasScore,
+                }
+              : {}),
             temaText: novoTemaText,
             dataText: novoDataText,
-            currentPhase: Math.max(empresaObjeto.currentPhase ?? 0, ultimoIndice),
+            currentPhase: Math.max(
+              empresaObjeto.currentPhase ?? 0,
+              ultimoIndice,
+            ),
             ...(concluiuAgora ? { dataFinalizacao: dataRealizacaoStr } : {}),
             updatedAt: Date.now(),
           };
@@ -1441,11 +1648,19 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 if (destinatarios.length === 0) return;
                 setGestaoDestinatarios(destinatarios);
                 setGestaoAvisos(avisos);
-                setGestaoMensagem(montarMensagemConclusaoEsteiraGestao(empresaAtualizadaEsteira, savedId));
+                setGestaoMensagem(
+                  montarMensagemConclusaoEsteiraGestao(
+                    empresaAtualizadaEsteira,
+                    savedId,
+                  ),
+                );
                 setGestaoConfirmModalOpen(true);
               })
               .catch((err) =>
-                console.error("[notificações] Falha ao montar destinatários de conclusão:", err)
+                console.error(
+                  "[notificações] Falha ao montar destinatários de conclusão:",
+                  err,
+                ),
               );
           }
         }
@@ -1455,29 +1670,51 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
     // Fluxo de Disparo do WhatsApp — só oferece o envio ao criar a ocorrência.
     // Em edições (ex.: apenas corrigir data/hora), não repete a oferta para não
     // sobrescrever o status de envio já registrado na criação original.
-    const temasValidos = !editandoId && form.tipo === "Treinamento" && !isRevisao && empresaObjeto
-      ? (form.temaOcorrencia ?? []).filter(
-          (t) => t.trim().toLowerCase() !== "ausente" && t.trim().toLowerCase() !== "cancelado"
-        )
-      : [];
+    const temasValidos =
+      !editandoId && form.tipo === "Treinamento" && !isRevisao && empresaObjeto
+        ? (form.temaOcorrencia ?? []).filter(
+            (t) =>
+              t.trim().toLowerCase() !== "ausente" &&
+              t.trim().toLowerCase() !== "cancelado",
+          )
+        : [];
 
-    if (!editandoId && form.tipo === "Treinamento" && !isRevisao && empresaObjeto && temasValidos.length > 0) {
-      const contatosBase = empresaObjeto.contatos && empresaObjeto.contatos.length > 0
-        ? empresaObjeto.contatos
-        : empresaObjeto.telefone || empresaObjeto.contato
-          ? [{ nome: empresaObjeto.contato || "", telefone: empresaObjeto.telefone || "" }]
-          : [];
+    if (
+      !editandoId &&
+      form.tipo === "Treinamento" &&
+      !isRevisao &&
+      empresaObjeto &&
+      temasValidos.length > 0
+    ) {
+      const contatosBase =
+        empresaObjeto.contatos && empresaObjeto.contatos.length > 0
+          ? empresaObjeto.contatos
+          : empresaObjeto.telefone || empresaObjeto.contato
+            ? [
+                {
+                  nome: empresaObjeto.contato || "",
+                  telefone: empresaObjeto.telefone || "",
+                },
+              ]
+            : [];
 
       const destinatarios = contatosBase
-        .map((c) => ({ nome: c.nome || "Cliente", telefone: normalizarTelefoneWhatsApp(c.telefone) }))
+        .map((c) => ({
+          nome: c.nome || "Cliente",
+          telefone: normalizarTelefoneWhatsApp(c.telefone),
+        }))
         .filter((c) => c.telefone);
 
       if (destinatarios.length === 0) {
-        toast.warning("Ocorrência registrada! No entanto, o cliente não possui telefone de contato cadastrado para envio do WhatsApp.");
+        toast.warning(
+          "Ocorrência registrada! No entanto, o cliente não possui telefone de contato cadastrado para envio do WhatsApp.",
+        );
         await carregar();
         setSalvando(false);
         cancelar();
-        toast.success(editandoId ? "Ocorrência atualizada!" : "Ocorrência registrada!");
+        toast.success(
+          editandoId ? "Ocorrência atualizada!" : "Ocorrência registrada!",
+        );
       } else {
         // Encontra o novo temaText e dataText (que foram atualizados logo acima)
         let novoTemaText = empresaObjeto.temaText;
@@ -1485,9 +1722,17 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         let ultimoIndice = empresaObjeto.currentPhase ?? 0;
 
         const normTema = (s: string) =>
-          s.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        const linhasTema = (empresaObjeto.temaText || "").split("\n").map((l) => l.trim());
-        const linhasData = (empresaObjeto.dataText || "").split("\n").map((l) => l.trim());
+          s
+            .trim()
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "");
+        const linhasTema = (empresaObjeto.temaText || "")
+          .split("\n")
+          .map((l) => l.trim());
+        const linhasData = (empresaObjeto.dataText || "")
+          .split("\n")
+          .map((l) => l.trim());
         while (linhasData.length < linhasTema.length) linhasData.push("");
 
         let dataStr = "";
@@ -1510,7 +1755,12 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         });
 
         if (indicesEnsinados.length > 0 && !temaForaEsteira) {
-          const reordenado = reordenarTemasEnsinados(linhasTema, linhasData, indicesEnsinados, dataStr);
+          const reordenado = reordenarTemasEnsinados(
+            linhasTema,
+            linhasData,
+            indicesEnsinados,
+            dataStr,
+          );
           ultimoIndice = reordenado.ultimoIndice;
           novoTemaText = reordenado.newTemas.join("\n");
           novoDataText = reordenado.newDatas.join("\n");
@@ -1518,11 +1768,15 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
         const empresaAtualizada: Empresa = {
           ...empresaObjeto,
-          ...(calculoScoreResult ? {
-            score: calculoScoreResult.score,
-            tipo: calculoScoreResult.tipo,
-            scoreAnswers: calculoScoreResult.isNeutro ? null : respostasScore,
-          } : {}),
+          ...(calculoScoreResult
+            ? {
+                score: calculoScoreResult.score,
+                tipo: calculoScoreResult.tipo,
+                scoreAnswers: calculoScoreResult.isNeutro
+                  ? null
+                  : respostasScore,
+              }
+            : {}),
           temaText: novoTemaText,
           dataText: novoDataText,
           currentPhase: Math.max(empresaObjeto.currentPhase ?? 0, ultimoIndice),
@@ -1532,7 +1786,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         const [year, month, day] = dataRealizacaoStr.split("-");
         const dataCompleta = `${day}/${month}/${year}`;
         const temasParaMensagem = temasValidos.filter(
-          (t) => normTema(t) !== "inicio" && normTema(t) !== "conclusao"
+          (t) => normTema(t) !== "inicio" && normTema(t) !== "conclusao",
         );
         const plural = temasParaMensagem.length > 1;
         // O marcador {nome} é trocado pelo nome de cada contato no envio, de forma
@@ -1545,7 +1799,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
           empresaNome: empresaObjeto.nomeEmpresa,
           temas: temasValidos,
           dataStr: dataCompleta,
-          empresaObjeto: empresaAtualizada
+          empresaObjeto: empresaAtualizada,
         });
         setEditedWhatsAppText(textoMensagem);
         setSendConveyorImage(true);
@@ -1574,7 +1828,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
             if (ehMudancaScore || temScore) {
               const empresaObjeto = empresasList.find(
-                (e) => normalizar(e.nomeEmpresa) === normalizar(oc.empresa)
+                (e) => normalizar(e.nomeEmpresa) === normalizar(oc.empresa),
               );
               if (empresaObjeto) {
                 await salvarEmpresas({
@@ -1582,14 +1836,16 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   score: null as any,
                   scoreAnswers: null as any,
                   tipo: "",
-                  updatedAt: Date.now()
+                  updatedAt: Date.now(),
                 });
               }
             }
 
             // Se for um alerta com resolução vinculada, limpa a referência na resolução
             if (oc.alerta && oc.alertaResolvidoPorId) {
-              const resDoc = ocorrencias.find((o) => o.id === oc.alertaResolvidoPorId);
+              const resDoc = ocorrencias.find(
+                (o) => o.id === oc.alertaResolvidoPorId,
+              );
               if (resDoc) {
                 await salvarOcorrencia({
                   ...resDoc,
@@ -1600,7 +1856,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
             // Se for uma resolução de alerta, limpa a referência no alerta original
             if (oc.retirarAlerta && oc.alertaOriginalId) {
-              const origDoc = ocorrencias.find((o) => o.id === oc.alertaOriginalId);
+              const origDoc = ocorrencias.find(
+                (o) => o.id === oc.alertaOriginalId,
+              );
               if (origDoc) {
                 await salvarOcorrencia({
                   ...origDoc,
@@ -1613,7 +1871,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               try {
                 await removerLancamentoPonto(oc.gamificacaoPontoId);
               } catch (error) {
-                console.error("Erro ao remover ponto da gamificação associado:", error);
+                console.error(
+                  "Erro ao remover ponto da gamificação associado:",
+                  error,
+                );
               }
             }
           }
@@ -1622,17 +1883,32 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
           toast.success("Ocorrência removida.");
         },
       },
-      cancel: { label: "Cancelar", onClick: () => { } },
+      cancel: { label: "Cancelar", onClick: () => {} },
       duration: 10000,
     });
   }
 
   const getAllowedTypes = () => {
     if (role === "master") {
-      return ["Informativa", "Financeira", "Comercial", "Treinamento", "Checkpoint", "Problema", "Dúvida", "Solicitação"];
+      return [
+        "Informativa",
+        "Financeira",
+        "Comercial",
+        "Treinamento",
+        "Checkpoint",
+        "Problema",
+        "Dúvida",
+        "Solicitação",
+      ];
     }
     if (role === "treinador") {
-      return ["Informativa", "Treinamento", "Checkpoint", "Dúvida", "Solicitação"];
+      return [
+        "Informativa",
+        "Treinamento",
+        "Checkpoint",
+        "Dúvida",
+        "Solicitação",
+      ];
     }
     if (role === "suporte") {
       return ["Informativa", "Problema", "Dúvida", "Solicitação"];
@@ -1688,7 +1964,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       let matchesId = false;
       if (o.idSeqFormatted) {
         const idLower = o.idSeqFormatted.toLowerCase();
-        if (idLower === textoSemEspacos || idLower.replace("#", "") === textoSemEspacos) {
+        if (
+          idLower === textoSemEspacos ||
+          idLower.replace("#", "") === textoSemEspacos
+        ) {
           matchesId = true;
         }
         if (textoSemEspacos.startsWith("#")) {
@@ -1703,14 +1982,17 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         }
       }
 
-      const isIdQuery = textoSemEspacos.startsWith("#") && /^\d+$/.test(textoSemEspacos.substring(1));
-      const bateBusca = isIdQuery ? matchesId : (matchesText || matchesId);
+      const isIdQuery =
+        textoSemEspacos.startsWith("#") &&
+        /^\d+$/.test(textoSemEspacos.substring(1));
+      const bateBusca = isIdQuery ? matchesId : matchesText || matchesId;
 
       const empresaOk =
         !empresaFiltro || normalizar(o.empresa) === normalizar(empresaFiltro);
 
       const tipoOk = ignoreTipo || !filtroTipo || o.tipo === filtroTipo;
-      const deptoOk = ignoreDepto || !filtroDepto || o.departamento === filtroDepto;
+      const deptoOk =
+        ignoreDepto || !filtroDepto || o.departamento === filtroDepto;
 
       const timestamp = getOcorrenciaTimestamp(o);
       let dataOk = true;
@@ -1745,7 +2027,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         }
       }
 
-      return bateBusca && empresaOk && tipoOk && deptoOk && dataOk && expedienteOk;
+      return (
+        bateBusca && empresaOk && tipoOk && deptoOk && dataOk && expedienteOk
+      );
     });
   };
 
@@ -1755,13 +2039,45 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       const tB = getOcorrenciaTimestamp(b);
       return ordenacaoData === "desc" ? tB - tA : tA - tB;
     });
-  }, [ocorrencias, busca, filtroTipo, filtroDepto, dataInicio, dataFim, empresaFiltro, expedienteFiltro, ordenacaoData]);
+  }, [
+    ocorrencias,
+    busca,
+    filtroTipo,
+    filtroDepto,
+    dataInicio,
+    dataFim,
+    empresaFiltro,
+    expedienteFiltro,
+    ordenacaoData,
+  ]);
 
-  const filtradasSemTipo = useMemo(() => obterFiltradas(true, false), [ocorrencias, busca, filtroDepto, dataInicio, dataFim, empresaFiltro, expedienteFiltro]);
-  const filtradasSemDepto = useMemo(() => obterFiltradas(false, true), [ocorrencias, busca, filtroTipo, dataInicio, dataFim, empresaFiltro, expedienteFiltro]);
+  const filtradasSemTipo = useMemo(
+    () => obterFiltradas(true, false),
+    [
+      ocorrencias,
+      busca,
+      filtroDepto,
+      dataInicio,
+      dataFim,
+      empresaFiltro,
+      expedienteFiltro,
+    ],
+  );
+  const filtradasSemDepto = useMemo(
+    () => obterFiltradas(false, true),
+    [
+      ocorrencias,
+      busca,
+      filtroTipo,
+      dataInicio,
+      dataFim,
+      empresaFiltro,
+      expedienteFiltro,
+    ],
+  );
 
   const selectedEmpresaObj = empresasList.find(
-    (e) => normalizar(e.nomeEmpresa) === normalizar(form.empresa)
+    (e) => normalizar(e.nomeEmpresa) === normalizar(form.empresa),
   );
   const isSelectedEmpresaOngoing = selectedEmpresaObj?.isOngoing ?? false;
 
@@ -1868,7 +2184,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 className="btn-secondary"
                 onClick={() => {
                   const emp = empresasList.find(
-                    (e) => e.nomeEmpresa.trim().toLowerCase() === empresaFiltro.trim().toLowerCase()
+                    (e) =>
+                      e.nomeEmpresa.trim().toLowerCase() ===
+                      empresaFiltro.trim().toLowerCase(),
                   );
                   if (emp && emp.id) {
                     navigate(`/esteira/${emp.id}`);
@@ -1887,19 +2205,19 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 Ver Esteira de {empresaFiltro}
               </button>
             )}
-            <button 
-              className={`btn-secondary btn-dashboard-toggle ${dashboardAberto ? "active" : ""}`} 
-              onClick={() => setDashboardAberto(prev => !prev)}
+            <button
+              className={`btn-secondary btn-dashboard-toggle ${dashboardAberto ? "active" : ""}`}
+              onClick={() => setDashboardAberto((prev) => !prev)}
               style={{
                 background: dashboardAberto ? "#475569" : "#0f2a5e",
               }}
             >
               📊 {dashboardAberto ? "Ocultar Dashboard" : "Mostrar Dashboard"}
             </button>
-            <button 
-              className={`btn-secondary btn-dashboard-toggle ${painelIaAberto ? "active" : ""}`} 
+            <button
+              className={`btn-secondary btn-dashboard-toggle ${painelIaAberto ? "active" : ""}`}
               onClick={() => {
-                setPainelIaAberto(prev => !prev);
+                setPainelIaAberto((prev) => !prev);
                 if (!iaClienteSelecionado && empresaFiltro) {
                   setIaClienteSelecionado(empresaFiltro);
                 }
@@ -1943,13 +2261,17 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 <DoughnutChart
                   title="Ocorrências por Tipo"
                   data={tipoChartData}
-                  onItemClick={(tipo) => setFiltroTipo(prev => prev === tipo ? "" : tipo)}
+                  onItemClick={(tipo) =>
+                    setFiltroTipo((prev) => (prev === tipo ? "" : tipo))
+                  }
                   selectedLabel={filtroTipo}
                 />
                 <DoughnutChart
                   title="Ocorrências por Departamento"
                   data={deptoChartData}
-                  onItemClick={(depto) => setFiltroDepto(prev => prev === depto ? "" : depto)}
+                  onItemClick={(depto) =>
+                    setFiltroDepto((prev) => (prev === depto ? "" : depto))
+                  }
                   selectedLabel={filtroDepto}
                 />
               </div>
@@ -1978,7 +2300,8 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               <span className="hist-ia-badge">Gemini AI</span>
             </div>
             <p className="hist-ia-desc">
-              Selecione um cliente e gere um resumo executivo de todo o histórico de ocorrências com insights acionáveis.
+              Selecione um cliente e gere um resumo executivo de todo o
+              histórico de ocorrências com insights acionáveis.
             </p>
           </div>
 
@@ -1995,12 +2318,11 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               placeholder="Digite ou selecione um cliente..."
             />
             <datalist id="ia-clientes-datalist">
-              {[...new Set(ocorrencias.map(o => o.empresa))]
+              {[...new Set(ocorrencias.map((o) => o.empresa))]
                 .sort((a, b) => a.localeCompare(b, "pt-BR"))
-                .map(nome => (
+                .map((nome) => (
                   <option key={nome} value={nome} />
-                ))
-              }
+                ))}
             </datalist>
 
             <button
@@ -2013,11 +2335,17 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 setIaErro("");
                 try {
                   const ocCliente = ocorrencias.filter(
-                    o => o.empresa.trim().toLowerCase() === iaClienteSelecionado.trim().toLowerCase()
+                    (o) =>
+                      o.empresa.trim().toLowerCase() ===
+                      iaClienteSelecionado.trim().toLowerCase(),
                   );
-                  await resumirOcorrencias(iaClienteSelecionado, ocCliente, (textoParcial) => {
-                    setIaResumo(textoParcial);
-                  });
+                  await resumirOcorrencias(
+                    iaClienteSelecionado,
+                    ocCliente,
+                    (textoParcial) => {
+                      setIaResumo(textoParcial);
+                    },
+                  );
                 } catch (err: any) {
                   setIaErro(err.message || "Erro ao gerar resumo.");
                 } finally {
@@ -2026,23 +2354,23 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               }}
             >
               {iaCarregando ? (
-                <><span className="hist-ia-spinner" /> Gerando resumo...</>
+                <>
+                  <span className="hist-ia-spinner" /> Gerando resumo...
+                </>
               ) : (
                 <>✨ Gerar Resumo</>
               )}
             </button>
           </div>
 
-          {iaErro && (
-            <div className="hist-ia-erro">
-              ⚠️ {iaErro}
-            </div>
-          )}
+          {iaErro && <div className="hist-ia-erro">⚠️ {iaErro}</div>}
 
           {iaResumo && (
             <div className="hist-ia-resultado">
               <div className="hist-ia-resultado-header">
-                <span>Resumo: <strong>{iaClienteSelecionado}</strong></span>
+                <span>
+                  Resumo: <strong>{iaClienteSelecionado}</strong>
+                </span>
                 <button
                   className="hist-ia-copy-btn"
                   onClick={() => {
@@ -2052,9 +2380,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   📋 Copiar
                 </button>
               </div>
-              <div className="hist-ia-texto">
-                {renderMarkdown(iaResumo)}
-              </div>
+              <div className="hist-ia-texto">{renderMarkdown(iaResumo)}</div>
             </div>
           )}
         </div>
@@ -2120,7 +2446,13 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             />
           </div>
 
-          {(busca || filtroTipo || filtroDepto || dataInicio || dataFim || empresaFiltro || expedienteFiltro) && (
+          {(busca ||
+            filtroTipo ||
+            filtroDepto ||
+            dataInicio ||
+            dataFim ||
+            empresaFiltro ||
+            expedienteFiltro) && (
             <button
               className="btn-limpar-filtros"
               onClick={() => {
@@ -2129,7 +2461,11 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 setFiltroDepto("");
                 setDataInicio("");
                 setDataFim("");
-                if (empresaFiltro || expedienteFiltro || searchParams.get("ocorrencia")) {
+                if (
+                  empresaFiltro ||
+                  expedienteFiltro ||
+                  searchParams.get("ocorrencia")
+                ) {
                   navigate("/historico");
                 }
               }}
@@ -2148,7 +2484,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             <tr>
               <th>Empresa</th>
               <th
-                onClick={() => setOrdenacaoData((prev) => (prev === "desc" ? "asc" : "desc"))}
+                onClick={() =>
+                  setOrdenacaoData((prev) => (prev === "desc" ? "asc" : "desc"))
+                }
                 style={{ cursor: "pointer", userSelect: "none" }}
                 title="Clique para ordenar por data"
               >
@@ -2177,8 +2515,8 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   >
                     <td>
                       {o.empresa}
-                      {o.alerta && (
-                        o.alertaResolvidoPorId ? (
+                      {o.alerta &&
+                        (o.alertaResolvidoPorId ? (
                           <span
                             style={{
                               color: "#16a34a",
@@ -2200,8 +2538,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                           >
                             🚨
                           </span>
-                        )
-                      )}
+                        ))}
                       {o.retirarAlerta && (
                         <span
                           style={{
@@ -2220,9 +2557,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                     <td>
                       {data
                         ? data.toLocaleTimeString("pt-BR", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
                         : "—"}
                     </td>
 
@@ -2242,7 +2579,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       {(() => {
                         const tipoInfo = obterInfoTipoOcorrencia(o);
                         return (
-                          <span className={`hist-item-tipo ${tipoInfo.className}`}>
+                          <span
+                            className={`hist-item-tipo ${tipoInfo.className}`}
+                          >
                             {tipoInfo.label}
                           </span>
                         );
@@ -2252,26 +2591,48 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                     {role === "master" && (
                       <td>
                         {o.whatsappStatus === "enviado" && (
-                          <span style={{ color: "#16a34a", fontWeight: "bold" }} title={`Enviado${o.whatsappEnviadoEm ? " em " + new Date(o.whatsappEnviadoEm).toLocaleString("pt-BR") : ""}`}>
+                          <span
+                            style={{ color: "#16a34a", fontWeight: "bold" }}
+                            title={`Enviado${o.whatsappEnviadoEm ? " em " + new Date(o.whatsappEnviadoEm).toLocaleString("pt-BR") : ""}`}
+                          >
                             ✅ Enviado
                           </span>
                         )}
                         {o.whatsappStatus === "parcial" && (
-                          <span style={{ color: "#d97706", fontWeight: "bold" }} title={(o.whatsappDestinatarios || []).map((d) => `${d.nome}: ${d.status}${d.erro ? " (" + d.erro + ")" : ""}`).join("\n")}>
+                          <span
+                            style={{ color: "#d97706", fontWeight: "bold" }}
+                            title={(o.whatsappDestinatarios || [])
+                              .map(
+                                (d) =>
+                                  `${d.nome}: ${d.status}${d.erro ? " (" + d.erro + ")" : ""}`,
+                              )
+                              .join("\n")}
+                          >
                             ⚠️ Parcial
                           </span>
                         )}
                         {o.whatsappStatus === "falhou" && (
-                          <span style={{ color: "#dc2626", fontWeight: "bold" }} title={(o.whatsappDestinatarios || []).map((d) => d.erro || "").filter(Boolean).join("\n")}>
+                          <span
+                            style={{ color: "#dc2626", fontWeight: "bold" }}
+                            title={(o.whatsappDestinatarios || [])
+                              .map((d) => d.erro || "")
+                              .filter(Boolean)
+                              .join("\n")}
+                          >
                             ❌ Falhou
                           </span>
                         )}
                         {o.whatsappStatus === "nao_enviado" && (
-                          <span style={{ color: "#64748b" }} title="O usuário optou por não enviar">
+                          <span
+                            style={{ color: "#64748b" }}
+                            title="O usuário optou por não enviar"
+                          >
                             🚫 Não enviado
                           </span>
                         )}
-                        {!o.whatsappStatus && <span style={{ color: "#64748b" }}>—</span>}
+                        {!o.whatsappStatus && (
+                          <span style={{ color: "#64748b" }}>—</span>
+                        )}
                       </td>
                     )}
 
@@ -2288,7 +2649,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
         <div className="hist-footer-paginacao">
           <div className="hist-total-registros">
-            Exibindo de <strong>{totalItems > 0 ? startIndex + 1 : 0}</strong> a <strong>{endIndex}</strong> de <strong>{totalItems}</strong> {totalItems === 1 ? "ocorrência" : "ocorrências"}
+            Exibindo de <strong>{totalItems > 0 ? startIndex + 1 : 0}</strong> a{" "}
+            <strong>{endIndex}</strong> de <strong>{totalItems}</strong>{" "}
+            {totalItems === 1 ? "ocorrência" : "ocorrências"}
           </div>
           {totalPages > 1 && (
             <div className="hist-paginacao-controles">
@@ -2300,12 +2663,15 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 Anterior
               </button>
               <span className="hist-paginacao-info">
-                Página <strong>{currentPage}</strong> de <strong>{totalPages}</strong>
+                Página <strong>{currentPage}</strong> de{" "}
+                <strong>{totalPages}</strong>
               </span>
               <button
                 className="btn-paginacao"
                 disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                onClick={() =>
+                  setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                }
               >
                 Próxima
               </button>
@@ -2314,15 +2680,19 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         </div>
 
         {selecionada && (
-
           <div className="hist-detail-overlay">
-            <div
-              className="hist-detail-card"
-            >
+            <div className="hist-detail-card">
               <div className="hist-detail-header">
-                <h2>Detalhes da interação {selecionada.idSeqFormatted ? `(${selecionada.idSeqFormatted})` : ""}</h2>
+                <h2>
+                  Detalhes da interação{" "}
+                  {selecionada.idSeqFormatted
+                    ? `(${selecionada.idSeqFormatted})`
+                    : ""}
+                </h2>
 
-                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <div
+                  style={{ display: "flex", alignItems: "center", gap: "6px" }}
+                >
                   <button
                     className="hist-detail-compartilhar"
                     title="Copiar link direto para esta ocorrência"
@@ -2330,12 +2700,18 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                     onClick={() => {
                       const url = `${window.location.origin}/historico?ocorrencia=${selecionada.id}`;
                       navigator.clipboard.writeText(url);
-                      toast.success("Link copiado! Basta enviar para abrir direto nesta ocorrência.");
+                      toast.success(
+                        "Link copiado! Basta enviar para abrir direto nesta ocorrência.",
+                      );
                     }}
                   >
                     <Share2 size={16} />
                   </button>
-                  <button className="hist-detail-fechar" onClick={() => fecharDetalhe()} aria-label="Fechar detalhes">
+                  <button
+                    className="hist-detail-fechar"
+                    onClick={() => fecharDetalhe()}
+                    aria-label="Fechar detalhes"
+                  >
                     <X size={18} />
                   </button>
                 </div>
@@ -2345,11 +2721,29 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 {(() => {
                   if (selecionada.alerta) {
                     if (selecionada.alertaResolvidoPorId) {
-                      const resDoc = ocorrencias.find((o) => o.id === selecionada.alertaResolvidoPorId);
+                      const resDoc = ocorrencias.find(
+                        (o) => o.id === selecionada.alertaResolvidoPorId,
+                      );
                       return (
-                        <div style={{ gridColumn: "span 2", marginBottom: "10px" }}>
-                          <span style={{ color: "#16a34a", fontWeight: "bold", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-                            ✅🚨 Alerta Solucionado {resDoc ? `em ${new Date(getOcorrenciaTimestamp(resDoc)).toLocaleDateString("pt-BR")}` : ""}.
+                        <div
+                          style={{ gridColumn: "span 2", marginBottom: "10px" }}
+                        >
+                          <span
+                            style={{
+                              color: "#16a34a",
+                              fontWeight: "bold",
+                              fontSize: "0.85rem",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "6px",
+                              flexWrap: "wrap",
+                            }}
+                          >
+                            ✅🚨 Alerta Solucionado{" "}
+                            {resDoc
+                              ? `em ${new Date(getOcorrenciaTimestamp(resDoc)).toLocaleDateString("pt-BR")}`
+                              : ""}
+                            .
                             {resDoc && (
                               <button
                                 style={{
@@ -2373,8 +2767,19 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       );
                     } else {
                       return (
-                        <div style={{ gridColumn: "span 2", marginBottom: "10px" }}>
-                          <span style={{ color: "#dc2626", fontWeight: "bold", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "6px" }}>
+                        <div
+                          style={{ gridColumn: "span 2", marginBottom: "10px" }}
+                        >
+                          <span
+                            style={{
+                              color: "#dc2626",
+                              fontWeight: "bold",
+                              fontSize: "0.85rem",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "6px",
+                            }}
+                          >
                             🚨 Ocorrência marcada como Alerta Ativo
                           </span>
                         </div>
@@ -2382,14 +2787,40 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                     }
                   }
                   if (selecionada.retirarAlerta) {
-                    const origDoc = ocorrencias.find((o) => o.id === selecionada.alertaOriginalId);
+                    const origDoc = ocorrencias.find(
+                      (o) => o.id === selecionada.alertaOriginalId,
+                    );
                     return (
-                      <div style={{ gridColumn: "span 2", marginBottom: "10px" }}>
-                        <span style={{ color: "#16a34a", fontWeight: "bold", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                      <div
+                        style={{ gridColumn: "span 2", marginBottom: "10px" }}
+                      >
+                        <span
+                          style={{
+                            color: "#16a34a",
+                            fontWeight: "bold",
+                            fontSize: "0.85rem",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            flexWrap: "wrap",
+                          }}
+                        >
                           ✅ Ocorrência marcada como Resolução de Alerta.
                           {origDoc && (
-                            <span style={{ color: "#475569", display: "flex", alignItems: "center", gap: "5px", flexWrap: "wrap" }}>
-                              Resolução do alerta criado em {new Date(getOcorrenciaTimestamp(origDoc)).toLocaleDateString("pt-BR")}.
+                            <span
+                              style={{
+                                color: "#475569",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "5px",
+                                flexWrap: "wrap",
+                              }}
+                            >
+                              Resolução do alerta criado em{" "}
+                              {new Date(
+                                getOcorrenciaTimestamp(origDoc),
+                              ).toLocaleDateString("pt-BR")}
+                              .
                               <button
                                 style={{
                                   textDecoration: "underline",
@@ -2428,7 +2859,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   {(() => {
                     const tipoInfo = obterInfoTipoOcorrencia(selecionada);
                     return (
-                      <strong className={`hist-item-tipo hist-item-tipo-detail ${tipoInfo.className}`}>
+                      <strong
+                        className={`hist-item-tipo hist-item-tipo-detail ${tipoInfo.className}`}
+                      >
                         {tipoInfo.label}
                       </strong>
                     );
@@ -2437,17 +2870,19 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
                 <div>
                   <span>Responsável</span>
-                  <strong>{formatarNome(selecionada.responsavel) || "—"}</strong>
+                  <strong>
+                    {formatarNome(selecionada.responsavel) || "—"}
+                  </strong>
                 </div>
 
                 <div>
                   <span>Data da ocorrência</span>
                   <strong>
                     {new Date(
-                      getOcorrenciaTimestamp(selecionada)
+                      getOcorrenciaTimestamp(selecionada),
                     ).toLocaleDateString("pt-BR")}{" "}
                     {new Date(
-                      getOcorrenciaTimestamp(selecionada)
+                      getOcorrenciaTimestamp(selecionada),
                     ).toLocaleTimeString("pt-BR", {
                       hour: "2-digit",
                       minute: "2-digit",
@@ -2455,28 +2890,32 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   </strong>
                 </div>
 
-                {selecionada.createdAt && selecionada.dataOcorrencia > 0 && selecionada.tipo !== "Problema" && selecionada.tipo !== "Dúvida" && (
-                  <div>
-                    <span>
-                      {selecionada.tipo === "Informativa" || selecionada.tipo === "Treinamento"
-                        ? "Data do próximo treinamento"
-                        : selecionada.tipo === "Checkpoint"
-                        ? "Data do checkpoint"
-                        : "Data do agendamento"}
-                    </span>
-                    <strong>
-                      {new Date(
-                        selecionada.dataOcorrencia,
-                      ).toLocaleDateString("pt-BR")}{" "}
-                      {new Date(
-                        selecionada.dataOcorrencia,
-                      ).toLocaleTimeString("pt-BR", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </strong>
-                  </div>
-                )}
+                {selecionada.createdAt &&
+                  selecionada.dataOcorrencia > 0 &&
+                  selecionada.tipo !== "Problema" &&
+                  selecionada.tipo !== "Dúvida" && (
+                    <div>
+                      <span>
+                        {selecionada.tipo === "Informativa" ||
+                        selecionada.tipo === "Treinamento"
+                          ? "Data do próximo treinamento"
+                          : selecionada.tipo === "Checkpoint"
+                            ? "Data do checkpoint"
+                            : "Data do agendamento"}
+                      </span>
+                      <strong>
+                        {new Date(
+                          selecionada.dataOcorrencia,
+                        ).toLocaleDateString("pt-BR")}{" "}
+                        {new Date(
+                          selecionada.dataOcorrencia,
+                        ).toLocaleTimeString("pt-BR", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </strong>
+                    </div>
+                  )}
 
                 {selecionada.tipo === "Treinamento" && (
                   <>
@@ -2485,8 +2924,15 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                         <span>Data de solicitação</span>
                         <strong>
                           {(() => {
-                            if (selecionada.treinamentoDataSolicitacao.includes("-")) {
-                              const [y, m, d] = selecionada.treinamentoDataSolicitacao.split("-");
+                            if (
+                              selecionada.treinamentoDataSolicitacao.includes(
+                                "-",
+                              )
+                            ) {
+                              const [y, m, d] =
+                                selecionada.treinamentoDataSolicitacao.split(
+                                  "-",
+                                );
                               return `${d}/${m}/${y}`;
                             }
                             return selecionada.treinamentoDataSolicitacao;
@@ -2506,23 +2952,25 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                         <strong>{selecionada.treinamentoSolicitante}</strong>
                       </div>
                     )}
-                    {selecionada.treinamentoNotas && selecionada.treinamentoNotas.length > 0 && (
-                      <div className="hist-detail-training-notes-wrapper">
-                        <span>Notas do Treinamento (CSAT)</span>
-                        <div className="hist-detail-training-notes-list">
-                          {selecionada.treinamentoNotas.map((nota, idx) => (
-                            <span key={idx} className="nota-treinamento-tag">
-                              Nota {idx + 1}: {nota}
-                            </span>
-                          ))}
-                          {selecionada.treinamentoNotaMedia !== undefined && selecionada.treinamentoNotaMedia !== null && (
-                            <span className="nota-treinamento-media">
-                              Média: {selecionada.treinamentoNotaMedia}
-                            </span>
-                          )}
+                    {selecionada.treinamentoNotas &&
+                      selecionada.treinamentoNotas.length > 0 && (
+                        <div className="hist-detail-training-notes-wrapper">
+                          <span>Notas do Treinamento (CSAT)</span>
+                          <div className="hist-detail-training-notes-list">
+                            {selecionada.treinamentoNotas.map((nota, idx) => (
+                              <span key={idx} className="nota-treinamento-tag">
+                                Nota {idx + 1}: {nota}
+                              </span>
+                            ))}
+                            {selecionada.treinamentoNotaMedia !== undefined &&
+                              selecionada.treinamentoNotaMedia !== null && (
+                                <span className="nota-treinamento-media">
+                                  Média: {selecionada.treinamentoNotaMedia}
+                                </span>
+                              )}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
                   </>
                 )}
 
@@ -2564,15 +3012,28 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       const isEditingThis = editingUpdateIdx === i;
                       return (
                         <div key={i} className="hist-atualizacao-item">
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                            }}
+                          >
                             <span className="hist-atualizacao-meta">
                               Atualização em{" "}
-                              {new Date(at.updatedAt).toLocaleDateString("pt-BR")}{" "}
-                              {new Date(at.updatedAt).toLocaleTimeString("pt-BR", {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                              {at.responsavel ? ` · ${formatarNome(at.responsavel)}` : ""}
+                              {new Date(at.updatedAt).toLocaleDateString(
+                                "pt-BR",
+                              )}{" "}
+                              {new Date(at.updatedAt).toLocaleTimeString(
+                                "pt-BR",
+                                {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                },
+                              )}
+                              {at.responsavel
+                                ? ` · ${formatarNome(at.responsavel)}`
+                                : ""}
                             </span>
                             {!isEditingThis && role === "master" && (
                               <div style={{ display: "flex", gap: "8px" }}>
@@ -2602,7 +3063,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                               <textarea
                                 rows={3}
                                 value={editingUpdateText}
-                                onChange={(e) => setEditingUpdateText(e.target.value)}
+                                onChange={(e) =>
+                                  setEditingUpdateText(e.target.value)
+                                }
                                 className="hist-atualizacao-edit-textarea"
                               />
                               <div className="hist-atualizacao-edit-actions">
@@ -2627,7 +3090,14 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                               </div>
                             </div>
                           ) : (
-                            <p style={{ whiteSpace: "pre-wrap", marginTop: "4px" }}>{at.descricao}</p>
+                            <p
+                              style={{
+                                whiteSpace: "pre-wrap",
+                                marginTop: "4px",
+                              }}
+                            >
+                              {at.descricao}
+                            </p>
                           )}
                         </div>
                       );
@@ -2671,17 +3141,25 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               )}
 
               <div className="botoes">
+                {!novaAtualizacaoAberta &&
+                  (role === "treinador" ||
+                    role === "master" ||
+                    (selecionada.responsavel &&
+                      selecionada.responsavel.toLowerCase() ===
+                        userName.toLowerCase())) && (
+                    <button
+                      className="btn-secondary btn-small"
+                      onClick={() => setNovaAtualizacaoAberta(true)}
+                    >
+                      + Incluir nova atualização
+                    </button>
+                  )}
 
-                {!novaAtualizacaoAberta && (role === "treinador" || role === "master" || (selecionada.responsavel && selecionada.responsavel.toLowerCase() === userName.toLowerCase())) && (
-                  <button
-                    className="btn-secondary btn-small"
-                    onClick={() => setNovaAtualizacaoAberta(true)}
-                  >
-                    + Incluir nova atualização
-                  </button>
-                )}
-
-                {(role === "treinador" || role === "master" || (selecionada.responsavel && selecionada.responsavel.toLowerCase() === userName.toLowerCase())) && (
+                {(role === "treinador" ||
+                  role === "master" ||
+                  (selecionada.responsavel &&
+                    selecionada.responsavel.toLowerCase() ===
+                      userName.toLowerCase())) && (
                   <button
                     className="btn-secondary btn-small"
                     onClick={() => {
@@ -2723,7 +3201,11 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
           <div className="hist-painel">
             <div className="hist-painel-header">
               <h2>{editandoId ? "Editar ocorrência" : "Nova ocorrência"}</h2>
-              <button className="hist-fechar" onClick={cancelar} aria-label="Fechar painel">
+              <button
+                className="hist-fechar"
+                onClick={cancelar}
+                aria-label="Fechar painel"
+              >
                 <X size={18} />
               </button>
             </div>
@@ -2747,7 +3229,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               </datalist>
             </div>
 
-            {(isTreinador || form.tipo === "Problema" || form.tipo === "Dúvida") && (
+            {(isTreinador ||
+              form.tipo === "Problema" ||
+              form.tipo === "Dúvida") && (
               <div className="hist-campo hist-campo-row">
                 <div>
                   <label>
@@ -2755,7 +3239,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       if (form.tipo === "Problema" || form.tipo === "Dúvida") {
                         return "Data da ocorrência (não obrigatório)";
                       }
-                      if (form.tipo === "Informativa" || form.tipo === "Treinamento") {
+                      if (
+                        form.tipo === "Informativa" ||
+                        form.tipo === "Treinamento"
+                      ) {
                         return "Data do próximo treinamento (não obrigatório)";
                       }
                       if (form.tipo === "Checkpoint") {
@@ -2834,28 +3321,39 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               </select>
             </div>
 
-            {!editandoId && isTreinador && (form.tipo === "Informativa" || form.tipo === "Treinamento") && !isSelectedEmpresaOngoing && (
-              <div className="hist-campo score-btn-container">
-                <button
-                  type="button"
-                  className="btn-calcular-score"
-                  onClick={() => setModalScoreAberto(true)}
-                >
-                  📊 Calcular Score do Cliente
-                </button>
-                {calculoScoreResult && (
-                  calculoScoreResult.isNeutro ? (
-                    <span className="score-result-badge--neutro">
-                      Score: <strong>Neutro</strong> ✅
-                    </span>
-                  ) : (
-                    <span className={`score-result-badge ${calculoScoreResult.tipo === "Safety" ? "score-result-badge--safety" : "score-result-badge--fast"}`} style={{ marginTop: "6px" }}>
-                      Score: <strong>{calculoScoreResult.score !== null ? calculoScoreResult.score.toFixed(1) : ""}</strong> ({calculoScoreResult.tipo}) ✅
-                    </span>
-                  )
-                )}
-              </div>
-            )}
+            {!editandoId &&
+              isTreinador &&
+              (form.tipo === "Informativa" || form.tipo === "Treinamento") &&
+              !isSelectedEmpresaOngoing && (
+                <div className="hist-campo score-btn-container">
+                  <button
+                    type="button"
+                    className="btn-calcular-score"
+                    onClick={() => setModalScoreAberto(true)}
+                  >
+                    📊 Calcular Score do Cliente
+                  </button>
+                  {calculoScoreResult &&
+                    (calculoScoreResult.isNeutro ? (
+                      <span className="score-result-badge--neutro">
+                        Score: <strong>Neutro</strong> ✅
+                      </span>
+                    ) : (
+                      <span
+                        className={`score-result-badge ${calculoScoreResult.tipo === "Safety" ? "score-result-badge--safety" : "score-result-badge--fast"}`}
+                        style={{ marginTop: "6px" }}
+                      >
+                        Score:{" "}
+                        <strong>
+                          {calculoScoreResult.score !== null
+                            ? calculoScoreResult.score.toFixed(1)
+                            : ""}
+                        </strong>{" "}
+                        ({calculoScoreResult.tipo}) ✅
+                      </span>
+                    ))}
+                </div>
+              )}
 
             <div className="hist-campo">
               <label>Departamento *</label>
@@ -2943,8 +3441,12 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       marginBottom: "10px",
                       padding: "8px 12px",
                       borderRadius: "8px",
-                      background: isRevisao ? "rgba(99,102,241,0.12)" : "rgba(255,255,255,0.04)",
-                      border: isRevisao ? "1px solid rgba(99,102,241,0.4)" : "1px solid rgba(255,255,255,0.08)",
+                      background: isRevisao
+                        ? "rgba(99,102,241,0.12)"
+                        : "rgba(255,255,255,0.04)",
+                      border: isRevisao
+                        ? "1px solid rgba(99,102,241,0.4)"
+                        : "1px solid rgba(255,255,255,0.08)",
                       cursor: "pointer",
                       transition: "all 0.2s ease",
                       fontWeight: isRevisao ? 600 : 400,
@@ -2958,7 +3460,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                     />
                     <span>📝 Treinamento de revisão</span>
                     <small style={{ color: "#94a3b8", fontWeight: 400 }}>
-                      {isRevisao ? "(não avança a esteira — tags: \"Revisão de...\")" : "(marque se for revisão de temas anteriores)"}
+                      {isRevisao
+                        ? '(não avança a esteira — tags: "Revisão de...")'
+                        : "(marque se for revisão de temas anteriores)"}
                     </small>
                   </label>
                 )}
@@ -2975,8 +3479,12 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       marginBottom: "10px",
                       padding: "8px 12px",
                       borderRadius: "8px",
-                      background: temaForaEsteira ? "rgba(16,185,129,0.12)" : "rgba(255,255,255,0.04)",
-                      border: temaForaEsteira ? "1px solid rgba(16,185,129,0.4)" : "1px solid rgba(255,255,255,0.08)",
+                      background: temaForaEsteira
+                        ? "rgba(16,185,129,0.12)"
+                        : "rgba(255,255,255,0.04)",
+                      border: temaForaEsteira
+                        ? "1px solid rgba(16,185,129,0.4)"
+                        : "1px solid rgba(255,255,255,0.08)",
                       cursor: "pointer",
                       transition: "all 0.2s ease",
                       fontWeight: temaForaEsteira ? 600 : 400,
@@ -2989,18 +3497,22 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                         const checked = e.target.checked;
                         setTemaForaEsteira(checked);
                         if (checked) {
-                          setTemaOcorrenciaOngoingText((form.temaOcorrencia ?? []).join(", "));
+                          setTemaOcorrenciaOngoingText(
+                            (form.temaOcorrencia ?? []).join(", "),
+                          );
                         }
                       }}
                       style={{ cursor: "pointer" }}
                     />
                     <span>🆕 Tema fora da esteira</span>
                     <small style={{ color: "#94a3b8", fontWeight: 400 }}>
-                      {temaForaEsteira ? "(não avança a esteira — digite o tema livremente)" : "(marque para treinar um tema que não está previsto na esteira)"}
+                      {temaForaEsteira
+                        ? "(não avança a esteira — digite o tema livremente)"
+                        : "(marque para treinar um tema que não está previsto na esteira)"}
                     </small>
                   </label>
                 )}
-                {(isSelectedEmpresaOngoing || temaForaEsteira) ? (
+                {isSelectedEmpresaOngoing || temaForaEsteira ? (
                   <input
                     type="text"
                     value={temaOcorrenciaOngoingText}
@@ -3010,7 +3522,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       setForm((f) => ({
                         ...f,
                         temaOcorrencia: val
-                          ? val.split(",").map((t) => t.trim()).filter(Boolean)
+                          ? val
+                              .split(",")
+                              .map((t) => t.trim())
+                              .filter(Boolean)
                           : [],
                       }));
                     }}
@@ -3029,9 +3544,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                         );
                         return empresa?.temaText
                           ? empresa.temaText
-                            .trim()
-                            .split(/\s{2,}|\n/)
-                            .filter(Boolean)
+                              .trim()
+                              .split(/\s{2,}|\n/)
+                              .filter(Boolean)
                           : [];
                       })(),
                     ].map((tema) => (
@@ -3079,11 +3594,14 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
                   <div>
                     <label>
-                      Tempo de agenda {
-                        (form.temaOcorrencia ?? []).some(
-                          (t) => t.trim().toLowerCase() === "cancelado" || t.trim().toLowerCase() === "ausente"
-                        ) ? "" : "*"
-                      }
+                      Tempo de agenda{" "}
+                      {(form.temaOcorrencia ?? []).some(
+                        (t) =>
+                          t.trim().toLowerCase() === "cancelado" ||
+                          t.trim().toLowerCase() === "ausente",
+                      )
+                        ? ""
+                        : "*"}
                     </label>
                     <input
                       type="time"
@@ -3096,7 +3614,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       }
                       required={
                         !(form.temaOcorrencia ?? []).some(
-                          (t) => t.trim().toLowerCase() === "cancelado" || t.trim().toLowerCase() === "ausente"
+                          (t) =>
+                            t.trim().toLowerCase() === "cancelado" ||
+                            t.trim().toLowerCase() === "ausente",
                         )
                       }
                     />
@@ -3135,7 +3655,8 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       + Adicionar Nota
                     </button>
                   </div>
-                  {(!form.treinamentoNotas || form.treinamentoNotas.length === 0) ? (
+                  {!form.treinamentoNotas ||
+                  form.treinamentoNotas.length === 0 ? (
                     <span className="training-no-notes-text">
                       Nenhuma nota registrada (treinamento sem resposta CSAT).
                     </span>
@@ -3150,7 +3671,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                             max="5"
                             step="1"
                             value={nota}
-                            onChange={(e) => handleUpdateNota(idx, e.target.value)}
+                            onChange={(e) =>
+                              handleUpdateNota(idx, e.target.value)
+                            }
                             required
                             className="training-note-input"
                           />
@@ -3198,22 +3721,30 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
             {(() => {
               const empresaObjetoForm = empresasList.find(
-                (e) => normalizar(e.nomeEmpresa) === normalizar(form.empresa)
+                (e) => normalizar(e.nomeEmpresa) === normalizar(form.empresa),
               );
               const isSuspended = empresaObjetoForm?.isSuspended ?? false;
-              const canReactivate = role === "master" || role === "treinador" || role === "cs";
+              const canReactivate =
+                role === "master" || role === "treinador" || role === "cs";
               if ((isSuspended || form.retornarEsteira) && canReactivate) {
                 return (
                   <div className="hist-campo hist-campo-row">
-                    <label className="checkbox-label" style={{ fontWeight: 600, color: "#6366f1" }}>
+                    <label
+                      className="checkbox-label"
+                      style={{ fontWeight: 600, color: "#6366f1" }}
+                    >
                       <input
                         type="checkbox"
                         checked={form.retornarEsteira ?? false}
                         onChange={(e) =>
-                          setForm({ ...form, retornarEsteira: e.target.checked })
+                          setForm({
+                            ...form,
+                            retornarEsteira: e.target.checked,
+                          })
                         }
                       />
-                      Retornar cliente à esteira principal 🔄 (remover suspensão)
+                      Retornar cliente à esteira principal 🔄 (remover
+                      suspensão)
                     </label>
                   </div>
                 );
@@ -3222,20 +3753,32 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             })()}
 
             <div className="hist-campo">
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: "4px",
+                }}
+              >
                 <label style={{ marginBottom: 0 }}>Descrição *</label>
-                {form.tipo === "Treinamento" && !editandoId && form.descricao !== TEMPLATE_TREINAMENTO && (
-                  <button
-                    type="button"
-                    className="btn-link-template"
-                    onClick={() => {
-                      setUsarTemplate(true);
-                      setForm(f => ({ ...f, descricao: TEMPLATE_TREINAMENTO }));
-                    }}
-                  >
-                    ✨ Usar template de treinamento
-                  </button>
-                )}
+                {form.tipo === "Treinamento" &&
+                  !editandoId &&
+                  form.descricao !== TEMPLATE_TREINAMENTO && (
+                    <button
+                      type="button"
+                      className="btn-link-template"
+                      onClick={() => {
+                        setUsarTemplate(true);
+                        setForm((f) => ({
+                          ...f,
+                          descricao: TEMPLATE_TREINAMENTO,
+                        }));
+                      }}
+                    >
+                      ✨ Usar template de treinamento
+                    </button>
+                  )}
               </div>
               <textarea
                 value={form.descricao}
@@ -3265,8 +3808,6 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               )}
             </div>
 
-
-
             <div className="hist-painel-actions">
               <button className="btn-ghost" onClick={cancelar}>
                 Cancelar
@@ -3291,7 +3832,11 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
           <div className="score-modal-card">
             <div className="score-modal-header">
               <h2>Calcular Score do Cliente</h2>
-              <button className="score-modal-fechar" onClick={() => setModalScoreAberto(false)} aria-label="Fechar score">
+              <button
+                className="score-modal-fechar"
+                onClick={() => setModalScoreAberto(false)}
+                aria-label="Fechar score"
+              >
                 <X size={18} />
               </button>
             </div>
@@ -3299,7 +3844,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             <div className="score-modal-body">
               {/* Pergunta 1 */}
               <div className="score-pergunta">
-                <label>Contato com o cliente é fácil? * <span className="score-hint">(Sim = +0.5 / Não = 0)</span></label>
+                <label>
+                  Contato com o cliente é fácil? *{" "}
+                  <span className="score-hint">(Sim = +0.5 / Não = 0)</span>
+                </label>
                 <div className="radio-group-score">
                   <label>
                     <input
@@ -3307,7 +3855,12 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       name="facilContato"
                       value="Sim"
                       checked={respostasScore.facilContato === "Sim"}
-                      onChange={() => setRespostasScore(prev => ({ ...prev, facilContato: "Sim" }))}
+                      onChange={() =>
+                        setRespostasScore((prev) => ({
+                          ...prev,
+                          facilContato: "Sim",
+                        }))
+                      }
                     />
                     Sim
                   </label>
@@ -3317,7 +3870,12 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       name="facilContato"
                       value="Não"
                       checked={respostasScore.facilContato === "Não"}
-                      onChange={() => setRespostasScore(prev => ({ ...prev, facilContato: "Não" }))}
+                      onChange={() =>
+                        setRespostasScore((prev) => ({
+                          ...prev,
+                          facilContato: "Não",
+                        }))
+                      }
                     />
                     Não
                   </label>
@@ -3326,7 +3884,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
               {/* Pergunta 2 */}
               <div className="score-pergunta">
-                <label>Cliente entra pelo computador? * <span className="score-hint">(Sim = +1.0 / Não = -1.0)</span></label>
+                <label>
+                  Cliente entra pelo computador? *{" "}
+                  <span className="score-hint">(Sim = +1.0 / Não = -1.0)</span>
+                </label>
                 <div className="radio-group-score">
                   <label>
                     <input
@@ -3334,7 +3895,12 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       name="entraComputador"
                       value="Sim"
                       checked={respostasScore.entraComputador === "Sim"}
-                      onChange={() => setRespostasScore(prev => ({ ...prev, entraComputador: "Sim" }))}
+                      onChange={() =>
+                        setRespostasScore((prev) => ({
+                          ...prev,
+                          entraComputador: "Sim",
+                        }))
+                      }
                     />
                     Sim
                   </label>
@@ -3344,7 +3910,12 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       name="entraComputador"
                       value="Não"
                       checked={respostasScore.entraComputador === "Não"}
-                      onChange={() => setRespostasScore(prev => ({ ...prev, entraComputador: "Não" }))}
+                      onChange={() =>
+                        setRespostasScore((prev) => ({
+                          ...prev,
+                          entraComputador: "Não",
+                        }))
+                      }
                     />
                     Não
                   </label>
@@ -3353,7 +3924,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
               {/* Pergunta 3 */}
               <div className="score-pergunta">
-                <label>Cliente compartilha a tela? * <span className="score-hint">(Sim = +1.0 / Não = 0)</span></label>
+                <label>
+                  Cliente compartilha a tela? *{" "}
+                  <span className="score-hint">(Sim = +1.0 / Não = 0)</span>
+                </label>
                 <div className="radio-group-score">
                   <label>
                     <input
@@ -3361,7 +3935,12 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       name="compartilhaTela"
                       value="Sim"
                       checked={respostasScore.compartilhaTela === "Sim"}
-                      onChange={() => setRespostasScore(prev => ({ ...prev, compartilhaTela: "Sim" }))}
+                      onChange={() =>
+                        setRespostasScore((prev) => ({
+                          ...prev,
+                          compartilhaTela: "Sim",
+                        }))
+                      }
                     />
                     Sim
                   </label>
@@ -3371,7 +3950,12 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       name="compartilhaTela"
                       value="Não"
                       checked={respostasScore.compartilhaTela === "Não"}
-                      onChange={() => setRespostasScore(prev => ({ ...prev, compartilhaTela: "Não" }))}
+                      onChange={() =>
+                        setRespostasScore((prev) => ({
+                          ...prev,
+                          compartilhaTela: "Não",
+                        }))
+                      }
                     />
                     Não
                   </label>
@@ -3380,7 +3964,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
               {/* Pergunta 4 */}
               <div className="score-pergunta">
-                <label>Cliente faz perguntas? * <span className="score-hint">(Sim = +1.5 / Não = 0)</span></label>
+                <label>
+                  Cliente faz perguntas? *{" "}
+                  <span className="score-hint">(Sim = +1.5 / Não = 0)</span>
+                </label>
                 <div className="radio-group-score">
                   <label>
                     <input
@@ -3388,7 +3975,12 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       name="fazPerguntas"
                       value="Sim"
                       checked={respostasScore.fazPerguntas === "Sim"}
-                      onChange={() => setRespostasScore(prev => ({ ...prev, fazPerguntas: "Sim" }))}
+                      onChange={() =>
+                        setRespostasScore((prev) => ({
+                          ...prev,
+                          fazPerguntas: "Sim",
+                        }))
+                      }
                     />
                     Sim
                   </label>
@@ -3398,7 +3990,12 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       name="fazPerguntas"
                       value="Não"
                       checked={respostasScore.fazPerguntas === "Não"}
-                      onChange={() => setRespostasScore(prev => ({ ...prev, fazPerguntas: "Não" }))}
+                      onChange={() =>
+                        setRespostasScore((prev) => ({
+                          ...prev,
+                          fazPerguntas: "Não",
+                        }))
+                      }
                     />
                     Não
                   </label>
@@ -3407,7 +4004,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
               {/* Pergunta 5 */}
               <div className="score-pergunta">
-                <label>Cliente se recorda de temas anteriores? * <span className="score-hint">(Sim = +2.0 / Não = 0)</span></label>
+                <label>
+                  Cliente se recorda de temas anteriores? *{" "}
+                  <span className="score-hint">(Sim = +2.0 / Não = 0)</span>
+                </label>
                 <div className="radio-group-score">
                   <label>
                     <input
@@ -3415,7 +4015,12 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       name="recordaTemas"
                       value="Sim"
                       checked={respostasScore.recordaTemas === "Sim"}
-                      onChange={() => setRespostasScore(prev => ({ ...prev, recordaTemas: "Sim" }))}
+                      onChange={() =>
+                        setRespostasScore((prev) => ({
+                          ...prev,
+                          recordaTemas: "Sim",
+                        }))
+                      }
                     />
                     Sim
                   </label>
@@ -3425,7 +4030,12 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       name="recordaTemas"
                       value="Não"
                       checked={respostasScore.recordaTemas === "Não"}
-                      onChange={() => setRespostasScore(prev => ({ ...prev, recordaTemas: "Não" }))}
+                      onChange={() =>
+                        setRespostasScore((prev) => ({
+                          ...prev,
+                          recordaTemas: "Não",
+                        }))
+                      }
                     />
                     Não
                   </label>
@@ -3434,7 +4044,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
               {/* Pergunta 6 */}
               <div className="score-pergunta">
-                <label>Cliente faltou 2 dias seguidos? * <span className="score-hint">(Sim = -1.0 / Não = +1.0)</span></label>
+                <label>
+                  Cliente faltou 2 dias seguidos? *{" "}
+                  <span className="score-hint">(Sim = -1.0 / Não = +1.0)</span>
+                </label>
                 <div className="radio-group-score">
                   <label>
                     <input
@@ -3442,7 +4055,12 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       name="faltouDoisDias"
                       value="Sim"
                       checked={respostasScore.faltouDoisDias === "Sim"}
-                      onChange={() => setRespostasScore(prev => ({ ...prev, faltouDoisDias: "Sim" }))}
+                      onChange={() =>
+                        setRespostasScore((prev) => ({
+                          ...prev,
+                          faltouDoisDias: "Sim",
+                        }))
+                      }
                     />
                     Sim
                   </label>
@@ -3452,7 +4070,12 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       name="faltouDoisDias"
                       value="Não"
                       checked={respostasScore.faltouDoisDias === "Não"}
-                      onChange={() => setRespostasScore(prev => ({ ...prev, faltouDoisDias: "Não" }))}
+                      onChange={() =>
+                        setRespostasScore((prev) => ({
+                          ...prev,
+                          faltouDoisDias: "Não",
+                        }))
+                      }
                     />
                     Não
                   </label>
@@ -3461,7 +4084,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
               {/* Pergunta 7 */}
               <div className="score-pergunta">
-                <label>Cliente possui estrutura necessária? * <span className="score-hint">(Sim = +1.0 / Não = 0)</span></label>
+                <label>
+                  Cliente possui estrutura necessária? *{" "}
+                  <span className="score-hint">(Sim = +1.0 / Não = 0)</span>
+                </label>
                 <div className="radio-group-score">
                   <label>
                     <input
@@ -3469,7 +4095,12 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       name="estruturaNecessaria"
                       value="Sim"
                       checked={respostasScore.estruturaNecessaria === "Sim"}
-                      onChange={() => setRespostasScore(prev => ({ ...prev, estruturaNecessaria: "Sim" }))}
+                      onChange={() =>
+                        setRespostasScore((prev) => ({
+                          ...prev,
+                          estruturaNecessaria: "Sim",
+                        }))
+                      }
                     />
                     Sim
                   </label>
@@ -3479,7 +4110,12 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       name="estruturaNecessaria"
                       value="Não"
                       checked={respostasScore.estruturaNecessaria === "Não"}
-                      onChange={() => setRespostasScore(prev => ({ ...prev, estruturaNecessaria: "Não" }))}
+                      onChange={() =>
+                        setRespostasScore((prev) => ({
+                          ...prev,
+                          estruturaNecessaria: "Não",
+                        }))
+                      }
                     />
                     Não
                   </label>
@@ -3488,7 +4124,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
               {/* Pergunta 8 */}
               <div className="score-pergunta">
-                <label>Cliente é reclamante? * <span className="score-hint">(Sim = -3.0 / Não = +2.0)</span></label>
+                <label>
+                  Cliente é reclamante? *{" "}
+                  <span className="score-hint">(Sim = -3.0 / Não = +2.0)</span>
+                </label>
                 <div className="radio-group-score">
                   <label>
                     <input
@@ -3496,7 +4135,12 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       name="clienteReclamante"
                       value="Sim"
                       checked={respostasScore.clienteReclamante === "Sim"}
-                      onChange={() => setRespostasScore(prev => ({ ...prev, clienteReclamante: "Sim" }))}
+                      onChange={() =>
+                        setRespostasScore((prev) => ({
+                          ...prev,
+                          clienteReclamante: "Sim",
+                        }))
+                      }
                     />
                     Sim
                   </label>
@@ -3506,7 +4150,12 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       name="clienteReclamante"
                       value="Não"
                       checked={respostasScore.clienteReclamante === "Não"}
-                      onChange={() => setRespostasScore(prev => ({ ...prev, clienteReclamante: "Não" }))}
+                      onChange={() =>
+                        setRespostasScore((prev) => ({
+                          ...prev,
+                          clienteReclamante: "Não",
+                        }))
+                      }
                     />
                     Não
                   </label>
@@ -3515,7 +4164,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
               {/* Pergunta 9 */}
               <div className="score-pergunta">
-                <label>Cliente sumiu? * <span className="score-hint">(Sim = -5.0 / Não = 0)</span></label>
+                <label>
+                  Cliente sumiu? *{" "}
+                  <span className="score-hint">(Sim = -5.0 / Não = 0)</span>
+                </label>
                 <div className="radio-group-score">
                   <label>
                     <input
@@ -3523,7 +4175,12 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       name="clienteSumido"
                       value="Sim"
                       checked={respostasScore.clienteSumido === "Sim"}
-                      onChange={() => setRespostasScore(prev => ({ ...prev, clienteSumido: "Sim" }))}
+                      onChange={() =>
+                        setRespostasScore((prev) => ({
+                          ...prev,
+                          clienteSumido: "Sim",
+                        }))
+                      }
                     />
                     Sim
                   </label>
@@ -3533,7 +4190,12 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       name="clienteSumido"
                       value="Não"
                       checked={respostasScore.clienteSumido === "Não"}
-                      onChange={() => setRespostasScore(prev => ({ ...prev, clienteSumido: "Não" }))}
+                      onChange={() =>
+                        setRespostasScore((prev) => ({
+                          ...prev,
+                          clienteSumido: "Não",
+                        }))
+                      }
                     />
                     Não
                   </label>
@@ -3547,7 +4209,8 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   const res = calcularPontuacao(respostasScore);
                   return (
                     <span>
-                      Total Parcial: <strong>{res.score.toFixed(1)}</strong> ({res.tipo})
+                      Total Parcial: <strong>{res.score.toFixed(1)}</strong> (
+                      {res.tipo})
                     </span>
                   );
                 })()}
@@ -3584,14 +4247,18 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       respostasScore.clienteSumido === "";
 
                     if (possuiPerguntasNaoRespondidas) {
-                      toast.error("Por favor, responda a todas as perguntas para confirmar o cálculo do score.");
+                      toast.error(
+                        "Por favor, responda a todas as perguntas para confirmar o cálculo do score.",
+                      );
                       return;
                     }
 
                     const res = calcularPontuacao(respostasScore);
                     setCalculoScoreResult(res);
                     setModalScoreAberto(false);
-                    toast.success(`Score calculado: ${res.score.toFixed(1)} (${res.tipo})`);
+                    toast.success(
+                      `Score calculado: ${res.score.toFixed(1)} (${res.tipo})`,
+                    );
                   }}
                 >
                   Confirmar Cálculo
@@ -3604,31 +4271,82 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
       {/* Popup de Confirmação de Envio do WhatsApp */}
       {whatsappConfirmModalOpen && pendingWhatsAppMessage && (
-        <div className="score-modal-overlay animate-fade-in" style={{ zIndex: 2000 }}>
-          <div className="score-modal-content" style={{ maxWidth: "550px", width: "90%" }}>
-            <div className="score-modal-header" style={{ marginBottom: "16px" }}>
-              <h3 style={{ margin: 0, fontSize: "1.25rem", color: "var(--text-color, #ffffff)", fontWeight: "700" }}>
+        <div
+          className="score-modal-overlay animate-fade-in"
+          style={{ zIndex: 2000 }}
+        >
+          <div
+            className="score-modal-content"
+            style={{ maxWidth: "550px", width: "90%" }}
+          >
+            <div
+              className="score-modal-header"
+              style={{ marginBottom: "16px" }}
+            >
+              <h3
+                style={{
+                  margin: 0,
+                  fontSize: "1.25rem",
+                  color: "var(--text-color, #ffffff)",
+                  fontWeight: "700",
+                }}
+              >
                 💬 Enviar progresso pelo WhatsApp?
               </h3>
             </div>
-            <div className="score-modal-body" style={{ color: "var(--text-color, #ffffff)" }}>
-              <p style={{ fontSize: "0.9rem", marginBottom: "16px", color: "var(--text-muted, #94a3b8)", lineHeight: "1.4" }}>
-                Deseja enviar uma notificação para o cliente com o status atualizado do progresso de onboarding dele?
+            <div
+              className="score-modal-body"
+              style={{ color: "var(--text-color, #ffffff)" }}
+            >
+              <p
+                style={{
+                  fontSize: "0.9rem",
+                  marginBottom: "16px",
+                  color: "var(--text-muted, #94a3b8)",
+                  lineHeight: "1.4",
+                }}
+              >
+                Deseja enviar uma notificação para o cliente com o status
+                atualizado do progresso de onboarding dele?
               </p>
-              
+
               <div style={{ marginBottom: "16px" }}>
-                <label style={{ display: "block", fontSize: "0.8rem", fontWeight: "600", marginBottom: "6px", color: "var(--text-color, #ffffff)" }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "0.8rem",
+                    fontWeight: "600",
+                    marginBottom: "6px",
+                    color: "var(--text-color, #ffffff)",
+                  }}
+                >
                   Destinatários (WhatsApp do cliente)
                 </label>
-                <div style={{ fontSize: "0.85rem", color: "var(--text-muted, #94a3b8)" }}>
+                <div
+                  style={{
+                    fontSize: "0.85rem",
+                    color: "var(--text-muted, #94a3b8)",
+                  }}
+                >
                   {pendingWhatsAppMessage.destinatarios
-                    .map((d) => `${d.nome} (${formatarTelefoneExibicao(d.telefone) || d.telefone})`)
+                    .map(
+                      (d) =>
+                        `${d.nome} (${formatarTelefoneExibicao(d.telefone) || d.telefone})`,
+                    )
                     .join(", ")}
                 </div>
               </div>
 
               <div style={{ marginBottom: "16px" }}>
-                <label style={{ display: "block", fontSize: "0.8rem", fontWeight: "600", marginBottom: "6px", color: "var(--text-color, #ffffff)" }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "0.8rem",
+                    fontWeight: "600",
+                    marginBottom: "6px",
+                    color: "var(--text-color, #ffffff)",
+                  }}
+                >
                   Texto da Mensagem (Você pode personalizar antes de enviar)
                 </label>
                 <textarea
@@ -3636,36 +4354,97 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   value={editedWhatsAppText}
                   onChange={(e) => setEditedWhatsAppText(e.target.value)}
                   className="whatsapp-textarea"
-                  style={{ width: "100%", boxSizing: "border-box", background: "rgba(255, 255, 255, 0.03)", border: "1px solid var(--border-color, rgba(255,255,255,0.08))", borderRadius: "8px", color: "var(--text-color, #ffffff)", padding: "10px 14px" }}
+                  style={{
+                    width: "100%",
+                    boxSizing: "border-box",
+                    background: "rgba(255, 255, 255, 0.03)",
+                    border:
+                      "1px solid var(--border-color, rgba(255,255,255,0.08))",
+                    borderRadius: "8px",
+                    color: "var(--text-color, #ffffff)",
+                    padding: "10px 14px",
+                  }}
                 />
-                <p style={{ margin: "6px 0 0", fontSize: "0.75rem", color: "var(--text-muted, #94a3b8)", lineHeight: "1.4" }}>
-                  Use <code style={{ background: "rgba(255,255,255,0.07)", padding: "1px 5px", borderRadius: "4px" }}>{PLACEHOLDER_NOME}</code>{" "}
-                  onde o nome do contato deve aparecer — cada destinatário recebe uma mensagem com o próprio nome.
+                <p
+                  style={{
+                    margin: "6px 0 0",
+                    fontSize: "0.75rem",
+                    color: "var(--text-muted, #94a3b8)",
+                    lineHeight: "1.4",
+                  }}
+                >
+                  Use{" "}
+                  <code
+                    style={{
+                      background: "rgba(255,255,255,0.07)",
+                      padding: "1px 5px",
+                      borderRadius: "4px",
+                    }}
+                  >
+                    {PLACEHOLDER_NOME}
+                  </code>{" "}
+                  onde o nome do contato deve aparecer — cada destinatário
+                  recebe uma mensagem com o próprio nome.
                 </p>
               </div>
 
               {pendingWhatsAppMessage.destinatarios.length > 1 &&
                 editedWhatsAppText.toLowerCase().includes(PLACEHOLDER_NOME) && (
                   <div style={{ marginBottom: "16px" }}>
-                    <label style={{ display: "block", fontSize: "0.8rem", fontWeight: "600", marginBottom: "6px", color: "var(--text-color, #ffffff)" }}>
-                      Preview — serão enviadas {pendingWhatsAppMessage.destinatarios.length} mensagens
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: "0.8rem",
+                        fontWeight: "600",
+                        marginBottom: "6px",
+                        color: "var(--text-color, #ffffff)",
+                      }}
+                    >
+                      Preview — serão enviadas{" "}
+                      {pendingWhatsAppMessage.destinatarios.length} mensagens
                     </label>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "8px",
+                      }}
+                    >
                       {pendingWhatsAppMessage.destinatarios.map((d, idx) => (
                         <div
                           key={`${d.telefone}-${idx}`}
                           style={{
                             background: "rgba(255, 255, 255, 0.03)",
-                            border: "1px solid var(--border-color, rgba(255,255,255,0.08))",
+                            border:
+                              "1px solid var(--border-color, rgba(255,255,255,0.08))",
                             borderRadius: "8px",
                             padding: "8px 12px",
                           }}
                         >
-                          <div style={{ fontSize: "0.7rem", fontWeight: 600, color: "var(--text-muted, #94a3b8)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>
+                          <div
+                            style={{
+                              fontSize: "0.7rem",
+                              fontWeight: 600,
+                              color: "var(--text-muted, #94a3b8)",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.05em",
+                              marginBottom: "4px",
+                            }}
+                          >
                             {d.nome}
                           </div>
-                          <div style={{ fontSize: "0.8rem", color: "var(--text-color, #ffffff)", whiteSpace: "pre-wrap", lineHeight: "1.4" }}>
-                            {aplicarNomeDestinatario(editedWhatsAppText, d.nome)}
+                          <div
+                            style={{
+                              fontSize: "0.8rem",
+                              color: "var(--text-color, #ffffff)",
+                              whiteSpace: "pre-wrap",
+                              lineHeight: "1.4",
+                            }}
+                          >
+                            {aplicarNomeDestinatario(
+                              editedWhatsAppText,
+                              d.nome,
+                            )}
                           </div>
                         </div>
                       ))}
@@ -3673,8 +4452,23 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   </div>
                 )}
 
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "10px" }}>
-                <label className="checkbox-label" style={{ fontSize: "0.85rem", cursor: "pointer", display: "inline-flex", alignItems: "center" }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  marginTop: "10px",
+                }}
+              >
+                <label
+                  className="checkbox-label"
+                  style={{
+                    fontSize: "0.85rem",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                  }}
+                >
                   <input
                     type="checkbox"
                     checked={sendConveyorImage}
@@ -3682,12 +4476,22 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                     className="whatsapp-checkbox"
                   />
                   <span className="checkbox-custom"></span>
-                  <span className="checkbox-text">Incluir imagem da esteira de evolução do cliente</span>
+                  <span className="checkbox-text">
+                    Incluir imagem da esteira de evolução do cliente
+                  </span>
                 </label>
               </div>
             </div>
 
-            <div className="score-modal-footer" style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "24px" }}>
+            <div
+              className="score-modal-footer"
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: "10px",
+                marginTop: "24px",
+              }}
+            >
               <button
                 type="button"
                 className="btn-secondary"
@@ -3699,14 +4503,21 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       whatsappStatus: "nao_enviado",
                     } as Ocorrencia);
                   } catch (error) {
-                    console.error("Erro ao registrar recusa de envio do WhatsApp:", error);
+                    console.error(
+                      "Erro ao registrar recusa de envio do WhatsApp:",
+                      error,
+                    );
                   }
                   setWhatsappConfirmModalOpen(false);
                   setPendingWhatsAppMessage(null);
                   await carregar();
                   setSalvando(false);
                   cancelar();
-                  toast.success(editandoId ? "Ocorrência atualizada!" : "Ocorrência registrada!");
+                  toast.success(
+                    editandoId
+                      ? "Ocorrência atualizada!"
+                      : "Ocorrência registrada!",
+                  );
                 }}
               >
                 Não enviar
@@ -3721,32 +4532,59 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   try {
                     let imageBase64: string | undefined = undefined;
                     if (sendConveyorImage) {
-                      toast.info("Renderizando imagem da esteira em background...");
-                      imageBase64 = await generateEsteiraImage(pendingWhatsAppMessage.empresaObjeto);
+                      toast.info(
+                        "Renderizando imagem da esteira em background...",
+                      );
+                      imageBase64 = await generateEsteiraImage(
+                        pendingWhatsAppMessage.empresaObjeto,
+                      );
                     }
-                    
+
                     toast.info("Disparando mensagem para o WhatsApp...");
                     const resultados = await Promise.allSettled(
                       pendingWhatsAppMessage.destinatarios.map((d) =>
                         enviarMensagemWhatsApp({
                           to: d.telefone,
-                          message: aplicarNomeDestinatario(editedWhatsAppText, d.nome),
+                          message: aplicarNomeDestinatario(
+                            editedWhatsAppText,
+                            d.nome,
+                          ),
                           imageBase64,
-                          filename: `esteira_${pendingWhatsAppMessage.empresaNome}.png`
-                        })
-                      )
+                          filename: `esteira_${pendingWhatsAppMessage.empresaNome}.png`,
+                        }),
+                      ),
                     );
 
-                    const whatsappDestinatarios = pendingWhatsAppMessage.destinatarios.map((d, idx) => {
-                      const r = resultados[idx];
-                      return r.status === "fulfilled"
-                        ? { nome: d.nome, telefone: d.telefone, status: "enviado" as const }
-                        : { nome: d.nome, telefone: d.telefone, status: "falhou" as const, erro: String(r.reason?.message || r.reason || "Erro desconhecido") };
-                    });
+                    const whatsappDestinatarios =
+                      pendingWhatsAppMessage.destinatarios.map((d, idx) => {
+                        const r = resultados[idx];
+                        return r.status === "fulfilled"
+                          ? {
+                              nome: d.nome,
+                              telefone: d.telefone,
+                              status: "enviado" as const,
+                            }
+                          : {
+                              nome: d.nome,
+                              telefone: d.telefone,
+                              status: "falhou" as const,
+                              erro: String(
+                                r.reason?.message ||
+                                  r.reason ||
+                                  "Erro desconhecido",
+                              ),
+                            };
+                      });
 
-                    const falhas = resultados.filter((r) => r.status === "rejected").length;
+                    const falhas = resultados.filter(
+                      (r) => r.status === "rejected",
+                    ).length;
                     const whatsappStatus: Ocorrencia["whatsappStatus"] =
-                      falhas === 0 ? "enviado" : falhas < resultados.length ? "parcial" : "falhou";
+                      falhas === 0
+                        ? "enviado"
+                        : falhas < resultados.length
+                          ? "parcial"
+                          : "falhou";
 
                     try {
                       await salvarOcorrencia({
@@ -3756,19 +4594,33 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                         whatsappDestinatarios,
                       } as Ocorrencia);
                     } catch (error) {
-                      console.error("Erro ao registrar status de envio do WhatsApp:", error);
+                      console.error(
+                        "Erro ao registrar status de envio do WhatsApp:",
+                        error,
+                      );
                     }
 
                     if (falhas === 0) {
-                      toast.success("Mensagem do WhatsApp enviada com sucesso!");
+                      toast.success(
+                        "Mensagem do WhatsApp enviada com sucesso!",
+                      );
                     } else if (falhas < resultados.length) {
-                      toast.warning(`Mensagem enviada, mas falhou para ${falhas} de ${resultados.length} destinatário(s).`);
+                      toast.warning(
+                        `Mensagem enviada, mas falhou para ${falhas} de ${resultados.length} destinatário(s).`,
+                      );
                     } else {
-                      throw new Error("Falha ao enviar a mensagem para todos os destinatários.");
+                      throw new Error(
+                        "Falha ao enviar a mensagem para todos os destinatários.",
+                      );
                     }
                   } catch (err: any) {
-                    console.error("Erro ao enviar mensagem pelo WhatsApp:", err);
-                    toast.error(`Erro ao enviar WhatsApp: ${err.message || err}`);
+                    console.error(
+                      "Erro ao enviar mensagem pelo WhatsApp:",
+                      err,
+                    );
+                    toast.error(
+                      `Erro ao enviar WhatsApp: ${err.message || err}`,
+                    );
                   } finally {
                     setSendingWhatsApp(false);
                     setWhatsappConfirmModalOpen(false);
@@ -3776,7 +4628,11 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                     await carregar();
                     setSalvando(false);
                     cancelar();
-                    toast.success(editandoId ? "Ocorrência atualizada!" : "Ocorrência registrada!");
+                    toast.success(
+                      editandoId
+                        ? "Ocorrência atualizada!"
+                        : "Ocorrência registrada!",
+                    );
                   }
                 }}
               >

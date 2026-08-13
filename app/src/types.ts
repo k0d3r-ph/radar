@@ -34,6 +34,8 @@ export type Empresa = {
 
   persona?: string;
 
+  produto?: "Pro" | "Light" | "Start" | "";
+
   contato?: string;
 
   contatos?: ContatoCliente[];

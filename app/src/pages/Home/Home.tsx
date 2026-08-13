@@ -221,6 +221,7 @@ export default function Home() {
     isSuspended: false,
     isCancelled: false,
     valorContrato: undefined,
+    produto: "",
     dataFinalizacao: "",
     dataFollowUpFinal: "",
     contatos: [],
@@ -1592,6 +1593,12 @@ export default function Home() {
                   {clienteSelecionado.persona || "-"}
                 </span>
               </div>
+              <div className="info-item">
+                <span className="info-label">Produto</span>
+                <span className="info-value">
+                  {clienteSelecionado.produto || "-"}
+                </span>
+              </div>
               <div className="info-item full-width">
                 <span className="info-label">Contatos</span>
                 <span className="info-value">
@@ -1908,114 +1915,78 @@ export default function Home() {
               <label>Contatos</label>
 
               {(clienteForm.contatos || []).length === 0 && (
-                <p style={{ margin: 0, fontSize: "0.85rem", color: "#64748b", fontStyle: "italic" }}>
-                  Nenhum contato cadastrado ainda.
-                </p>
+                <p className="contatos-vazio">Nenhum contato cadastrado ainda.</p>
               )}
 
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem", marginTop: (clienteForm.contatos || []).length > 0 ? "0.4rem" : 0 }}>
-                {(clienteForm.contatos || []).map((c, idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr 1fr auto",
-                      gap: "0.6rem",
-                      alignItems: "end",
-                      background: "rgba(255, 255, 255, 0.03)",
-                      border: "1px solid rgba(255, 255, 255, 0.08)",
-                      borderRadius: "10px",
-                      padding: "0.6rem",
-                    }}
-                  >
-                    <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem", minWidth: 0 }}>
-                      <label style={{ fontSize: "0.7rem", fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                        Nome
-                      </label>
-                      <input
-                        placeholder="Ex: João"
-                        value={c.nome}
-                        onChange={(e) => {
-                          const novaLista = [...(clienteForm.contatos || [])];
-                          novaLista[idx] = { ...novaLista[idx], nome: e.target.value };
-                          setClienteForm({ ...clienteForm, contatos: novaLista });
-                        }}
-                      />
-                    </div>
+              <div className="contatos-lista">
+                {(clienteForm.contatos || []).map((c, idx) => {
+                  const telefonePreenchido = c.telefone.trim().length > 0;
+                  const { valido, erro } = telefonePreenchido
+                    ? analisarTelefoneWhatsApp(c.telefone)
+                    : { valido: false, erro: "" };
 
-                    <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem", minWidth: 0 }}>
-                      <label style={{ fontSize: "0.7rem", fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                        Telefone
-                      </label>
-                      <input
-                        placeholder="Ex: (11) 99999-9999"
-                        value={c.telefone}
-                        onChange={(e) => {
-                          const novaLista = [...(clienteForm.contatos || [])];
-                          novaLista[idx] = { ...novaLista[idx], telefone: e.target.value };
-                          setClienteForm({ ...clienteForm, contatos: novaLista });
-                        }}
-                      />
-                      {(() => {
-                        if (!c.telefone.trim()) return null;
-                        const { valido, erro } = analisarTelefoneWhatsApp(c.telefone);
-                        return (
-                          <span style={{ fontSize: "0.7rem", color: valido ? "#4ade80" : "#f87171", lineHeight: 1.3 }}>
-                            {valido
+                  return (
+                    <div key={idx} className="contato-item">
+                      <div className="contato-campo">
+                        <label>Nome</label>
+                        <input
+                          placeholder="Ex: João"
+                          value={c.nome}
+                          onChange={(e) => {
+                            const novaLista = [...(clienteForm.contatos || [])];
+                            novaLista[idx] = { ...novaLista[idx], nome: e.target.value };
+                            setClienteForm({ ...clienteForm, contatos: novaLista });
+                          }}
+                        />
+                      </div>
+
+                      <div className="contato-campo">
+                        <label>Telefone</label>
+                        <input
+                          placeholder="Ex: (11) 99999-9999"
+                          value={c.telefone}
+                          onChange={(e) => {
+                            const novaLista = [...(clienteForm.contatos || [])];
+                            novaLista[idx] = { ...novaLista[idx], telefone: e.target.value };
+                            setClienteForm({ ...clienteForm, contatos: novaLista });
+                          }}
+                        />
+                        <span
+                          className={`contato-feedback ${telefonePreenchido ? (valido ? "valido" : "invalido") : ""}`}
+                        >
+                          {telefonePreenchido
+                            ? valido
                               ? `Será enviado para ${formatarTelefoneExibicao(c.telefone)}`
-                              : erro}
-                          </span>
-                        );
-                      })()}
-                    </div>
+                              : erro
+                            : ""}
+                        </span>
+                      </div>
 
-                    <button
-                      type="button"
-                      title="Remover contato"
-                      onClick={() => {
-                        const novaLista = (clienteForm.contatos || []).filter((_, i) => i !== idx);
-                        setClienteForm({ ...clienteForm, contatos: novaLista });
-                      }}
-                      style={{
-                        width: "2.4rem",
-                        height: "2.4rem",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        borderRadius: "8px",
-                        border: "1px solid rgba(220, 38, 38, 0.35)",
-                        background: "rgba(220, 38, 38, 0.12)",
-                        color: "#f87171",
-                        fontSize: "1.2rem",
-                        lineHeight: 1,
-                        cursor: "pointer",
-                      }}
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
+                      <button
+                        type="button"
+                        className="contato-remover"
+                        title="Remover contato"
+                        onClick={() => {
+                          const novaLista = (clienteForm.contatos || []).filter((_, i) => i !== idx);
+                          setClienteForm({ ...clienteForm, contatos: novaLista });
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
 
               <button
                 type="button"
+                className="btn-add-contato"
                 onClick={() =>
                   setClienteForm({
                     ...clienteForm,
                     contatos: [...(clienteForm.contatos || []), { nome: "", telefone: "" }],
                   })
                 }
-                style={{
-                  marginTop: "0.6rem",
-                  padding: "0.55rem 1rem",
-                  borderRadius: "8px",
-                  border: "1px dashed rgba(255, 255, 255, 0.2)",
-                  background: "transparent",
-                  color: "#94a3b8",
-                  fontSize: "0.85rem",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
               >
                 + Adicionar contato
               </button>
@@ -2095,20 +2066,40 @@ export default function Home() {
               />
             </div>
 
-            <div className="form-group">
-              <label>Valor do contrato (R$)</label>
-              <input
-                type="number"
-                step="0.01"
-                placeholder="Ex: 1500.00"
-                value={clienteForm.valorContrato ?? ""}
-                onChange={(e) =>
-                  setClienteForm({
-                    ...clienteForm,
-                    valorContrato: e.target.value ? Number(e.target.value) : undefined,
-                  })
-                }
-              />
+            <div className="form-grid-2">
+              <div className="form-group">
+                <label>Produto</label>
+                <select
+                  value={clienteForm.produto || ""}
+                  onChange={(e) =>
+                    setClienteForm({
+                      ...clienteForm,
+                      produto: e.target.value as Empresa["produto"],
+                    })
+                  }
+                >
+                  <option value="">Selecione o produto</option>
+                  <option value="Pro">Pro</option>
+                  <option value="Light">Light</option>
+                  <option value="Start">Start</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>Valor do contrato (R$)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="Ex: 1500.00"
+                  value={clienteForm.valorContrato ?? ""}
+                  onChange={(e) =>
+                    setClienteForm({
+                      ...clienteForm,
+                      valorContrato: e.target.value ? Number(e.target.value) : undefined,
+                    })
+                  }
+                />
+              </div>
             </div>
 
 

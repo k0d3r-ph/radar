@@ -9,8 +9,7 @@ import {
   CheckCircle2,
   UserX,
 } from "lucide-react";
-import { collection, onSnapshot } from "firebase/firestore";
-import { db } from "../../services/firebase";
+import { listarEmpresas } from "../../services/empresas";
 import type { Empresa } from "../../types";
 import "./RelatorioScore.css";
 
@@ -51,30 +50,20 @@ export const RelatorioScore: React.FC = () => {
   const [perguntaExpandida, setPerguntaExpandida] = useState<Record<string, boolean>>({});
   const [mostrarSemScore, setMostrarSemScore] = useState(false);
 
+  // Trocado um `onSnapshot` na coleção inteira pelo carregamento em cache: o
+  // listener cobrava uma leitura por cliente a cada abertura do relatório e não
+  // se beneficiava da sincronização incremental. Um relatório não precisa de
+  // tempo real — os dados acompanham o mesmo cache do resto do Radar.
   useEffect(() => {
-    const colRef = collection(db, "empresas");
-
-    const unsubscribe = onSnapshot(
-      colRef,
-      (snapshot) => {
-        const lista = snapshot.docs
-          .map((doc) => ({
-            id: doc.id,
-            ...(doc.data() as Omit<Empresa, "id">),
-          }))
-          .filter((empresa) => empresa.id && !empresa.isOngoing);
-
-        setEmpresasList(lista);
-        setLoading(false);
-      },
-      (error) => {
-        console.error("Erro ao escutar empresas em tempo real:", error);
-        toast.error("Erro ao carregar dados dos clientes em tempo real.");
-        setLoading(false);
-      }
-    );
-
-    return () => unsubscribe();
+    listarEmpresas()
+      .then((lista) => {
+        setEmpresasList(lista.filter((empresa) => empresa.id && !empresa.isOngoing));
+      })
+      .catch((error) => {
+        console.error("Erro ao carregar empresas do relatório de score:", error);
+        toast.error("Erro ao carregar dados dos clientes.");
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   const reportData = useMemo(() => {

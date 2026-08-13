@@ -98,7 +98,10 @@ export default function ChecklistTarefas() {
 
   useEffect(() => {
     if (!user) return;
-    listarTarefasChecklist(aberto).then(setTarefas);
+    // Sem `forceRefresh`: este componente é global (App.tsx), então forçar a
+    // releitura a cada abertura do painel relia a coleção inteira o dia todo.
+    // O cache de 30s do serviço já entrega dados suficientemente frescos.
+    listarTarefasChecklist().then(setTarefas);
   }, [user, aberto]);
 
   useEffect(() => {

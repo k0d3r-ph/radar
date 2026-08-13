@@ -66,6 +66,13 @@ const INITIAL_SCORE_ANSWERS: ScoreFormAnswers = {
   clienteSumido: "",
 };
 
+/** Cor do selo de produto na listagem, do plano mais simples ao mais completo. */
+const CORES_PRODUTO: Record<string, string> = {
+  Start: "#64748b",
+  Lite: "#0ea5e9",
+  Pro: "#6366f1",
+};
+
 function calcularPontuacao(respostas: ScoreFormAnswers): {
   score: number;
   tipo: "Fast" | "Safety";
@@ -1205,6 +1212,7 @@ export default function Home() {
                 <col style={{ width: "5%" }} />
                 <col style={{ width: "5%" }} />
                 <col style={{ width: "5%" }} />
+                <col style={{ width: "5%" }} />
               </colgroup>
               <thead>
                 <tr>
@@ -1212,6 +1220,7 @@ export default function Home() {
                   <th>Cliente</th>
                   <th>Responsável</th>
                   <th>Tipo</th>
+                  <th>Produto</th>
                   <th>Score</th>
                   <th>Data de entrada</th>
                   <th>Dias</th>
@@ -1284,6 +1293,26 @@ export default function Home() {
                     </td>
 
                     <td>
+                      {empresa.produto ? (
+                        <span
+                          style={{
+                            padding: "2px 10px",
+                            borderRadius: "999px",
+                            fontSize: "0.8rem",
+                            fontWeight: 600,
+                            background:
+                              CORES_PRODUTO[empresa.produto] || "#64748b",
+                            color: "white",
+                          }}
+                        >
+                          {empresa.produto}
+                        </span>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+
+                    <td>
                       {empresa.score !== undefined && empresa.score !== null ? (
                         <span
                           style={{
@@ -1324,7 +1353,7 @@ export default function Home() {
                 {dadosAtivosFiltrados.length === 0 && (
                   <tr>
                     <td
-                      colSpan={10}
+                      colSpan={11}
                       style={{
                         textAlign: "center",
                         color: "#64748b",

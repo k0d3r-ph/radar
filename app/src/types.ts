@@ -34,7 +34,7 @@ export type Empresa = {
 
   persona?: string;
 
-  produto?: "Pro" | "Light" | "Start" | "";
+  produto?: "Pro" | "Lite" | "Start" | "";
 
   contato?: string;
 
@@ -143,7 +143,12 @@ export interface LancamentoPonto {
   id?: string;
   treinadorId: string;
   treinadorNome: string;
-  tipoAcao: "treinamento" | "nova_doc" | "att_doc" | "ferramenta_aut" | "chamado_falha";
+  tipoAcao:
+    | "treinamento"
+    | "nova_doc"
+    | "att_doc"
+    | "ferramenta_aut"
+    | "chamado_falha";
   pontos: number;
   descricao: string;
   dataLancamento: number;
@@ -178,4 +183,3 @@ export interface TarefaChecklist {
   slaEm?: number;
   prioridade?: PrioridadeTarefa;
 }
-

@@ -104,6 +104,18 @@ const DIAS_JANELA_TREINAMENTOS =
 // Usado quando o treinador não tem fator de capacidade configurado no cadastro
 const FATOR_CAPACIDADE_PADRAO = 1;
 
+// Peso de um cliente na esteira conforme o progresso já concluído: quanto mais
+// perto do fim, menos trabalho ele ainda representa para o treinador.
+const FAIXAS_PESO_PROGRESSO = [
+  { ateProgresso: 40, peso: 1 },
+  { ateProgresso: 80, peso: 0.5 },
+  { ateProgresso: 99, peso: 0.2 },
+] as const;
+
+const pesoDoProgresso = (progresso: number) =>
+  FAIXAS_PESO_PROGRESSO.find((faixa) => progresso <= faixa.ateProgresso)
+    ?.peso ?? 0;
+
 // Peso de um treinamento a partir da sua idade em dias (0 depois da janela)
 const pesoDoTreinamento = (idadeEmDias: number) =>
   FAIXAS_PESO_TREINAMENTO.find((faixa) => idadeEmDias <= faixa.ateDias)?.peso ??
@@ -912,15 +924,15 @@ export const Gamificacao: React.FC = () => {
 
   // Ranking de distribuição do próximo cliente: baseado nos treinamentos dos
   // últimos 30 dias (com peso decrescente conforme envelhecem) e nos clientes
-  // ativos na esteira sob responsabilidade do treinador, cada um valendo o
-  // trabalho que ainda falta na esteira multiplicado pelo fator de capacidade
-  // do treinador. Vence quem tiver a MENOR carga.
+  // ativos na esteira sob responsabilidade do treinador, cada um valendo o peso
+  // da sua faixa de progresso multiplicado pelo fator de capacidade do
+  // treinador. Vence quem tiver a MENOR carga.
   const distribuicaoRanking = useMemo(() => {
     const agora = Date.now();
     const inicioJanela = agora - DIAS_JANELA_TREINAMENTOS * 24 * 60 * 60 * 1000;
 
-    // Cada cliente ativo carrega o trabalho que ainda falta (0 a 1), em vez de
-    // valer sempre 1: quem está quase concluindo pesa menos na distribuição.
+    // Cada cliente ativo carrega o peso da faixa de progresso em que está, em
+    // vez de valer sempre 1: quem está quase concluindo pesa menos.
     const clientesAtivos = empresasCompletas
       .filter((emp) => {
         if (emp.isOngoing || emp.isSuspended || emp.isCancelled) return false;
@@ -939,7 +951,8 @@ export const Gamificacao: React.FC = () => {
         );
         return {
           responsavel: emp.responsavel || "",
-          trabalhoRestante: Math.min(Math.max(1 - progresso / 100, 0), 1),
+          progresso,
+          pesoProgresso: pesoDoProgresso(progresso),
         };
       });
 
@@ -990,17 +1003,26 @@ export const Gamificacao: React.FC = () => {
             normalizarNomeComparacao(primeiroNome),
         );
         const clientesEsteira = clientesDoTreinador.length;
-        const trabalhoRestante = clientesDoTreinador.reduce(
-          (soma, emp) => soma + emp.trabalhoRestante,
+        const pesoProgresso = clientesDoTreinador.reduce(
+          (soma, emp) => soma + emp.pesoProgresso,
           0,
         );
+
+        // Quantos clientes caem em cada faixa de progresso
+        const clientesPorFaixa = FAIXAS_PESO_PROGRESSO.map(() => 0);
+        clientesDoTreinador.forEach((emp) => {
+          const indiceFaixa = FAIXAS_PESO_PROGRESSO.findIndex(
+            (faixa) => emp.progresso <= faixa.ateProgresso,
+          );
+          if (indiceFaixa >= 0) clientesPorFaixa[indiceFaixa] += 1;
+        });
 
         const fatorCapacidade =
           typeof t.fatorCapacidade === "number" && t.fatorCapacidade > 0
             ? t.fatorCapacidade
             : FATOR_CAPACIDADE_PADRAO;
 
-        const cargaClientes = trabalhoRestante * fatorCapacidade;
+        const cargaClientes = pesoProgresso * fatorCapacidade;
 
         const cargaDistribuicao = parseFloat(
           (cargaTreinamentos + cargaClientes).toFixed(2),
@@ -1012,7 +1034,8 @@ export const Gamificacao: React.FC = () => {
           treinamentosPorFaixa,
           cargaTreinamentos,
           clientesEsteira,
-          trabalhoRestante,
+          clientesPorFaixa,
+          pesoProgresso,
           fatorCapacidade,
           cargaClientes,
           cargaDistribuicao,
@@ -1507,6 +1530,14 @@ export const Gamificacao: React.FC = () => {
     return `${inicio} a ${faixa.ateDias} dias`;
   };
 
+  // "0% a 40%", "41% a 80%"... a partir das faixas de progresso configuradas
+  const rotuloFaixaProgresso = (indice: number) => {
+    const faixa = FAIXAS_PESO_PROGRESSO[indice];
+    const inicio =
+      indice === 0 ? 0 : FAIXAS_PESO_PROGRESSO[indice - 1].ateProgresso + 1;
+    return `${inicio}% a ${faixa.ateProgresso}%`;
+  };
+
   // Memória de cálculo da carga, para deixar claro de onde vem cada ponto
   const MemoriaCarga = ({
     item,
@@ -1515,7 +1546,8 @@ export const Gamificacao: React.FC = () => {
       treinamentosPorFaixa: number[];
       cargaTreinamentos: number;
       clientesEsteira: number;
-      trabalhoRestante: number;
+      clientesPorFaixa: number[];
+      pesoProgresso: number;
       fatorCapacidade: number;
       cargaClientes: number;
     };
@@ -1550,19 +1582,28 @@ export const Gamificacao: React.FC = () => {
       <div className="carga-linha">
         <span className="carga-rotulo">Clientes</span>
         <div className="carga-parcelas">
+          {FAIXAS_PESO_PROGRESSO.map((faixa, indice) => {
+            const qtd = item.clientesPorFaixa[indice] ?? 0;
+            return (
+              <span
+                key={faixa.ateProgresso}
+                className={`carga-chip ${qtd === 0 ? "carga-chip-vazio" : ""}`}
+                title={`${qtd} ${qtd === 1 ? "cliente" : "clientes"} com progresso de ${rotuloFaixaProgresso(
+                  indice,
+                )}, valendo ${formatarNumeroCarga(faixa.peso)} cada`}
+              >
+                <strong>{qtd}</strong> {qtd === 1 ? "cliente" : "clientes"}{" "}
+                <span className="carga-chip-faixa">
+                  ({rotuloFaixaProgresso(indice)})
+                </span>{" "}
+                × {formatarNumeroCarga(faixa.peso)}
+              </span>
+            );
+          })}
           <span
-            className={`carga-chip ${item.clientesEsteira === 0 ? "carga-chip-vazio" : ""}`}
-            title="Cada cliente ativo conta pela fração da esteira que ainda falta concluir: recém-iniciado vale 1, na metade vale 0,5, em 90% vale 0,1. A soma equivale a esteiras inteiras."
+            className="carga-chip carga-chip-vazio"
+            title="O total dos clientes é multiplicado pelo fator de capacidade do treinador."
           >
-            <strong>{item.clientesEsteira}</strong>{" "}
-            {item.clientesEsteira === 1 ? "cliente" : "clientes"}{" "}
-            <span className="carga-chip-faixa">
-              (={" "}
-              {formatarNumeroCarga(
-                parseFloat(item.trabalhoRestante.toFixed(2)),
-              )}{" "}
-              esteiras por concluir)
-            </span>{" "}
             × fator {formatarNumeroCarga(item.fatorCapacidade)}
           </span>
         </div>

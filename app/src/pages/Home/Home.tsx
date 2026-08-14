@@ -214,6 +214,9 @@ export default function Home() {
   const [filtroProgresso, setFiltroProgresso] = useState(
     () => sessionStorage.getItem("filtroProgresso") || "",
   );
+  const [filtroProduto, setFiltroProduto] = useState(
+    () => sessionStorage.getItem("filtroProduto") || "",
+  );
   const [filtroCardStatus, setFiltroCardStatus] = useState<
     "concluidos" | "andamento" | ""
   >(() => (sessionStorage.getItem("filtroCardStatus") as any) || "");
@@ -593,6 +596,7 @@ export default function Home() {
     sessionStorage.setItem("filtroResponsavel", filtroResponsavel);
     sessionStorage.setItem("filtroCs", filtroCs);
     sessionStorage.setItem("filtroProgresso", filtroProgresso);
+    sessionStorage.setItem("filtroProduto", filtroProduto);
     sessionStorage.setItem("filtroCardStatus", filtroCardStatus);
     sessionStorage.setItem("filtroCardTipo", filtroCardTipo);
     sessionStorage.setItem("filtroCardAlerta", filtroCardAlerta);
@@ -604,6 +608,7 @@ export default function Home() {
     filtroResponsavel,
     filtroCs,
     filtroProgresso,
+    filtroProduto,
     filtroCardStatus,
     filtroCardTipo,
     filtroCardAlerta,
@@ -773,6 +778,8 @@ export default function Home() {
             e.progresso <= 75) ||
           (filtroProgresso === "76-100" && e.progresso > 75);
 
+        const produtoOk = !filtroProduto || e.produto === filtroProduto;
+
         const statusCardOk =
           !filtroCardStatus ||
           (filtroCardStatus === "concluidos" && e.progresso >= 100) ||
@@ -793,6 +800,7 @@ export default function Home() {
           responsavelOk &&
           csOk &&
           progressoOk &&
+          produtoOk &&
           statusCardOk &&
           tipoCardOk &&
           alertaCardOk
@@ -824,6 +832,7 @@ export default function Home() {
     filtroResponsavel,
     filtroCs,
     filtroProgresso,
+    filtroProduto,
     filtroCardStatus,
     filtroCardTipo,
     filtroCardAlerta,
@@ -842,8 +851,9 @@ export default function Home() {
         const responsavelOk =
           !filtroResponsavel ||
           formatarNome(e.responsavel) === filtroResponsavel;
+        const produtoOk = !filtroProduto || e.produto === filtroProduto;
 
-        return clienteOk && csOk && responsavelOk;
+        return clienteOk && csOk && responsavelOk && produtoOk;
       })
       .sort((a, b) => {
         let prim = 0;
@@ -867,6 +877,7 @@ export default function Home() {
     filtroCliente,
     filtroCs,
     filtroResponsavel,
+    filtroProduto,
     ordenacaoContrato,
     ordenacaoScore,
     ordenacaoPrincipal,
@@ -882,8 +893,9 @@ export default function Home() {
         const responsavelOk =
           !filtroResponsavel ||
           formatarNome(e.responsavel) === filtroResponsavel;
+        const produtoOk = !filtroProduto || e.produto === filtroProduto;
 
-        return clienteOk && csOk && responsavelOk;
+        return clienteOk && csOk && responsavelOk && produtoOk;
       })
       .sort((a, b) => {
         let prim = 0;
@@ -907,6 +919,7 @@ export default function Home() {
     filtroCliente,
     filtroCs,
     filtroResponsavel,
+    filtroProduto,
     ordenacaoContrato,
     ordenacaoScore,
     ordenacaoPrincipal,
@@ -922,8 +935,9 @@ export default function Home() {
         const responsavelOk =
           !filtroResponsavel ||
           formatarNome(e.responsavel) === filtroResponsavel;
+        const produtoOk = !filtroProduto || e.produto === filtroProduto;
 
-        return clienteOk && csOk && responsavelOk;
+        return clienteOk && csOk && responsavelOk && produtoOk;
       })
       .sort((a, b) => {
         let prim = 0;
@@ -947,6 +961,7 @@ export default function Home() {
     filtroCliente,
     filtroCs,
     filtroResponsavel,
+    filtroProduto,
     ordenacaoContrato,
     ordenacaoScore,
     ordenacaoPrincipal,
@@ -1116,6 +1131,21 @@ export default function Home() {
         </select>
 
         <select
+          value={filtroProduto}
+          onChange={(e) => setFiltroProduto(e.target.value)}
+        >
+          <option value="">Qualquer produto</option>
+          {[...new Set(dados.map((e) => e.produto))]
+            .filter(Boolean)
+            .sort()
+            .map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+        </select>
+
+        <select
           value={ordenacaoContrato}
           onChange={(e) => {
             const val = e.target.value as any;
@@ -1157,6 +1187,7 @@ export default function Home() {
           filtroResponsavel ||
           filtroCs ||
           filtroProgresso ||
+          filtroProduto ||
           filtroCardStatus ||
           filtroCardTipo ||
           filtroCardAlerta ||
@@ -1168,6 +1199,7 @@ export default function Home() {
               setFiltroResponsavel("");
               setFiltroCs("");
               setFiltroProgresso("");
+              setFiltroProduto("");
               setFiltroCardStatus("");
               setFiltroCardTipo("");
               setFiltroCardAlerta("");

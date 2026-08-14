@@ -606,6 +606,54 @@ body.light-theme .relatorios-table tbody tr:hover {
   background: #f8fbff !important;
 }
 
+/* Avaliação do Treinamento no Light Mode */
+body.light-theme .avaliacao-header h1 {
+  color: #0f2a5e !important;
+}
+
+body.light-theme .avaliacao-header p {
+  color: #334155 !important;
+}
+
+body.light-theme .avaliacao-card {
+  background: #ffffff !important;
+  border: 1px solid #eaedfa !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03) !important;
+}
+
+body.light-theme .avaliacao-card h2 {
+  color: #0f2a5e !important;
+}
+
+body.light-theme .avaliacao-subtitle {
+  color: #334155 !important;
+}
+
+body.light-theme .avaliacao-eyebrow {
+  background: rgba(59, 130, 246, 0.08) !important;
+  color: #1d4ed8 !important;
+}
+
+body.light-theme .avaliacao-qr-plate {
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08) !important;
+  border: 1px solid #eaedfa;
+}
+
+body.light-theme .avaliacao-passos li {
+  color: #334155 !important;
+}
+
+body.light-theme .avaliacao-btn-imprimir {
+  background: #f1f5f9 !important;
+  border: 1.5px solid #cbd5e1 !important;
+  color: #334155 !important;
+}
+
+body.light-theme .avaliacao-btn-imprimir:hover {
+  background: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
 /* Relatório de Score no Light Mode */
 body.light-theme .relatorio-score-page {
   color: #1e293b !important;

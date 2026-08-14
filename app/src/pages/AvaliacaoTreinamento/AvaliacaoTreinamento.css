@@ -1,0 +1,180 @@
+/* ── Página de Avaliação do Treinamento ── */
+.avaliacao-page {
+  min-height: 100vh;
+  padding: 32px 40px 80px;
+  box-sizing: border-box;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.avaliacao-header {
+  margin-bottom: 32px;
+}
+
+.avaliacao-header h1 {
+  margin: 0 0 6px;
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.5px;
+}
+
+.avaliacao-header p {
+  margin: 0;
+  font-size: 1rem;
+  color: #94a3b8;
+  max-width: 60ch;
+}
+
+/* Cartão central com o QR Code, no mesmo estilo dos cards premium do Radar */
+.avaliacao-card {
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-radius: 22px;
+  padding: 40px 36px 34px;
+  max-width: 26rem;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.avaliacao-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #60a5fa;
+  background: rgba(96, 165, 250, 0.14);
+  border-radius: 999px;
+  padding: 0.35rem 0.85rem;
+  margin-bottom: 1.1rem;
+}
+
+.avaliacao-stars {
+  display: flex;
+  justify-content: center;
+  gap: 0.2rem;
+  color: #fbbf24;
+  margin-bottom: 0.6rem;
+}
+
+.avaliacao-card h2 {
+  font-size: 1.6rem;
+  line-height: 1.25;
+  margin: 0 0 0.6rem;
+  color: #ffffff;
+  text-wrap: balance;
+}
+
+.avaliacao-subtitle {
+  font-size: 0.98rem;
+  line-height: 1.55;
+  color: #94a3b8;
+  margin: 0 0 1.8rem;
+  max-width: 30ch;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.avaliacao-qr-plate {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 1.1rem;
+  width: fit-content;
+  margin: 0 auto 1.8rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.avaliacao-qr-plate img {
+  display: block;
+  width: 200px;
+  height: 200px;
+}
+
+.avaliacao-passos {
+  list-style: none;
+  margin: 0 0 1.9rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  text-align: left;
+}
+
+.avaliacao-passos li {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+  color: #cbd5e1;
+}
+
+.avaliacao-passo-num {
+  flex: none;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  background: rgba(96, 165, 250, 0.14);
+  color: #60a5fa;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-weight: 600;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avaliacao-btn-imprimir {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: #cbd5e1;
+  border-radius: 10px;
+  padding: 0.6rem 1.2rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.avaliacao-btn-imprimir:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+/* Impressão: só o cartão do QR Code, sem navegação nem fundo escuro */
+@media print {
+  .app-nav,
+  .avaliacao-header,
+  .avaliacao-btn-imprimir {
+    display: none !important;
+  }
+
+  .avaliacao-page {
+    padding: 0;
+    max-width: none;
+  }
+
+  .avaliacao-card {
+    background: #ffffff;
+    color: #0f2a5e;
+    box-shadow: none;
+    border: 1px solid #cbd5e1;
+    margin: 40px auto;
+  }
+
+  .avaliacao-card h2,
+  .avaliacao-eyebrow {
+    color: #0f2a5e;
+  }
+
+  .avaliacao-subtitle,
+  .avaliacao-passos li {
+    color: #334155;
+  }
+}

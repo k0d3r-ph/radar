@@ -11,6 +11,7 @@ import { Gamificacao } from "./pages/Gamificacao/Gamificacao";
 import { Relatorios } from "./pages/Relatorios/Relatorios";
 import { useTheme } from "./context/ThemeContext";
 import { WhatsAppSettings } from "./pages/WhatsApp/WhatsAppSettings";
+import { AvaliacaoTreinamento } from "./pages/AvaliacaoTreinamento/AvaliacaoTreinamento";
 import ChecklistTarefas from "./components/ChecklistTarefas";
 import { useVerificaVersao } from "./utils/useVerificaVersao";
 
@@ -105,6 +106,12 @@ function AppRoutes() {
               >
                 WhatsApp
               </NavLink>
+              <NavLink
+                to="/avaliacao-treinamento"
+                className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
+              >
+                Avaliação
+              </NavLink>
             </>
           )}
           <NavLink
@@ -166,6 +173,12 @@ function AppRoutes() {
           <Route path="/whatsapp" element={<WhatsAppSettings />} />
         ) : (
           <Route path="/whatsapp" element={<Navigate to={role === "painel" ? "/relatorios" : "/home"} replace />} />
+        )}
+
+        {(role === "treinador" || role === "master") && role !== "painel" ? (
+          <Route path="/avaliacao-treinamento" element={<AvaliacaoTreinamento />} />
+        ) : (
+          <Route path="/avaliacao-treinamento" element={<Navigate to={role === "painel" ? "/relatorios" : "/home"} replace />} />
         )}
 
         <Route path="/relatorio-score" element={<Navigate to="/relatorios" replace />} />

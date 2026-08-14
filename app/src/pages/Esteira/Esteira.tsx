@@ -54,7 +54,7 @@ const TEMPLATES_ESTEIRA: TemplateEsteira[] = [
     nome: "Template 2",
     descricao: "Central que utilizará apenas Videotelemetria",
     temas:
-      "Início\nCadastrar Câmeras\nCadastrar Veículos\nDesassociar Rastreador\nFunções da Tela Operacional\nCadastro de cliente e Calculadora\nApresentar Videotelemetria\nCriar Templates\nCriar Regras, Áreas e Rotas\nApresentar Relatórios\nConclusão",
+      "Início\nCadastrar Câmeras\nCadastrar Veículos\nDesassociar Rastreador\nFunções da Tela Operacional\nCadastro de cliente e Calculadora\nApresentar Videotelemetria\nCriar Templates\nCriar Regras, Áreas e Rotas\nSSX Mobile\nApresentar Relatórios\nConclusão",
   },
   {
     id: "template3",

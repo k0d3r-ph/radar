@@ -107,7 +107,7 @@ const FATOR_CAPACIDADE_PADRAO = 1;
 // Peso de um cliente na esteira conforme o progresso já concluído: quanto mais
 // perto do fim, menos trabalho ele ainda representa para o treinador.
 const FAIXAS_PESO_PROGRESSO = [
-  { ateProgresso: 40, peso: 1 },
+  { ateProgresso: 40, peso: 4 },
   { ateProgresso: 80, peso: 0.5 },
   { ateProgresso: 99, peso: 0.2 },
 ] as const;

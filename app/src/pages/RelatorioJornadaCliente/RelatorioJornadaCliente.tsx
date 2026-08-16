@@ -32,7 +32,7 @@ interface RelatorioJornadaClienteProps {
 }
 
 interface StageInterval {
-  stage: "Em treinamento" | "Checkpoint" | "Sem próximo passo definido" | "Finalizado";
+  stage: "Em treinamento" | "Checkpoint" | "Sem próximo passo definido" | "Finalizado" | "Suspenso";
   startDate: Date;
   endDate: Date;
   days: number;
@@ -138,12 +138,13 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
       }
     }
 
-    // Filtra ocorrências da empresa de tipos relevantes
+    // Filtra ocorrências da empresa de tipos relevantes (incluindo retorno de suspensão)
     const relevantOcs = ocorrencias
       .filter(
         (o) =>
           o.empresa.trim().toLowerCase() === empresa.nomeEmpresa.trim().toLowerCase() &&
-          ["Treinamento", "Informativa", "Checkpoint"].includes(o.tipo)
+          (["Treinamento", "Informativa", "Checkpoint"].includes(o.tipo) ||
+            o.retornarEsteira === true)
       )
       .map((o) => {
         const createdAt = o.createdAt ?? o.dataOcorrencia ?? 0;
@@ -157,6 +158,8 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
       // Filtra com data de criação válida e ignora ocorrências Informativas sem agendamento definido
       .filter((o) => {
         if (o.createdAtTime <= 0) return false;
+        // Ocorrências de retorno de suspensão sempre passam (não precisam de data agendada)
+        if (o.retornarEsteira) return true;
         if (o.tipo === "Informativa" && o.dataOcorrenciaTime <= 0) return false;
         return true;
       })
@@ -174,6 +177,28 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
       // Se a ocorrência foi gerada após o fim da jornada, encerra a análise
       if (creationTime > endJourneyTime) {
         break;
+      }
+
+      // Se a ocorrência é de retorno de suspensão, o período ANTERIOR é de suspensão (não de "sem passo").
+      // Tratamos ela aqui antes do bloco de gap, para que o gap não seja incorretamente classificado.
+      if (oc.retornarEsteira) {
+        // O período de suspensão vai de currentTime até a criação desta ocorrência
+        const suspensaoEnd = Math.min(creationTime, endJourneyTime);
+        if (suspensaoEnd > currentTime) {
+          const diffMs = suspensaoEnd - currentTime;
+          const daysSusp = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+          stages.push({
+            stage: "Suspenso",
+            startDate: new Date(currentTime),
+            endDate: new Date(suspensaoEnd),
+            days: daysSusp,
+            slaBreached: false,
+            active: false,
+            ocorrenciaFinalizadora: oc,
+          });
+          currentTime = suspensaoEnd;
+        }
+        continue;
       }
 
       // Se houver um gap entre currentTime e a criação da ocorrência, o cliente ficou sem próximo passo definido
@@ -194,6 +219,7 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
         }
         currentTime = creationTime;
       }
+
 
       // Determina o tipo de etapa
       let stageType: "Em treinamento" | "Checkpoint" | "Sem próximo passo definido";
@@ -352,6 +378,24 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
         .map((o) => o.ocorrencia);
       if (encontrados.length > 0) {
         stage.problemasDuvidas = encontrados;
+      }
+    }
+
+    // Se o cliente está atualmente suspenso, adiciona a etapa Suspenso como ativa ao final
+    if (empresa.isSuspended && !empresa.dataFinalizacao) {
+      const suspensaoStart = Math.max(currentTime, startJourneyTime);
+      const agora = Date.now();
+      if (agora >= suspensaoStart) {
+        const diffMs = agora - suspensaoStart;
+        const daysSusp = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+        mergedStages.push({
+          stage: "Suspenso",
+          startDate: new Date(suspensaoStart),
+          endDate: new Date(agora),
+          days: daysSusp,
+          slaBreached: false,
+          active: true,
+        });
       }
     }
 
@@ -740,6 +784,8 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
         return "sem-passo";
       case "Finalizado":
         return "finalizado";
+      case "Suspenso":
+        return "suspenso";
       default:
         return "";
     }
@@ -787,6 +833,8 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
         return <AlertCircle size={size} />;
       case "Finalizado":
         return <CheckCircle size={size} />;
+      case "Suspenso":
+        return <HelpCircle size={size} />;
       default:
         return <Info size={size} />;
     }
@@ -1106,6 +1154,8 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
                           ? "❌ Treinamento Cancelado"
                           : etapaSelecionada.stage === "Em treinamento" && focusStatus === "ausente"
                           ? "⚠️ Treinamento Ausente"
+                          : etapaSelecionada.stage === "Suspenso"
+                          ? "⏸️ Suspenso"
                           : etapaSelecionada.stage}
                       </h4>
                       <div className="jornada-focus-badges">
@@ -1128,10 +1178,17 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
                           </span>
                         )}
                         {!etapaSelecionada.active && etapaSelecionada.stage !== "Finalizado" &&
+                         etapaSelecionada.stage !== "Suspenso" &&
                          !(etapaSelecionada.stage === "Em treinamento" && (focusStatus === "cancelado" || focusStatus === "ausente")) && (
                           <span className="jornada-stage-badge concluido">
                             <CheckCircle size={12} style={{ marginRight: 5 }} />
                             Concluída
+                          </span>
+                        )}
+                        {etapaSelecionada.stage === "Suspenso" && !etapaSelecionada.active && (
+                          <span className="jornada-stage-badge concluido" style={{ background: "rgba(245,158,11,0.12)", color: "#fbbf24", borderColor: "rgba(245,158,11,0.3)" }}>
+                            <CheckCircle size={12} style={{ marginRight: 5 }} />
+                            Reativado
                           </span>
                         )}
                         {etapaSelecionada.stage === "Sem próximo passo definido" && (
@@ -1180,7 +1237,8 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
                             Data de Fim
                           </span>
                           <strong>
-                            {etapaSelecionada.active && !empresaSelecionadaObj.isFinalizado && etapaSelecionada.stage === "Sem próximo passo definido"
+                            {(etapaSelecionada.active && !empresaSelecionadaObj.isFinalizado && etapaSelecionada.stage === "Sem próximo passo definido")
+                              || (etapaSelecionada.active && etapaSelecionada.stage === "Suspenso")
                               ? "Em andamento"
                               : `${etapaSelecionada.endDate.toLocaleDateString("pt-BR")} ${etapaSelecionada.endDate.toLocaleTimeString("pt-BR", {
                                   hour: "2-digit",

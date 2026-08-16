@@ -501,6 +501,23 @@ body.light-theme .jornada-stepper-line {
   background: #059669;
 }
 
+/* Suspenso */
+.jornada-step-node.suspenso .jornada-step-circle {
+  border-color: #f59e0b;
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.08);
+}
+
+.jornada-step-node.suspenso.selected-node .jornada-step-circle {
+  box-shadow: 0 0 15px rgba(245, 158, 11, 0.6);
+  background: #451a03;
+  border-color: #f59e0b;
+}
+
+.jornada-step-node.suspenso .jornada-step-name {
+  color: #fbbf24;
+}
+
 /* Badge de Etapa Atual no Stepper */
 .jornada-step-active-pulse {
   position: absolute;

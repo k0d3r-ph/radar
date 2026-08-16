@@ -636,31 +636,45 @@ export default function Home() {
         totalFases,
       );
 
-      // Encontra a ocorrência mais recente da empresa que define ou resolve um alerta
-      const ultimaOcorrenciaAlerta = historico
-        .filter(
-          (o) =>
-            o.empresa.trim().toLowerCase() ===
-              empresa.nomeEmpresa.trim().toLowerCase() &&
-            (o.alerta === true || o.retirarAlerta === true),
-        )
-        .sort(
-          (a, b) =>
-            (b.dataOcorrencia || b.createdAt || 0) -
-            (a.dataOcorrencia || a.createdAt || 0),
-        )[0];
+      // Encontra a ocorrência mais recente da empresa que define ou resolve um alerta.
+      // Ordena por `createdAt` (momento em que foi registrada) e não por `dataOcorrencia`
+      // (data agendada), pois a data agendada do alerta original pode ser futura e fazer
+      // com que ele apareça como mais recente do que a resolução.
+      const ocsAlertaEmpresa = historico.filter(
+        (o) =>
+          o.empresa.trim().toLowerCase() ===
+            empresa.nomeEmpresa.trim().toLowerCase() &&
+          (o.alerta === true || o.retirarAlerta === true),
+      );
+
+      // Última ocorrência de alerta (por createdAt)
+      const ultimoAlerta = ocsAlertaEmpresa
+        .filter((o) => o.alerta === true)
+        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0];
+
+      // Última resolução de alerta (por createdAt)
+      const ultimaResolucao = ocsAlertaEmpresa
+        .filter((o) => o.retirarAlerta === true)
+        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0];
 
       let temAlerta = false;
       let ocorrenciaAlertaId = undefined;
 
-      if (ultimaOcorrenciaAlerta) {
-        if (ultimaOcorrenciaAlerta.alerta === true) {
-          temAlerta = true;
-          ocorrenciaAlertaId = ultimaOcorrenciaAlerta.id;
-        } else {
+      if (ultimoAlerta) {
+        const tsAlerta = ultimoAlerta.createdAt || 0;
+        const tsResolucao = ultimaResolucao?.createdAt || 0;
+        // O alerta está ativo somente se não houver resolução posterior
+        if (tsResolucao > tsAlerta) {
           temAlerta = false;
+        } else {
+          temAlerta = true;
+          ocorrenciaAlertaId = ultimoAlerta.id;
         }
+      } else if (ultimaResolucao) {
+        // Só existe resolução, sem alerta registrado → não está em alerta
+        temAlerta = false;
       } else {
+        // Nenhuma ocorrência de alerta/resolução: usa a flag salva na empresa
         temAlerta = !!empresa.alerta;
       }
 

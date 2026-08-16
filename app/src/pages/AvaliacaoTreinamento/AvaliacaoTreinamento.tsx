@@ -14,10 +14,6 @@ export const AvaliacaoTreinamento: React.FC = () => {
     <div className="avaliacao-page">
       <header className="avaliacao-header">
         <h1>Avaliação do Treinamento</h1>
-        <p>
-          Mostre esta tela para o cliente ao final do treinamento para que ele
-          avalie o atendimento recebido.
-        </p>
       </header>
 
       <div className="avaliacao-card">

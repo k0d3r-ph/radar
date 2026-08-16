@@ -1759,6 +1759,56 @@
   max-width: 70ch;
 }
 
+.indicadores-periodo-texto {
+  margin: 0.25rem 0 0;
+  font-size: 0.8rem;
+  color: #9ca3af;
+}
+
+.indicadores-modal-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-shrink: 0;
+}
+
+.indicadores-filtros-periodo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.indicadores-filtro-grupo {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.indicadores-filtro-grupo label {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  white-space: nowrap;
+}
+
+.indicadores-filtro-grupo input[type="date"] {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  color: #f1f5f9;
+  font-size: 0.78rem;
+  padding: 5px 8px;
+  cursor: pointer;
+  height: auto;
+  min-width: 0;
+  width: 130px;
+}
+
+.indicadores-filtro-grupo input[type="date"]:focus {
+  outline: none;
+  border-color: rgba(99, 102, 241, 0.5);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+}
+
 /* Os indicadores ficam nas linhas e os treinadores nas colunas, então a
    tabela cabe na largura do modal. Só rola na vertical; o cabeçalho com os
    nomes e a coluna do indicador acompanham a rolagem. */

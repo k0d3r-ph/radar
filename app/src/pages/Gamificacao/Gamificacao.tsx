@@ -303,6 +303,15 @@ const COLUNAS_INDICADORES = [
     passo: 1,
     ajuda: "Clientes com alerta em aberto",
   },
+  {
+    chave: "scoreClientes",
+    titulo: "Média Score clientes",
+    unidade: "",
+    menorEhMelhor: false,
+    passo: 0.1,
+    ajuda:
+      "Média do Score (Fast/Safety) dos clientes ativos sob responsabilidade do treinador (exclui cancelados e clientes sem score registrado)",
+  },
 ] as const;
 
 const TEMAS_GAMIFICACAO = [
@@ -626,6 +635,17 @@ export const Gamificacao: React.FC = () => {
   const [metasSalvas, setMetasSalvas] = useState<MetasIndicadores>({});
   const [metasCarregadas, setMetasCarregadas] = useState(false);
   const [salvandoMetas, setSalvandoMetas] = useState(false);
+
+  // Filtros internos do modal de Indicadores (independentes dos filtros da página principal)
+  const [indicadoresDataInicio, setIndicadoresDataInicio] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+  });
+  const [indicadoresDataFim, setIndicadoresDataFim] = useState(() => {
+    const now = new Date();
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+  });
   const [pontoOcorrenciaMap, setPontoOcorrenciaMap] = useState<
     Record<string, { id: string; alerta?: boolean }>
   >({});
@@ -1068,14 +1088,33 @@ export const Gamificacao: React.FC = () => {
       });
   }, [showIndicadoresModal, podeVerIndicadores, metasCarregadas]);
 
+  // Lançamentos filtrados pelo período interno do modal de Indicadores
+  const filteredEntriesIndicadores = useMemo(() => {
+    return entries.filter((entry) => {
+      const isPainel =
+        entry.treinadorNome?.trim().toLowerCase() === "painel" ||
+        entry.treinadorNome?.toLowerCase().includes("painel");
+      if (isPainel) return false;
+      if (indicadoresDataInicio) {
+        const startTimestamp = new Date(indicadoresDataInicio + "T00:00:00").getTime();
+        if (entry.dataLancamento < startTimestamp) return false;
+      }
+      if (indicadoresDataFim) {
+        const endTimestamp = new Date(indicadoresDataFim + "T23:59:59.999").getTime();
+        if (entry.dataLancamento > endTimestamp) return false;
+      }
+      return true;
+    });
+  }, [entries, indicadoresDataInicio, indicadoresDataFim]);
+
   // Ocorrências dentro do período selecionado, para os indicadores que vêm do
   // histórico (contatos de Suporte e atendimentos por WhatsApp).
   const ocorrenciasNoPeriodo = useMemo(() => {
-    const inicio = filtroDataInicio
-      ? new Date(filtroDataInicio + "T00:00:00").getTime()
+    const inicio = indicadoresDataInicio
+      ? new Date(indicadoresDataInicio + "T00:00:00").getTime()
       : null;
-    const fim = filtroDataFim
-      ? new Date(filtroDataFim + "T23:59:59.999").getTime()
+    const fim = indicadoresDataFim
+      ? new Date(indicadoresDataFim + "T23:59:59.999").getTime()
       : null;
 
     return ocorrencias.filter((o) => {
@@ -1085,7 +1124,7 @@ export const Gamificacao: React.FC = () => {
       if (fim !== null && data > fim) return false;
       return true;
     });
-  }, [ocorrencias, filtroDataInicio, filtroDataFim]);
+  }, [ocorrencias, indicadoresDataInicio, indicadoresDataFim]);
 
   /**
    * Empresas com alerta em aberto, pela mesma regra do Radar: vale a ocorrência
@@ -1168,7 +1207,7 @@ export const Gamificacao: React.FC = () => {
         const nomeCompleto = normalizarNomeComparacao(nomeFormatado);
 
         // ── Lançamentos de pontos ──
-        const lancamentos = filteredEntries.filter(
+        const lancamentos = filteredEntriesIndicadores.filter(
           (e) => e.treinadorId === t.uid,
         );
         const treinamentos = lancamentos.filter(
@@ -1283,6 +1322,12 @@ export const Gamificacao: React.FC = () => {
           );
         const tempoMedioEsteira = media(diasNaEsteira);
 
+        // ── Score médio dos clientes (Fast/Safety) ──
+        const scoresClientes = clientesAtivos
+          .filter((emp) => typeof emp.score === "number")
+          .map((emp) => emp.score as number);
+        const scoreClientes = media(scoresClientes);
+
         return {
           uid: t.uid,
           nome: nomeFormatado,
@@ -1300,17 +1345,19 @@ export const Gamificacao: React.FC = () => {
           clientesEmAndamento,
           clientesSuspensos,
           clientesEmAlerta,
+          scoreClientes,
           // Guardados para poder somar/ponderar corretamente na linha de total
           _realizadosComNotas: comNotas.length,
           _notas: todasAsNotas,
           _esperas: esperas,
           _diasNaEsteira: diasNaEsteira,
+          _scoresClientes: scoresClientes,
         };
       })
       .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
   }, [
     trainers,
-    filteredEntries,
+    filteredEntriesIndicadores,
     ocorrenciasNoPeriodo,
     empresasCompletas,
     empresasComAlerta,
@@ -1335,6 +1382,9 @@ export const Gamificacao: React.FC = () => {
     const todosOsDias = indicadoresPorTreinador.flatMap(
       (i) => i._diasNaEsteira,
     );
+    const todosOsScores = indicadoresPorTreinador.flatMap(
+      (i) => i._scoresClientes,
+    );
 
     return {
       taxaCsat: realizados > 0 ? realizadosComNotas / realizados : null,
@@ -1351,6 +1401,7 @@ export const Gamificacao: React.FC = () => {
       clientesEmAndamento: soma((i) => i.clientesEmAndamento),
       clientesSuspensos: soma((i) => i.clientesSuspensos),
       clientesEmAlerta: soma((i) => i.clientesEmAlerta),
+      scoreClientes: media(todosOsScores),
     };
   }, [indicadoresPorTreinador]);
 
@@ -1370,6 +1421,7 @@ export const Gamificacao: React.FC = () => {
     clientesEmAndamento: number;
     clientesSuspensos: number;
     clientesEmAlerta: number;
+    scoreClientes: number | null;
   }) => [
     linha.taxaCsat === null ? "—" : `${Math.round(linha.taxaCsat * 100)}%`,
     linha.notaCsat === null ? "—" : linha.notaCsat.toFixed(1),
@@ -1389,6 +1441,7 @@ export const Gamificacao: React.FC = () => {
     String(linha.clientesEmAndamento),
     String(linha.clientesSuspensos),
     String(linha.clientesEmAlerta),
+    linha.scoreClientes === null ? "—" : linha.scoreClientes.toFixed(1),
   ];
 
   /**
@@ -1411,6 +1464,7 @@ export const Gamificacao: React.FC = () => {
     clientesEmAndamento: number;
     clientesSuspensos: number;
     clientesEmAlerta: number;
+    scoreClientes: number | null;
   }): (number | null)[] => [
     linha.taxaCsat === null ? null : linha.taxaCsat * 100,
     linha.notaCsat,
@@ -1426,6 +1480,7 @@ export const Gamificacao: React.FC = () => {
     linha.clientesEmAndamento,
     linha.clientesSuspensos,
     linha.clientesEmAlerta,
+    linha.scoreClientes,
   ];
 
   // Valores já formatados, indexados pelo treinador. Como a tabela é
@@ -2750,16 +2805,50 @@ export const Gamificacao: React.FC = () => {
                 <BarChart3 className="card-icon" size={22} />
                 <div>
                   <h2>Indicadores por Treinador</h2>
+                  <p className="indicadores-periodo-texto">
+                    Período:{" "}
+                    <strong>
+                      {indicadoresDataInicio
+                        ? new Date(indicadoresDataInicio + "T00:00:00").toLocaleDateString("pt-BR")
+                        : "início"}
+                      {" — "}
+                      {indicadoresDataFim
+                        ? new Date(indicadoresDataFim + "T00:00:00").toLocaleDateString("pt-BR")
+                        : "hoje"}
+                    </strong>
+                  </p>
                 </div>
               </div>
-              <button
-                type="button"
-                className="btn-fechar-modal"
-                onClick={() => setShowIndicadoresModal(false)}
-                title="Fechar"
-              >
-                <X size={18} />
-              </button>
+              <div className="indicadores-modal-header-actions">
+                <div className="indicadores-filtros-periodo">
+                  <div className="indicadores-filtro-grupo">
+                    <label htmlFor="ind-data-inicio">De</label>
+                    <input
+                      id="ind-data-inicio"
+                      type="date"
+                      value={indicadoresDataInicio}
+                      onChange={(e) => setIndicadoresDataInicio(e.target.value)}
+                    />
+                  </div>
+                  <div className="indicadores-filtro-grupo">
+                    <label htmlFor="ind-data-fim">Até</label>
+                    <input
+                      id="ind-data-fim"
+                      type="date"
+                      value={indicadoresDataFim}
+                      onChange={(e) => setIndicadoresDataFim(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="btn-fechar-modal"
+                  onClick={() => setShowIndicadoresModal(false)}
+                  title="Fechar"
+                >
+                  <X size={18} />
+                </button>
+              </div>
             </div>
 
             <div className="indicadores-tabela-wrapper">

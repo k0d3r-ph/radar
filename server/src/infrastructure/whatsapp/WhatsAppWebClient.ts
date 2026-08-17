@@ -98,8 +98,9 @@ export class WhatsAppWebClient implements IWhatsAppService {
             dataPath: process.env.WWEBJS_AUTH_PATH || './.wwebjs_auth'
           }),
           userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-          // VM com poucos recursos: o carregamento do WhatsApp Web pode passar dos 30s padrão do lib.
-          authTimeoutMs: 120000,
+          // VM com poucos recursos: o carregamento do WhatsApp Web pode ser lento.
+          // 300s (5 min) para dar margem suficiente sem precisar re-escanear o QR.
+          authTimeoutMs: 300000,
           puppeteer: {
             headless: true,
             executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
@@ -118,10 +119,11 @@ export class WhatsAppWebClient implements IWhatsAppService {
         });
 
         // Timeout de segurança para evitar travamento infinito no estado 'authenticating'.
-        // Maior que authTimeoutMs para dar tempo do próprio erro de timeout da lib se resolver antes.
+        // Definido como 360s (6 min) — acima do authTimeoutMs de 300s — para que o
+        // próprio erro da lib dispare antes deste, evitando descarte prematuro da sessão.
         initTimeout = setTimeout(async () => {
           if (this.session.status === 'authenticating') {
-            console.error('[WhatsApp] Timeout de 180s atingido durante a inicialização.');
+            console.error('[WhatsApp] Timeout de 360s atingido durante a inicialização.');
             this.updateStatus('disconnected');
             if (this.client) {
               try {
@@ -133,7 +135,7 @@ export class WhatsAppWebClient implements IWhatsAppService {
             this.client = null;
             this.initializingPromise = null;
           }
-        }, 180000);
+        }, 360000);
 
         this.client.on('loading_screen', (percent: any, message: any) => {
           console.log(`[WhatsApp] Carregando: ${percent}% - ${message}`);

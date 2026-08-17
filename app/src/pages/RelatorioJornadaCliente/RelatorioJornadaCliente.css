@@ -275,6 +275,13 @@
   border: 1px solid rgba(245, 158, 11, 0.25);
 }
 
+.jornada-client-stage-badge.suspenso {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fcd34d;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  font-weight: 600;
+}
+
 /* Detalhamento do Cliente Selecionado */
 .jornada-detail-card {
   display: flex;
@@ -516,6 +523,30 @@ body.light-theme .jornada-stepper-line {
 
 .jornada-step-node.suspenso .jornada-step-name {
   color: #fbbf24;
+}
+
+/* Cliente Cancelado */
+.jornada-step-node.ciente-cancelado .jornada-step-circle {
+  border-color: #dc2626;
+  background: rgba(220, 38, 38, 0.12);
+  color: #f87171;
+  box-shadow: 0 0 10px rgba(220, 38, 38, 0.3);
+}
+
+.jornada-step-node.ciente-cancelado.selected-node .jornada-step-circle {
+  box-shadow: 0 0 18px rgba(220, 38, 38, 0.7);
+  background: #450a0a;
+  border-color: #ef4444;
+}
+
+.jornada-step-node.ciente-cancelado .jornada-step-name {
+  color: #f87171;
+}
+
+.jornada-client-stage-badge.ciente-cancelado {
+  background: rgba(220, 38, 38, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(220, 38, 38, 0.3);
 }
 
 /* Badge de Etapa Atual no Stepper */
@@ -1100,6 +1131,20 @@ body.light-theme .jornada-step-node.finalizado.selected-node .jornada-step-circl
   background: #d1fae5;
   border-color: #10b981;
   box-shadow: 0 0 12px rgba(16, 185, 129, 0.45);
+}
+
+body.light-theme .jornada-step-node.ciente-cancelado .jornada-step-circle {
+  border-color: #ef4444;
+  color: #dc2626;
+  background: #fef2f2;
+}
+body.light-theme .jornada-step-node.ciente-cancelado.selected-node .jornada-step-circle {
+  background: #fee2e2;
+  border-color: #dc2626;
+  box-shadow: 0 0 12px rgba(220, 38, 38, 0.45);
+}
+body.light-theme .jornada-step-node.ciente-cancelado .jornada-step-name {
+  color: #dc2626;
 }
 
 body.light-theme .jornada-focus-card {

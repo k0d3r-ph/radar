@@ -32,7 +32,7 @@ interface RelatorioJornadaClienteProps {
 }
 
 interface StageInterval {
-  stage: "Em treinamento" | "Checkpoint" | "Sem próximo passo definido" | "Finalizado" | "Suspenso";
+  stage: "Em treinamento" | "Checkpoint" | "Sem próximo passo definido" | "Finalizado" | "Suspenso" | "Cliente Cancelado";
   startDate: Date;
   endDate: Date;
   days: number;
@@ -381,8 +381,8 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
       }
     }
 
-    // Se o cliente está atualmente suspenso, adiciona a etapa Suspenso como ativa ao final
-    if (empresa.isSuspended && !empresa.dataFinalizacao) {
+    // Se o cliente está atualmente suspenso (e não cancelado), adiciona a etapa Suspenso como ativa ao final
+    if (empresa.isSuspended && !empresa.dataFinalizacao && !empresa.isCancelled) {
       const suspensaoStart = Math.max(currentTime, startJourneyTime);
       const agora = Date.now();
       if (agora >= suspensaoStart) {
@@ -411,8 +411,21 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
       });
     }
 
-    // Marca a última etapa como ativa se o cliente ainda estiver em aberto (sem dataFinalizacao)
-    if (!empresa.dataFinalizacao && mergedStages.length > 0) {
+    // Se o cliente foi cancelado, adiciona a etapa Cliente Cancelado ao final
+    if (empresa.isCancelled) {
+      const cancelDate = endJourneyDate ?? new Date(currentTime);
+      mergedStages.push({
+        stage: "Cliente Cancelado",
+        startDate: cancelDate,
+        endDate: cancelDate,
+        days: 0,
+        slaBreached: false,
+        active: false,
+      });
+    }
+
+    // Marca a última etapa como ativa se o cliente ainda estiver em aberto (sem dataFinalizacao e sem cancelamento)
+    if (!empresa.dataFinalizacao && !empresa.isCancelled && mergedStages.length > 0) {
       mergedStages[mergedStages.length - 1].active = true;
     }
 
@@ -426,7 +439,8 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
       .map((emp) => {
       const jornada = calcularJornada(emp);
       const isFinalizado = !!emp.dataFinalizacao;
-      const currentStageObj = jornada.find((s) => s.active) || (isFinalizado ? jornada[jornada.length - 1] : null);
+      const isCancelado = !!emp.isCancelled;
+      const currentStageObj = jornada.find((s) => s.active) || ((isFinalizado || isCancelado) ? jornada[jornada.length - 1] : null);
 
       let slaEstouradoAtual = false;
       let diasNaEtapaAtual = 0;
@@ -786,6 +800,8 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
         return "finalizado";
       case "Suspenso":
         return "suspenso";
+      case "Cliente Cancelado":
+        return "ciente-cancelado";
       default:
         return "";
     }
@@ -835,6 +851,8 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
         return <CheckCircle size={size} />;
       case "Suspenso":
         return <HelpCircle size={size} />;
+      case "Cliente Cancelado":
+        return <XCircle size={size} />;
       default:
         return <Info size={size} />;
     }
@@ -901,8 +919,12 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
                 let badgeClass = getStageClass(c.etapaAtual);
                 if (isSlaBreached) badgeClass = "sem-passo-erro";
 
+                // Clientes cancelados sempre mostram o badge "Cancelado"
                 let stageText = c.etapaAtual;
-                if (c.etapaAtual === "Em treinamento") {
+                if (c.isCancelled) {
+                  badgeClass = "ciente-cancelado";
+                  stageText = "Cancelado";
+                } else if (c.etapaAtual === "Em treinamento") {
                   const currentStageObj = c.jornada.find((s) => s.active) || (c.isFinalizado ? c.jornada[c.jornada.length - 1] : null);
                   if (currentStageObj) {
                     const statusTreinamento = obterStatusTreinamento(currentStageObj);
@@ -985,8 +1007,18 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
                 </div>
                 <div className="jornada-detail-info-item">
                   <span>Status da Esteira</span>
-                  <strong style={{ color: empresaSelecionadaObj.isFinalizado ? "#10b981" : "#3b82f6" }}>
-                    {empresaSelecionadaObj.isFinalizado ? "Concluído" : "Em aberto"}
+                  <strong style={{
+                    color: empresaSelecionadaObj.isCancelled
+                      ? "#ef4444"
+                      : empresaSelecionadaObj.isFinalizado
+                      ? "#10b981"
+                      : "#3b82f6"
+                  }}>
+                    {empresaSelecionadaObj.isCancelled
+                      ? "Cancelado"
+                      : empresaSelecionadaObj.isFinalizado
+                      ? "Concluído"
+                      : "Em aberto"}
                   </strong>
                 </div>
                 {empresaSelecionadaObj.totalEstourosSLA > 0 && (
@@ -1105,6 +1137,8 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
                         <span className="jornada-step-name">
                           {item.stage === "Finalizado"
                             ? "Finalizado"
+                            : item.stage === "Cliente Cancelado"
+                            ? "Cliente Cancelado"
                             : item.stage === "Em treinamento" && statusTreinamento === "cancelado"
                             ? "Treinamento Cancelado"
                             : item.stage === "Em treinamento" && statusTreinamento === "ausente"
@@ -1150,6 +1184,8 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
                       <h4 className="jornada-focus-title">
                         {etapaSelecionada.stage === "Finalizado"
                           ? "🏁 Esteira Finalizada"
+                          : etapaSelecionada.stage === "Cliente Cancelado"
+                          ? "🚫 Cliente Cancelado"
                           : etapaSelecionada.stage === "Em treinamento" && focusStatus === "cancelado"
                           ? "❌ Treinamento Cancelado"
                           : etapaSelecionada.stage === "Em treinamento" && focusStatus === "ausente"
@@ -1178,6 +1214,7 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
                           </span>
                         )}
                         {!etapaSelecionada.active && etapaSelecionada.stage !== "Finalizado" &&
+                         etapaSelecionada.stage !== "Cliente Cancelado" &&
                          etapaSelecionada.stage !== "Suspenso" &&
                          !(etapaSelecionada.stage === "Em treinamento" && (focusStatus === "cancelado" || focusStatus === "ausente")) && (
                           <span className="jornada-stage-badge concluido">
@@ -1229,7 +1266,7 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
                       </strong>
                     </div>
 
-                    {etapaSelecionada.stage !== "Finalizado" && (
+                    {etapaSelecionada.stage !== "Finalizado" && etapaSelecionada.stage !== "Cliente Cancelado" && (
                       <>
                         <div className="jornada-focus-item">
                           <span>

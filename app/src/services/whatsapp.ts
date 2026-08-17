@@ -35,17 +35,35 @@ export interface EnviarMensagemWhatsAppParams {
 }
 
 export async function enviarMensagemWhatsApp(params: EnviarMensagemWhatsAppParams): Promise<void> {
-  const response = await fetch(`${WHATSAPP_API_URL}/api/whatsapp/send`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(params)
-  });
+  const controller = new AbortController();
+  // Timeout de segurança: se o servidor não responder em 8s, aborta.
+  // (O backend agora responde imediatamente com 202, então na prática isso
+  //  só é acionado se a VM estiver fora do ar ou com rede travada.)
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-  const data = await response.json();
-  if (!response.ok || !data.success) {
-    throw new Error(data.error || 'Falha ao enviar mensagem pelo WhatsApp.');
+  try {
+    const response = await fetch(`${WHATSAPP_API_URL}/api/whatsapp/send`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(params),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    // 200 (legado) ou 202 Accepted (fire-and-forget) são ambos sucesso
+    if (response.status !== 200 && response.status !== 202) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error((data as any).error || `Erro HTTP ${response.status}`);
+    }
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      throw new Error('Tempo limite atingido ao contatar o servidor WhatsApp. Verifique se a VM está online.');
+    }
+    throw err;
   }
 }
 

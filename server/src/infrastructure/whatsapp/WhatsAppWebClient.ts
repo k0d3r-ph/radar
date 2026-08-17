@@ -254,9 +254,17 @@ export class WhatsAppWebClient implements IWhatsAppService {
       
       let chatId = `${cleanNumber}@c.us`;
       
-      // Tenta obter o ID correto registrado no WhatsApp (evita o erro "No LID for user")
+      // Tenta obter o ID correto registrado no WhatsApp (evita o erro "No LID for user").
+      // Timeout de 10s: em VMs com poucos recursos o getNumberId pode demorar muito;
+      // se exceder, usa o chatId padrão e tenta enviar mesmo assim.
       try {
-        const resolvedId = await this.client.getNumberId(cleanNumber);
+        const resolveTimeout = new Promise<null>((resolve) =>
+          setTimeout(() => resolve(null), 10000)
+        );
+        const resolvedId = await Promise.race([
+          this.client.getNumberId(cleanNumber),
+          resolveTimeout,
+        ]);
         if (resolvedId && resolvedId._serialized) {
           chatId = resolvedId._serialized;
           console.log(`Telefone resolvido via getNumberId: ${chatId}`);

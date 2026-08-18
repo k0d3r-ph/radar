@@ -1360,8 +1360,10 @@ export const Gamificacao: React.FC = () => {
         const tempoMedioEsteira = media(diasNaEsteira);
 
         // ── Score médio dos clientes (Fast/Safety) ──
+        // Só entram clientes em esteira e suspensos — onboarding e
+        // cancelados não contam para a média.
         const scoresClientes = clientesAtivos
-          .filter((emp) => typeof emp.score === "number")
+          .filter((emp) => !emp.isOngoing && typeof emp.score === "number")
           .map((emp) => emp.score as number);
         const scoreClientes = media(scoresClientes);
 

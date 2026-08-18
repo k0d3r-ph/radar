@@ -656,14 +656,19 @@ export const Gamificacao: React.FC = () => {
   const [salvandoMetas, setSalvandoMetas] = useState(false);
 
   // Filtros internos do modal de Indicadores (independentes dos filtros da página principal)
+  // A análise é feita semanalmente, então o padrão é a semana atual (Domingo a Sábado),
+  // igual ao critério usado na página de Relatórios.
   const [indicadoresDataInicio, setIndicadoresDataInicio] = useState(() => {
     const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+    const inicio = new Date(now);
+    inicio.setDate(now.getDate() - now.getDay());
+    return `${inicio.getFullYear()}-${String(inicio.getMonth() + 1).padStart(2, "0")}-${String(inicio.getDate()).padStart(2, "0")}`;
   });
   const [indicadoresDataFim, setIndicadoresDataFim] = useState(() => {
     const now = new Date();
-    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+    const fim = new Date(now);
+    fim.setDate(now.getDate() - now.getDay() + 6);
+    return `${fim.getFullYear()}-${String(fim.getMonth() + 1).padStart(2, "0")}-${String(fim.getDate()).padStart(2, "0")}`;
   });
   const [pontoOcorrenciaMap, setPontoOcorrenciaMap] = useState<
     Record<string, { id: string; alerta?: boolean }>

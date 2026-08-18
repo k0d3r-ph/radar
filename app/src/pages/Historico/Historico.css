@@ -1674,6 +1674,18 @@ body.light-theme .tema-opcao:hover {
   font-weight: 700;
 }
 
+.nota-treinamento-tag--bom {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+}
+
+.nota-treinamento-tag--ruim {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+
 .training-notes-header {
   display: flex;
   justify-content: space-between;

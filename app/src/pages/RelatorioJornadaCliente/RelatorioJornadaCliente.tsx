@@ -1405,10 +1405,29 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
                         )}
 
                       {etapaSelecionada.ocorrencia.tipo === "Treinamento" &&
+                        etapaSelecionada.ocorrencia.treinamentoResultados &&
+                        etapaSelecionada.ocorrencia.treinamentoResultados.length > 0 && (
+                          <div className="jornada-focus-csat">
+                            <h5>Resultado do CSAT</h5>
+                            <div className="csat-notas-container">
+                              {etapaSelecionada.ocorrencia.treinamentoResultados.map((resultado, nIdx) => (
+                                <span
+                                  key={nIdx}
+                                  className={`csat-nota-badge ${
+                                    resultado === "Bom" ? "csat-nota-badge--bom" : "csat-nota-badge--ruim"
+                                  }`}
+                                >
+                                  {resultado}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      {etapaSelecionada.ocorrencia.tipo === "Treinamento" &&
                         etapaSelecionada.ocorrencia.treinamentoNotas &&
                         etapaSelecionada.ocorrencia.treinamentoNotas.length > 0 && (
                           <div className="jornada-focus-csat">
-                            <h5>Notas de Satisfação (CSAT)</h5>
+                            <h5>Notas de Satisfação (CSAT, modelo antigo)</h5>
                             <div className="csat-notas-container">
                               {etapaSelecionada.ocorrencia.treinamentoNotas.map((nota, nIdx) => (
                                 <span key={nIdx} className="csat-nota-badge">

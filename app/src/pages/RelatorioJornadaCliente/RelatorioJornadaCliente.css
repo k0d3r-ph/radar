@@ -891,6 +891,18 @@ body.light-theme .jornada-step-issue-badge {
   font-weight: 700;
 }
 
+.csat-nota-badge--bom {
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  color: #34d399;
+}
+
+.csat-nota-badge--ruim {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+
 /* Mensagens de tela vazia */
 .jornada-empty-state {
   display: flex;

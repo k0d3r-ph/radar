@@ -375,7 +375,7 @@ const renderMarkdown = (text: string) => {
   });
 };
 
-const TEMPLATE_TREINAMENTO = `Participantes: \n\nNOTA: \n\nRelatório de treinamento:\n\n• Cliente se manteve atento? \n• Cliente absorveu o conteúdo aplicado?\n• Cliente foi participativo?\n• Houve alguma interrupção?\n• Ambiente favorável (Som)?\n• Manifestou alguma insatisfação?\n• Treinamento foi gravado?\n\nRelatório do atendimento:\n\nE-mail: \nNota:\nTexto: `;
+const TEMPLATE_TREINAMENTO = `Participantes: \n\nNOTA: \n\nRelatório de treinamento:\n\n• Cliente se manteve atento? \n• Cliente absorveu o conteúdo aplicado?\n• Cliente foi participativo?\n• Houve alguma interrupção?\n• Ambiente favorável (Som)?\n• Manifestou alguma insatisfação?\n• Treinamento foi gravado?\n\nRelatório do atendimento:\n\nE-mail: \nExperiência boa ou ruim?:\nTexto: `;
 
 const EMPTY: OcorrenciaForm = {
   empresa: "",
@@ -1139,8 +1139,9 @@ export function Historico() {
     let dataRealizacaoStr = "";
     // Dado antigo (modelo de nota 1 a 5): preservado como está no registro
     // original quando em edição, já que o formulário não permite mais editá-lo.
-    let computedMedia: number | null = ocorrenciaOriginal?.treinamentoNotaMedia ?? null;
-    let validNotas: number[] = ocorrenciaOriginal?.treinamentoNotas ?? [];
+    const computedMedia: number | null =
+      ocorrenciaOriginal?.treinamentoNotaMedia ?? null;
+    const validNotas: number[] = ocorrenciaOriginal?.treinamentoNotas ?? [];
     // Dado atual (modelo Bom/Ruim)
     const validResultados = (form.treinamentoResultados ?? []).filter(
       (r): r is "Bom" | "Ruim" => r === "Bom" || r === "Ruim",
@@ -2982,7 +2983,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                     {selecionada.treinamentoNotas &&
                       selecionada.treinamentoNotas.length > 0 && (
                         <div className="hist-detail-training-notes-wrapper">
-                          <span>Notas do Treinamento (CSAT, modelo antigo)</span>
+                          <span>
+                            Notas do Treinamento (CSAT, modelo antigo)
+                          </span>
                           <div className="hist-detail-training-notes-list">
                             {selecionada.treinamentoNotas.map((nota, idx) => (
                               <span key={idx} className="nota-treinamento-tag">

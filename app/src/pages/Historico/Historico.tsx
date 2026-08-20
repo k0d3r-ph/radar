@@ -6,7 +6,11 @@ import {
   listarOcorrencias,
   removerOcorrencia,
 } from "../../services/ocorrencias";
-import { listarEmpresas, salvarEmpresas } from "../../services/empresas";
+import {
+  listarEmpresas,
+  salvarEmpresas,
+  isEmpresaInterna,
+} from "../../services/empresas";
 import {
   normalizarTelefoneWhatsApp,
   formatarTelefoneExibicao,
@@ -1063,6 +1067,11 @@ export function Historico() {
       return;
     }
 
+    // Empresas internas (ex.: Systemsat) permitem registrar ocorrências para
+    // fins de histórico, mas não devem disparar automações de esteira/WhatsApp
+    // nem notificações de gestão, já que não são clientes reais.
+    const empresaInterna = isEmpresaInterna(empresaObjeto);
+
     const CanceladoOuAusente = (form.temaOcorrencia ?? []).some(
       (t) =>
         t.trim().toLowerCase() === "cancelado" ||
@@ -1453,7 +1462,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
     // Alerta: notifica quando a ocorrência *vira* alerta, seja ao criar ou ao editar.
     // Comparar com o estado anterior evita renotificar a cada salvamento de uma
     // ocorrência que já era alerta.
-    if (form.alerta && !ocorrenciaOriginal?.alerta) {
+    if (form.alerta && !ocorrenciaOriginal?.alerta && !empresaInterna) {
       const empresaObjetoAlerta = empresasList.find(
         (e) => normalizar(e.nomeEmpresa) === normalizar(form.empresa),
       );
@@ -1558,6 +1567,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       !isRevisao &&
       !isSelectedEmpresaOngoing &&
       !temaForaEsteira &&
+      !empresaInterna &&
       empresaObjeto
     ) {
       const temasValidos = (form.temaOcorrencia ?? []).filter(
@@ -1677,7 +1687,11 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
     // Em edições (ex.: apenas corrigir data/hora), não repete a oferta para não
     // sobrescrever o status de envio já registrado na criação original.
     const temasValidos =
-      !editandoId && form.tipo === "Treinamento" && !isRevisao && empresaObjeto
+      !editandoId &&
+      form.tipo === "Treinamento" &&
+      !isRevisao &&
+      empresaObjeto &&
+      !empresaInterna
         ? (form.temaOcorrencia ?? []).filter(
             (t) =>
               t.trim().toLowerCase() !== "ausente" &&
@@ -1691,6 +1705,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       !isRevisao &&
       empresaObjeto &&
       !empresaObjeto.isOngoing &&
+      !empresaInterna &&
       temasValidos.length > 0
     ) {
       const contatosBase =

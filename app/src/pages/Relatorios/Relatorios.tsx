@@ -19,7 +19,11 @@ import {
   PauseCircle,
 } from "lucide-react";
 import "../Historico/Historico.css";
-import { listarEmpresas, salvarEmpresas } from "../../services/empresas";
+import {
+  listarEmpresas,
+  salvarEmpresas,
+  isEmpresaInterna,
+} from "../../services/empresas";
 import { listarOcorrencias } from "../../services/ocorrencias";
 import {
   calcularDiasNaEsteira,
@@ -141,7 +145,7 @@ export const Relatorios: React.FC = () => {
         listarEmpresas(),
         listarOcorrencias(),
       ]);
-      setEmpresas(empresasLista);
+      setEmpresas(empresasLista.filter((e) => !isEmpresaInterna(e)));
       setOcorrencias(ocorrenciasLista);
     } catch (error) {
       console.error("Erro ao carregar dados:", error);

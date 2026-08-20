@@ -16,6 +16,25 @@ import { sincronizarColecao } from "./sincronizacaoIncremental";
 
 const COLLECTION = "empresas";
 
+// Empresas internas (ex.: treinamentos dados à própria Systemsat) não devem ser
+// contabilizadas como clientes na esteira, ongoing, cancelados ou suspensos —
+// mas continuam pesquisáveis normalmente ao registrar uma ocorrência.
+const NOMES_EMPRESAS_INTERNAS = ["systemsat"];
+
+function normalizarNomeEmpresa(nome: string): string {
+  return nome
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "");
+}
+
+export function isEmpresaInterna(empresa: Pick<Empresa, "nomeEmpresa">): boolean {
+  return NOMES_EMPRESAS_INTERNAS.includes(
+    normalizarNomeEmpresa(empresa.nomeEmpresa || ""),
+  );
+}
+
 /**
  * @deprecated Use `normalizarTelefoneWhatsApp` de `utils/telefone` diretamente.
  * Mantida para não quebrar os imports existentes.

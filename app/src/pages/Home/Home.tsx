@@ -15,6 +15,7 @@ import {
   listarEmpresas,
   removerEmpresa,
   salvarEmpresas,
+  isEmpresaInterna,
 } from "../../services/empresas";
 
 import {
@@ -618,7 +619,9 @@ export default function Home() {
   ]);
 
   const dados = useMemo(() => {
-    return empresas.map((empresa) => {
+    return empresas
+      .filter((empresa) => !isEmpresaInterna(empresa))
+      .map((empresa) => {
       const ultimoTreinamento = obterUltimoTreinamento(
         historico,
         empresa.nomeEmpresa,

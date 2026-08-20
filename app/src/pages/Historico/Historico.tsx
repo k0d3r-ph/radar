@@ -1690,6 +1690,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       form.tipo === "Treinamento" &&
       !isRevisao &&
       empresaObjeto &&
+      !empresaObjeto.isOngoing &&
       temasValidos.length > 0
     ) {
       const contatosBase =

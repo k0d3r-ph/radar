@@ -187,20 +187,39 @@ const UM_MINUTO_EM_HORAS = 1 / 60;
 const COLUNAS_INDICADORES = [
   {
     chave: "taxaCsat",
-    titulo: "Taxa CSAT",
+    titulo: "Taxa CSAT (antiga)",
     unidade: "%",
     menorEhMelhor: false,
     passo: 1,
     ajuda:
-      "Treinamentos realizados que receberam ao menos uma nota, sobre o total de realizados",
+      "Dado do modelo antigo de nota (1 a 5/10): treinamentos realizados que receberam ao menos uma nota, sobre o total de realizados. Não é mais alimentado por novos registros",
   },
   {
     chave: "notaCsat",
-    titulo: "Nota CSAT",
+    titulo: "Nota CSAT (antiga)",
     unidade: "",
     menorEhMelhor: false,
     passo: 0.1,
-    ajuda: "Média de todas as notas individuais lançadas nos treinamentos",
+    ajuda:
+      "Dado do modelo antigo de nota (1 a 5/10): média de todas as notas individuais lançadas nos treinamentos. Não é mais alimentado por novos registros",
+  },
+  {
+    chave: "treinamentosBons",
+    titulo: "Treinamentos Bom",
+    unidade: "",
+    menorEhMelhor: false,
+    passo: 1,
+    ajuda:
+      "Quantidade de resultados 'Bom' no CSAT (modelo atual) dos treinamentos realizados",
+  },
+  {
+    chave: "treinamentosRuins",
+    titulo: "Treinamentos Ruim",
+    unidade: "",
+    menorEhMelhor: true,
+    passo: 1,
+    ajuda:
+      "Quantidade de resultados 'Ruim' no CSAT (modelo atual) dos treinamentos realizados",
   },
   {
     chave: "treinamentosRealizados",
@@ -637,14 +656,19 @@ export const Gamificacao: React.FC = () => {
   const [salvandoMetas, setSalvandoMetas] = useState(false);
 
   // Filtros internos do modal de Indicadores (independentes dos filtros da página principal)
+  // A análise é feita semanalmente, então o padrão é a semana atual (Domingo a Sábado),
+  // igual ao critério usado na página de Relatórios.
   const [indicadoresDataInicio, setIndicadoresDataInicio] = useState(() => {
     const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+    const inicio = new Date(now);
+    inicio.setDate(now.getDate() - now.getDay());
+    return `${inicio.getFullYear()}-${String(inicio.getMonth() + 1).padStart(2, "0")}-${String(inicio.getDate()).padStart(2, "0")}`;
   });
   const [indicadoresDataFim, setIndicadoresDataFim] = useState(() => {
     const now = new Date();
-    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+    const fim = new Date(now);
+    fim.setDate(now.getDate() - now.getDay() + 6);
+    return `${fim.getFullYear()}-${String(fim.getMonth() + 1).padStart(2, "0")}-${String(fim.getDate()).padStart(2, "0")}`;
   });
   const [pontoOcorrenciaMap, setPontoOcorrenciaMap] = useState<
     Record<string, { id: string; alerta?: boolean }>
@@ -722,7 +746,10 @@ export const Gamificacao: React.FC = () => {
   const [editDataRealizacao, setEditDataRealizacao] = useState("");
   const [editTempoAgenda, setEditTempoAgenda] = useState("");
   const [editSolicitante, setEditSolicitante] = useState("CS");
+  // Modelo antigo (nota 1-10): preservado apenas para exibição, não é mais editável.
   const [editNotas, setEditNotas] = useState<string[]>([]);
+  // Modelo atual (Bom/Ruim)
+  const [editResultados, setEditResultados] = useState<string[]>([]);
   const [editDescricao, setEditDescricao] = useState("");
 
   // Helper functions for dynamic notes (Create)
@@ -735,15 +762,16 @@ export const Gamificacao: React.FC = () => {
   const handleRemoveNota = (index: number) =>
     setTreinamentoNotas(treinamentoNotas.filter((_, i) => i !== index));
 
-  // Helper functions for dynamic notes (Edit)
-  const handleAddEditNota = () => setEditNotas([...editNotas, ""]);
-  const handleUpdateEditNota = (index: number, val: string) => {
-    const copy = [...editNotas];
+  // Helper functions for dynamic resultados Bom/Ruim (Edit)
+  const handleAddEditResultado = () =>
+    setEditResultados([...editResultados, ""]);
+  const handleUpdateEditResultado = (index: number, val: string) => {
+    const copy = [...editResultados];
     copy[index] = val;
-    setEditNotas(copy);
+    setEditResultados(copy);
   };
-  const handleRemoveEditNota = (index: number) =>
-    setEditNotas(editNotas.filter((_, i) => i !== index));
+  const handleRemoveEditResultado = (index: number) =>
+    setEditResultados(editResultados.filter((_, i) => i !== index));
 
   // Delete modal state
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -888,9 +916,12 @@ export const Gamificacao: React.FC = () => {
           return !themes.includes("cancelado") && !themes.includes("ausente");
         });
 
-        // Count realized trainings that have CSAT responses
+        // Count realized trainings that have CSAT responses (nota antiga ou
+        // resultado Bom/Ruim atual)
         const answeredTrainings = realizedTrainings.filter(
-          (e) => e.treinamentoNotas && e.treinamentoNotas.length > 0,
+          (e) =>
+            (e.treinamentoNotas && e.treinamentoNotas.length > 0) ||
+            (e.treinamentoResultados && e.treinamentoResultados.length > 0),
         );
 
         const totalTrainingsCount = realizedTrainings.length;
@@ -1241,6 +1272,17 @@ export const Gamificacao: React.FC = () => {
         );
         const notaCsat = media(todasAsNotas);
 
+        // Modelo atual de CSAT (Bom/Ruim), contado por resultado individual.
+        const todosOsResultados = realizados.flatMap(
+          (e) => e.treinamentoResultados || [],
+        );
+        const treinamentosBons = todosOsResultados.filter(
+          (r) => r === "Bom",
+        ).length;
+        const treinamentosRuins = todosOsResultados.filter(
+          (r) => r === "Ruim",
+        ).length;
+
         const esperas = realizados
           .filter((e) =>
             empresasAtivasNaEsteira.has(
@@ -1323,8 +1365,10 @@ export const Gamificacao: React.FC = () => {
         const tempoMedioEsteira = media(diasNaEsteira);
 
         // ── Score médio dos clientes (Fast/Safety) ──
+        // Só entram clientes em esteira e suspensos — onboarding e
+        // cancelados não contam para a média.
         const scoresClientes = clientesAtivos
-          .filter((emp) => typeof emp.score === "number")
+          .filter((emp) => !emp.isOngoing && typeof emp.score === "number")
           .map((emp) => emp.score as number);
         const scoreClientes = media(scoresClientes);
 
@@ -1333,6 +1377,8 @@ export const Gamificacao: React.FC = () => {
           nome: nomeFormatado,
           taxaCsat,
           notaCsat,
+          treinamentosBons,
+          treinamentosRuins,
           treinamentosRealizados: realizados.length,
           treinamentosAusentes,
           treinamentosCancelados,
@@ -1389,6 +1435,8 @@ export const Gamificacao: React.FC = () => {
     return {
       taxaCsat: realizados > 0 ? realizadosComNotas / realizados : null,
       notaCsat: media(todasAsNotas),
+      treinamentosBons: soma((i) => i.treinamentosBons),
+      treinamentosRuins: soma((i) => i.treinamentosRuins),
       treinamentosRealizados: realizados,
       treinamentosAusentes: soma((i) => i.treinamentosAusentes),
       treinamentosCancelados: soma((i) => i.treinamentosCancelados),
@@ -1409,6 +1457,8 @@ export const Gamificacao: React.FC = () => {
   const celulasIndicadores = (linha: {
     taxaCsat: number | null;
     notaCsat: number | null;
+    treinamentosBons: number;
+    treinamentosRuins: number;
     treinamentosRealizados: number;
     treinamentosAusentes: number;
     treinamentosCancelados: number;
@@ -1425,6 +1475,8 @@ export const Gamificacao: React.FC = () => {
   }) => [
     linha.taxaCsat === null ? "—" : `${Math.round(linha.taxaCsat * 100)}%`,
     linha.notaCsat === null ? "—" : linha.notaCsat.toFixed(1),
+    String(linha.treinamentosBons),
+    String(linha.treinamentosRuins),
     String(linha.treinamentosRealizados),
     String(linha.treinamentosAusentes),
     String(linha.treinamentosCancelados),
@@ -1452,6 +1504,8 @@ export const Gamificacao: React.FC = () => {
   const valoresIndicadores = (linha: {
     taxaCsat: number | null;
     notaCsat: number | null;
+    treinamentosBons: number;
+    treinamentosRuins: number;
     treinamentosRealizados: number;
     treinamentosAusentes: number;
     treinamentosCancelados: number;
@@ -1468,6 +1522,8 @@ export const Gamificacao: React.FC = () => {
   }): (number | null)[] => [
     linha.taxaCsat === null ? null : linha.taxaCsat * 100,
     linha.notaCsat,
+    linha.treinamentosBons,
+    linha.treinamentosRuins,
     linha.treinamentosRealizados,
     linha.treinamentosAusentes,
     linha.treinamentosCancelados,
@@ -1837,6 +1893,7 @@ export const Gamificacao: React.FC = () => {
     setEditNotas(
       entry.treinamentoNotas ? entry.treinamentoNotas.map(String) : [],
     );
+    setEditResultados(entry.treinamentoResultados ?? []);
 
     let obs = "";
     if (entry.tipoAcao === "treinamento" && entry.descricao) {
@@ -1928,10 +1985,24 @@ export const Gamificacao: React.FC = () => {
               )
             : null;
 
+        const validResultados = editResultados.filter(
+          (r) => r === "Bom" || r === "Ruim",
+        );
+        if (editResultados.some((r) => r !== "" && r !== "Bom" && r !== "Ruim")) {
+          toast.error("Cada resultado deve ser 'Bom' ou 'Ruim'.");
+          setSubmitting(false);
+          return;
+        }
+
         finalDescricao = `Empresa: ${editEmpresa} | Tema: ${editTemas.join(", ")} | Solicitado: ${dataSol} | Realizado: ${dataReal} | Tempo: ${editTempoAgenda.trim()} | Solicitante: ${editSolicitante}`;
 
         if (validNotas.length > 0) {
           finalDescricao += ` | Notas: [${validNotas.join(", ")}] (Média: ${computedMedia})`;
+        }
+        if (validResultados.length > 0) {
+          const bons = validResultados.filter((r) => r === "Bom").length;
+          const ruins = validResultados.filter((r) => r === "Ruim").length;
+          finalDescricao += ` | Resultados: [${validResultados.join(", ")}] (Bons: ${bons}, Ruins: ${ruins})`;
         }
         if (editDescricao.trim()) {
           finalDescricao += ` | Obs: ${editDescricao.trim()}`;
@@ -1946,6 +2017,7 @@ export const Gamificacao: React.FC = () => {
           treinamentoSolicitante: editSolicitante,
           treinamentoNotas: validNotas,
           treinamentoNotaMedia: computedMedia,
+          treinamentoResultados: validResultados,
         };
       } else {
         finalDescricao = editDescricao.trim();
@@ -2688,48 +2760,55 @@ export const Gamificacao: React.FC = () => {
 
                   <div className="treinamento-notas-section">
                     <div className="notas-section-header">
-                      <label>Notas dos Participantes (CSAT Opcional)</label>
+                      <label>Resultado do CSAT (Opcional)</label>
                       <button
                         type="button"
                         className="btn-add-nota-icon"
-                        onClick={handleAddEditNota}
-                        title="Adicionar Nota"
+                        onClick={handleAddEditResultado}
+                        title="Adicionar Resultado"
                       >
-                        + Adicionar Nota
+                        + Adicionar Resultado
                       </button>
                     </div>
-                    {editNotas.length === 0 ? (
+                    {editResultados.length === 0 ? (
                       <span className="no-notas-msg">
-                        Nenhuma nota registrada (treinamento sem resposta CSAT).
+                        Nenhum resultado registrado (treinamento sem resposta
+                        CSAT).
                       </span>
                     ) : (
                       <div className="notas-inputs-grid">
-                        {editNotas.map((nota, idx) => (
+                        {editResultados.map((resultado, idx) => (
                           <div key={idx} className="nota-input-row">
-                            <input
-                              type="number"
+                            <select
                               className="nota-input-field"
-                              placeholder={`Nota ${idx + 1} (0 a 10)`}
-                              min="0"
-                              max="10"
-                              step="1"
-                              value={nota}
+                              value={resultado}
                               onChange={(e) =>
-                                handleUpdateEditNota(idx, e.target.value)
+                                handleUpdateEditResultado(idx, e.target.value)
                               }
                               required
-                            />
+                            >
+                              <option value="">Selecione...</option>
+                              <option value="Bom">Bom</option>
+                              <option value="Ruim">Ruim</option>
+                            </select>
                             <button
                               type="button"
                               className="btn-remove-nota-icon"
-                              onClick={() => handleRemoveEditNota(idx)}
-                              title="Remover nota"
+                              onClick={() => handleRemoveEditResultado(idx)}
+                              title="Remover resultado"
                             >
                               <Trash2 size={14} />
                             </button>
                           </div>
                         ))}
                       </div>
+                    )}
+                    {editNotas.length > 0 && (
+                      <span className="no-notas-msg">
+                        Notas antigas (modelo 0 a 10) já registradas neste
+                        treinamento: {editNotas.join(", ")}. Elas são
+                        preservadas, mas não podem mais ser editadas.
+                      </span>
                     )}
                   </div>
 
@@ -2857,9 +2936,10 @@ export const Gamificacao: React.FC = () => {
                   Nenhum treinador encontrado.
                 </p>
               ) : (
-                /* Indicadores nas linhas e treinadores nas colunas: são 14
-                   indicadores fixos contra poucos treinadores, então essa
-                   orientação cabe na largura do modal sem rolagem lateral. */
+                /* Indicadores nas linhas e treinadores nas colunas: são
+                   indicadores fixos (poucos, ainda que crescentes) contra
+                   poucos treinadores, então essa orientação cabe na largura
+                   do modal sem rolagem lateral. */
                 <table className="gamificacao-table indicadores-tabela">
                   <thead>
                     <tr>

@@ -6,7 +6,11 @@ import {
   listarOcorrencias,
   removerOcorrencia,
 } from "../../services/ocorrencias";
-import { listarEmpresas, salvarEmpresas } from "../../services/empresas";
+import {
+  listarEmpresas,
+  salvarEmpresas,
+  isEmpresaInterna,
+} from "../../services/empresas";
 import {
   normalizarTelefoneWhatsApp,
   formatarTelefoneExibicao,
@@ -375,7 +379,7 @@ const renderMarkdown = (text: string) => {
   });
 };
 
-const TEMPLATE_TREINAMENTO = `Participantes: \n\nNOTA: \n\nRelatório de treinamento:\n\n• Cliente se manteve atento? \n• Cliente absorveu o conteúdo aplicado?\n• Cliente foi participativo?\n• Houve alguma interrupção?\n• Ambiente favorável (Som)?\n• Manifestou alguma insatisfação?\n• Treinamento foi gravado?\n\nRelatório do atendimento:\n\nE-mail: \nNota:\nTexto: `;
+const TEMPLATE_TREINAMENTO = `Participantes: \n\nNOTA: \n\nRelatório de treinamento:\n\n• Cliente se manteve atento? \n• Cliente absorveu o conteúdo aplicado?\n• Cliente foi participativo?\n• Houve alguma interrupção?\n• Ambiente favorável (Som)?\n• Manifestou alguma insatisfação?\n• Treinamento foi gravado?\n\nRelatório do atendimento:\n\nE-mail: \nExperiência boa ou ruim?:\nTexto: `;
 
 const EMPTY: OcorrenciaForm = {
   empresa: "",
@@ -395,6 +399,7 @@ const EMPTY: OcorrenciaForm = {
   treinamentoTempoAgenda: "",
   treinamentoSolicitante: "CS",
   treinamentoNotas: [],
+  treinamentoResultados: [],
   createdAt: "",
   horaCriacao: "",
   retornarEsteira: false,
@@ -703,25 +708,25 @@ export function Historico() {
     setDataFim(end);
   }, [searchParams]);
 
-  const handleAddNota = () => {
+  const handleAddResultado = () => {
     setForm((f) => ({
       ...f,
-      treinamentoNotas: [...(f.treinamentoNotas ?? []), ""],
+      treinamentoResultados: [...(f.treinamentoResultados ?? []), ""],
     }));
   };
 
-  const handleUpdateNota = (index: number, val: string) => {
+  const handleUpdateResultado = (index: number, val: string) => {
     setForm((f) => {
-      const copy = [...(f.treinamentoNotas ?? [])];
+      const copy = [...(f.treinamentoResultados ?? [])];
       copy[index] = val;
-      return { ...f, treinamentoNotas: copy };
+      return { ...f, treinamentoResultados: copy };
     });
   };
 
-  const handleRemoveNota = (index: number) => {
+  const handleRemoveResultado = (index: number) => {
     setForm((f) => ({
       ...f,
-      treinamentoNotas: (f.treinamentoNotas ?? []).filter(
+      treinamentoResultados: (f.treinamentoResultados ?? []).filter(
         (_, i) => i !== index,
       ),
     }));
@@ -1006,6 +1011,7 @@ export function Historico() {
       treinamentoNotas: o.treinamentoNotas
         ? o.treinamentoNotas.map(String)
         : [],
+      treinamentoResultados: o.treinamentoResultados ?? [],
       createdAt: dataCriacaoFormatada,
       horaCriacao: horaCriacaoFormatada,
       retornarEsteira: o.retornarEsteira ?? false,
@@ -1061,6 +1067,11 @@ export function Historico() {
       return;
     }
 
+    // Empresas internas (ex.: Systemsat) permitem registrar ocorrências para
+    // fins de histórico, mas não devem disparar automações de esteira/WhatsApp
+    // nem notificações de gestão, já que não são clientes reais.
+    const empresaInterna = isEmpresaInterna(empresaObjeto);
+
     const CanceladoOuAusente = (form.temaOcorrencia ?? []).some(
       (t) =>
         t.trim().toLowerCase() === "cancelado" ||
@@ -1081,17 +1092,13 @@ export function Historico() {
         return;
       }
 
-      const rawNotas = form.treinamentoNotas ?? [];
-      const hasInvalidNota = rawNotas.some(
-        (n) =>
-          n.trim() === "" ||
-          isNaN(parseInt(n, 10)) ||
-          parseInt(n, 10) < 1 ||
-          parseInt(n, 10) > 5,
+      const rawResultados = form.treinamentoResultados ?? [];
+      const hasInvalidResultado = rawResultados.some(
+        (r) => r !== "Bom" && r !== "Ruim",
       );
-      if (hasInvalidNota) {
+      if (hasInvalidResultado) {
         toast.error(
-          "As notas preenchidas devem ser valores inteiros entre 1 e 5.",
+          "Selecione 'Bom' ou 'Ruim' para cada resultado de CSAT adicionado.",
         );
         return;
       }
@@ -1139,22 +1146,17 @@ export function Historico() {
     const novaDescricao = form.descricao.trim();
 
     let dataRealizacaoStr = "";
-    let computedMedia: number | null = null;
-    let validNotas: number[] = [];
+    // Dado antigo (modelo de nota 1 a 5): preservado como está no registro
+    // original quando em edição, já que o formulário não permite mais editá-lo.
+    const computedMedia: number | null =
+      ocorrenciaOriginal?.treinamentoNotaMedia ?? null;
+    const validNotas: number[] = ocorrenciaOriginal?.treinamentoNotas ?? [];
+    // Dado atual (modelo Bom/Ruim)
+    const validResultados = (form.treinamentoResultados ?? []).filter(
+      (r): r is "Bom" | "Ruim" => r === "Bom" || r === "Ruim",
+    );
 
     if (form.tipo === "Treinamento") {
-      validNotas = (form.treinamentoNotas ?? [])
-        .map((n) => parseInt(n, 10))
-        .filter((n) => !isNaN(n));
-      computedMedia =
-        validNotas.length > 0
-          ? parseFloat(
-              (
-                validNotas.reduce((sum, n) => sum + n, 0) / validNotas.length
-              ).toFixed(2),
-            )
-          : null;
-
       let d: Date;
       if (editandoId && ocorrenciaOriginal?.createdAt) {
         d = new Date(ocorrenciaOriginal.createdAt);
@@ -1227,8 +1229,12 @@ export function Historico() {
             treinamentoDataSolicitacao: form.treinamentoDataSolicitacao,
             treinamentoTempoAgenda: form.treinamentoTempoAgenda,
             treinamentoSolicitante: form.treinamentoSolicitante,
-            treinamentoNotas: validNotas,
+            // Modelo antigo (nota 1-5): preservado sem alteração, ver acima.
+            treinamentoNotas: validNotas.length > 0 ? validNotas : undefined,
             treinamentoNotaMedia: computedMedia,
+            // Modelo atual (Bom/Ruim)
+            treinamentoResultados:
+              validResultados.length > 0 ? validResultados : undefined,
           }
         : {
             treinamentoDataSolicitacao: undefined,
@@ -1236,6 +1242,7 @@ export function Historico() {
             treinamentoSolicitante: undefined,
             treinamentoNotas: undefined,
             treinamentoNotaMedia: undefined,
+            treinamentoResultados: undefined,
             gamificacaoPontoId: undefined,
           }),
     };
@@ -1365,6 +1372,12 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         finalDescricao += ` | Notas: [${validNotas.join(", ")}] (Média: ${computedMedia})`;
       }
 
+      if (validResultados.length > 0) {
+        const bons = validResultados.filter((r) => r === "Bom").length;
+        const ruins = validResultados.filter((r) => r === "Ruim").length;
+        finalDescricao += ` | Resultados: [${validResultados.join(", ")}] (Bons: ${bons}, Ruins: ${ruins})`;
+      }
+
       if (novaDescricao) {
         finalDescricao += ` | Obs: ${novaDescricao}`;
       }
@@ -1402,6 +1415,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         treinamentoSolicitante: form.treinamentoSolicitante || "",
         treinamentoNotas: validNotas,
         treinamentoNotaMedia: computedMedia,
+        treinamentoResultados: validResultados,
       };
 
       if (pontoId) {
@@ -1448,7 +1462,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
     // Alerta: notifica quando a ocorrência *vira* alerta, seja ao criar ou ao editar.
     // Comparar com o estado anterior evita renotificar a cada salvamento de uma
     // ocorrência que já era alerta.
-    if (form.alerta && !ocorrenciaOriginal?.alerta) {
+    if (form.alerta && !ocorrenciaOriginal?.alerta && !empresaInterna) {
       const empresaObjetoAlerta = empresasList.find(
         (e) => normalizar(e.nomeEmpresa) === normalizar(form.empresa),
       );
@@ -1553,6 +1567,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       !isRevisao &&
       !isSelectedEmpresaOngoing &&
       !temaForaEsteira &&
+      !empresaInterna &&
       empresaObjeto
     ) {
       const temasValidos = (form.temaOcorrencia ?? []).filter(
@@ -1672,7 +1687,11 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
     // Em edições (ex.: apenas corrigir data/hora), não repete a oferta para não
     // sobrescrever o status de envio já registrado na criação original.
     const temasValidos =
-      !editandoId && form.tipo === "Treinamento" && !isRevisao && empresaObjeto
+      !editandoId &&
+      form.tipo === "Treinamento" &&
+      !isRevisao &&
+      empresaObjeto &&
+      !empresaInterna
         ? (form.temaOcorrencia ?? []).filter(
             (t) =>
               t.trim().toLowerCase() !== "ausente" &&
@@ -1685,6 +1704,8 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       form.tipo === "Treinamento" &&
       !isRevisao &&
       empresaObjeto &&
+      !empresaObjeto.isOngoing &&
+      !empresaInterna &&
       temasValidos.length > 0
     ) {
       const contatosBase =
@@ -2953,10 +2974,34 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                         <strong>{selecionada.treinamentoSolicitante}</strong>
                       </div>
                     )}
+                    {selecionada.treinamentoResultados &&
+                      selecionada.treinamentoResultados.length > 0 && (
+                        <div className="hist-detail-training-notes-wrapper">
+                          <span>Resultado do CSAT</span>
+                          <div className="hist-detail-training-notes-list">
+                            {selecionada.treinamentoResultados.map(
+                              (resultado, idx) => (
+                                <span
+                                  key={idx}
+                                  className={`nota-treinamento-tag ${
+                                    resultado === "Bom"
+                                      ? "nota-treinamento-tag--bom"
+                                      : "nota-treinamento-tag--ruim"
+                                  }`}
+                                >
+                                  {resultado}
+                                </span>
+                              ),
+                            )}
+                          </div>
+                        </div>
+                      )}
                     {selecionada.treinamentoNotas &&
                       selecionada.treinamentoNotas.length > 0 && (
                         <div className="hist-detail-training-notes-wrapper">
-                          <span>Notas do Treinamento (CSAT)</span>
+                          <span>
+                            Notas do Treinamento (CSAT, modelo antigo)
+                          </span>
                           <div className="hist-detail-training-notes-list">
                             {selecionada.treinamentoNotas.map((nota, idx) => (
                               <span key={idx} className="nota-treinamento-tag">
@@ -3647,42 +3692,42 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
                 <div className="hist-campo training-notes-container">
                   <div className="training-notes-header">
-                    <label>Notas dos Participantes (CSAT Opcional)</label>
+                    <label>Resultado do CSAT (Opcional)</label>
                     <button
                       type="button"
                       className="btn-add-nota-icon"
-                      onClick={handleAddNota}
+                      onClick={handleAddResultado}
                     >
-                      + Adicionar Nota
+                      + Adicionar Resultado
                     </button>
                   </div>
-                  {!form.treinamentoNotas ||
-                  form.treinamentoNotas.length === 0 ? (
+                  {!form.treinamentoResultados ||
+                  form.treinamentoResultados.length === 0 ? (
                     <span className="training-no-notes-text">
-                      Nenhuma nota registrada (treinamento sem resposta CSAT).
+                      Nenhum resultado registrado (treinamento sem resposta
+                      CSAT).
                     </span>
                   ) : (
                     <div className="training-notes-list">
-                      {form.treinamentoNotas.map((nota, idx) => (
+                      {form.treinamentoResultados.map((resultado, idx) => (
                         <div key={idx} className="training-note-item">
-                          <input
-                            type="number"
-                            placeholder={`Nota ${idx + 1} (1 a 5)`}
-                            min="1"
-                            max="5"
-                            step="1"
-                            value={nota}
+                          <select
+                            value={resultado}
                             onChange={(e) =>
-                              handleUpdateNota(idx, e.target.value)
+                              handleUpdateResultado(idx, e.target.value)
                             }
                             required
                             className="training-note-input"
-                          />
+                          >
+                            <option value="">Selecione...</option>
+                            <option value="Bom">Bom</option>
+                            <option value="Ruim">Ruim</option>
+                          </select>
                           <button
                             type="button"
-                            onClick={() => handleRemoveNota(idx)}
+                            onClick={() => handleRemoveResultado(idx)}
                             className="btn-remove-nota"
-                            title="Remover nota"
+                            title="Remover resultado"
                           >
                             <Trash2 size={14} />
                           </button>
@@ -3690,6 +3735,14 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       ))}
                     </div>
                   )}
+                  {form.treinamentoNotas &&
+                    form.treinamentoNotas.length > 0 && (
+                      <span className="training-no-notes-text">
+                        Notas antigas (modelo 1 a 5) já registradas neste
+                        treinamento: {form.treinamentoNotas.join(", ")}. Elas
+                        são preservadas, mas não podem mais ser editadas.
+                      </span>
+                    )}
                 </div>
               </>
             )}

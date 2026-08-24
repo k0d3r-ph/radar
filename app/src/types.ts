@@ -77,8 +77,12 @@ export type Ocorrencia = {
   treinamentoDataSolicitacao?: string;
   treinamentoTempoAgenda?: string;
   treinamentoSolicitante?: string;
+  /** @deprecated Modelo antigo (nota 1 a 5). Mantido só para exibir/alimentar médias de registros antigos. */
   treinamentoNotas?: number[];
+  /** @deprecated Média calculada de {@link treinamentoNotas}. Mantido só para dados antigos. */
   treinamentoNotaMedia?: number | null;
+  /** Resultado do CSAT por participante, no modelo atual: "Bom" ou "Ruim". */
+  treinamentoResultados?: ("Bom" | "Ruim")[];
   isRevisao?: boolean;
   retornarEsteira?: boolean;
   temaForaEsteira?: boolean;
@@ -109,7 +113,9 @@ export type OcorrenciaForm = {
   treinamentoDataSolicitacao?: string;
   treinamentoTempoAgenda?: string;
   treinamentoSolicitante?: string;
+  /** @deprecated Modelo antigo (nota 1 a 5). Não é mais preenchido pelo formulário. */
   treinamentoNotas?: string[];
+  treinamentoResultados?: string[];
   isRevisao?: boolean;
   createdAt?: string;
   horaCriacao?: string;
@@ -163,8 +169,12 @@ export interface LancamentoPonto {
   treinamentoDataRealizacao?: string;
   treinamentoTempoAgenda?: string;
   treinamentoSolicitante?: string;
+  /** @deprecated Modelo antigo (nota 1 a 5). Mantido só para exibir/alimentar médias de registros antigos. */
   treinamentoNotas?: number[];
+  /** @deprecated Média calculada de {@link treinamentoNotas}. Mantido só para dados antigos. */
   treinamentoNotaMedia?: number | null;
+  /** Resultado do CSAT por participante, no modelo atual: "Bom" ou "Ruim". */
+  treinamentoResultados?: ("Bom" | "Ruim")[];
   ocorrenciaId?: string;
   isAlerta?: boolean;
 }

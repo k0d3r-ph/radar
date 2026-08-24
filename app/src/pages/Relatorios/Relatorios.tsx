@@ -19,7 +19,11 @@ import {
   PauseCircle,
 } from "lucide-react";
 import "../Historico/Historico.css";
-import { listarEmpresas, salvarEmpresas } from "../../services/empresas";
+import {
+  listarEmpresas,
+  salvarEmpresas,
+  isEmpresaInterna,
+} from "../../services/empresas";
 import { listarOcorrencias } from "../../services/ocorrencias";
 import {
   calcularDiasNaEsteira,
@@ -141,7 +145,7 @@ export const Relatorios: React.FC = () => {
         listarEmpresas(),
         listarOcorrencias(),
       ]);
-      setEmpresas(empresasLista);
+      setEmpresas(empresasLista.filter((e) => !isEmpresaInterna(e)));
       setOcorrencias(ocorrenciasLista);
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
@@ -1783,9 +1787,32 @@ ${riscoChurn.length > 0
                       <strong>{ocorrenciaSelecionada.treinamentoSolicitante}</strong>
                     </div>
                   )}
+                  {ocorrenciaSelecionada.treinamentoResultados && ocorrenciaSelecionada.treinamentoResultados.length > 0 && (
+                    <div style={{ gridColumn: "span 2", alignItems: "flex-start", textAlign: "left" }}>
+                      <span style={{ textAlign: "left" }}>Resultado do CSAT</span>
+                      <div style={{ display: "flex", flexDirection: "row", gap: "8px", alignItems: "center", justifyContent: "flex-start", marginTop: "4px", flexWrap: "wrap", width: "100%" }}>
+                        {ocorrenciaSelecionada.treinamentoResultados.map((resultado, idx) => (
+                          <span
+                            key={idx}
+                            style={{
+                              background: resultado === "Bom" ? "#ecfdf5" : "#fef2f2",
+                              border: resultado === "Bom" ? "1px solid #a7f3d0" : "1px solid #fecaca",
+                              color: resultado === "Bom" ? "#065f46" : "#991b1b",
+                              padding: "4px 8px",
+                              borderRadius: "6px",
+                              fontSize: "0.85rem",
+                              fontWeight: "600"
+                            }}
+                          >
+                            {resultado}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {ocorrenciaSelecionada.treinamentoNotas && ocorrenciaSelecionada.treinamentoNotas.length > 0 && (
                     <div style={{ gridColumn: "span 2", alignItems: "flex-start", textAlign: "left" }}>
-                      <span style={{ textAlign: "left" }}>Notas do Treinamento (CSAT)</span>
+                      <span style={{ textAlign: "left" }}>Notas do Treinamento (CSAT, modelo antigo)</span>
                       <div style={{ display: "flex", flexDirection: "row", gap: "8px", alignItems: "center", justifyContent: "flex-start", marginTop: "4px", flexWrap: "wrap", width: "100%" }}>
                         {ocorrenciaSelecionada.treinamentoNotas.map((nota, idx) => (
                           <span

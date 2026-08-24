@@ -57,7 +57,9 @@ export const RelatorioScore: React.FC = () => {
   useEffect(() => {
     listarEmpresas()
       .then((lista) => {
-        setEmpresasList(lista.filter((empresa) => empresa.id && !empresa.isOngoing));
+        setEmpresasList(
+          lista.filter((empresa) => empresa.id && !empresa.isOngoing && !empresa.isCancelled),
+        );
       })
       .catch((error) => {
         console.error("Erro ao carregar empresas do relatório de score:", error);

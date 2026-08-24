@@ -1932,7 +1932,7 @@ export default function Home() {
                   ) : (
                     "—"
                   )}
-                  {role === "master" && (
+                  {(role === "treinador" || role === "master") && (
                     <button
                       onClick={() => abrirModalScoreHome()}
                       style={{

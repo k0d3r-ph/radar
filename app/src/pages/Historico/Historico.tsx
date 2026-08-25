@@ -87,6 +87,7 @@ const DUVIDA_OPCOES = [
   "Comandos",
   "Rastreador desatualizado",
   "Correção de odômetro/horímetro",
+  "Envio de comando",
   "Funções da tela operacional",
   "Chamados",
   "Hardware",

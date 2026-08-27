@@ -100,6 +100,7 @@ const DUVIDA_OPCOES = [
   "Templates",
   "Reset de senha",
   "SSX Mobile",
+  "SSX Onboard",
   "Desassociar rastreador",
   "Uso de TAGs",
   "Importação de arquivos",

@@ -146,35 +146,3 @@
   background: rgba(255, 255, 255, 0.1);
   color: #ffffff;
 }
-
-/* Impressão: só o cartão do QR Code, sem navegação nem fundo escuro */
-@media print {
-  .app-nav,
-  .avaliacao-header,
-  .avaliacao-btn-imprimir {
-    display: none !important;
-  }
-
-  .avaliacao-page {
-    padding: 0;
-    max-width: none;
-  }
-
-  .avaliacao-card {
-    background: #ffffff;
-    color: #0f2a5e;
-    box-shadow: none;
-    border: 1px solid #cbd5e1;
-    margin: 40px auto;
-  }
-
-  .avaliacao-card h2,
-  .avaliacao-eyebrow {
-    color: #0f2a5e;
-  }
-
-  .avaliacao-subtitle,
-  .avaliacao-passos li {
-    color: #334155;
-  }
-}

@@ -1,5 +1,6 @@
 import React from "react";
-import { Printer, Star } from "lucide-react";
+import { Copy, Star } from "lucide-react";
+import { toast } from "sonner";
 import qrAvaliacao from "../../assets/QR_CODE_AVALIAÇÃO_CSAT.png";
 import "./AvaliacaoTreinamento.css";
 
@@ -8,6 +9,9 @@ const PASSOS = [
   "Toque no link que aparecer na tela",
   "Responda às perguntas — é rapidinho!",
 ];
+
+const LINK_AVALIACAO =
+  "https://docs.google.com/forms/d/e/1FAIpQLSeACkNtCCX_-LzVt_n6pLRoNPSME2i1LpG_VWSdkWRzlDPEdg/viewform";
 
 export const AvaliacaoTreinamento: React.FC = () => {
   return (
@@ -50,10 +54,15 @@ export const AvaliacaoTreinamento: React.FC = () => {
         <button
           type="button"
           className="avaliacao-btn-imprimir"
-          onClick={() => window.print()}
+          onClick={() => {
+            navigator.clipboard.writeText(LINK_AVALIACAO);
+            toast.success(
+              "Link copiado! Cole no chat da reunião para o cliente.",
+            );
+          }}
         >
-          <Printer size={16} />
-          Imprimir
+          <Copy size={16} />
+          Copiar link do formulário
         </button>
       </div>
     </div>

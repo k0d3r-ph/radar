@@ -110,6 +110,7 @@ const DUVIDA_OPCOES = [
   "Videotelemetria",
   "Abastecimento",
   "Manutenção",
+  "Gestão de Multas",
 ];
 
 const SOLICITACAO_OPCOES = [

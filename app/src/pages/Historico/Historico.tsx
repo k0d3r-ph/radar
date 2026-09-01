@@ -1708,6 +1708,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       !editandoId &&
       form.tipo === "Treinamento" &&
       !isRevisao &&
+      !temaForaEsteira &&
       empresaObjeto &&
       !empresaObjeto.isOngoing &&
       !empresaInterna &&

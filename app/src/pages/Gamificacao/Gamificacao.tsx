@@ -187,21 +187,12 @@ const UM_MINUTO_EM_HORAS = 1 / 60;
 const COLUNAS_INDICADORES = [
   {
     chave: "taxaCsat",
-    titulo: "Taxa CSAT (antiga)",
+    titulo: "Taxa CSAT",
     unidade: "%",
     menorEhMelhor: false,
     passo: 1,
     ajuda:
-      "Dado do modelo antigo de nota (1 a 5/10): treinamentos realizados que receberam ao menos uma nota, sobre o total de realizados. Não é mais alimentado por novos registros",
-  },
-  {
-    chave: "notaCsat",
-    titulo: "Nota CSAT (antiga)",
-    unidade: "",
-    menorEhMelhor: false,
-    passo: 0.1,
-    ajuda:
-      "Dado do modelo antigo de nota (1 a 5/10): média de todas as notas individuais lançadas nos treinamentos. Não é mais alimentado por novos registros",
+      "Treinamentos realizados que receberam alguma marcação de CSAT (Bom ou Ruim), sobre o total de realizados",
   },
   {
     chave: "treinamentosBons",
@@ -209,8 +200,7 @@ const COLUNAS_INDICADORES = [
     unidade: "",
     menorEhMelhor: false,
     passo: 1,
-    ajuda:
-      "Quantidade de resultados 'Bom' no CSAT (modelo atual) dos treinamentos realizados",
+    ajuda: "Quantidade de resultados 'Bom' no CSAT dos treinamentos realizados",
   },
   {
     chave: "treinamentosRuins",
@@ -218,8 +208,7 @@ const COLUNAS_INDICADORES = [
     unidade: "",
     menorEhMelhor: true,
     passo: 1,
-    ajuda:
-      "Quantidade de resultados 'Ruim' no CSAT (modelo atual) dos treinamentos realizados",
+    ajuda: "Quantidade de resultados 'Ruim' no CSAT dos treinamentos realizados",
   },
   {
     chave: "treinamentosRealizados",
@@ -1259,20 +1248,14 @@ export const Gamificacao: React.FC = () => {
           return !temas.includes("cancelado") && !temas.includes("ausente");
         });
 
-        const comNotas = realizados.filter(
-          (e) => e.treinamentoNotas && e.treinamentoNotas.length > 0,
+        // CSAT (Bom/Ruim): taxa conta treinamentos com alguma marcação, os
+        // totais de Bom/Ruim contam por resultado individual.
+        const comResultado = realizados.filter(
+          (e) => e.treinamentoResultados && e.treinamentoResultados.length > 0,
         );
         const taxaCsat =
-          realizados.length > 0 ? comNotas.length / realizados.length : null;
+          realizados.length > 0 ? comResultado.length / realizados.length : null;
 
-        // Média sobre as notas individuais, não sobre as médias por
-        // treinamento: um treinamento com 5 respostas deve pesar mais.
-        const todasAsNotas = realizados.flatMap(
-          (e) => e.treinamentoNotas || [],
-        );
-        const notaCsat = media(todasAsNotas);
-
-        // Modelo atual de CSAT (Bom/Ruim), contado por resultado individual.
         const todosOsResultados = realizados.flatMap(
           (e) => e.treinamentoResultados || [],
         );
@@ -1376,7 +1359,6 @@ export const Gamificacao: React.FC = () => {
           uid: t.uid,
           nome: nomeFormatado,
           taxaCsat,
-          notaCsat,
           treinamentosBons,
           treinamentosRuins,
           treinamentosRealizados: realizados.length,
@@ -1393,8 +1375,7 @@ export const Gamificacao: React.FC = () => {
           clientesEmAlerta,
           scoreClientes,
           // Guardados para poder somar/ponderar corretamente na linha de total
-          _realizadosComNotas: comNotas.length,
-          _notas: todasAsNotas,
+          _realizadosComResultado: comResultado.length,
           _esperas: esperas,
           _diasNaEsteira: diasNaEsteira,
           _scoresClientes: scoresClientes,
@@ -1422,8 +1403,7 @@ export const Gamificacao: React.FC = () => {
     ) => indicadoresPorTreinador.reduce((acc, i) => acc + selecionar(i), 0);
 
     const realizados = soma((i) => i.treinamentosRealizados);
-    const realizadosComNotas = soma((i) => i._realizadosComNotas);
-    const todasAsNotas = indicadoresPorTreinador.flatMap((i) => i._notas);
+    const realizadosComResultado = soma((i) => i._realizadosComResultado);
     const todasAsEsperas = indicadoresPorTreinador.flatMap((i) => i._esperas);
     const todosOsDias = indicadoresPorTreinador.flatMap(
       (i) => i._diasNaEsteira,
@@ -1433,8 +1413,7 @@ export const Gamificacao: React.FC = () => {
     );
 
     return {
-      taxaCsat: realizados > 0 ? realizadosComNotas / realizados : null,
-      notaCsat: media(todasAsNotas),
+      taxaCsat: realizados > 0 ? realizadosComResultado / realizados : null,
       treinamentosBons: soma((i) => i.treinamentosBons),
       treinamentosRuins: soma((i) => i.treinamentosRuins),
       treinamentosRealizados: realizados,
@@ -1456,7 +1435,6 @@ export const Gamificacao: React.FC = () => {
   /** Formata cada indicador para exibição, com "—" quando não há amostra. */
   const celulasIndicadores = (linha: {
     taxaCsat: number | null;
-    notaCsat: number | null;
     treinamentosBons: number;
     treinamentosRuins: number;
     treinamentosRealizados: number;
@@ -1474,7 +1452,6 @@ export const Gamificacao: React.FC = () => {
     scoreClientes: number | null;
   }) => [
     linha.taxaCsat === null ? "—" : `${Math.round(linha.taxaCsat * 100)}%`,
-    linha.notaCsat === null ? "—" : linha.notaCsat.toFixed(1),
     String(linha.treinamentosBons),
     String(linha.treinamentosRuins),
     String(linha.treinamentosRealizados),
@@ -1503,7 +1480,6 @@ export const Gamificacao: React.FC = () => {
    */
   const valoresIndicadores = (linha: {
     taxaCsat: number | null;
-    notaCsat: number | null;
     treinamentosBons: number;
     treinamentosRuins: number;
     treinamentosRealizados: number;
@@ -1521,7 +1497,6 @@ export const Gamificacao: React.FC = () => {
     scoreClientes: number | null;
   }): (number | null)[] => [
     linha.taxaCsat === null ? null : linha.taxaCsat * 100,
-    linha.notaCsat,
     linha.treinamentosBons,
     linha.treinamentosRuins,
     linha.treinamentosRealizados,

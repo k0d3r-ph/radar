@@ -29,6 +29,7 @@ import {
 import type { Empresa, Ocorrencia } from "../../types";
 import { useAuth } from "../../context/AuthContext";
 import { formatarNome } from "../../utils/formatarNome";
+import { BASE_CS_LIST, normalizarNomeCS, compararCS } from "../../utils/cs";
 import {
   analisarTelefoneWhatsApp,
   formatarTelefoneExibicao,
@@ -242,17 +243,7 @@ export default function Home() {
   const [historico, setHistorico] = useState<Ocorrencia[]>([]);
 
   const [listaCS, setListaCS] = useState<string[]>(() => {
-    const baseCS = [
-      "Jeferson Augusto",
-      "Rafaela Agnelo",
-      "Luiz Felipe",
-      "João Pedro",
-      "Eduarda Melo",
-      "Lucas Barreto",
-      "Ana Carolina",
-      "Juan Candia",
-    ];
-    return [...baseCS].sort((a, b) => a.localeCompare(b));
+    return [...BASE_CS_LIST].sort((a, b) => a.localeCompare(b, "pt-BR"));
   });
 
   const [loading, setLoading] = useState(true);
@@ -492,16 +483,19 @@ export default function Home() {
 
       let mudouAlguma = false;
 
-      // Migrate companies from Luiz to Luiz Felipe
+      // Migra empresas com nomes curtos ou variações de CS para o nome completo padronizado
       for (let i = 0; i < empresasLista.length; i++) {
         const empresa = empresasLista[i];
-        if (empresa.csResponsavel === "Luiz") {
-          empresa.csResponsavel = "Luiz Felipe";
-          await salvarEmpresas({
-            ...empresa,
-            csResponsavel: "Luiz Felipe",
-          });
-          mudouAlguma = true;
+        if (empresa.csResponsavel) {
+          const csNormalizado = normalizarNomeCS(empresa.csResponsavel);
+          if (csNormalizado && csNormalizado !== empresa.csResponsavel) {
+            empresa.csResponsavel = csNormalizado;
+            await salvarEmpresas({
+              ...empresa,
+              csResponsavel: csNormalizado,
+            });
+            mudouAlguma = true;
+          }
         }
       }
 
@@ -566,7 +560,7 @@ export default function Home() {
       setHistorico(ocorrenciasLista);
 
       const csFromEmpresas = empresasLista
-        .map((e) => (e.csResponsavel ? formatarNome(e.csResponsavel) : ""))
+        .map((e) => normalizarNomeCS(e.csResponsavel))
         .filter(Boolean);
 
       let csFromUsers: string[] = [];
@@ -580,24 +574,28 @@ export default function Home() {
                 u.cargo?.toLowerCase() === "cs") &&
               u.nome?.trim(),
           )
-          .map((u) => formatarNome(u.nome.trim()));
+          .map((u) => normalizarNomeCS(u.nome.trim()));
       } catch (err) {
         console.warn("Erro ao carregar usuários com perfil CS:", err);
       }
 
-      const allDiscoveredCS = [...csFromEmpresas, ...csFromUsers];
+      const allDiscoveredCS = [
+        ...BASE_CS_LIST,
+        ...csFromEmpresas,
+        ...csFromUsers,
+      ];
 
-      setListaCS((prev) => {
-        const newNames = [...prev];
+      setListaCS(() => {
+        const uniqueNames = new Set<string>();
         allDiscoveredCS.forEach((nome) => {
-          const exists = newNames.some(
-            (c) => c.toLowerCase() === nome.toLowerCase(),
-          );
-          if (!exists) {
-            newNames.push(nome);
+          const norm = normalizarNomeCS(nome);
+          if (norm) {
+            uniqueNames.add(norm);
           }
         });
-        return newNames.sort((a, b) => a.localeCompare(b));
+        return Array.from(uniqueNames).sort((a, b) =>
+          a.localeCompare(b, "pt-BR"),
+        );
       });
 
       setLoading(false);
@@ -799,7 +797,7 @@ export default function Home() {
           formatarNome(e.responsavel) === filtroResponsavel;
         const csOk =
           !filtroCs ||
-          formatarNome(e.csResponsavel) === formatarNome(filtroCs) ||
+          compararCS(e.csResponsavel, filtroCs) ||
           e.csResponsavel === filtroCs;
         const progressoOk =
           !filtroProgresso ||
@@ -883,7 +881,7 @@ export default function Home() {
           e.nomeEmpresa.toLowerCase().includes(filtroCliente.toLowerCase());
         const csOk =
           !filtroCs ||
-          formatarNome(e.csResponsavel) === formatarNome(filtroCs) ||
+          compararCS(e.csResponsavel, filtroCs) ||
           e.csResponsavel === filtroCs;
         const responsavelOk =
           !filtroResponsavel ||
@@ -928,7 +926,7 @@ export default function Home() {
           e.nomeEmpresa.toLowerCase().includes(filtroCliente.toLowerCase());
         const csOk =
           !filtroCs ||
-          formatarNome(e.csResponsavel) === formatarNome(filtroCs) ||
+          compararCS(e.csResponsavel, filtroCs) ||
           e.csResponsavel === filtroCs;
         const responsavelOk =
           !filtroResponsavel ||
@@ -973,7 +971,7 @@ export default function Home() {
           e.nomeEmpresa.toLowerCase().includes(filtroCliente.toLowerCase());
         const csOk =
           !filtroCs ||
-          formatarNome(e.csResponsavel) === formatarNome(filtroCs) ||
+          compararCS(e.csResponsavel, filtroCs) ||
           e.csResponsavel === filtroCs;
         const responsavelOk =
           !filtroResponsavel ||
@@ -1536,7 +1534,7 @@ export default function Home() {
 
                     <td>{nomesContatos(empresa)}</td>
 
-                    <td>{formatarNome(empresa.csResponsavel) || "-"}</td>
+                    <td>{normalizarNomeCS(empresa.csResponsavel) || "-"}</td>
 
                     <td>{formatarNome(empresa.comercialResponsavel) || "-"}</td>
                     <td style={{ textAlign: "right", fontWeight: 600 }}>
@@ -1663,7 +1661,7 @@ export default function Home() {
 
                     <td>{nomesContatos(empresa)}</td>
 
-                    <td>{formatarNome(empresa.csResponsavel) || "-"}</td>
+                    <td>{normalizarNomeCS(empresa.csResponsavel) || "-"}</td>
 
                     <td>{formatarNome(empresa.comercialResponsavel) || "-"}</td>
                     <td className="td-progresso">
@@ -1759,7 +1757,7 @@ export default function Home() {
 
                     <td>{nomesContatos(empresa)}</td>
 
-                    <td>{formatarNome(empresa.csResponsavel) || "-"}</td>
+                    <td>{normalizarNomeCS(empresa.csResponsavel) || "-"}</td>
 
                     <td>{formatarNome(empresa.comercialResponsavel) || "-"}</td>
                     <td style={{ textAlign: "right", fontWeight: 600 }}>
@@ -1853,7 +1851,7 @@ export default function Home() {
               <div className="info-item">
                 <span className="info-label">CS Responsável</span>
                 <span className="info-value">
-                  {formatarNome(clienteSelecionado.csResponsavel) || "-"}
+                  {normalizarNomeCS(clienteSelecionado.csResponsavel) || "-"}
                 </span>
               </div>
               <div className="info-item">

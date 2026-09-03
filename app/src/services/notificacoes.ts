@@ -3,6 +3,8 @@ import type { UsuarioDocument } from "./auth";
 import type { Empresa } from "../types";
 import { normalizarTelefoneWhatsApp } from "../utils/telefone";
 
+import { compararCS } from "../utils/cs";
+
 const BASE_URL = window.location.origin;
 
 export function construirUrlOcorrencia(id: string): string {
@@ -67,7 +69,9 @@ export async function obterDestinatariosGestao(
   const csNome = empresaObjeto.csResponsavel;
   if (csNome) {
     const csResponsavel = usuarios.find(
-      (u) => u.cargo === "analista" && normalizarTexto(u.nome) === normalizarTexto(csNome)
+      (u) =>
+        (u.cargo === "analista" || u.role?.toLowerCase() === "cs" || u.cargo?.toLowerCase() === "cs") &&
+        (compararCS(u.nome, csNome) || normalizarTexto(u.nome) === normalizarTexto(csNome))
     );
     if (!csResponsavel) {
       avisos.push(

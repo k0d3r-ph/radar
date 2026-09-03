@@ -250,6 +250,7 @@ export default function Home() {
       "Eduarda Melo",
       "Lucas Barreto",
       "Ana Carolina",
+      "Juan Candia",
     ];
     return [...baseCS].sort((a, b) => a.localeCompare(b));
   });
@@ -564,27 +565,40 @@ export default function Home() {
       setEmpresas(empresasLista);
       setHistorico(ocorrenciasLista);
 
+      const csFromEmpresas = empresasLista
+        .map((e) => (e.csResponsavel ? formatarNome(e.csResponsavel) : ""))
+        .filter(Boolean);
+
+      let csFromUsers: string[] = [];
       try {
         const usersList = await listarUsuarios();
-        const dynamicCS = usersList
-          .filter((u) => u.role?.toLowerCase() === "cs" && u.nome?.trim())
-          .map((u) => u.nome.trim());
-
-        setListaCS((prev) => {
-          const newNames = [...prev];
-          dynamicCS.forEach((nome) => {
-            const exists = newNames.some(
-              (c) => c.toLowerCase() === nome.toLowerCase(),
-            );
-            if (!exists) {
-              newNames.push(nome);
-            }
-          });
-          return newNames.sort((a, b) => a.localeCompare(b));
-        });
+        csFromUsers = usersList
+          .filter(
+            (u) =>
+              (u.role?.toLowerCase() === "cs" ||
+                u.cargo?.toLowerCase() === "analista" ||
+                u.cargo?.toLowerCase() === "cs") &&
+              u.nome?.trim(),
+          )
+          .map((u) => formatarNome(u.nome.trim()));
       } catch (err) {
         console.warn("Erro ao carregar usuários com perfil CS:", err);
       }
+
+      const allDiscoveredCS = [...csFromEmpresas, ...csFromUsers];
+
+      setListaCS((prev) => {
+        const newNames = [...prev];
+        allDiscoveredCS.forEach((nome) => {
+          const exists = newNames.some(
+            (c) => c.toLowerCase() === nome.toLowerCase(),
+          );
+          if (!exists) {
+            newNames.push(nome);
+          }
+        });
+        return newNames.sort((a, b) => a.localeCompare(b));
+      });
 
       setLoading(false);
     }
@@ -783,7 +797,10 @@ export default function Home() {
         const responsavelOk =
           !filtroResponsavel ||
           formatarNome(e.responsavel) === filtroResponsavel;
-        const csOk = !filtroCs || e.csResponsavel === filtroCs;
+        const csOk =
+          !filtroCs ||
+          formatarNome(e.csResponsavel) === formatarNome(filtroCs) ||
+          e.csResponsavel === filtroCs;
         const progressoOk =
           !filtroProgresso ||
           (filtroProgresso === "0-25" && e.progresso <= 25) ||
@@ -864,7 +881,10 @@ export default function Home() {
         const clienteOk =
           !filtroCliente ||
           e.nomeEmpresa.toLowerCase().includes(filtroCliente.toLowerCase());
-        const csOk = !filtroCs || e.csResponsavel === filtroCs;
+        const csOk =
+          !filtroCs ||
+          formatarNome(e.csResponsavel) === formatarNome(filtroCs) ||
+          e.csResponsavel === filtroCs;
         const responsavelOk =
           !filtroResponsavel ||
           formatarNome(e.responsavel) === filtroResponsavel;
@@ -906,7 +926,10 @@ export default function Home() {
         const clienteOk =
           !filtroCliente ||
           e.nomeEmpresa.toLowerCase().includes(filtroCliente.toLowerCase());
-        const csOk = !filtroCs || e.csResponsavel === filtroCs;
+        const csOk =
+          !filtroCs ||
+          formatarNome(e.csResponsavel) === formatarNome(filtroCs) ||
+          e.csResponsavel === filtroCs;
         const responsavelOk =
           !filtroResponsavel ||
           formatarNome(e.responsavel) === filtroResponsavel;
@@ -948,7 +971,10 @@ export default function Home() {
         const clienteOk =
           !filtroCliente ||
           e.nomeEmpresa.toLowerCase().includes(filtroCliente.toLowerCase());
-        const csOk = !filtroCs || e.csResponsavel === filtroCs;
+        const csOk =
+          !filtroCs ||
+          formatarNome(e.csResponsavel) === formatarNome(filtroCs) ||
+          e.csResponsavel === filtroCs;
         const responsavelOk =
           !filtroResponsavel ||
           formatarNome(e.responsavel) === filtroResponsavel;

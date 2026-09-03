@@ -31,6 +31,11 @@ import { useAuth } from "../../context/AuthContext";
 import { formatarNome } from "../../utils/formatarNome";
 import { BASE_CS_LIST, normalizarNomeCS, compararCS } from "../../utils/cs";
 import {
+  consolidarListaComerciais,
+  normalizarNomeComercial,
+  compararComercial,
+} from "../../utils/comercial";
+import {
   analisarTelefoneWhatsApp,
   formatarTelefoneExibicao,
   normalizarTelefoneWhatsApp,
@@ -213,6 +218,9 @@ export default function Home() {
   const [filtroCs, setFiltroCs] = useState(
     () => sessionStorage.getItem("filtroCs") || "",
   );
+  const [filtroComercial, setFiltroComercial] = useState(
+    () => sessionStorage.getItem("filtroComercial") || "",
+  );
   const [filtroProgresso, setFiltroProgresso] = useState(
     () => sessionStorage.getItem("filtroProgresso") || "",
   );
@@ -245,6 +253,16 @@ export default function Home() {
   const [listaCS, setListaCS] = useState<string[]>(() => {
     return [...BASE_CS_LIST].sort((a, b) => a.localeCompare(b, "pt-BR"));
   });
+
+  const [comerciaisUsuarios, setComerciaisUsuarios] = useState<string[]>([]);
+
+  const { lista: listaComercial, mapaCanonical: mapaComerciais } = useMemo(() => {
+    const todosBrutos = [
+      ...comerciaisUsuarios,
+      ...empresas.map((e) => e.comercialResponsavel).filter(Boolean),
+    ];
+    return consolidarListaComerciais(todosBrutos);
+  }, [comerciaisUsuarios, empresas]);
 
   const [loading, setLoading] = useState(true);
 
@@ -476,26 +494,76 @@ export default function Home() {
     async function carregarDados() {
       setLoading(true);
 
-      let [empresasLista, ocorrenciasLista] = await Promise.all([
+      let [empresasLista, ocorrenciasLista, usersList] = await Promise.all([
         listarEmpresas(),
         listarOcorrencias(),
+        listarUsuarios().catch(() => [] as any[]),
       ]);
+
+      const csFromUsers = usersList
+        .filter(
+          (u) =>
+            (u.role?.toLowerCase() === "cs" ||
+              u.cargo?.toLowerCase() === "analista" ||
+              u.cargo?.toLowerCase() === "cs") &&
+            u.nome?.trim(),
+        )
+        .map((u) => normalizarNomeCS(u.nome.trim()));
+
+      const comercialFromUsers = usersList
+        .filter(
+          (u) =>
+            (u.role?.toLowerCase() === "comercial" ||
+              u.cargo?.toLowerCase() === "comercial") &&
+            u.nome?.trim(),
+        )
+        .map((u) => formatarNome(u.nome.trim()));
+
+      setComerciaisUsuarios(comercialFromUsers);
+
+      const todosComerciaisBrutos = [
+        ...comercialFromUsers,
+        ...empresasLista.map((e) => e.comercialResponsavel).filter(Boolean),
+      ];
+      const { mapaCanonical: mapaComerciaisInicial } =
+        consolidarListaComerciais(todosComerciaisBrutos);
 
       let mudouAlguma = false;
 
-      // Migra empresas com nomes curtos ou variações de CS para o nome completo padronizado
+      // Migra empresas com nomes curtos ou variações de CS e Comercial para o nome completo padronizado
       for (let i = 0; i < empresasLista.length; i++) {
         const empresa = empresasLista[i];
+        let mudouEmpresa = false;
+
         if (empresa.csResponsavel) {
           const csNormalizado = normalizarNomeCS(empresa.csResponsavel);
           if (csNormalizado && csNormalizado !== empresa.csResponsavel) {
             empresa.csResponsavel = csNormalizado;
-            await salvarEmpresas({
-              ...empresa,
-              csResponsavel: csNormalizado,
-            });
-            mudouAlguma = true;
+            mudouEmpresa = true;
           }
+        }
+
+        if (empresa.comercialResponsavel) {
+          const comercialNormalizado = normalizarNomeComercial(
+            empresa.comercialResponsavel,
+            mapaComerciaisInicial,
+          );
+          if (
+            comercialNormalizado &&
+            comercialNormalizado !== empresa.comercialResponsavel
+          ) {
+            empresa.comercialResponsavel = comercialNormalizado;
+            mudouEmpresa = true;
+          }
+        }
+
+        if (mudouEmpresa) {
+          await salvarEmpresas({
+            ...empresa,
+            csResponsavel: empresa.csResponsavel,
+            comercialResponsavel: empresa.comercialResponsavel,
+          });
+          mudouAlguma = true;
         }
       }
 
@@ -563,22 +631,6 @@ export default function Home() {
         .map((e) => normalizarNomeCS(e.csResponsavel))
         .filter(Boolean);
 
-      let csFromUsers: string[] = [];
-      try {
-        const usersList = await listarUsuarios();
-        csFromUsers = usersList
-          .filter(
-            (u) =>
-              (u.role?.toLowerCase() === "cs" ||
-                u.cargo?.toLowerCase() === "analista" ||
-                u.cargo?.toLowerCase() === "cs") &&
-              u.nome?.trim(),
-          )
-          .map((u) => normalizarNomeCS(u.nome.trim()));
-      } catch (err) {
-        console.warn("Erro ao carregar usuários com perfil CS:", err);
-      }
-
       const allDiscoveredCS = [
         ...BASE_CS_LIST,
         ...csFromEmpresas,
@@ -608,6 +660,7 @@ export default function Home() {
     sessionStorage.setItem("filtroCliente", filtroCliente);
     sessionStorage.setItem("filtroResponsavel", filtroResponsavel);
     sessionStorage.setItem("filtroCs", filtroCs);
+    sessionStorage.setItem("filtroComercial", filtroComercial);
     sessionStorage.setItem("filtroProgresso", filtroProgresso);
     sessionStorage.setItem("filtroProduto", filtroProduto);
     sessionStorage.setItem("filtroCardStatus", filtroCardStatus);
@@ -620,6 +673,7 @@ export default function Home() {
     filtroCliente,
     filtroResponsavel,
     filtroCs,
+    filtroComercial,
     filtroProgresso,
     filtroProduto,
     filtroCardStatus,
@@ -799,6 +853,13 @@ export default function Home() {
           !filtroCs ||
           compararCS(e.csResponsavel, filtroCs) ||
           e.csResponsavel === filtroCs;
+        const comercialOk =
+          !filtroComercial ||
+          compararComercial(
+            e.comercialResponsavel,
+            filtroComercial,
+            mapaComerciais,
+          );
         const progressoOk =
           !filtroProgresso ||
           (filtroProgresso === "0-25" && e.progresso <= 25) ||
@@ -831,6 +892,7 @@ export default function Home() {
           clienteOk &&
           responsavelOk &&
           csOk &&
+          comercialOk &&
           progressoOk &&
           produtoOk &&
           statusCardOk &&
@@ -863,6 +925,7 @@ export default function Home() {
     filtroCliente,
     filtroResponsavel,
     filtroCs,
+    filtroComercial,
     filtroProgresso,
     filtroProduto,
     filtroCardStatus,
@@ -871,6 +934,7 @@ export default function Home() {
     ordenacaoContrato,
     ordenacaoScore,
     ordenacaoPrincipal,
+    mapaComerciais,
   ]);
 
   const dadosOngoingFiltrados = useMemo(() => {
@@ -883,12 +947,19 @@ export default function Home() {
           !filtroCs ||
           compararCS(e.csResponsavel, filtroCs) ||
           e.csResponsavel === filtroCs;
+        const comercialOk =
+          !filtroComercial ||
+          compararComercial(
+            e.comercialResponsavel,
+            filtroComercial,
+            mapaComerciais,
+          );
         const responsavelOk =
           !filtroResponsavel ||
           formatarNome(e.responsavel) === filtroResponsavel;
         const produtoOk = !filtroProduto || e.produto === filtroProduto;
 
-        return clienteOk && csOk && responsavelOk && produtoOk;
+        return clienteOk && csOk && comercialOk && responsavelOk && produtoOk;
       })
       .sort((a, b) => {
         let prim = 0;
@@ -911,11 +982,13 @@ export default function Home() {
     dadosOngoing,
     filtroCliente,
     filtroCs,
+    filtroComercial,
     filtroResponsavel,
     filtroProduto,
     ordenacaoContrato,
     ordenacaoScore,
     ordenacaoPrincipal,
+    mapaComerciais,
   ]);
 
   const dadosSuspensosFiltrados = useMemo(() => {
@@ -928,12 +1001,19 @@ export default function Home() {
           !filtroCs ||
           compararCS(e.csResponsavel, filtroCs) ||
           e.csResponsavel === filtroCs;
+        const comercialOk =
+          !filtroComercial ||
+          compararComercial(
+            e.comercialResponsavel,
+            filtroComercial,
+            mapaComerciais,
+          );
         const responsavelOk =
           !filtroResponsavel ||
           formatarNome(e.responsavel) === filtroResponsavel;
         const produtoOk = !filtroProduto || e.produto === filtroProduto;
 
-        return clienteOk && csOk && responsavelOk && produtoOk;
+        return clienteOk && csOk && comercialOk && responsavelOk && produtoOk;
       })
       .sort((a, b) => {
         let prim = 0;
@@ -956,11 +1036,13 @@ export default function Home() {
     dadosSuspensos,
     filtroCliente,
     filtroCs,
+    filtroComercial,
     filtroResponsavel,
     filtroProduto,
     ordenacaoContrato,
     ordenacaoScore,
     ordenacaoPrincipal,
+    mapaComerciais,
   ]);
 
   const dadosCanceladosFiltrados = useMemo(() => {
@@ -973,12 +1055,19 @@ export default function Home() {
           !filtroCs ||
           compararCS(e.csResponsavel, filtroCs) ||
           e.csResponsavel === filtroCs;
+        const comercialOk =
+          !filtroComercial ||
+          compararComercial(
+            e.comercialResponsavel,
+            filtroComercial,
+            mapaComerciais,
+          );
         const responsavelOk =
           !filtroResponsavel ||
           formatarNome(e.responsavel) === filtroResponsavel;
         const produtoOk = !filtroProduto || e.produto === filtroProduto;
 
-        return clienteOk && csOk && responsavelOk && produtoOk;
+        return clienteOk && csOk && comercialOk && responsavelOk && produtoOk;
       })
       .sort((a, b) => {
         let prim = 0;
@@ -1001,11 +1090,13 @@ export default function Home() {
     dadosCancelados,
     filtroCliente,
     filtroCs,
+    filtroComercial,
     filtroResponsavel,
     filtroProduto,
     ordenacaoContrato,
     ordenacaoScore,
     ordenacaoPrincipal,
+    mapaComerciais,
   ]);
 
   return (
@@ -1161,6 +1252,18 @@ export default function Home() {
         </select>
 
         <select
+          value={filtroComercial}
+          onChange={(e) => setFiltroComercial(e.target.value)}
+        >
+          <option value="">Comercial responsável</option>
+          {listaComercial.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+
+        <select
           value={filtroProgresso}
           onChange={(e) => setFiltroProgresso(e.target.value)}
         >
@@ -1227,6 +1330,7 @@ export default function Home() {
         {(filtroCliente ||
           filtroResponsavel ||
           filtroCs ||
+          filtroComercial ||
           filtroProgresso ||
           filtroProduto ||
           filtroCardStatus ||
@@ -1239,6 +1343,7 @@ export default function Home() {
               setFiltroCliente("");
               setFiltroResponsavel("");
               setFiltroCs("");
+              setFiltroComercial("");
               setFiltroProgresso("");
               setFiltroProduto("");
               setFiltroCardStatus("");
@@ -1536,7 +1641,12 @@ export default function Home() {
 
                     <td>{normalizarNomeCS(empresa.csResponsavel) || "-"}</td>
 
-                    <td>{formatarNome(empresa.comercialResponsavel) || "-"}</td>
+                    <td>
+                      {normalizarNomeComercial(
+                        empresa.comercialResponsavel,
+                        mapaComerciais,
+                      ) || "-"}
+                    </td>
                     <td style={{ textAlign: "right", fontWeight: 600 }}>
                       {empresa.valorContrato !== undefined &&
                       empresa.valorContrato !== null
@@ -1663,7 +1773,12 @@ export default function Home() {
 
                     <td>{normalizarNomeCS(empresa.csResponsavel) || "-"}</td>
 
-                    <td>{formatarNome(empresa.comercialResponsavel) || "-"}</td>
+                    <td>
+                      {normalizarNomeComercial(
+                        empresa.comercialResponsavel,
+                        mapaComerciais,
+                      ) || "-"}
+                    </td>
                     <td className="td-progresso">
                       <ProgressBar value={empresa.progresso} />
                     </td>
@@ -1759,7 +1874,12 @@ export default function Home() {
 
                     <td>{normalizarNomeCS(empresa.csResponsavel) || "-"}</td>
 
-                    <td>{formatarNome(empresa.comercialResponsavel) || "-"}</td>
+                    <td>
+                      {normalizarNomeComercial(
+                        empresa.comercialResponsavel,
+                        mapaComerciais,
+                      ) || "-"}
+                    </td>
                     <td style={{ textAlign: "right", fontWeight: 600 }}>
                       {empresa.valorContrato !== undefined &&
                       empresa.valorContrato !== null
@@ -1857,7 +1977,10 @@ export default function Home() {
               <div className="info-item">
                 <span className="info-label">Comercial Responsável</span>
                 <span className="info-value">
-                  {formatarNome(clienteSelecionado.comercialResponsavel) || "-"}
+                  {normalizarNomeComercial(
+                    clienteSelecionado.comercialResponsavel,
+                    mapaComerciais,
+                  ) || "-"}
                 </span>
               </div>
               <div className="info-item">
@@ -2230,7 +2353,13 @@ export default function Home() {
                       comercialResponsavel: e.target.value,
                     })
                   }
+                  list="comerciais-sugestoes"
                 />
+                <datalist id="comerciais-sugestoes">
+                  {listaComercial.map((c) => (
+                    <option key={c} value={c} />
+                  ))}
+                </datalist>
               </div>
             </div>
 

@@ -25,6 +25,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 import { formatarNome } from "../../utils/formatarNome";
 import { atuaComoTreinador } from "../../utils/perfis";
+import { calcularScoreEfetivo } from "../../utils/score";
 import { listarUsuarios } from "../../services/auth";
 import type { UsuarioDocument } from "../../services/auth";
 import {
@@ -997,6 +998,7 @@ export const Gamificacao: React.FC = () => {
       });
 
     const treinadoresElegiveis = trainers.filter((t) => {
+      if (t.suspensoDistribuicao) return false;
       const primeiroNome =
         formatarNome(t.nome).split(" ")[0]?.toLowerCase() || "";
       return primeiroNome !== "jean" && primeiroNome !== "jeff";
@@ -1352,7 +1354,7 @@ export const Gamificacao: React.FC = () => {
         // cancelados não contam para a média.
         const scoresClientes = clientesAtivos
           .filter((emp) => !emp.isOngoing && typeof emp.score === "number")
-          .map((emp) => emp.score as number);
+          .map((emp) => calcularScoreEfetivo(emp) as number);
         const scoreClientes = media(scoresClientes);
 
         return {

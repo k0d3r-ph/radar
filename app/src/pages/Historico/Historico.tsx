@@ -42,6 +42,11 @@ import { BarChart } from "../../components/BarChart";
 import { useAuth } from "../../context/AuthContext";
 import { formatarNome } from "../../utils/formatarNome";
 import {
+  MOTIVO_REDUCAO_SCORE_SUPORTE,
+  VALOR_REDUCAO_SCORE_SUPORTE,
+  DIAS_REDUCAO_SCORE_SUPORTE,
+} from "../../utils/score";
+import {
   atribuirIdsOcorrencias,
   obterInfoTipoOcorrencia,
 } from "../../utils/empresaUtils";
@@ -120,6 +125,7 @@ const SOLICITACAO_OPCOES = [
   "Troca de email do usuário Admin",
   "Troca de nome da central",
   "Informações ou configurações de API",
+  "Exclusão de UR gerada por aplicativo",
 ];
 
 const DEPARTAMENTO_CLASS: Record<string, string> = {
@@ -669,6 +675,7 @@ export function Historico() {
   >([]);
   const [gestaoAvisos, setGestaoAvisos] = useState<string[]>([]);
   const [gestaoMensagem, setGestaoMensagem] = useState("");
+  const [gestaoOcorrenciaId, setGestaoOcorrenciaId] = useState<string | undefined>(undefined);
 
   const [novaAtualizacaoAberta, setNovaAtualizacaoAberta] = useState(false);
   const [novaDescricaoAtual, setNovaDescricaoAtual] = useState("");
@@ -1480,6 +1487,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             setGestaoMensagem(
               montarMensagemAlertaGestao(empresaObjetoAlerta, savedId),
             );
+            setGestaoOcorrenciaId(savedId);
             setGestaoConfirmModalOpen(true);
           })
           .catch((err) =>
@@ -1488,6 +1496,38 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               err,
             ),
           );
+      }
+    }
+
+    // Contato com o Suporte para tirar dúvida reduz temporariamente o score do
+    // cliente (best-effort — não bloqueia o fluxo, e só na criação, para não
+    // reaplicar a redução a cada edição da mesma ocorrência).
+    if (
+      !editandoId &&
+      !empresaInterna &&
+      form.departamento === "Suporte" &&
+      form.tipo === "Dúvida" &&
+      empresaObjeto
+    ) {
+      try {
+        const agora = Date.now();
+        const ajustesAtivos = (empresaObjeto.scoreAjustesTemporarios || []).filter(
+          (a) => a.expiraEm > agora,
+        );
+        await salvarEmpresas({
+          id: empresaObjeto.id,
+          scoreAjustesTemporarios: [
+            ...ajustesAtivos,
+            {
+              motivo: MOTIVO_REDUCAO_SCORE_SUPORTE,
+              valor: VALOR_REDUCAO_SCORE_SUPORTE,
+              criadoEm: agora,
+              expiraEm: agora + DIAS_REDUCAO_SCORE_SUPORTE * 24 * 60 * 60 * 1000,
+            },
+          ],
+        });
+      } catch (error) {
+        console.error("Erro ao aplicar redução temporária de score:", error);
       }
     }
 
@@ -4710,10 +4750,24 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         avisos={gestaoAvisos}
         mensagem={gestaoMensagem}
         onChangeMensagem={setGestaoMensagem}
+        onResultado={async ({ status, enviadoEm, destinatarios }) => {
+          if (!gestaoOcorrenciaId) return;
+          try {
+            await salvarOcorrencia({
+              id: gestaoOcorrenciaId,
+              whatsappStatus: status,
+              whatsappEnviadoEm: enviadoEm,
+              whatsappDestinatarios: destinatarios,
+            } as Ocorrencia);
+          } catch (error) {
+            console.error("Erro ao registrar status de envio do alerta:", error);
+          }
+        }}
         onClose={() => {
           setGestaoConfirmModalOpen(false);
           setGestaoDestinatarios([]);
           setGestaoMensagem("");
+          setGestaoOcorrenciaId(undefined);
         }}
       />
     </div>

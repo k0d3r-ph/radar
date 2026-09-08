@@ -30,6 +30,7 @@ import type { Empresa, Ocorrencia } from "../../types";
 import { useAuth } from "../../context/AuthContext";
 import { formatarNome } from "../../utils/formatarNome";
 import { BASE_CS_LIST, normalizarNomeCS, compararCS } from "../../utils/cs";
+import { calcularScoreEfetivo } from "../../utils/score";
 import {
   consolidarListaComerciais,
   normalizarNomeComercial,
@@ -300,6 +301,7 @@ export default function Home() {
   >([]);
   const [gestaoAvisos, setGestaoAvisos] = useState<string[]>([]);
   const [gestaoMensagem, setGestaoMensagem] = useState("");
+  const [gestaoEmpresaId, setGestaoEmpresaId] = useState<string | undefined>(undefined);
 
   const [tabelaAtivaAberta, setTabelaAtivaAberta] = useState(true);
   const [tabelaOngoingAberta, setTabelaOngoingAberta] = useState(true);
@@ -434,6 +436,7 @@ export default function Home() {
           setGestaoDestinatarios(destinatarios);
           setGestaoAvisos(avisos);
           setGestaoMensagem(montarMensagemSuspensaoGestao(empresaSalva));
+          setGestaoEmpresaId(empresaSalva.id);
           setGestaoConfirmModalOpen(true);
         })
         .catch((err) =>
@@ -2059,6 +2062,54 @@ export default function Home() {
                   )}
                 </span>
               </div>
+              {role === "master" && clienteSelecionado.isSuspended && (
+                <div className="info-item">
+                  <span className="info-label">Notificação de Suspensão (WhatsApp)</span>
+                  <span className="info-value">
+                    {clienteSelecionado.whatsappStatusSuspensao === "enviado" && (
+                      <span
+                        style={{ color: "#16a34a", fontWeight: "bold" }}
+                        title={
+                          clienteSelecionado.whatsappEnviadoEmSuspensao
+                            ? "Enviado em " + new Date(clienteSelecionado.whatsappEnviadoEmSuspensao).toLocaleString("pt-BR")
+                            : undefined
+                        }
+                      >
+                        ✅ Enviado
+                      </span>
+                    )}
+                    {clienteSelecionado.whatsappStatusSuspensao === "parcial" && (
+                      <span
+                        style={{ color: "#d97706", fontWeight: "bold" }}
+                        title={(clienteSelecionado.whatsappDestinatariosSuspensao || [])
+                          .map((d) => `${d.nome}: ${d.status}${d.erro ? " (" + d.erro + ")" : ""}`)
+                          .join("\n")}
+                      >
+                        ⚠️ Parcial
+                      </span>
+                    )}
+                    {clienteSelecionado.whatsappStatusSuspensao === "falhou" && (
+                      <span
+                        style={{ color: "#dc2626", fontWeight: "bold" }}
+                        title={(clienteSelecionado.whatsappDestinatariosSuspensao || [])
+                          .map((d) => d.erro || "")
+                          .filter(Boolean)
+                          .join("\n")}
+                      >
+                        ❌ Falhou
+                      </span>
+                    )}
+                    {clienteSelecionado.whatsappStatusSuspensao === "nao_enviado" && (
+                      <span style={{ color: "#64748b" }} title="O usuário optou por não enviar">
+                        🚫 Não enviado
+                      </span>
+                    )}
+                    {!clienteSelecionado.whatsappStatusSuspensao && (
+                      <span style={{ color: "#64748b" }}>—</span>
+                    )}
+                  </span>
+                </div>
+              )}
               <div className="info-item">
                 <span className="info-label">Score</span>
                 <span
@@ -2075,8 +2126,13 @@ export default function Home() {
                             ? "#10b981"
                             : "#ef4444",
                       }}
+                      title={
+                        (calcularScoreEfetivo(clienteSelecionado) ?? clienteSelecionado.score) !== clienteSelecionado.score
+                          ? "Score reduzido temporariamente por contato recente com o Suporte"
+                          : undefined
+                      }
                     >
-                      {clienteSelecionado.score.toFixed(1)} (
+                      {(calcularScoreEfetivo(clienteSelecionado) ?? clienteSelecionado.score).toFixed(1)} (
                       {clienteSelecionado.tipo})
                     </span>
                   ) : (
@@ -3121,10 +3177,24 @@ export default function Home() {
         avisos={gestaoAvisos}
         mensagem={gestaoMensagem}
         onChangeMensagem={setGestaoMensagem}
+        onResultado={async ({ status, enviadoEm, destinatarios }) => {
+          if (!gestaoEmpresaId) return;
+          try {
+            await salvarEmpresas({
+              id: gestaoEmpresaId,
+              whatsappStatusSuspensao: status,
+              whatsappEnviadoEmSuspensao: enviadoEm,
+              whatsappDestinatariosSuspensao: destinatarios,
+            });
+          } catch (error) {
+            console.error("Erro ao registrar status de envio da suspensão:", error);
+          }
+        }}
         onClose={() => {
           setGestaoConfirmModalOpen(false);
           setGestaoDestinatarios([]);
           setGestaoMensagem("");
+          setGestaoEmpresaId(undefined);
         }}
       />
     </div>

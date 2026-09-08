@@ -5,6 +5,15 @@ export type ContatoCliente = {
   telefone: string;
 };
 
+export type WhatsappStatus = "enviado" | "falhou" | "parcial" | "nao_enviado";
+
+export type WhatsappDestinatarioEnvio = {
+  nome: string;
+  telefone: string;
+  status: "enviado" | "falhou";
+  erro?: string;
+};
+
 export type Empresa = {
   id?: string;
 
@@ -47,11 +56,26 @@ export type Empresa = {
 
   score?: number;
   scoreAnswers?: any;
+  /**
+   * Reduções temporárias aplicadas ao score (ex.: contato com o Suporte para tirar
+   * dúvidas reduz 1 ponto por 15 dias). Cada ajuste vale enquanto `Date.now() < expiraEm`;
+   * o score exibido/usado deve ser calculado com {@link calcularScoreEfetivo}.
+   */
+  scoreAjustesTemporarios?: {
+    motivo: string;
+    valor: number;
+    criadoEm: number;
+    expiraEm: number;
+  }[];
   isOngoing?: boolean;
   isSuspended?: boolean;
   isCancelled?: boolean;
   valorContrato?: number;
   idNumeric?: number;
+  /** Marcação de envio da notificação de WhatsApp de Suspensão, para o perfil master. */
+  whatsappStatusSuspensao?: WhatsappStatus;
+  whatsappEnviadoEmSuspensao?: number;
+  whatsappDestinatariosSuspensao?: WhatsappDestinatarioEnvio[];
 };
 
 export type Ocorrencia = {
@@ -86,14 +110,9 @@ export type Ocorrencia = {
   isRevisao?: boolean;
   retornarEsteira?: boolean;
   temaForaEsteira?: boolean;
-  whatsappStatus?: "enviado" | "falhou" | "parcial" | "nao_enviado";
+  whatsappStatus?: WhatsappStatus;
   whatsappEnviadoEm?: number;
-  whatsappDestinatarios?: {
-    nome: string;
-    telefone: string;
-    status: "enviado" | "falhou";
-    erro?: string;
-  }[];
+  whatsappDestinatarios?: WhatsappDestinatarioEnvio[];
 };
 
 export type OcorrenciaForm = {

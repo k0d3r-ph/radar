@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { toast } from "sonner";
+import { LineChart } from "../../components/LineChart";
 import {
   Download,
   Calendar,
@@ -17,6 +18,7 @@ import {
   Play,
   Pause,
   PauseCircle,
+  XCircle,
 } from "lucide-react";
 import "../Historico/Historico.css";
 import {
@@ -814,6 +816,56 @@ export const Relatorios: React.FC = () => {
     return contatosSuporteComparacao.reduce((acc, curr) => acc + (curr as any).dentroExpediente.total, 0);
   }, [contatosSuporteComparacao]);
 
+  const clientesCancelados = useMemo(() => {
+    return dadosEmpresas.filter((e) => e.isCancelled);
+  }, [dadosEmpresas]);
+
+  // Evolução semanal do volume de dúvidas, problemas e solicitações (últimas 8 semanas)
+  const evolucaoSemanalSuporte = useMemo(() => {
+    if (!limitesSemana) return { categorias: [] as string[], duvidas: [] as number[], problemas: [] as number[], solicitacoes: [] as number[] };
+
+    const NUM_SEMANAS = 8;
+    const nomesClientesCancelados = new Set(
+      dadosEmpresas.filter((e) => e.isCancelled).map((e) => e.nomeEmpresa.trim().toLowerCase())
+    );
+
+    const semanas: { inicio: Date; fim: Date }[] = [];
+    for (let i = NUM_SEMANAS - 1; i >= 0; i--) {
+      const inicio = new Date(limitesSemana.inicio);
+      inicio.setDate(inicio.getDate() - i * 7);
+      const fim = new Date(inicio);
+      fim.setDate(inicio.getDate() + 6);
+      fim.setHours(23, 59, 59, 999);
+      semanas.push({ inicio, fim });
+    }
+
+    const categorias = semanas.map((s) => s.inicio.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }));
+    const duvidas = new Array(NUM_SEMANAS).fill(0);
+    const problemas = new Array(NUM_SEMANAS).fill(0);
+    const solicitacoes = new Array(NUM_SEMANAS).fill(0);
+
+    ocorrencias.forEach((o) => {
+      if (o.departamento !== "Suporte") return;
+      if (nomesClientesCancelados.has((o.empresa || "").trim().toLowerCase())) return;
+
+      const tipoLower = (o.tipo || "").toLowerCase();
+      const eDuvida = tipoLower.includes("duvida") || tipoLower.includes("dúvida");
+      const eProblema = tipoLower.includes("problema");
+      const eSolicitacao = tipoLower.includes("solicita");
+      if (!eDuvida && !eProblema && !eSolicitacao) return;
+
+      const t = o.dataOcorrencia || o.createdAt || 0;
+      const idx = semanas.findIndex((s) => t >= s.inicio.getTime() && t <= s.fim.getTime());
+      if (idx === -1) return;
+
+      if (eDuvida) duvidas[idx] += 1;
+      else if (eProblema) problemas[idx] += 1;
+      else solicitacoes[idx] += 1;
+    });
+
+    return { categorias, duvidas, problemas, solicitacoes };
+  }, [ocorrencias, dadosEmpresas, limitesSemana]);
+
   const formatarDiferenca = (atual: number, anterior: number, menorEhMelhor = false) => {
     if (anterior === 0) {
       if (atual === 0) return { texto: "0%", classe: "diff-neutral", diff: 0 };
@@ -889,6 +941,14 @@ export const Relatorios: React.FC = () => {
       icone: <ShieldAlert size={22} color="#ef4444" />,
       lista: riscoChurn,
       ehSazonal: true,
+    },
+    {
+      titulo: "Clientes cancelados",
+      valor: clientesCancelados.length,
+      desc: "Total de cancelamentos",
+      icone: <XCircle size={22} color="#ef4444" />,
+      lista: clientesCancelados,
+      ehSazonal: false,
     },
   ];
 
@@ -1251,6 +1311,16 @@ ${riscoChurn.length > 0
                   );
                 })}
               </div>
+
+              <LineChart
+                title="Evolução semanal de dúvidas, problemas e solicitações"
+                categorias={evolucaoSemanalSuporte.categorias}
+                series={[
+                  { label: "Dúvidas", color: "#3b82f6", values: evolucaoSemanalSuporte.duvidas },
+                  { label: "Problemas", color: "#ef4444", values: evolucaoSemanalSuporte.problemas },
+                  { label: "Solicitações", color: "#10b981", values: evolucaoSemanalSuporte.solicitacoes },
+                ]}
+              />
 
               {/* Section de detalhamento */}
               <div className="relatorio-detalhe-section">

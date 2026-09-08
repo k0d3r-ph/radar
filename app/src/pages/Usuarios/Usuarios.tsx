@@ -80,6 +80,8 @@ export const Usuarios: React.FC = () => {
   const [editingUserCargo, setEditingUserCargo] = useState<CargoCsUsuario>("");
   const [editingUserTelefone, setEditingUserTelefone] = useState("");
   const [editingUserFator, setEditingUserFator] = useState("");
+  const [editingUserSuspenso, setEditingUserSuspenso] = useState(false);
+  const [editingUserRecebeNotificacoes, setEditingUserRecebeNotificacoes] = useState(false);
   const [savingRole, setSavingRole] = useState(false);
 
   // Estados para redefinição de senha de usuários
@@ -300,6 +302,8 @@ export const Usuarios: React.FC = () => {
         fatorCapacidade: atuaComoTreinador(editingUserRole)
           ? (parseFatorCapacidade(editingUserFator) ?? FATOR_CAPACIDADE_PADRAO)
           : undefined,
+        suspensoDistribuicao: atuaComoTreinador(editingUserRole) ? editingUserSuspenso : undefined,
+        recebeNotificacoesGestao: editingUserRole === "master" ? editingUserRecebeNotificacoes : undefined,
       });
       toast.success("Perfil de acesso atualizado com sucesso!");
       setEditingUser(null);
@@ -575,6 +579,15 @@ export const Usuarios: React.FC = () => {
                         <span className={`status-badge ${u.needsPasswordChange ? "status-pending" : "status-active"}`}>
                           {u.needsPasswordChange ? "Primeiro Acesso Pendente" : "Ativo"}
                         </span>
+                        {atuaComoTreinador(u.role) && u.suspensoDistribuicao && (
+                          <span
+                            className="status-badge status-pending"
+                            style={{ marginLeft: "6px" }}
+                            title="Fora da fila de distribuição de Próximo cliente"
+                          >
+                            Suspenso da fila
+                          </span>
+                        )}
                       </td>
                       <td className="action-col">
                         <div className="action-buttons-wrapper">
@@ -591,6 +604,8 @@ export const Usuarios: React.FC = () => {
                                     ? String(u.fatorCapacidade)
                                     : "",
                                 );
+                                setEditingUserSuspenso(!!u.suspensoDistribuicao);
+                                setEditingUserRecebeNotificacoes(!!u.recebeNotificacoesGestao);
                               }}
                               title="Editar Perfil"
                             >
@@ -821,6 +836,30 @@ export const Usuarios: React.FC = () => {
                     style={{ width: "100%", paddingLeft: "45px" }}
                   />
                 </div>
+              </div>
+            )}
+            {atuaComoTreinador(editingUserRole) && (
+              <div className="input-group" style={{ marginTop: "12px" }}>
+                <label style={{ fontSize: "13px", fontWeight: 600, color: "#e5e7eb", display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={editingUserSuspenso}
+                    onChange={(e) => setEditingUserSuspenso(e.target.checked)}
+                  />
+                  Suspender da fila de "Próximo cliente" (ex.: férias)
+                </label>
+              </div>
+            )}
+            {editingUserRole === "master" && (
+              <div className="input-group" style={{ marginTop: "12px" }}>
+                <label style={{ fontSize: "13px", fontWeight: 600, color: "#e5e7eb", display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={editingUserRecebeNotificacoes}
+                    onChange={(e) => setEditingUserRecebeNotificacoes(e.target.checked)}
+                  />
+                  Receber mensagens automáticas de Alerta e Suspensão no WhatsApp
+                </label>
               </div>
             )}
             <div className="confirm-modal-actions">

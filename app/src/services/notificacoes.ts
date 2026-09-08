@@ -66,6 +66,18 @@ export async function obterDestinatariosGestao(
     );
   }
 
+  const mastersNotificaveis = usuarios.filter(
+    (u) => u.role === "master" && u.recebeNotificacoesGestao
+  );
+  const mastersSemTelefone = mastersNotificaveis.filter((u) => !adicionar(u));
+  if (mastersSemTelefone.length > 0) {
+    avisos.push(
+      `Sem telefone válido cadastrado: ${mastersSemTelefone
+        .map((u) => u.nome || u.email)
+        .join(", ")}.`
+    );
+  }
+
   const csNome = empresaObjeto.csResponsavel;
   if (csNome) {
     const csResponsavel = usuarios.find(

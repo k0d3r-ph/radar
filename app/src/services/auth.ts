@@ -89,6 +89,17 @@ export interface UsuarioDocument {
    * cada cliente pesa mais (menos capacidade), abaixo de 1 pesa menos.
    */
   fatorCapacidade?: number;
+  /**
+   * Quando true, o treinador fica fora da fila de distribuição de "Próximo cliente"
+   * (ex.: férias, afastamento), sem precisar remover o usuário do sistema.
+   */
+  suspensoDistribuicao?: boolean;
+  /**
+   * Quando true (apenas para usuários com role "master"), este usuário também recebe
+   * as mensagens automáticas de WhatsApp de gestão (Alerta, Suspensão e conclusão de
+   * esteira), desde que tenha telefone cadastrado.
+   */
+  recebeNotificacoesGestao?: boolean;
 }
 
 export async function criarNovoUsuario(email: string, senhaTemp: string, role: string, nome: string): Promise<void> {
@@ -145,6 +156,8 @@ export async function listarUsuarios(forceRefresh = false): Promise<UsuarioDocum
       telefone: data.telefone || "",
       fatorCapacidade:
         typeof data.fatorCapacidade === "number" ? data.fatorCapacidade : undefined,
+      suspensoDistribuicao: !!data.suspensoDistribuicao,
+      recebeNotificacoesGestao: !!data.recebeNotificacoesGestao,
     });
   });
 
@@ -166,7 +179,14 @@ export async function atualizarRoleUsuario(uid: string, role: string): Promise<v
 
 export async function atualizarDadosUsuario(
   uid: string,
-  dados: { cargo?: string; telefone?: string; nome?: string; fatorCapacidade?: number }
+  dados: {
+    cargo?: string;
+    telefone?: string;
+    nome?: string;
+    fatorCapacidade?: number;
+    suspensoDistribuicao?: boolean;
+    recebeNotificacoesGestao?: boolean;
+  }
 ): Promise<void> {
   invalidarCacheUsuarios();
   const userDocRef = doc(db, COLLECTION_USUARIOS, uid);

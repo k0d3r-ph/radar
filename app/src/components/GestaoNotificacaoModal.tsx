@@ -2,6 +2,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { enviarMensagemWhatsApp } from "../services/whatsapp";
 import type { DestinatarioGestao } from "../services/notificacoes";
+import type { WhatsappDestinatarioEnvio, WhatsappStatus } from "../types";
 
 interface GestaoNotificacaoModalProps {
   open: boolean;
@@ -12,6 +13,16 @@ interface GestaoNotificacaoModalProps {
   mensagem: string;
   onChangeMensagem: (texto: string) => void;
   onClose: () => void;
+  /**
+   * Chamado ao final do fluxo (envio bem-sucedido, parcial, falho, ou quando o usuário
+   * opta por não enviar), para que o chamador persista a marcação de "enviado"/"não
+   * enviado" no registro correspondente (ocorrência de alerta, cliente suspenso etc.).
+   */
+  onResultado?: (resultado: {
+    status: WhatsappStatus;
+    enviadoEm: number;
+    destinatarios: WhatsappDestinatarioEnvio[];
+  }) => void | Promise<void>;
 }
 
 export function GestaoNotificacaoModal({
@@ -22,6 +33,7 @@ export function GestaoNotificacaoModal({
   mensagem,
   onChangeMensagem,
   onClose,
+  onResultado,
 }: GestaoNotificacaoModalProps) {
   const [enviando, setEnviando] = useState(false);
 
@@ -103,7 +115,21 @@ export function GestaoNotificacaoModal({
         </div>
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "20px" }}>
-          <button type="button" className="btn-secondary" disabled={enviando} onClick={onClose}>
+          <button
+            type="button"
+            className="btn-secondary"
+            disabled={enviando}
+            onClick={async () => {
+              if (onResultado) {
+                try {
+                  await onResultado({ status: "nao_enviado", enviadoEm: Date.now(), destinatarios: [] });
+                } catch (error) {
+                  console.error("Erro ao registrar não-envio da notificação de gestão:", error);
+                }
+              }
+              onClose();
+            }}
+          >
             Não enviar
           </button>
           <button
@@ -114,10 +140,41 @@ export function GestaoNotificacaoModal({
               setEnviando(true);
               try {
                 toast.info("Disparando notificação para o WhatsApp...");
-                await Promise.allSettled(
+                const resultados = await Promise.allSettled(
                   destinatarios.map((d) => enviarMensagemWhatsApp({ to: d.telefone, message: mensagem }))
                 );
-                toast.success("Notificação enviada com sucesso!");
+
+                const whatsappDestinatarios: WhatsappDestinatarioEnvio[] = destinatarios.map((d, idx) => {
+                  const r = resultados[idx];
+                  return r.status === "fulfilled"
+                    ? { nome: d.nome, telefone: d.telefone, status: "enviado" as const }
+                    : {
+                        nome: d.nome,
+                        telefone: d.telefone,
+                        status: "falhou" as const,
+                        erro: String(r.reason?.message || r.reason || "Erro desconhecido"),
+                      };
+                });
+
+                const falhas = resultados.filter((r) => r.status === "rejected").length;
+                const status: WhatsappStatus =
+                  falhas === 0 ? "enviado" : falhas < resultados.length ? "parcial" : "falhou";
+
+                if (onResultado) {
+                  try {
+                    await onResultado({ status, enviadoEm: Date.now(), destinatarios: whatsappDestinatarios });
+                  } catch (error) {
+                    console.error("Erro ao registrar status de envio da notificação de gestão:", error);
+                  }
+                }
+
+                if (falhas === 0) {
+                  toast.success("Notificação enviada com sucesso!");
+                } else if (falhas < resultados.length) {
+                  toast.warning("Notificação enviada parcialmente — alguns destinatários falharam.");
+                } else {
+                  toast.error("Falha ao enviar a notificação para todos os destinatários.");
+                }
               } catch (err: any) {
                 console.error("Erro ao enviar notificação de gestão pelo WhatsApp:", err);
                 toast.error(`Erro ao enviar WhatsApp: ${err.message || err}`);

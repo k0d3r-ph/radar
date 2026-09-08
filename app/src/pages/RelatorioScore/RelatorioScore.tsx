@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { listarEmpresas } from "../../services/empresas";
 import type { Empresa } from "../../types";
+import { calcularScoreEfetivo } from "../../utils/score";
 import "./RelatorioScore.css";
 
 interface ScoreFormAnswers {
@@ -78,7 +79,7 @@ export const RelatorioScore: React.FC = () => {
 
     const totalCalculados = empresasComScore.length;
     const totalSemScore = empresasSemScore.length;
-    const somaScores = empresasComScore.reduce((acc, curr) => acc + (curr.score || 0), 0);
+    const somaScores = empresasComScore.reduce((acc, curr) => acc + (calcularScoreEfetivo(curr) ?? 0), 0);
     const mediaScore = totalCalculados > 0 ? somaScores / totalCalculados : 0;
 
     const statsPerQuestion = SCORE_QUESTIONS.map((q) => {
@@ -151,7 +152,8 @@ LISTA DOS CLIENTES E SEUS SCORES
 
     if (empresasComScore.length > 0) {
       empresasComScore.forEach((e) => {
-        content += ` - ${e.nomeEmpresa}: ${e.score !== undefined ? e.score.toFixed(1) : "—"}\n`;
+        const scoreEfetivo = calcularScoreEfetivo(e);
+        content += ` - ${e.nomeEmpresa}: ${scoreEfetivo !== undefined ? scoreEfetivo.toFixed(1) : "—"}\n`;
       });
     } else {
       content += ` (Nenhum cliente)\n`;

@@ -45,6 +45,8 @@ import {
   MOTIVO_REDUCAO_SCORE_SUPORTE,
   VALOR_REDUCAO_SCORE_SUPORTE,
   DIAS_REDUCAO_SCORE_SUPORTE,
+  obterAjustesAtivos,
+  encontrarOcorrenciaDoAjuste,
 } from "../../utils/score";
 import {
   atribuirIdsOcorrencias,
@@ -1523,6 +1525,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               valor: VALOR_REDUCAO_SCORE_SUPORTE,
               criadoEm: agora,
               expiraEm: agora + DIAS_REDUCAO_SCORE_SUPORTE * 24 * 60 * 60 * 1000,
+              ocorrenciaId: savedId,
             },
           ],
         });
@@ -4303,14 +4306,74 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               </div>
             </div>
 
+            {selectedEmpresaObj &&
+              obterAjustesAtivos(selectedEmpresaObj).length > 0 && (
+                <div className="score-deducoes-ativas">
+                  <span className="score-deducoes-titulo">
+                    Reduções ativas no score deste cliente:
+                  </span>
+                  <ul>
+                    {obterAjustesAtivos(selectedEmpresaObj).map((a, idx) => {
+                      const ocorrenciasDaEmpresa = ocorrencias.filter(
+                        (o) =>
+                          o.empresa.trim().toLowerCase() ===
+                          selectedEmpresaObj.nomeEmpresa.trim().toLowerCase(),
+                      );
+                      const ocorrenciaRef = encontrarOcorrenciaDoAjuste(
+                        a,
+                        ocorrenciasDaEmpresa,
+                      );
+                      return (
+                        <li key={idx}>
+                          -{a.valor} ponto{a.valor !== 1 ? "s" : ""}
+                          {ocorrenciaRef?.idSeqFormatted && (
+                            <>
+                              {" "}
+                              (
+                              <button
+                                type="button"
+                                className="score-deducao-ocorrencia-link"
+                                onClick={() => {
+                                  setModalScoreAberto(false);
+                                  setSelecionada(ocorrenciaRef);
+                                }}
+                                title="Ver ocorrência"
+                              >
+                                {ocorrenciaRef.idSeqFormatted}
+                              </button>
+                              )
+                            </>
+                          )}{" "}
+                          — {a.motivo}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
+
             <div className="score-modal-footer">
               <div className="score-calculo-previo">
                 {(() => {
                   const res = calcularPontuacao(respostasScore);
+                  const deducaoAtiva = selectedEmpresaObj
+                    ? obterAjustesAtivos(selectedEmpresaObj).reduce(
+                        (soma, a) => soma + a.valor,
+                        0,
+                      )
+                    : 0;
+                  const totalComDeducao = res.score - deducaoAtiva;
                   return (
                     <span>
-                      Total Parcial: <strong>{res.score.toFixed(1)}</strong> (
-                      {res.tipo})
+                      Total Parcial: <strong>{totalComDeducao.toFixed(1)}</strong>{" "}
+                      ({res.tipo})
+                      {deducaoAtiva > 0 && (
+                        <span className="score-deducao-inline">
+                          {" "}
+                          ({res.score.toFixed(1)} - {deducaoAtiva.toFixed(1)} por
+                          contato com Suporte)
+                        </span>
+                      )}
                     </span>
                   );
                 })()}

@@ -18,7 +18,6 @@ import {
   Play,
   Pause,
   PauseCircle,
-  XCircle,
 } from "lucide-react";
 import "../Historico/Historico.css";
 import {
@@ -41,6 +40,7 @@ import { obterInfoTipoOcorrencia } from "../../utils/empresaUtils";
 import "./Relatorios.css";
 import { RelatorioScore } from "../RelatorioScore/RelatorioScore";
 import { RelatorioJornadaCliente } from "../RelatorioJornadaCliente/RelatorioJornadaCliente";
+import { RelatorioAging } from "../RelatorioAging/RelatorioAging";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
@@ -107,7 +107,7 @@ function formatarDataISO(d: Date): string {
 export const Relatorios: React.FC = () => {
   const navigate = useNavigate();
   const { role } = useAuth();
-  const [activeTab, setActiveTab] = useState<"esteira" | "score" | "jornada" | "executiva">("esteira");
+  const [activeTab, setActiveTab] = useState<"esteira" | "score" | "jornada" | "executiva" | "aging">("esteira");
 
   useEffect(() => {
     if (role === "painel" && activeTab !== "esteira") {
@@ -125,6 +125,7 @@ export const Relatorios: React.FC = () => {
     return `${year}-${month}-${day}`;
   });
   const [kpiSelecionado, setKpiSelecionado] = useState<number>(0);
+  const [numSemanasGrafico, setNumSemanasGrafico] = useState<number>(8);
   const [dataComparacao, setDataComparacao] = useState<string>(() => {
     const today = new Date();
     today.setDate(today.getDate() - 7);
@@ -816,15 +817,11 @@ export const Relatorios: React.FC = () => {
     return contatosSuporteComparacao.reduce((acc, curr) => acc + (curr as any).dentroExpediente.total, 0);
   }, [contatosSuporteComparacao]);
 
-  const clientesCancelados = useMemo(() => {
-    return dadosEmpresas.filter((e) => e.isCancelled);
-  }, [dadosEmpresas]);
-
-  // Evolução semanal do volume de dúvidas, problemas e solicitações (últimas 8 semanas)
+  // Evolução semanal do volume de dúvidas, problemas e solicitações (período configurável)
   const evolucaoSemanalSuporte = useMemo(() => {
     if (!limitesSemana) return { categorias: [] as string[], duvidas: [] as number[], problemas: [] as number[], solicitacoes: [] as number[] };
 
-    const NUM_SEMANAS = 8;
+    const NUM_SEMANAS = numSemanasGrafico;
     const nomesClientesCancelados = new Set(
       dadosEmpresas.filter((e) => e.isCancelled).map((e) => e.nomeEmpresa.trim().toLowerCase())
     );
@@ -864,7 +861,7 @@ export const Relatorios: React.FC = () => {
     });
 
     return { categorias, duvidas, problemas, solicitacoes };
-  }, [ocorrencias, dadosEmpresas, limitesSemana]);
+  }, [ocorrencias, dadosEmpresas, limitesSemana, numSemanasGrafico]);
 
   const formatarDiferenca = (atual: number, anterior: number, menorEhMelhor = false) => {
     if (anterior === 0) {
@@ -941,14 +938,6 @@ export const Relatorios: React.FC = () => {
       icone: <ShieldAlert size={22} color="#ef4444" />,
       lista: riscoChurn,
       ehSazonal: true,
-    },
-    {
-      titulo: "Clientes cancelados",
-      valor: clientesCancelados.length,
-      desc: "Total de cancelamentos",
-      icone: <XCircle size={22} color="#ef4444" />,
-      lista: clientesCancelados,
-      ehSazonal: false,
     },
   ];
 
@@ -1121,7 +1110,9 @@ ${riscoChurn.length > 0
               ? "Jornada do Cliente"
               : activeTab === "executiva"
                 ? "Visão Executiva"
-                : "Relatório Geral de Scores"}
+                : activeTab === "aging"
+                  ? "Aging da Esteira"
+                  : "Relatório Geral de Scores"}
         </h1>
         <p>
           {activeTab === "esteira"
@@ -1130,7 +1121,9 @@ ${riscoChurn.length > 0
               ? "Acompanhamento do progresso, etapas de treinamento e checkpoints de capacitação dos clientes."
               : activeTab === "executiva"
                 ? "Panorama consolidado para tomada de decisão estratégica."
-                : "Estatísticas consolidadas e listagem de clientes baseadas no último cálculo de score."}
+                : activeTab === "aging"
+                  ? "Tempo de permanência dos clientes na esteira de capacitação, por faixa de dias e treinador."
+                  : "Estatísticas consolidadas e listagem de clientes baseadas no último cálculo de score."}
         </p>
       </header>
 
@@ -1161,6 +1154,12 @@ ${riscoChurn.length > 0
               onClick={() => setActiveTab("executiva")}
             >
               Visão Executiva
+            </button>
+            <button
+              className={`relatorios-tab-btn ${activeTab === "aging" ? "active" : ""}`}
+              onClick={() => setActiveTab("aging")}
+            >
+              Aging da Esteira
             </button>
           </>
         )}
@@ -1312,15 +1311,35 @@ ${riscoChurn.length > 0
                 })}
               </div>
 
-              <LineChart
-                title="Evolução semanal de dúvidas, problemas e solicitações"
-                categorias={evolucaoSemanalSuporte.categorias}
-                series={[
-                  { label: "Dúvidas", color: "#3b82f6", values: evolucaoSemanalSuporte.duvidas },
-                  { label: "Problemas", color: "#ef4444", values: evolucaoSemanalSuporte.problemas },
-                  { label: "Solicitações", color: "#10b981", values: evolucaoSemanalSuporte.solicitacoes },
-                ]}
-              />
+              {kpiSelecionado === 2 && (
+                <div className="line-chart-filtro-semanas">
+                  <label htmlFor="num-semanas-grafico">Período do gráfico:</label>
+                  <select
+                    id="num-semanas-grafico"
+                    value={numSemanasGrafico}
+                    onChange={(e) => setNumSemanasGrafico(Number(e.target.value))}
+                  >
+                    <option value={4}>Últimas 4 semanas</option>
+                    <option value={8}>Últimas 8 semanas</option>
+                    <option value={12}>Últimas 12 semanas</option>
+                    <option value={16}>Últimas 16 semanas</option>
+                    <option value={26}>Últimas 26 semanas</option>
+                    <option value={52}>Últimas 52 semanas</option>
+                  </select>
+                </div>
+              )}
+
+              {kpiSelecionado === 2 && (
+                <LineChart
+                  title="Evolução semanal de dúvidas, problemas e solicitações"
+                  categorias={evolucaoSemanalSuporte.categorias}
+                  series={[
+                    { label: "Dúvidas", color: "#3b82f6", values: evolucaoSemanalSuporte.duvidas },
+                    { label: "Problemas", color: "#ef4444", values: evolucaoSemanalSuporte.problemas },
+                    { label: "Solicitações", color: "#10b981", values: evolucaoSemanalSuporte.solicitacoes },
+                  ]}
+                />
+              )}
 
               {/* Section de detalhamento */}
               <div className="relatorio-detalhe-section">
@@ -1680,6 +1699,8 @@ ${riscoChurn.length > 0
           <span className="relatorio-empty-icon">📊</span>
           <p>Visão Executiva em construção.</p>
         </div>
+      ) : activeTab === "aging" ? (
+        <RelatorioAging />
       ) : (
         <RelatorioJornadaCliente empresas={empresas} ocorrencias={ocorrencias} />
       )}

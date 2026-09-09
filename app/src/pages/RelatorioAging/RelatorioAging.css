@@ -1,0 +1,235 @@
+.relatorio-aging-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.relatorio-aging-filtros {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 1rem 1.5rem;
+  width: fit-content;
+}
+
+.relatorio-aging-filtros label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
+.relatorio-aging-filtros select {
+  padding: 0.5rem 0.9rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #0f172a;
+  color: white;
+  font-size: 0.9rem;
+  outline: none;
+  cursor: pointer;
+  min-width: 180px;
+}
+
+.relatorio-aging-filtros select:focus {
+  border-color: #3b82f6;
+}
+
+.aging-tabela-wrapper {
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 1.5rem;
+  overflow-x: auto;
+}
+
+.aging-tabela {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 8px;
+}
+
+.aging-tabela thead th {
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0 12px 10px;
+  white-space: nowrap;
+}
+
+.aging-tabela thead th.aging-col-status {
+  text-align: left;
+}
+
+.aging-tabela tbody tr {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.aging-tabela tbody td {
+  padding: 14px 12px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.aging-tabela tbody td:first-child {
+  border-radius: 12px 0 0 12px;
+}
+
+.aging-tabela tbody td:last-child {
+  border-radius: 0 12px 12px 0;
+}
+
+.aging-col-status {
+  text-align: left;
+  min-width: 260px;
+}
+
+.aging-status-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.aging-status-label strong {
+  display: block;
+  font-size: 0.95rem;
+  color: #f1f5f9;
+  margin-bottom: 2px;
+}
+
+.aging-status-label span {
+  display: block;
+  font-size: 0.78rem;
+  color: #94a3b8;
+  max-width: 26ch;
+}
+
+.aging-status-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.aging-status-icon--andamento {
+  color: #60a5fa;
+}
+
+.aging-status-icon--concluido {
+  color: #10b981;
+}
+
+.aging-status-icon--totais {
+  color: #cbd5e1;
+}
+
+.aging-status-icon--gol {
+  color: #f59e0b;
+}
+
+.aging-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.aging-cell-valor {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #f1f5f9;
+}
+
+.aging-cell-pct {
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+}
+
+.aging-col-total .aging-cell-valor {
+  font-size: 1.3rem;
+}
+
+.aging-linha-totais {
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+.aging-linha-totais .aging-status-label strong {
+  color: #ffffff;
+}
+
+.aging-linha-gol {
+  background: rgba(245, 158, 11, 0.06) !important;
+}
+
+.aging-cell-gol {
+  border-radius: 8px;
+  padding: 6px 4px;
+}
+
+.aging-cell-gol--0-15 {
+  background: rgba(34, 197, 94, 0.18);
+}
+
+.aging-cell-gol--0-15 .aging-cell-pct {
+  background: rgba(34, 197, 94, 0.25);
+  color: #4ade80;
+}
+
+.aging-cell-gol--16-30 {
+  background: rgba(34, 197, 94, 0.28);
+}
+
+.aging-cell-gol--16-30 .aging-cell-pct {
+  background: rgba(34, 197, 94, 0.35);
+  color: #4ade80;
+}
+
+.aging-cell-gol--31-45 {
+  background: rgba(245, 158, 11, 0.22);
+}
+
+.aging-cell-gol--31-45 .aging-cell-pct {
+  background: rgba(245, 158, 11, 0.3);
+  color: #fbbf24;
+}
+
+.aging-cell-gol--mais45 {
+  background: rgba(239, 68, 68, 0.22);
+}
+
+.aging-cell-gol--mais45 .aging-cell-pct {
+  background: rgba(239, 68, 68, 0.3);
+  color: #f87171;
+}
+
+.aging-legenda {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.82rem;
+  color: #94a3b8;
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 0.9rem 1.2rem;
+  margin: 0;
+  line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+  .aging-col-status {
+    min-width: 200px;
+  }
+
+  .aging-status-label span {
+    display: none;
+  }
+}

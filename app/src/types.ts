@@ -66,6 +66,8 @@ export type Empresa = {
     valor: number;
     criadoEm: number;
     expiraEm: number;
+    /** Id da ocorrência que originou o ajuste, para permitir referenciá-la na UI (ex.: "Oc. #1542"). */
+    ocorrenciaId?: string;
   }[];
   isOngoing?: boolean;
   isSuspended?: boolean;

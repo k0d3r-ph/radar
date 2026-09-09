@@ -1459,6 +1459,25 @@ body.light-theme .tema-opcao:hover {
   margin: 0;
 }
 
+.score-deducoes-ativas {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-top: 10px;
+  font-size: 0.85rem;
+  color: #7f1d1d;
+}
+
+.score-deducoes-titulo {
+  font-weight: 700;
+}
+
+.score-deducoes-ativas ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+
 .score-modal-footer {
   display: flex;
   align-items: center;
@@ -1475,6 +1494,28 @@ body.light-theme .tema-opcao:hover {
 .score-calculo-previo strong {
   color: #0f2a5e;
   font-size: 1.15rem;
+}
+
+.score-deducao-inline {
+  font-size: 0.8rem;
+  color: #dc2626;
+  font-style: italic;
+}
+
+.score-deducao-ocorrencia-link {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  color: #b91c1c;
+  font-weight: 700;
+  font-size: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.score-deducao-ocorrencia-link:hover {
+  color: #7f1d1d;
 }
 
 .checkbox-label {

@@ -1092,6 +1092,25 @@
   margin: 0;
 }
 
+.home-score-deducoes-ativas {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-top: 10px;
+  font-size: 0.85rem;
+  color: #fca5a5;
+}
+
+.home-score-deducoes-titulo {
+  font-weight: 700;
+}
+
+.home-score-deducoes-ativas ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+
 .home-score-modal-footer {
   display: flex;
   align-items: center;
@@ -1108,6 +1127,28 @@
 .home-score-calculo-previo strong {
   color: #f1f5f9;
   font-size: 1.15rem;
+}
+
+.home-score-deducao-inline {
+  font-size: 0.8rem;
+  color: #fca5a5;
+  font-style: italic;
+}
+
+.home-score-deducao-ocorrencia-link {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  color: #f87171;
+  font-weight: 700;
+  font-size: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.home-score-deducao-ocorrencia-link:hover {
+  color: #fca5a5;
 }
 
 @media (max-width: 768px) {

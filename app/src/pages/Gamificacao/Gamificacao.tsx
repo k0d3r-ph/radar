@@ -286,7 +286,15 @@ const COLUNAS_INDICADORES = [
     menorEhMelhor: false,
     passo: 1,
     ajuda:
-      "Total de clientes sob responsabilidade do treinador (exceto cancelados)",
+      "Total de clientes da esteira sob responsabilidade do treinador (exceto cancelados e onboarding/ongoing)",
+  },
+  {
+    chave: "clientesCancelados",
+    titulo: "Clientes cancelados",
+    unidade: "",
+    menorEhMelhor: true,
+    passo: 1,
+    ajuda: "Clientes cancelados sob responsabilidade do treinador",
   },
   {
     chave: "clientesEmAndamento",
@@ -1315,6 +1323,9 @@ export const Gamificacao: React.FC = () => {
             normalizarNomeComparacao(emp.responsavel || "") === primeiroNome,
         );
         const clientesAtivos = clientes.filter((emp) => !emp.isCancelled);
+        const clientesCancelados = clientes.filter(
+          (emp) => !!emp.isCancelled,
+        ).length;
 
         const clientesEmAndamento = clientesAtivos.filter((emp) => {
           if (emp.isOngoing || emp.isSuspended) return false;
@@ -1371,7 +1382,9 @@ export const Gamificacao: React.FC = () => {
           contatosSuporte,
           atendimentosWhatsApp,
           tempoMedioEsteira,
-          clientesAtendidos: clientesAtivos.length,
+          clientesAtendidos: clientesAtivos.filter((emp) => !emp.isOngoing)
+            .length,
+          clientesCancelados,
           clientesEmAndamento,
           clientesSuspensos,
           clientesEmAlerta,
@@ -1427,6 +1440,7 @@ export const Gamificacao: React.FC = () => {
       atendimentosWhatsApp: soma((i) => i.atendimentosWhatsApp),
       tempoMedioEsteira: media(todosOsDias),
       clientesAtendidos: soma((i) => i.clientesAtendidos),
+      clientesCancelados: soma((i) => i.clientesCancelados),
       clientesEmAndamento: soma((i) => i.clientesEmAndamento),
       clientesSuspensos: soma((i) => i.clientesSuspensos),
       clientesEmAlerta: soma((i) => i.clientesEmAlerta),
@@ -1448,6 +1462,7 @@ export const Gamificacao: React.FC = () => {
     atendimentosWhatsApp: number;
     tempoMedioEsteira: number | null;
     clientesAtendidos: number;
+    clientesCancelados: number;
     clientesEmAndamento: number;
     clientesSuspensos: number;
     clientesEmAlerta: number;
@@ -1469,6 +1484,7 @@ export const Gamificacao: React.FC = () => {
       ? "—"
       : `${Math.round(linha.tempoMedioEsteira)} dias`,
     String(linha.clientesAtendidos),
+    String(linha.clientesCancelados),
     String(linha.clientesEmAndamento),
     String(linha.clientesSuspensos),
     String(linha.clientesEmAlerta),
@@ -1493,6 +1509,7 @@ export const Gamificacao: React.FC = () => {
     atendimentosWhatsApp: number;
     tempoMedioEsteira: number | null;
     clientesAtendidos: number;
+    clientesCancelados: number;
     clientesEmAndamento: number;
     clientesSuspensos: number;
     clientesEmAlerta: number;
@@ -1510,6 +1527,7 @@ export const Gamificacao: React.FC = () => {
     linha.atendimentosWhatsApp,
     linha.tempoMedioEsteira,
     linha.clientesAtendidos,
+    linha.clientesCancelados,
     linha.clientesEmAndamento,
     linha.clientesSuspensos,
     linha.clientesEmAlerta,

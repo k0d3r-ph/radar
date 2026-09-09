@@ -30,7 +30,12 @@ import type { Empresa, Ocorrencia } from "../../types";
 import { useAuth } from "../../context/AuthContext";
 import { formatarNome } from "../../utils/formatarNome";
 import { BASE_CS_LIST, normalizarNomeCS, compararCS } from "../../utils/cs";
-import { calcularScoreEfetivo } from "../../utils/score";
+import {
+  calcularScoreEfetivo,
+  obterAjustesAtivos,
+  encontrarOcorrenciaDoAjuste,
+} from "../../utils/score";
+import { atribuirIdsOcorrencias } from "../../utils/empresaUtils";
 import {
   consolidarListaComerciais,
   normalizarNomeComercial,
@@ -250,6 +255,11 @@ export default function Home() {
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
 
   const [historico, setHistorico] = useState<Ocorrencia[]>([]);
+
+  const historicoComIds = useMemo(
+    () => atribuirIdsOcorrencias(historico, empresas),
+    [historico, empresas],
+  );
 
   const [listaCS, setListaCS] = useState<string[]>(() => {
     return [...BASE_CS_LIST].sort((a, b) => a.localeCompare(b, "pt-BR"));
@@ -821,13 +831,13 @@ export default function Home() {
 
   const compararScore = (a: any, b: any) => {
     if (ordenacaoScore === "maior") {
-      const scoreA = a.score !== undefined && a.score !== null ? a.score : -999;
-      const scoreB = b.score !== undefined && b.score !== null ? b.score : -999;
+      const scoreA = calcularScoreEfetivo(a) ?? -999;
+      const scoreB = calcularScoreEfetivo(b) ?? -999;
       return scoreB - scoreA;
     }
     if (ordenacaoScore === "menor") {
-      const scoreA = a.score !== undefined && a.score !== null ? a.score : 999;
-      const scoreB = b.score !== undefined && b.score !== null ? b.score : 999;
+      const scoreA = calcularScoreEfetivo(a) ?? 999;
+      const scoreB = calcularScoreEfetivo(b) ?? 999;
       return scoreA - scoreB;
     }
     return 0;
@@ -1501,8 +1511,13 @@ export default function Home() {
                             color:
                               empresa.tipo === "Fast" ? "#16a34a" : "#dc2626",
                           }}
+                          title={
+                            (calcularScoreEfetivo(empresa) ?? empresa.score) !== empresa.score
+                              ? "Score reduzido temporariamente por contato recente com o Suporte"
+                              : undefined
+                          }
                         >
-                          {empresa.score.toFixed(1)}
+                          {(calcularScoreEfetivo(empresa) ?? empresa.score).toFixed(1)}
                         </span>
                       ) : (
                         "—"
@@ -3136,14 +3151,75 @@ export default function Home() {
               </div>
             </div>
 
+            {clienteSelecionado &&
+              obterAjustesAtivos(clienteSelecionado).length > 0 && (
+                <div className="home-score-deducoes-ativas">
+                  <span className="home-score-deducoes-titulo">
+                    Reduções ativas no score deste cliente:
+                  </span>
+                  <ul>
+                    {obterAjustesAtivos(clienteSelecionado).map((a, idx) => {
+                      const ocorrenciasDaEmpresa = historicoComIds.filter(
+                        (o) =>
+                          o.empresa.trim().toLowerCase() ===
+                          clienteSelecionado.nomeEmpresa.trim().toLowerCase(),
+                      );
+                      const ocorrenciaRef = encontrarOcorrenciaDoAjuste(
+                        a,
+                        ocorrenciasDaEmpresa,
+                      );
+                      return (
+                        <li key={idx}>
+                          -{a.valor} ponto{a.valor !== 1 ? "s" : ""}
+                          {ocorrenciaRef?.idSeqFormatted && (
+                            <>
+                              {" "}
+                              (
+                              <button
+                                type="button"
+                                className="home-score-deducao-ocorrencia-link"
+                                onClick={() =>
+                                  navigate(
+                                    `/historico?empresa=${encodeURIComponent(clienteSelecionado.nomeEmpresa)}&ocorrencia=${ocorrenciaRef.id}`,
+                                  )
+                                }
+                                title="Ver ocorrência"
+                              >
+                                {ocorrenciaRef.idSeqFormatted}
+                              </button>
+                              )
+                            </>
+                          )}{" "}
+                          — {a.motivo}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
+
             <div className="home-score-modal-footer">
               <div className="home-score-calculo-previo">
                 {(() => {
                   const res = calcularPontuacao(respostasScoreHome);
+                  const deducaoAtiva = clienteSelecionado
+                    ? obterAjustesAtivos(clienteSelecionado).reduce(
+                        (soma, a) => soma + a.valor,
+                        0,
+                      )
+                    : 0;
+                  const totalComDeducao = res.score - deducaoAtiva;
                   return (
                     <span>
-                      Total Parcial: <strong>{res.score.toFixed(1)}</strong> (
-                      {res.tipo})
+                      Total Parcial: <strong>{totalComDeducao.toFixed(1)}</strong>{" "}
+                      ({res.tipo})
+                      {deducaoAtiva > 0 && (
+                        <span className="home-score-deducao-inline">
+                          {" "}
+                          ({res.score.toFixed(1)} - {deducaoAtiva.toFixed(1)}{" "}
+                          por contato com Suporte)
+                        </span>
+                      )}
                     </span>
                   );
                 })()}

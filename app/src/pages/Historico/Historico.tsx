@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import * as XLSX from "xlsx";
 import {
   salvarOcorrencia,
   listarOcorrencias,
@@ -2272,6 +2273,41 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
   const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, totalItems);
   const filtradasExibidas = filtradas.slice(startIndex, endIndex);
 
+  function exportarParaExcel() {
+    if (filtradas.length === 0) {
+      toast.error("Não há ocorrências para exportar.");
+      return;
+    }
+
+    const linhas = filtradas.map((o) => {
+      const timestamp = getOcorrenciaTimestamp(o);
+      const data = timestamp ? new Date(timestamp) : null;
+      return {
+        Cliente: o.empresa,
+        Data: data ? data.toLocaleDateString("pt-BR") : "",
+        Hora: data
+          ? data.toLocaleTimeString("pt-BR", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : "",
+        Departamento: o.departamento,
+        "Tipo de registro": obterInfoTipoOcorrencia(o).label,
+        Responsável: o.responsavel,
+        ID: o.id ?? "",
+        Descrição: o.descricao ?? "",
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(linhas);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Ocorrências");
+    XLSX.writeFile(
+      workbook,
+      `historico-ocorrencias-${new Date().toISOString().slice(0, 10)}.xlsx`,
+    );
+  }
+
   return (
     <div className="hist-shell">
       {/* Header */}
@@ -2332,6 +2368,14 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               }}
             >
               ✨ {painelIaAberto ? "Fechar Resumo IA" : "Resumir com IA"}
+            </button>
+            <button
+              className="btn-secondary btn-dashboard-toggle"
+              onClick={exportarParaExcel}
+              title="Exportar ocorrências filtradas para Excel"
+              style={{ background: "#107c41" }}
+            >
+              📥 Exportar Excel
             </button>
             <button className="btn-primary hist-btn-novo" onClick={abrirNovo}>
               + Nova ocorrência

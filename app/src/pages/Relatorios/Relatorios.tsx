@@ -28,6 +28,7 @@ import {
 import { listarOcorrencias } from "../../services/ocorrencias";
 import {
   calcularDiasNaEsteira,
+  calcularDiasCongeladosPorCheckpoint,
   calcularFarol,
   calcularProgressoPorFases,
   calcularTME,
@@ -300,6 +301,7 @@ export const Relatorios: React.FC = () => {
           empresa.isSuspended,
           empresa.dataSuspensao,
           empresa.diasSuspensoAcumulado,
+          calcularDiasCongeladosPorCheckpoint(ocorrencias, empresa.nomeEmpresa),
         ),
       };
     });

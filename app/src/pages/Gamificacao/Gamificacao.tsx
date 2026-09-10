@@ -45,6 +45,7 @@ import { listarOcorrencias } from "../../services/ocorrencias";
 import { calcularProgressoPorFases } from "../../utils/monitoramento/calcularProgresso";
 import { calcularTotalFases } from "../../utils/monitoramento/calcularTotalFases";
 import { calcularDiasNaEsteira } from "../../utils/monitoramento/calcularDiasNaEsteira";
+import { calcularDiasCongeladosPorCheckpoint } from "../../utils/monitoramento/calcularDiasCongeladosPorCheckpoint";
 import "./Gamificacao.css";
 
 const ACOES_DISPONIVEIS = [
@@ -1359,6 +1360,7 @@ export const Gamificacao: React.FC = () => {
               emp.isSuspended,
               emp.dataSuspensao,
               emp.diasSuspensoAcumulado,
+              calcularDiasCongeladosPorCheckpoint(ocorrencias, emp.nomeEmpresa || ""),
             ),
           );
         const tempoMedioEsteira = media(diasNaEsteira);
@@ -1404,6 +1406,7 @@ export const Gamificacao: React.FC = () => {
     trainers,
     filteredEntriesIndicadores,
     ocorrenciasNoPeriodo,
+    ocorrencias,
     empresasCompletas,
     empresasComAlerta,
     responsavelPorEmpresa,

@@ -20,6 +20,7 @@ import {
 
 import {
   calcularDiasNaEsteira,
+  calcularDiasCongeladosPorCheckpoint,
   calcularFarol,
   calcularProgressoPorFases,
   calcularTME,
@@ -808,6 +809,7 @@ export default function Home() {
           empresa.isSuspended,
           empresa.dataSuspensao,
           empresa.diasSuspensoAcumulado,
+          calcularDiasCongeladosPorCheckpoint(historico, empresa.nomeEmpresa),
         ),
       };
     });

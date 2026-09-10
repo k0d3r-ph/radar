@@ -6,6 +6,7 @@ export function calcularDiasNaEsteira(
   isSuspended?: boolean,
   dataSuspensao?: string,
   diasSuspensoAcumulado?: number,
+  diasCongeladosPorCheckpoint?: number,
 ) {
   if (!dataEntrada) return 0;
 
@@ -34,5 +35,8 @@ export function calcularDiasNaEsteira(
     (fim.getTime() - entrada.getTime()) / (1000 * 60 * 60 * 24),
   );
 
-  return Math.max(0, dias - (diasSuspensoAcumulado || 0));
+  return Math.max(
+    0,
+    dias - (diasSuspensoAcumulado || 0) - (diasCongeladosPorCheckpoint || 0),
+  );
 }

@@ -2,8 +2,10 @@ import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Clock, CheckCircle2, Users2, Target, GraduationCap } from "lucide-react";
 import { listarEmpresas, isEmpresaInterna } from "../../services/empresas";
-import type { Empresa } from "../../types";
+import { listarOcorrencias } from "../../services/ocorrencias";
+import type { Empresa, Ocorrencia } from "../../types";
 import { calcularDiasNaEsteira } from "../../utils/monitoramento/calcularDiasNaEsteira";
+import { calcularDiasCongeladosPorCheckpoint } from "../../utils/monitoramento/calcularDiasCongeladosPorCheckpoint";
 import { formatarNome } from "../../utils/formatarNome";
 import "./RelatorioAging.css";
 
@@ -34,15 +36,17 @@ function formatarPct(valor: number, total: number): string {
 
 export const RelatorioAging: React.FC = () => {
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [ocorrencias, setOcorrencias] = useState<Ocorrencia[]>([]);
   const [loading, setLoading] = useState(true);
   const [treinadorFiltro, setTreinadorFiltro] = useState("");
 
   useEffect(() => {
-    listarEmpresas()
-      .then((lista) => {
+    Promise.all([listarEmpresas(), listarOcorrencias()])
+      .then(([lista, historico]) => {
         setEmpresas(
           lista.filter((e) => e.id && !isEmpresaInterna(e) && !e.isCancelled && !e.isOngoing),
         );
+        setOcorrencias(historico);
       })
       .catch((error) => {
         console.error("Erro ao carregar dados do relatório de Aging:", error);
@@ -79,6 +83,7 @@ export const RelatorioAging: React.FC = () => {
         e.isSuspended,
         e.dataSuspensao,
         e.diasSuspensoAcumulado,
+        calcularDiasCongeladosPorCheckpoint(ocorrencias, e.nomeEmpresa),
       );
       const faixa = faixaDosDias(dias);
       if (e.dataFinalizacao) {
@@ -98,7 +103,7 @@ export const RelatorioAging: React.FC = () => {
     const totalGeral = totalEmAndamento + totalConcluido;
 
     return { emAndamento, concluido, totais, totalEmAndamento, totalConcluido, totalGeral };
-  }, [empresasFiltradas]);
+  }, [empresasFiltradas, ocorrencias]);
 
   return (
     <div className="relatorio-aging-container">

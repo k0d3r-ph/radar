@@ -2,5 +2,6 @@ export * from "./calcularTME";
 export * from "./calcularFarol";
 export * from "./calcularProgresso";
 export * from "./calcularDiasNaEsteira";
+export * from "./calcularDiasCongeladosPorCheckpoint";
 export * from "./obterUltimoTreinamentoOuCheckpointOuInformativo";
 export * from "./calcularTotalFases";

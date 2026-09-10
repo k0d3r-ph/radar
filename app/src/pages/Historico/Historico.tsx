@@ -92,6 +92,7 @@ const DUVIDA_OPCOES = [
   "Debug",
   "Áreas e Rotas",
   "Comandos",
+  "Configuração de bloqueio",
   "Rastreador desatualizado",
   "Correção de odômetro/horímetro",
   "Envio de comando",
@@ -677,7 +678,9 @@ export function Historico() {
   >([]);
   const [gestaoAvisos, setGestaoAvisos] = useState<string[]>([]);
   const [gestaoMensagem, setGestaoMensagem] = useState("");
-  const [gestaoOcorrenciaId, setGestaoOcorrenciaId] = useState<string | undefined>(undefined);
+  const [gestaoOcorrenciaId, setGestaoOcorrenciaId] = useState<
+    string | undefined
+  >(undefined);
 
   const [novaAtualizacaoAberta, setNovaAtualizacaoAberta] = useState(false);
   const [novaDescricaoAtual, setNovaDescricaoAtual] = useState("");
@@ -691,6 +694,7 @@ export function Historico() {
   const [form, setForm] = useState({ ...EMPTY });
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
+  const [buscaAssunto, setBuscaAssunto] = useState("");
   const [filtroTipo, setFiltroTipo] = useState(
     () => searchParams.get("tipo") || "",
   );
@@ -972,6 +976,7 @@ export function Historico() {
       departamento: deptoPadrao,
     });
     setTemaOcorrenciaOngoingText("");
+    setBuscaAssunto("");
     setEditandoId(null);
     setUsarTemplate(true);
     setCalculoScoreResult(null);
@@ -1031,6 +1036,7 @@ export function Historico() {
       retornarEsteira: o.retornarEsteira ?? false,
     });
     setTemaOcorrenciaOngoingText(o.temaOcorrencia?.join(", ") ?? "");
+    setBuscaAssunto("");
     setEditandoId(o.id ?? null);
     setCalculoScoreResult(null);
     setRespostasScore({ ...INITIAL_SCORE_ANSWERS });
@@ -1043,6 +1049,7 @@ export function Historico() {
     setPainelAberto(false);
     setForm({ ...EMPTY });
     setTemaOcorrenciaOngoingText("");
+    setBuscaAssunto("");
     setEditandoId(null);
     setUsarTemplate(true);
     setCalculoScoreResult(null);
@@ -1513,9 +1520,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
     ) {
       try {
         const agora = Date.now();
-        const ajustesAtivos = (empresaObjeto.scoreAjustesTemporarios || []).filter(
-          (a) => a.expiraEm > agora,
-        );
+        const ajustesAtivos = (
+          empresaObjeto.scoreAjustesTemporarios || []
+        ).filter((a) => a.expiraEm > agora);
         await salvarEmpresas({
           id: empresaObjeto.id,
           scoreAjustesTemporarios: [
@@ -1524,7 +1531,8 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               motivo: MOTIVO_REDUCAO_SCORE_SUPORTE,
               valor: VALOR_REDUCAO_SCORE_SUPORTE,
               criadoEm: agora,
-              expiraEm: agora + DIAS_REDUCAO_SCORE_SUPORTE * 24 * 60 * 60 * 1000,
+              expiraEm:
+                agora + DIAS_REDUCAO_SCORE_SUPORTE * 24 * 60 * 60 * 1000,
               ocorrenciaId: savedId,
             },
           ],
@@ -3488,8 +3496,19 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             {form.tipo === "Dúvida" && (
               <div className="hist-campo">
                 <label>Assunto da dúvida *</label>
+                <input
+                  type="text"
+                  className="temas-busca"
+                  placeholder="Buscar assunto..."
+                  value={buscaAssunto}
+                  onChange={(e) => setBuscaAssunto(e.target.value)}
+                />
                 <div className="temas-lista">
-                  {DUVIDA_OPCOES.map((opcao) => (
+                  {DUVIDA_OPCOES.filter((opcao) =>
+                    opcao
+                      .toLowerCase()
+                      .includes(buscaAssunto.trim().toLowerCase()),
+                  ).map((opcao) => (
                     <label key={opcao} className="tema-opcao">
                       <input
                         type="checkbox"
@@ -4384,13 +4403,13 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   const totalComDeducao = res.score - deducaoAtiva;
                   return (
                     <span>
-                      Total Parcial: <strong>{totalComDeducao.toFixed(1)}</strong>{" "}
-                      ({res.tipo})
+                      Total Parcial:{" "}
+                      <strong>{totalComDeducao.toFixed(1)}</strong> ({res.tipo})
                       {deducaoAtiva > 0 && (
                         <span className="score-deducao-inline">
                           {" "}
-                          ({res.score.toFixed(1)} - {deducaoAtiva.toFixed(1)} por
-                          contato com Suporte)
+                          ({res.score.toFixed(1)} - {deducaoAtiva.toFixed(1)}{" "}
+                          por contato com Suporte)
                         </span>
                       )}
                     </span>
@@ -4842,7 +4861,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               whatsappDestinatarios: destinatarios,
             } as Ocorrencia);
           } catch (error) {
-            console.error("Erro ao registrar status de envio do alerta:", error);
+            console.error(
+              "Erro ao registrar status de envio do alerta:",
+              error,
+            );
           }
         }}
         onClose={() => {

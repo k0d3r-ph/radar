@@ -1107,6 +1107,29 @@
   color: #1e90ff;
 }
 
+.temas-busca {
+  width: 100%;
+  padding: 0.5rem 0.7rem;
+  margin-bottom: 0.4rem;
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  color: #f1f5f9;
+  font-size: 0.9rem;
+  box-sizing: border-box;
+}
+
+.temas-busca:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+body.light-theme .temas-busca {
+  background: #ffffff;
+  border-color: #d1d5db;
+  color: #1e293b;
+}
+
 .temas-lista {
   display: flex;
   flex-direction: column;

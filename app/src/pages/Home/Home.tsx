@@ -912,7 +912,10 @@ export default function Home() {
           (filtroProgresso === "51-75" &&
             e.progresso > 50 &&
             e.progresso <= 75) ||
-          (filtroProgresso === "76-100" && e.progresso > 75);
+          (filtroProgresso === "76-99" &&
+            e.progresso > 75 &&
+            e.progresso < 100) ||
+          (filtroProgresso === "100" && e.progresso >= 100);
 
         const produtoOk = !filtroProduto || e.produto === filtroProduto;
 
@@ -1314,7 +1317,8 @@ export default function Home() {
           <option value="0-25">0% – 25%</option>
           <option value="26-50">26% – 50%</option>
           <option value="51-75">51% – 75%</option>
-          <option value="76-100">76% – 100%</option>
+          <option value="76-99">76% – 99%</option>
+          <option value="100">100%</option>
         </select>
 
         <select

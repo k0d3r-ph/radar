@@ -1356,6 +1356,9 @@ export const Gamificacao: React.FC = () => {
               ),
               undefined,
               emp.dataFinalizacao,
+              emp.isSuspended,
+              emp.dataSuspensao,
+              emp.diasSuspensoAcumulado,
             ),
           );
         const tempoMedioEsteira = media(diasNaEsteira);

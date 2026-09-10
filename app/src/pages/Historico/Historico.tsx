@@ -1536,12 +1536,31 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
     if (form.retornarEsteira) {
       try {
+        // Ao retornar da esteira Suspensos, soma o tempo congelado ao acumulado
+        // para que os dias suspensos não voltem a contar em calcularDiasNaEsteira.
+        let diasSuspensoAcumulado = empresaObjeto.diasSuspensoAcumulado || 0;
+        if (empresaObjeto.dataSuspensao) {
+          const [sYear, sMonth, sDay] = empresaObjeto.dataSuspensao
+            .split("-")
+            .map(Number);
+          const inicio = new Date(sYear, sMonth - 1, sDay);
+          const hoje = new Date();
+          diasSuspensoAcumulado += Math.max(
+            0,
+            Math.floor(
+              (hoje.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24),
+            ),
+          );
+        }
+
         await salvarEmpresas({
           ...empresaObjeto,
           ...(!!form.alerta !== !!empresaObjeto.alerta || form.retirarAlerta
             ? { alerta: !!form.alerta }
             : {}),
           isSuspended: false,
+          dataSuspensao: undefined,
+          diasSuspensoAcumulado,
           updatedAt: Date.now(),
         });
       } catch (error) {

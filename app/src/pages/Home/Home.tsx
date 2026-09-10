@@ -424,6 +424,29 @@ export default function Home() {
         telefone: normalizarTelefoneWhatsApp(c.telefone) || c.telefone.trim(),
       }));
 
+    // Congela a contagem de dias na esteira ao suspender o cliente, registrando
+    // a data da suspensão para uso em calcularDiasNaEsteira. Ao retornar (checkbox
+    // desmarcado por aqui), acumula os dias que ficaram congelados.
+    let dataSuspensao = clienteForm.dataSuspensao;
+    let diasSuspensoAcumulado = clienteForm.diasSuspensoAcumulado || 0;
+    if (clienteForm.isSuspended && !empresaExistente?.isSuspended) {
+      const hoje = new Date();
+      dataSuspensao = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-${String(hoje.getDate()).padStart(2, "0")}`;
+    } else if (!clienteForm.isSuspended && empresaExistente?.isSuspended) {
+      if (dataSuspensao) {
+        const [sYear, sMonth, sDay] = dataSuspensao.split("-").map(Number);
+        const inicio = new Date(sYear, sMonth - 1, sDay);
+        const hoje = new Date();
+        diasSuspensoAcumulado += Math.max(
+          0,
+          Math.floor(
+            (hoje.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24),
+          ),
+        );
+      }
+      dataSuspensao = undefined;
+    }
+
     const empresaSalva: Empresa = {
       ...clienteForm,
       nomeEmpresa: nomeFinal,
@@ -434,6 +457,8 @@ export default function Home() {
       contatos: contatosValidos,
       contato: contatosValidos[0]?.nome || "",
       telefone: contatosValidos[0]?.telefone || "",
+      dataSuspensao,
+      diasSuspensoAcumulado,
     };
 
     await salvarEmpresas(empresaSalva);
@@ -780,6 +805,9 @@ export default function Home() {
           progresso,
           dataBase,
           empresa.dataFinalizacao,
+          empresa.isSuspended,
+          empresa.dataSuspensao,
+          empresa.diasSuspensoAcumulado,
         ),
       };
     });

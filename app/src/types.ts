@@ -71,6 +71,10 @@ export type Empresa = {
   }[];
   isOngoing?: boolean;
   isSuspended?: boolean;
+  /** Data (YYYY-MM-DD) em que o cliente foi suspenso, usada para congelar a contagem de dias na esteira. */
+  dataSuspensao?: string;
+  /** Soma dos dias já passados em suspensões anteriores, para excluir do total de dias na esteira ao retornar. */
+  diasSuspensoAcumulado?: number;
   isCancelled?: boolean;
   valorContrato?: number;
   idNumeric?: number;

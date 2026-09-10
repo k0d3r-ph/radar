@@ -71,7 +71,15 @@ export const RelatorioAging: React.FC = () => {
     const concluido = contagemVazia();
 
     empresasFiltradas.forEach((e) => {
-      const dias = calcularDiasNaEsteira(e.dataEntrada, 0, undefined, e.dataFinalizacao);
+      const dias = calcularDiasNaEsteira(
+        e.dataEntrada,
+        0,
+        undefined,
+        e.dataFinalizacao,
+        e.isSuspended,
+        e.dataSuspensao,
+        e.diasSuspensoAcumulado,
+      );
       const faixa = faixaDosDias(dias);
       if (e.dataFinalizacao) {
         concluido[faixa] += 1;

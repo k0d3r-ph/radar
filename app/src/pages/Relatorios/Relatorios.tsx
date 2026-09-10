@@ -292,7 +292,15 @@ export const Relatorios: React.FC = () => {
         tme,
         progresso,
         farol,
-        dias: calcularDiasNaEsteira(empresa.dataEntrada, progresso, dataBase, empresa.dataFinalizacao),
+        dias: calcularDiasNaEsteira(
+          empresa.dataEntrada,
+          progresso,
+          dataBase,
+          empresa.dataFinalizacao,
+          empresa.isSuspended,
+          empresa.dataSuspensao,
+          empresa.diasSuspensoAcumulado,
+        ),
       };
     });
   }, [empresas, ocorrencias]);

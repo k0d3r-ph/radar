@@ -93,6 +93,9 @@ function Esteira() {
   const [temaText, setTemaText] = useState(``);
   const [dataText, setDataText] = useState(``);
   const [currentPhase, setCurrentPhase] = useState(0);
+  const [temaGol, setTemaGol] = useState("");
+  const [golDropdownAberto, setGolDropdownAberto] = useState(false);
+  const golWrapperRef = useRef<HTMLDivElement | null>(null);
   const empresasOrdenadas = [...empresas].sort((a, b) =>
     a.nomeEmpresa.localeCompare(b.nomeEmpresa, "pt-BR"),
   );
@@ -124,11 +127,27 @@ function Esteira() {
         setDataText(empresa.dataText);
 
         setCurrentPhase(empresa.currentPhase || 0);
+
+        setTemaGol(empresa.temaGol || "");
       }
     }
 
     carregar();
   }, [id]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        golWrapperRef.current &&
+        !golWrapperRef.current.contains(event.target as Node)
+      ) {
+        setGolDropdownAberto(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const aplicarTemplate = (template: TemplateEsteira) => {
     setTemaText(template.temas);
@@ -160,6 +179,10 @@ function Esteira() {
       return item;
     })
     .filter((x): x is TemaItem => x !== null);
+
+  const temasGolOpcoes = Array.from(
+    new Set(temasArray.map((t) => t.trim()).filter((t) => t.length > 0)),
+  );
 
   const svgRef = useRef<SVGSVGElement | null>(null);
 
@@ -258,6 +281,7 @@ function Esteira() {
                 setNomeEmpresa("");
                 setTemaText("");
                 setDataText("");
+                setTemaGol("");
                 return;
               }
 
@@ -265,6 +289,7 @@ function Esteira() {
               setTemaText(empresa.temaText);
               setDataText(empresa.dataText);
               setCurrentPhase(empresa.currentPhase || 0);
+              setTemaGol(empresa.temaGol || "");
             }}
           />
         </div>
@@ -370,6 +395,11 @@ function Esteira() {
                   dataText,
                   currentPhase,
                   dataFinalizacao,
+                  // Se o treinador esquecer de preencher a data de entrada
+                  // (esse campo não existe neste formulário), assume hoje —
+                  // é a base do cálculo de dias na esteira e do Aging.
+                  dataEntrada: empresaExistente?.dataEntrada || dataHoje,
+                  temaGol,
                   updatedAt: Date.now(),
                 });
 
@@ -422,6 +452,7 @@ function Esteira() {
                 setTemaText("");
                 setDataText("");
                 setCurrentPhase(0);
+                setTemaGol("");
               }}
             >
               Salvar empresa
@@ -591,6 +622,56 @@ function Esteira() {
             {currentPhase + 1} — {temas[currentPhase]?.tema || "-"}
           </div>
         </div>
+
+        <div className="control-row" ref={golWrapperRef}>
+          <label>Tema do Gol ⚽</label>
+          <div className="fake-select">
+            <button
+              type="button"
+              className="fake-select-button"
+              onClick={() => isTreinador && setGolDropdownAberto((p) => !p)}
+              disabled={!isTreinador}
+            >
+              {temaGol || "Nenhum"}
+              <span className={`arrow ${golDropdownAberto ? "open" : ""}`}>
+                ▼
+              </span>
+            </button>
+
+            {golDropdownAberto && (
+              <div className="fake-select-dropdown">
+                <div
+                  className={`fake-option ${!temaGol ? "fake-option--ativo" : ""}`}
+                  onClick={() => {
+                    setTemaGol("");
+                    setGolDropdownAberto(false);
+                  }}
+                >
+                  Nenhum
+                </div>
+
+                {temasGolOpcoes.length > 0 ? (
+                  temasGolOpcoes.map((t) => (
+                    <div
+                      key={t}
+                      className={`fake-option ${t === temaGol ? "fake-option--ativo" : ""}`}
+                      onClick={() => {
+                        setTemaGol(t);
+                        setGolDropdownAberto(false);
+                      }}
+                    >
+                      ⚽ {t}
+                    </div>
+                  ))
+                ) : (
+                  <div className="fake-option fake-option--empty">
+                    Nenhum tema cadastrado
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="preview">
@@ -611,9 +692,19 @@ function Esteira() {
           {pontos.map((ponto, i) => {
             const isActive = i === currentPhase;
             const item = temas[i];
+            const isGol = !!temaGol && item?.tema?.trim() === temaGol.trim();
 
             return (
               <g key={i}>
+                {isGol && (
+                  <circle
+                    cx={ponto.x}
+                    cy={ponto.y}
+                    r={20}
+                    className="gol-ring"
+                  />
+                )}
+
                 {isActive && (
                   <g className="active-marker">
                     <text
@@ -640,6 +731,17 @@ function Esteira() {
                   className={isActive ? "active-circle" : ""}
                   strokeWidth={isActive ? 4 : 4}
                 />
+
+                {isGol && (
+                  <text
+                    x={ponto.x + 26}
+                    y={ponto.y - 20}
+                    textAnchor="middle"
+                    className="gol-badge"
+                  >
+                    ⚽
+                  </text>
+                )}
 
                 {item?.data && (
                   <text

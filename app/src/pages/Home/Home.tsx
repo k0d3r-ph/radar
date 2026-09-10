@@ -448,6 +448,14 @@ export default function Home() {
       dataSuspensao = undefined;
     }
 
+    // Se o treinador esquecer de preencher a data de entrada, assume hoje —
+    // esse campo é a base do cálculo de dias na esteira e do Aging.
+    let dataEntradaFinal = clienteForm.dataEntrada;
+    if (!dataEntradaFinal) {
+      const hoje = new Date();
+      dataEntradaFinal = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-${String(hoje.getDate()).padStart(2, "0")}`;
+    }
+
     const empresaSalva: Empresa = {
       ...clienteForm,
       nomeEmpresa: nomeFinal,
@@ -458,6 +466,7 @@ export default function Home() {
       contatos: contatosValidos,
       contato: contatosValidos[0]?.nome || "",
       telefone: contatosValidos[0]?.telefone || "",
+      dataEntrada: dataEntradaFinal,
       dataSuspensao,
       diasSuspensoAcumulado,
     };

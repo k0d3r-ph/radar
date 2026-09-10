@@ -31,6 +31,9 @@ export type Empresa = {
 
   dataText: string;
 
+  /** Nome exato do tema (linha de {@link temaText}) marcado como o "Gol" da esteira. */
+  temaGol?: string;
+
   currentPhase: number;
 
   updatedAt: number;

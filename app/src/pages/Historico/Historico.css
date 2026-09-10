@@ -841,6 +841,12 @@
   border-color: #fed7aa;
 }
 
+.tipo--gol {
+  background: rgba(22, 163, 74, 0.15);
+  color: #15803d;
+  border: 1px solid rgba(22, 163, 74, 0.35);
+}
+
 .departamento-suporte {
   background: #fef3c7;
   color: #92400e;
@@ -1179,6 +1185,10 @@ body.light-theme .tema-opcao:hover {
   height: 15px;
   cursor: pointer;
   flex-shrink: 0;
+}
+
+.tema-gol-badge {
+  margin-left: 4px;
 }
 
 .temas-selecionados {

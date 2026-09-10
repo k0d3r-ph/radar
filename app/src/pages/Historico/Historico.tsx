@@ -74,6 +74,7 @@ const TIPOS = [
   "Problema",
   "Dúvida",
   "Solicitação",
+  "Gol",
 ];
 
 const DEPARTAMENTO = ["Treinamento", "CS", "Suporte", "Hardware", "Comercial"];
@@ -157,6 +158,7 @@ const TIPO_CLASS: Record<string, string> = {
   Problema: "tipo--problema",
   Dúvida: "tipo--duvida",
   Solicitação: "tipo--solicitacao",
+  Gol: "tipo--gol",
 };
 
 const TIPO_CORES: Record<string, string> = {
@@ -169,6 +171,7 @@ const TIPO_CORES: Record<string, string> = {
   Problema: "#ef4444",
   Dúvida: "#14b8a6",
   Solicitação: "#f97316",
+  Gol: "#16a34a",
 };
 
 const DEPARTAMENTO_CORES: Record<string, string> = {
@@ -1158,6 +1161,8 @@ export function Historico() {
         .split(":")
         .map(Number);
       timestamp = new Date(year, month - 1, day, hours, minutes).getTime();
+    } else if (form.tipo === "Gol") {
+      timestamp = Date.now();
     }
 
     const ocorrenciaOriginal = editandoId
@@ -1997,6 +2002,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         "Problema",
         "Dúvida",
         "Solicitação",
+        "Gol",
       ];
     }
     if (role === "treinador") {
@@ -2006,6 +2012,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         "Checkpoint",
         "Dúvida",
         "Solicitação",
+        "Gol",
       ];
     }
     if (role === "suporte") {
@@ -2500,7 +2507,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             onChange={(e) => setFiltroTipo(e.target.value)}
           >
             <option value="">Todos os tipos</option>
-            {TIPOS.map((t) => (
+            {TIPOS.filter((t) => t !== "Gol" || isTreinador).map((t) => (
               <option key={t} value={t}>
                 {t}
               </option>
@@ -2999,7 +3006,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                           ? "Data do próximo treinamento"
                           : selecionada.tipo === "Checkpoint"
                             ? "Data do checkpoint"
-                            : "Data do agendamento"}
+                            : selecionada.tipo === "Gol"
+                              ? "Data do gol ⚽"
+                              : "Data do agendamento"}
                       </span>
                       <strong>
                         {new Date(
@@ -3370,6 +3379,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       if (form.tipo === "Checkpoint") {
                         return "Data do checkpoint *";
                       }
+                      if (form.tipo === "Gol") {
+                        return "Data do gol ⚽";
+                      }
                       return "Data do agendamento (não obrigatório)";
                     })()}
                   </label>
@@ -3666,42 +3678,56 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   />
                 ) : (
                   <div className="temas-lista">
-                    {[
-                      "Ausente",
-                      "Cancelado",
-                      ...(() => {
-                        const empresa = empresasList.find(
-                          (e) =>
-                            normalizar(e.nomeEmpresa) ===
-                            normalizar(form.empresa),
-                        );
-                        return empresa?.temaText
-                          ? empresa.temaText
+                    {(() => {
+                      const empresaSelecionada = empresasList.find(
+                        (e) =>
+                          normalizar(e.nomeEmpresa) ===
+                          normalizar(form.empresa),
+                      );
+                      const temaGolEmpresa =
+                        empresaSelecionada?.temaGol?.trim();
+                      const opcoes = [
+                        "Ausente",
+                        "Cancelado",
+                        ...(empresaSelecionada?.temaText
+                          ? empresaSelecionada.temaText
                               .trim()
                               .split(/\s{2,}|\n/)
                               .filter(Boolean)
-                          : [];
-                      })(),
-                    ].map((tema) => (
-                      <label key={tema} className="tema-opcao">
-                        <input
-                          type="checkbox"
-                          checked={form.temaOcorrencia?.includes(tema) ?? false}
-                          onChange={(e) => {
-                            const atual = form.temaOcorrencia ?? [];
-                            const novoTema = e.target.checked
-                              ? [...atual, tema]
-                              : atual.filter((t) => t !== tema);
-                            setForm({
-                              ...form,
-                              temaOcorrencia: novoTema,
-                            });
-                            setTemaOcorrenciaOngoingText(novoTema.join(", "));
-                          }}
-                        />
-                        {tema}
-                      </label>
-                    ))}
+                          : []),
+                      ];
+
+                      return opcoes.map((tema) => (
+                        <label key={tema} className="tema-opcao">
+                          <input
+                            type="checkbox"
+                            checked={
+                              form.temaOcorrencia?.includes(tema) ?? false
+                            }
+                            onChange={(e) => {
+                              const atual = form.temaOcorrencia ?? [];
+                              const novoTema = e.target.checked
+                                ? [...atual, tema]
+                                : atual.filter((t) => t !== tema);
+                              setForm({
+                                ...form,
+                                temaOcorrencia: novoTema,
+                              });
+                              setTemaOcorrenciaOngoingText(novoTema.join(", "));
+                            }}
+                          />
+                          {tema}
+                          {temaGolEmpresa && tema.trim() === temaGolEmpresa && (
+                            <span
+                              className="tema-gol-badge"
+                              title="Tema marcado como Gol na Esteira"
+                            >
+                              ⚽
+                            </span>
+                          )}
+                        </label>
+                      ));
+                    })()}
                   </div>
                 )}
               </div>

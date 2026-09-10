@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Clock, CheckCircle2, Users2, Target, GraduationCap } from "lucide-react";
+import { Clock, CheckCircle2, Users2, GraduationCap } from "lucide-react";
 import { listarEmpresas, isEmpresaInterna } from "../../services/empresas";
 import { listarOcorrencias } from "../../services/ocorrencias";
 import type { Empresa, Ocorrencia } from "../../types";
@@ -27,6 +27,22 @@ function faixaDosDias(dias: number): FaixaAging {
 
 function contagemVazia(): Record<FaixaAging, number> {
   return { "0-15": 0, "16-30": 0, "31-45": 0, mais45: 0 };
+}
+
+function normalizarNomeEmpresa(nome: string): string {
+  return nome.trim().toLowerCase();
+}
+
+function calcularDiasAteGol(dataEntrada: string, dataGol: number): number {
+  const [year, month, day] = dataEntrada.split("-").map(Number);
+  const entrada = new Date(year, month - 1, day);
+  if (isNaN(entrada.getTime()) || !dataGol) return 0;
+
+  const dias = Math.floor(
+    (dataGol - entrada.getTime()) / (1000 * 60 * 60 * 24),
+  );
+
+  return Math.max(0, dias);
 }
 
 function formatarPct(valor: number, total: number): string {
@@ -103,6 +119,33 @@ export const RelatorioAging: React.FC = () => {
     const totalGeral = totalEmAndamento + totalConcluido;
 
     return { emAndamento, concluido, totais, totalEmAndamento, totalConcluido, totalGeral };
+  }, [empresasFiltradas, ocorrencias]);
+
+  const dadosGol = useMemo(() => {
+    const contagem = contagemVazia();
+
+    empresasFiltradas.forEach((e) => {
+      if (!e.dataEntrada) return;
+
+      const ocorrenciaGol = ocorrencias
+        .filter(
+          (o) =>
+            o.tipo === "Gol" &&
+            o.dataOcorrencia > 0 &&
+            normalizarNomeEmpresa(o.empresa) ===
+              normalizarNomeEmpresa(e.nomeEmpresa),
+        )
+        .sort((a, b) => a.dataOcorrencia - b.dataOcorrencia)[0];
+
+      if (!ocorrenciaGol) return;
+
+      const dias = calcularDiasAteGol(e.dataEntrada, ocorrenciaGol.dataOcorrencia);
+      contagem[faixaDosDias(dias)] += 1;
+    });
+
+    const total = FAIXAS.reduce((acc, f) => acc + contagem[f.chave], 0);
+
+    return { contagem, total };
   }, [empresasFiltradas, ocorrencias]);
 
   return (
@@ -232,29 +275,32 @@ export const RelatorioAging: React.FC = () => {
               <tr className="aging-linha-gol">
                 <td className="aging-col-status">
                   <div className="aging-status-label">
-                    <Target size={18} className="aging-status-icon aging-status-icon--gol" />
+                    <span className="aging-status-icon aging-status-icon--gol" aria-hidden="true">
+                      ⚽
+                    </span>
                     <div>
                       <strong>Gol</strong>
-                      <span>Faixa de dias em que o cliente concluiu a esteira (Gol atingido).</span>
+                      <span>
+                        Faixa de dias entre a entrada do cliente e a ocorrência marcada como
+                        Gol (marco definido pelo treinador na Esteira).
+                      </span>
                     </div>
                   </div>
                 </td>
                 {FAIXAS.map((f) => (
                   <td key={f.chave}>
                     <div className={`aging-cell aging-cell-gol aging-cell-gol--${f.chave}`}>
-                      <span className="aging-cell-valor">{dados.concluido[f.chave]}</span>
+                      <span className="aging-cell-valor">{dadosGol.contagem[f.chave]}</span>
                       <span className="aging-cell-pct">
-                        {formatarPct(dados.concluido[f.chave], dados.totalGeral)}
+                        {formatarPct(dadosGol.contagem[f.chave], dadosGol.total)}
                       </span>
                     </div>
                   </td>
                 ))}
                 <td className="aging-col-total">
                   <div className="aging-cell">
-                    <span className="aging-cell-valor">{dados.totalConcluido}</span>
-                    <span className="aging-cell-pct">
-                      {formatarPct(dados.totalConcluido, dados.totalGeral)}
-                    </span>
+                    <span className="aging-cell-valor">{dadosGol.total}</span>
+                    <span className="aging-cell-pct">100%</span>
                   </div>
                 </td>
               </tr>

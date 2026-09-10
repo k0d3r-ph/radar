@@ -128,7 +128,8 @@
 }
 
 .aging-status-icon--gol {
-  color: #f59e0b;
+  font-size: 18px;
+  line-height: 1;
 }
 
 .aging-cell {

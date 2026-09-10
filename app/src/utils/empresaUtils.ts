@@ -90,10 +90,11 @@ export function obterInfoTipoOcorrencia(o: Ocorrencia): { label: string; classNa
     Problema: "tipo--problema",
     Dúvida: "tipo--duvida",
     Solicitação: "tipo--solicitacao",
+    Gol: "tipo--gol",
   };
 
   return {
-    label: o.tipo,
+    label: o.tipo === "Gol" ? "⚽ Gol" : o.tipo,
     className: classes[o.tipo] || "",
   };
 }

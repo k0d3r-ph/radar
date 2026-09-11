@@ -1,4 +1,87 @@
-import type { Empresa } from "../types";
+import type { ContadorPerdasScore, Empresa } from "../types";
+
+type RespostaSimNao = "Sim" | "Não" | "";
+
+/** Formato do questionário de score usado em Home e Histórico (estruturalmente idêntico nos dois). */
+export interface ScoreFormAnswers {
+  facilContato: RespostaSimNao;
+  entraComputador: RespostaSimNao;
+  compartilhaTela: RespostaSimNao;
+  fazPerguntas: RespostaSimNao;
+  recordaTemas: RespostaSimNao;
+  faltouDoisDias: RespostaSimNao;
+  estruturaNecessaria: RespostaSimNao;
+  clienteReclamante: RespostaSimNao;
+  clienteSumido: RespostaSimNao;
+}
+
+/**
+ * Perguntas cuja perda é escalonada: a contribuição ao score é `ganhoSim` menos
+ * `valorPorMarcacao * marcações seguidas` (desde o último "Sim"), até o teto de
+ * `maxMarcacoes` marcações. Ou seja, a 1ª marcação de "Não" só cancela o bônus do
+ * "Sim" (contribuição 0); a partir da 2ª a pergunta passa a puxar o score para
+ * baixo do neutro. Marcar "Sim" volta ao ganho cheio e zera o contador.
+ */
+const PERGUNTAS_PERDA_ESCALONADA = {
+  facilContato: { ganhoSim: 0.5, valorPorMarcacao: 0.5, maxMarcacoes: 2 },
+  entraComputador: { ganhoSim: 1.0, valorPorMarcacao: 1.0, maxMarcacoes: 2 },
+  compartilhaTela: { ganhoSim: 1.0, valorPorMarcacao: 1.0, maxMarcacoes: 2 },
+  recordaTemas: { ganhoSim: 2.0, valorPorMarcacao: 2.0, maxMarcacoes: 2 },
+} as const;
+
+/**
+ * Calcula score e tipo (Fast/Safety) a partir das respostas do questionário, aplicando
+ * perda crescente nas perguntas de {@link PERGUNTAS_PERDA_ESCALONADA} conforme o histórico
+ * de marcações em `contadoresAnteriores` (persistido em {@link Empresa.scoreContadoresPerda}).
+ * Retorna os contadores já atualizados, para serem salvos junto com o score.
+ */
+export function calcularPontuacaoScore(
+  respostas: ScoreFormAnswers,
+  contadoresAnteriores?: ContadorPerdasScore,
+): { score: number; tipo: "Fast" | "Safety"; contadores: ContadorPerdasScore } {
+  let score = 0;
+  const contadores: ContadorPerdasScore = {};
+
+  (Object.keys(PERGUNTAS_PERDA_ESCALONADA) as (keyof typeof PERGUNTAS_PERDA_ESCALONADA)[]).forEach(
+    (chave) => {
+      const config = PERGUNTAS_PERDA_ESCALONADA[chave];
+      const resposta = respostas[chave];
+      if (resposta === "Sim") {
+        score += config.ganhoSim;
+        contadores[chave] = 0;
+      } else if (resposta === "Não") {
+        const marcacoes = Math.min((contadoresAnteriores?.[chave] || 0) + 1, config.maxMarcacoes);
+        contadores[chave] = marcacoes;
+        // A 1ª marcação apenas cancela o bônus do "Sim" (contribuição 0); só a partir da
+        // 2ª a pergunta passa a puxar o score para baixo do neutro.
+        score += config.ganhoSim - config.valorPorMarcacao * marcacoes;
+      } else {
+        contadores[chave] = contadoresAnteriores?.[chave] || 0;
+      }
+    },
+  );
+
+  if (respostas.fazPerguntas === "Sim") score += 1.5;
+
+  if (respostas.faltouDoisDias === "Sim") {
+    score -= 1.0;
+  } else if (respostas.faltouDoisDias === "Não") {
+    score += 1.0;
+  }
+
+  if (respostas.estruturaNecessaria === "Sim") score += 1.0;
+
+  if (respostas.clienteReclamante === "Sim") {
+    score -= 3.0;
+  } else if (respostas.clienteReclamante === "Não") {
+    score += 2.0;
+  }
+
+  if (respostas.clienteSumido === "Sim") score -= 5.0;
+
+  const tipo = score >= 6 ? "Fast" : "Safety";
+  return { score, tipo, contadores };
+}
 
 /** Quantos dias uma redução de score por contato com o Suporte permanece ativa. */
 export const DIAS_REDUCAO_SCORE_SUPORTE = 15;

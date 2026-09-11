@@ -36,7 +36,12 @@ import {
   atualizarLancamentoPonto,
   removerLancamentoPonto,
 } from "../../services/gamificacao";
-import type { Ocorrencia, Empresa, OcorrenciaForm } from "../../types";
+import type {
+  Ocorrencia,
+  Empresa,
+  OcorrenciaForm,
+  ContadorPerdasScore,
+} from "../../types";
 import "./Historico.css";
 import { DoughnutChart } from "../../components/DoughnutChart";
 import { BarChart } from "../../components/BarChart";
@@ -46,6 +51,7 @@ import {
   MOTIVO_REDUCAO_SCORE_SUPORTE,
   VALOR_REDUCAO_SCORE_SUPORTE,
   DIAS_REDUCAO_SCORE_SUPORTE,
+  calcularPontuacaoScore,
   obterAjustesAtivos,
   encontrarOcorrenciaDoAjuste,
 } from "../../utils/score";
@@ -131,6 +137,7 @@ const SOLICITACAO_OPCOES = [
   "Troca de nome da central",
   "Informações ou configurações de API",
   "Exclusão de UR gerada por aplicativo",
+  "Antecipação de tema",
 ];
 
 const DEPARTAMENTO_CLASS: Record<string, string> = {
@@ -448,44 +455,6 @@ const INITIAL_SCORE_ANSWERS: ScoreFormAnswers = {
   clienteSumido: "",
 };
 
-function calcularPontuacao(respostas: ScoreFormAnswers): {
-  score: number;
-  tipo: "Fast" | "Safety";
-} {
-  let score = 0;
-
-  if (respostas.facilContato === "Sim") score += 0.5;
-
-  if (respostas.entraComputador === "Sim") {
-    score += 1.0;
-  } else if (respostas.entraComputador === "Não") {
-    score -= 1.0;
-  }
-
-  if (respostas.compartilhaTela === "Sim") score += 1.0;
-  if (respostas.fazPerguntas === "Sim") score += 1.5;
-  if (respostas.recordaTemas === "Sim") score += 2.0;
-
-  if (respostas.faltouDoisDias === "Sim") {
-    score -= 1.0;
-  } else if (respostas.faltouDoisDias === "Não") {
-    score += 1.0;
-  }
-
-  if (respostas.estruturaNecessaria === "Sim") score += 1.0;
-
-  if (respostas.clienteReclamante === "Sim") {
-    score -= 3.0;
-  } else if (respostas.clienteReclamante === "Não") {
-    score += 2.0;
-  }
-
-  if (respostas.clienteSumido === "Sim") score -= 5.0;
-
-  const tipo = score >= 6 ? "Fast" : "Safety";
-  return { score, tipo };
-}
-
 function descreverMudancas(
   antigo: ScoreFormAnswers,
   novo: ScoreFormAnswers,
@@ -658,6 +627,7 @@ export function Historico() {
     score: number | null;
     tipo: "Fast" | "Safety" | "";
     isNeutro?: boolean;
+    contadores?: ContadorPerdasScore;
   } | null>(null);
 
   // WhatsApp Integration States
@@ -1288,6 +1258,9 @@ export function Historico() {
         score: novoScore,
         tipo: novoTipo,
         scoreAnswers: calculoScoreResult.isNeutro ? null : respostasScore,
+        scoreContadoresPerda: calculoScoreResult.isNeutro
+          ? undefined
+          : calculoScoreResult.contadores,
         updatedAt: Date.now(),
       });
 
@@ -1725,6 +1698,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   scoreAnswers: calculoScoreResult.isNeutro
                     ? null
                     : respostasScore,
+                  scoreContadoresPerda: calculoScoreResult.isNeutro
+                    ? undefined
+                    : calculoScoreResult.contadores,
                 }
               : {}),
             temaText: novoTemaText,
@@ -1879,6 +1855,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 scoreAnswers: calculoScoreResult.isNeutro
                   ? null
                   : respostasScore,
+                scoreContadoresPerda: calculoScoreResult.isNeutro
+                  ? undefined
+                  : calculoScoreResult.contadores,
               }
             : {}),
           temaText: novoTemaText,
@@ -4057,7 +4036,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               <div className="score-pergunta">
                 <label>
                   Contato com o cliente é fácil? *{" "}
-                  <span className="score-hint">(Sim = +0.5 / Não = 0)</span>
+                  <span className="score-hint">
+                    (Sim = +0.5 e zera perda / Não: 1ª vez cancela o bônus, a
+                    partir da 2ª = -0.5)
+                  </span>
                 </label>
                 <div className="radio-group-score">
                   <label>
@@ -4097,7 +4079,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               <div className="score-pergunta">
                 <label>
                   Cliente entra pelo computador? *{" "}
-                  <span className="score-hint">(Sim = +1.0 / Não = -1.0)</span>
+                  <span className="score-hint">
+                    (Sim = +1.0 e zera perda / Não: 1ª vez cancela o bônus, a
+                    partir da 2ª = -1.0)
+                  </span>
                 </label>
                 <div className="radio-group-score">
                   <label>
@@ -4137,7 +4122,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               <div className="score-pergunta">
                 <label>
                   Cliente compartilha a tela? *{" "}
-                  <span className="score-hint">(Sim = +1.0 / Não = 0)</span>
+                  <span className="score-hint">
+                    (Sim = +1.0 e zera perda / Não: 1ª vez cancela o bônus, a
+                    partir da 2ª = -1.0)
+                  </span>
                 </label>
                 <div className="radio-group-score">
                   <label>
@@ -4217,7 +4205,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               <div className="score-pergunta">
                 <label>
                   Cliente se recorda de temas anteriores? *{" "}
-                  <span className="score-hint">(Sim = +2.0 / Não = 0)</span>
+                  <span className="score-hint">
+                    (Sim = +2.0 e zera perda / Não: 1ª vez cancela o bônus, a
+                    partir da 2ª = -2.0)
+                  </span>
                 </label>
                 <div className="radio-group-score">
                   <label>
@@ -4463,7 +4454,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             <div className="score-modal-footer">
               <div className="score-calculo-previo">
                 {(() => {
-                  const res = calcularPontuacao(respostasScore);
+                  const res = calcularPontuacaoScore(
+                    respostasScore,
+                    selectedEmpresaObj?.scoreContadoresPerda,
+                  );
                   const deducaoAtiva = selectedEmpresaObj
                     ? obterAjustesAtivos(selectedEmpresaObj).reduce(
                         (soma, a) => soma + a.valor,
@@ -4524,7 +4518,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       return;
                     }
 
-                    const res = calcularPontuacao(respostasScore);
+                    const res = calcularPontuacaoScore(
+                      respostasScore,
+                      selectedEmpresaObj?.scoreContadoresPerda,
+                    );
                     setCalculoScoreResult(res);
                     setModalScoreAberto(false);
                     toast.success(

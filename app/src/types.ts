@@ -1,5 +1,17 @@
 export type CS = string;
 
+/**
+ * Contador de quantas vezes seguidas cada pergunta escalonada do questionário de score
+ * foi respondida com a opção que perde ponto (desde o último "Sim"). Ver
+ * {@link calcularPontuacaoScore} em `utils/score.ts`.
+ */
+export type ContadorPerdasScore = {
+  facilContato?: number;
+  entraComputador?: number;
+  compartilhaTela?: number;
+  recordaTemas?: number;
+};
+
 export type ContatoCliente = {
   nome: string;
   telefone: string;
@@ -59,6 +71,13 @@ export type Empresa = {
 
   score?: number;
   scoreAnswers?: any;
+  /**
+   * Quantas vezes seguidas (desde o último "Sim") cada pergunta escalonada do questionário
+   * de score foi respondida com a opção que perde ponto. Usado para calcular a perda
+   * crescente dessas perguntas a cada novo cálculo; volta a 0 quando a pergunta é
+   * respondida "Sim". Ver {@link calcularPontuacaoScore}.
+   */
+  scoreContadoresPerda?: ContadorPerdasScore;
   /**
    * Reduções temporárias aplicadas ao score (ex.: contato com o Suporte para tirar
    * dúvidas reduz 1 ponto por 15 dias). Cada ajuste vale enquanto `Date.now() < expiraEm`;

@@ -33,6 +33,7 @@ import { formatarNome } from "../../utils/formatarNome";
 import { BASE_CS_LIST, normalizarNomeCS, compararCS } from "../../utils/cs";
 import {
   calcularScoreEfetivo,
+  calcularPontuacaoScore,
   obterAjustesAtivos,
   encontrarOcorrenciaDoAjuste,
 } from "../../utils/score";
@@ -87,44 +88,6 @@ const CORES_PRODUTO: Record<string, string> = {
   Pro: "#6366f1",
 };
 
-function calcularPontuacao(respostas: ScoreFormAnswers): {
-  score: number;
-  tipo: "Fast" | "Safety";
-} {
-  let score = 0;
-
-  if (respostas.facilContato === "Sim") score += 0.5;
-
-  if (respostas.entraComputador === "Sim") {
-    score += 1.0;
-  } else if (respostas.entraComputador === "Não") {
-    score -= 1.0;
-  }
-
-  if (respostas.compartilhaTela === "Sim") score += 1.0;
-  if (respostas.fazPerguntas === "Sim") score += 1.5;
-  if (respostas.recordaTemas === "Sim") score += 2.0;
-
-  if (respostas.faltouDoisDias === "Sim") {
-    score -= 1.0;
-  } else if (respostas.faltouDoisDias === "Não") {
-    score += 1.0;
-  }
-
-  if (respostas.estruturaNecessaria === "Sim") score += 1.0;
-
-  if (respostas.clienteReclamante === "Sim") {
-    score -= 3.0;
-  } else if (respostas.clienteReclamante === "Não") {
-    score += 2.0;
-  }
-
-  if (respostas.clienteSumido === "Sim") score -= 5.0;
-
-  const tipo = score >= 6 ? "Fast" : "Safety";
-  return { score, tipo };
-}
-
 export default function Home() {
   const navigate = useNavigate();
   const { role } = useAuth();
@@ -153,6 +116,7 @@ export default function Home() {
         ...clienteSelecionado,
         score: null as any,
         scoreAnswers: null,
+        scoreContadoresPerda: undefined,
         tipo: "",
         updatedAt: Date.now(),
       };
@@ -192,11 +156,15 @@ export default function Home() {
     }
 
     try {
-      const res = calcularPontuacao(respostasScoreHome);
+      const res = calcularPontuacaoScore(
+        respostasScoreHome,
+        clienteSelecionado.scoreContadoresPerda,
+      );
       const empresaAtualizada: Empresa = {
         ...clienteSelecionado,
         score: res.score,
         scoreAnswers: respostasScoreHome,
+        scoreContadoresPerda: res.contadores,
         tipo: res.tipo,
         updatedAt: Date.now(),
       };
@@ -2820,9 +2788,18 @@ export default function Home() {
                 <label>
                   Contato com o cliente é fácil? *{" "}
                   <span className="home-score-hint">
-                    (Sim = +0.5 / Não = 0)
+                    (Sim = +0.5 e zera perda / Não: 1ª vez cancela o bônus, a
+                    partir da 2ª = -0.5)
                   </span>
                 </label>
+                {!!clienteSelecionado?.scoreContadoresPerda?.facilContato && (
+                  <span className="home-score-hint" style={{ display: "block" }}>
+                    Perda salva (em relação ao bônus do Sim): -
+                    {(
+                      clienteSelecionado.scoreContadoresPerda.facilContato * 0.5
+                    ).toFixed(1)}
+                  </span>
+                )}
                 <div className="home-radio-group-score">
                   <label>
                     <input
@@ -2862,9 +2839,18 @@ export default function Home() {
                 <label>
                   Cliente entra pelo computador? *{" "}
                   <span className="home-score-hint">
-                    (Sim = +1.0 / Não = -1.0)
+                    (Sim = +1.0 e zera perda / Não: 1ª vez cancela o bônus, a
+                    partir da 2ª = -1.0)
                   </span>
                 </label>
+                {!!clienteSelecionado?.scoreContadoresPerda?.entraComputador && (
+                  <span className="home-score-hint" style={{ display: "block" }}>
+                    Perda salva (em relação ao bônus do Sim): -
+                    {(
+                      clienteSelecionado.scoreContadoresPerda.entraComputador * 1.0
+                    ).toFixed(1)}
+                  </span>
+                )}
                 <div className="home-radio-group-score">
                   <label>
                     <input
@@ -2904,9 +2890,18 @@ export default function Home() {
                 <label>
                   Cliente compartilha a tela? *{" "}
                   <span className="home-score-hint">
-                    (Sim = +1.0 / Não = 0)
+                    (Sim = +1.0 e zera perda / Não: 1ª vez cancela o bônus, a
+                    partir da 2ª = -1.0)
                   </span>
                 </label>
+                {!!clienteSelecionado?.scoreContadoresPerda?.compartilhaTela && (
+                  <span className="home-score-hint" style={{ display: "block" }}>
+                    Perda salva (em relação ao bônus do Sim): -
+                    {(
+                      clienteSelecionado.scoreContadoresPerda.compartilhaTela * 1.0
+                    ).toFixed(1)}
+                  </span>
+                )}
                 <div className="home-radio-group-score">
                   <label>
                     <input
@@ -2988,9 +2983,18 @@ export default function Home() {
                 <label>
                   Cliente se recorda de temas anteriores? *{" "}
                   <span className="home-score-hint">
-                    (Sim = +2.0 / Não = 0)
+                    (Sim = +2.0 e zera perda / Não: 1ª vez cancela o bônus, a
+                    partir da 2ª = -2.0)
                   </span>
                 </label>
+                {!!clienteSelecionado?.scoreContadoresPerda?.recordaTemas && (
+                  <span className="home-score-hint" style={{ display: "block" }}>
+                    Perda salva (em relação ao bônus do Sim): -
+                    {(
+                      clienteSelecionado.scoreContadoresPerda.recordaTemas * 2.0
+                    ).toFixed(1)}
+                  </span>
+                )}
                 <div className="home-radio-group-score">
                   <label>
                     <input
@@ -3244,7 +3248,10 @@ export default function Home() {
             <div className="home-score-modal-footer">
               <div className="home-score-calculo-previo">
                 {(() => {
-                  const res = calcularPontuacao(respostasScoreHome);
+                  const res = calcularPontuacaoScore(
+                    respostasScoreHome,
+                    clienteSelecionado?.scoreContadoresPerda,
+                  );
                   const deducaoAtiva = clienteSelecionado
                     ? obterAjustesAtivos(clienteSelecionado).reduce(
                         (soma, a) => soma + a.valor,

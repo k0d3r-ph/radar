@@ -26,8 +26,60 @@ const PERGUNTAS_PERDA_ESCALONADA = {
   facilContato: { ganhoSim: 0.5, valorPorMarcacao: 0.5, maxMarcacoes: 2 },
   entraComputador: { ganhoSim: 1.0, valorPorMarcacao: 1.0, maxMarcacoes: 2 },
   compartilhaTela: { ganhoSim: 1.0, valorPorMarcacao: 1.0, maxMarcacoes: 2 },
-  recordaTemas: { ganhoSim: 2.0, valorPorMarcacao: 2.0, maxMarcacoes: 2 },
 } as const;
+
+/** Perda da 1ª marcação de "Não" seguida em "Cliente se recorda de temas anteriores?". */
+const RECORDA_TEMAS_PERDA_NIVEL_1 = 2.0;
+/** Perda adicional da 2ª marcação de "Não" seguida (acima da do nível 1). */
+const RECORDA_TEMAS_PERDA_NIVEL_2 = 3.0;
+/** Bônus de "Sim" quando não há perda pendente para recuperar. */
+const RECORDA_TEMAS_GANHO_SIM = 2.0;
+
+const RECORDA_TEMAS_PERDA_MAX =
+  RECORDA_TEMAS_PERDA_NIVEL_1 + RECORDA_TEMAS_PERDA_NIVEL_2;
+
+/**
+ * Calcula a contribuição ao score da pergunta "Cliente se recorda de temas anteriores?"
+ * e a nova perda acumulada a persistir em {@link ContadorPerdasScore.recordaTemas}.
+ *
+ * O score é recalculado do zero a cada cálculo (não é um valor incremental persistido),
+ * então a contribuição desta pergunta precisa ser o valor líquido
+ * `{@link RECORDA_TEMAS_GANHO_SIM} - perda pendente`, não "quanto foi recuperado" — é essa
+ * subtração que faz a mudança de resposta refletir como delta correto no score total.
+ *
+ * A perda acumulada anda em degraus: 0 → {@link RECORDA_TEMAS_PERDA_NIVEL_1} (1ª marcação
+ * de "Não", cancelando o bônus do "Sim") → {@link RECORDA_TEMAS_PERDA_MAX} (2ª marcação
+ * seguida). "Sim" desfaz os degraus na mesma ordem em que foram criados: a 1ª marcação de
+ * "Sim" recupera os {@link RECORDA_TEMAS_PERDA_NIVEL_1} pontos do 1º degrau (mesmo partindo
+ * do teto, passando por um estado intermediário de perda {@link RECORDA_TEMAS_PERDA_NIVEL_2}),
+ * e a 2ª recupera os {@link RECORDA_TEMAS_PERDA_NIVEL_2} pontos do 2º degrau, voltando a 0 (e
+ * a contribuição ao bônus cheio). Marcar "Não" com o degrau 1 já recuperado (perda =
+ * {@link RECORDA_TEMAS_PERDA_NIVEL_2}) reaplica o 1º degrau, voltando ao teto.
+ */
+function calcularRecordaTemas(
+  resposta: RespostaSimNao,
+  perdaAnterior: number,
+): { contribuicao: number; perda: number } {
+  let perda: number;
+
+  if (resposta === "Sim") {
+    if (perdaAnterior >= RECORDA_TEMAS_PERDA_MAX) {
+      perda = RECORDA_TEMAS_PERDA_NIVEL_2;
+    } else {
+      perda = 0;
+    }
+  } else if (resposta === "Não") {
+    if (perdaAnterior <= 0) {
+      perda = RECORDA_TEMAS_PERDA_NIVEL_1;
+    } else {
+      perda = RECORDA_TEMAS_PERDA_MAX;
+    }
+  } else {
+    return { contribuicao: 0, perda: perdaAnterior };
+  }
+
+  return { contribuicao: RECORDA_TEMAS_GANHO_SIM - perda, perda };
+}
 
 /**
  * Calcula score e tipo (Fast/Safety) a partir das respostas do questionário, aplicando
@@ -60,6 +112,15 @@ export function calcularPontuacaoScore(
       }
     },
   );
+
+  {
+    const { contribuicao, perda } = calcularRecordaTemas(
+      respostas.recordaTemas,
+      contadoresAnteriores?.recordaTemas || 0,
+    );
+    score += contribuicao;
+    contadores.recordaTemas = perda;
+  }
 
   if (respostas.fazPerguntas === "Sim") score += 1.5;
 

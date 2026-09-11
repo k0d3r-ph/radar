@@ -9,6 +9,12 @@ export type ContadorPerdasScore = {
   facilContato?: number;
   entraComputador?: number;
   compartilhaTela?: number;
+  /**
+   * Perda acumulada (em pontos) de "Cliente se recorda de temas anteriores?", não a
+   * quantidade de marcações. Anda em degraus: 0 → 2 (1ª marcação de "Não") → 5 (2ª
+   * marcação seguida); "Sim" desfaz os degraus na mesma ordem, recuperando 2 pontos
+   * na 1ª vez e 3 na 2ª. Ver {@link calcularPontuacaoScore} em `utils/score.ts`.
+   */
   recordaTemas?: number;
 };
 
@@ -78,6 +84,11 @@ export type Empresa = {
    * respondida "Sim". Ver {@link calcularPontuacaoScore}.
    */
   scoreContadoresPerda?: ContadorPerdasScore;
+  /**
+   * Dúvidas do cliente sobre temas anteriores, preenchidas ao marcar "Não" em
+   * "Cliente se recorda de temas anteriores?" no questionário de score.
+   */
+  duvidasTemasAnteriores?: string[];
   /**
    * Reduções temporárias aplicadas ao score (ex.: contato com o Suporte para tirar
    * dúvidas reduz 1 ponto por 15 dias). Cada ajuste vale enquanto `Date.now() < expiraEm`;

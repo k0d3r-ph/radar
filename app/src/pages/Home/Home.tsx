@@ -99,14 +99,29 @@ export default function Home() {
   const [modalScoreHomeAberto, setModalScoreHomeAberto] = useState(false);
   const [respostasScoreHome, setRespostasScoreHome] =
     useState<ScoreFormAnswers>(INITIAL_SCORE_ANSWERS);
+  const [duvidasTemasHome, setDuvidasTemasHome] = useState<string[]>([]);
+  const [novaDuvidaTemaHome, setNovaDuvidaTemaHome] = useState("");
 
   function abrirModalScoreHome() {
     if (clienteSelecionado) {
       setRespostasScoreHome(
         clienteSelecionado.scoreAnswers || INITIAL_SCORE_ANSWERS,
       );
+      setDuvidasTemasHome(clienteSelecionado.duvidasTemasAnteriores || []);
+      setNovaDuvidaTemaHome("");
       setModalScoreHomeAberto(true);
     }
+  }
+
+  function adicionarDuvidaTemaHome() {
+    const texto = novaDuvidaTemaHome.trim();
+    if (!texto) return;
+    setDuvidasTemasHome((prev) => [...prev, texto]);
+    setNovaDuvidaTemaHome("");
+  }
+
+  function removerDuvidaTemaHome(index: number) {
+    setDuvidasTemasHome((prev) => prev.filter((_, i) => i !== index));
   }
 
   async function confirmarScoreNeutroHome() {
@@ -165,6 +180,7 @@ export default function Home() {
         score: res.score,
         scoreAnswers: respostasScoreHome,
         scoreContadoresPerda: res.contadores,
+        duvidasTemasAnteriores: duvidasTemasHome,
         tipo: res.tipo,
         updatedAt: Date.now(),
       };
@@ -2983,16 +2999,16 @@ export default function Home() {
                 <label>
                   Cliente se recorda de temas anteriores? *{" "}
                   <span className="home-score-hint">
-                    (Sim = +2.0 e zera perda / Não: 1ª vez cancela o bônus, a
-                    partir da 2ª = -2.0)
+                    (Sim = +2.0 sem perda pendente, ou recupera 2.0 na 1ª vez e
+                    3.0 na 2ª / Não: 1ª vez = -2.0, 2ª vez seguida = -3.0)
                   </span>
                 </label>
                 {!!clienteSelecionado?.scoreContadoresPerda?.recordaTemas && (
                   <span className="home-score-hint" style={{ display: "block" }}>
-                    Perda salva (em relação ao bônus do Sim): -
-                    {(
-                      clienteSelecionado.scoreContadoresPerda.recordaTemas * 2.0
-                    ).toFixed(1)}
+                    Perda salva: -
+                    {clienteSelecionado.scoreContadoresPerda.recordaTemas.toFixed(
+                      1,
+                    )}
                   </span>
                 )}
                 <div className="home-radio-group-score">
@@ -3027,6 +3043,50 @@ export default function Home() {
                     Não
                   </label>
                 </div>
+                {respostasScoreHome.recordaTemas === "Não" && (
+                  <div className="home-duvidas-temas">
+                    <label>Dúvidas do cliente sobre temas anteriores:</label>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <input
+                        type="text"
+                        value={novaDuvidaTemaHome}
+                        onChange={(e) => setNovaDuvidaTemaHome(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            adicionarDuvidaTemaHome();
+                          }
+                        }}
+                        placeholder="Descreva a dúvida do cliente"
+                        style={{ flex: 1 }}
+                      />
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        onClick={adicionarDuvidaTemaHome}
+                      >
+                        Adicionar
+                      </button>
+                    </div>
+                    {duvidasTemasHome.length > 0 && (
+                      <ul className="home-duvidas-temas-lista">
+                        {duvidasTemasHome.map((duvida, index) => (
+                          <li key={index}>
+                            {duvida}
+                            <button
+                              type="button"
+                              className="home-duvida-tema-remover"
+                              onClick={() => removerDuvidaTemaHome(index)}
+                              title="Remover"
+                            >
+                              ×
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Pergunta 6 */}

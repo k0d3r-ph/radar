@@ -164,6 +164,35 @@ body.dark-theme .score-pergunta {
   border-color: rgba(255, 255, 255, 0.08) !important;
 }
 
+body.dark-theme .hist-duvidas-temas-lista li {
+  background: #0f172a !important;
+  color: #f1f5f9 !important;
+}
+
+body.dark-theme .hist-duvidas-cliente-item {
+  background: #0f172a !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+body.dark-theme .hist-duvidas-cliente-texto {
+  color: #f1f5f9 !important;
+}
+
+body.dark-theme .hist-duvidas-cliente-numero {
+  background: rgba(99, 102, 241, 0.25) !important;
+  color: #c7d2fe !important;
+}
+
+body.dark-theme .hist-duvidas-cliente-remover {
+  background: rgba(239, 68, 68, 0.12) !important;
+  border-color: rgba(239, 68, 68, 0.35) !important;
+  color: #f87171 !important;
+}
+
+body.dark-theme .hist-duvidas-cliente-remover:hover {
+  background: rgba(239, 68, 68, 0.2) !important;
+}
+
 body.dark-theme .score-pergunta label,
 body.dark-theme .home-score-pergunta label {
   color: #f1f5f9 !important;
@@ -1090,6 +1119,15 @@ body.light-theme .score-pergunta,
 body.light-theme .hist-campo {
   background: #f8fafc !important;
   border-color: #cbd5e1 !important;
+}
+
+body.light-theme .hist-duvidas-cliente-item {
+  background: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+body.light-theme .hist-duvidas-cliente-texto {
+  color: #1e293b !important;
 }
 
 body.light-theme .checkbox-label-score,

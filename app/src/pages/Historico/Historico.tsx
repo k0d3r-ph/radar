@@ -614,6 +614,16 @@ export function Historico() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [modalScoreAberto, setModalScoreAberto] = useState(false);
+  const [modalDuvidasClienteAberto, setModalDuvidasClienteAberto] =
+    useState(false);
+  const [duvidasClienteModal, setDuvidasClienteModal] = useState<string[]>(
+    [],
+  );
+  const [duvidasClienteModalEmpresaId, setDuvidasClienteModalEmpresaId] =
+    useState<string | undefined>(undefined);
+  const [removendoDuvidaCliente, setRemovendoDuvidaCliente] = useState<
+    number | null
+  >(null);
   const [dashboardAberto, setDashboardAberto] = useState(false);
   const [painelIaAberto, setPainelIaAberto] = useState(false);
   const [iaClienteSelecionado, setIaClienteSelecionado] = useState("");
@@ -623,6 +633,53 @@ export function Historico() {
   const [respostasScore, setRespostasScore] = useState<ScoreFormAnswers>({
     ...INITIAL_SCORE_ANSWERS,
   });
+  const [duvidasTemasHistorico, setDuvidasTemasHistorico] = useState<
+    string[]
+  >([]);
+  const [novaDuvidaTemaHistorico, setNovaDuvidaTemaHistorico] = useState("");
+
+  function adicionarDuvidaTemaHistorico() {
+    const texto = novaDuvidaTemaHistorico.trim();
+    if (!texto) return;
+    setDuvidasTemasHistorico((prev) => [...prev, texto]);
+    setNovaDuvidaTemaHistorico("");
+  }
+
+  function removerDuvidaTemaHistorico(index: number) {
+    setDuvidasTemasHistorico((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  async function removerDuvidaCliente(index: number) {
+    if (!duvidasClienteModalEmpresaId) return;
+    const emp = empresasList.find(
+      (e) => e.id === duvidasClienteModalEmpresaId,
+    );
+    if (!emp) return;
+
+    const novaLista = duvidasClienteModal.filter((_, i) => i !== index);
+
+    setRemovendoDuvidaCliente(index);
+    try {
+      const empresaAtualizada: Empresa = {
+        ...emp,
+        duvidasTemasAnteriores: novaLista,
+        updatedAt: Date.now(),
+      };
+      await salvarEmpresas(empresaAtualizada);
+      setDuvidasClienteModal(novaLista);
+      setEmpresasList((prev) =>
+        prev.map((e) =>
+          e.id === duvidasClienteModalEmpresaId ? empresaAtualizada : e,
+        ),
+      );
+      toast.success("Dúvida removida!");
+    } catch (error) {
+      console.error("Erro ao remover dúvida do cliente:", error);
+      toast.error("Erro ao remover a dúvida.");
+    } finally {
+      setRemovendoDuvidaCliente(null);
+    }
+  }
   const [calculoScoreResult, setCalculoScoreResult] = useState<{
     score: number | null;
     tipo: "Fast" | "Safety" | "";
@@ -955,6 +1012,8 @@ export function Historico() {
     setUsarTemplate(true);
     setCalculoScoreResult(null);
     setRespostasScore({ ...INITIAL_SCORE_ANSWERS });
+    setDuvidasTemasHistorico([]);
+    setNovaDuvidaTemaHistorico("");
     setPainelAberto(true);
     setIsRevisao(false);
     setTemaForaEsteira(false);
@@ -1014,6 +1073,8 @@ export function Historico() {
     setEditandoId(o.id ?? null);
     setCalculoScoreResult(null);
     setRespostasScore({ ...INITIAL_SCORE_ANSWERS });
+    setDuvidasTemasHistorico([]);
+    setNovaDuvidaTemaHistorico("");
     setPainelAberto(true);
     setIsRevisao(o.isRevisao ?? false);
     setTemaForaEsteira(o.temaForaEsteira ?? false);
@@ -1028,6 +1089,8 @@ export function Historico() {
     setUsarTemplate(true);
     setCalculoScoreResult(null);
     setRespostasScore({ ...INITIAL_SCORE_ANSWERS });
+    setDuvidasTemasHistorico([]);
+    setNovaDuvidaTemaHistorico("");
     setIsRevisao(false);
     setTemaForaEsteira(false);
   }
@@ -1261,6 +1324,9 @@ export function Historico() {
         scoreContadoresPerda: calculoScoreResult.isNeutro
           ? undefined
           : calculoScoreResult.contadores,
+        duvidasTemasAnteriores: calculoScoreResult.isNeutro
+          ? empresaObjeto.duvidasTemasAnteriores
+          : duvidasTemasHistorico,
         updatedAt: Date.now(),
       });
 
@@ -1701,6 +1767,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   scoreContadoresPerda: calculoScoreResult.isNeutro
                     ? undefined
                     : calculoScoreResult.contadores,
+                  duvidasTemasAnteriores: calculoScoreResult.isNeutro
+                    ? empresaObjeto.duvidasTemasAnteriores
+                    : duvidasTemasHistorico,
                 }
               : {}),
             temaText: novoTemaText,
@@ -1858,6 +1927,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 scoreContadoresPerda: calculoScoreResult.isNeutro
                   ? undefined
                   : calculoScoreResult.contadores,
+                duvidasTemasAnteriores: calculoScoreResult.isNeutro
+                  ? empresaObjeto.duvidasTemasAnteriores
+                  : duvidasTemasHistorico,
               }
             : {}),
           temaText: novoTemaText,
@@ -2323,6 +2395,29 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 }}
               >
                 Ver Esteira de {empresaFiltro}
+              </button>
+            )}
+            {empresaFiltro && (
+              <button
+                className="btn-secondary"
+                onClick={() => {
+                  const emp = empresasList.find(
+                    (e) =>
+                      normalizar(e.nomeEmpresa) === normalizar(empresaFiltro),
+                  );
+                  setDuvidasClienteModal(emp?.duvidasTemasAnteriores || []);
+                  setDuvidasClienteModalEmpresaId(emp?.id);
+                  setModalDuvidasClienteAberto(true);
+                }}
+                style={{
+                  height: "46px",
+                  padding: "0 18px",
+                  borderRadius: "8px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Ver Dúvidas de {empresaFiltro}
               </button>
             )}
             <button
@@ -3486,7 +3581,13 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   <button
                     type="button"
                     className="btn-calcular-score"
-                    onClick={() => setModalScoreAberto(true)}
+                    onClick={() => {
+                      setDuvidasTemasHistorico(
+                        selectedEmpresaObj?.duvidasTemasAnteriores || [],
+                      );
+                      setNovaDuvidaTemaHistorico("");
+                      setModalScoreAberto(true);
+                    }}
                   >
                     📊 Calcular Score do Cliente
                   </button>
@@ -4206,10 +4307,18 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 <label>
                   Cliente se recorda de temas anteriores? *{" "}
                   <span className="score-hint">
-                    (Sim = +2.0 e zera perda / Não: 1ª vez cancela o bônus, a
-                    partir da 2ª = -2.0)
+                    (Sim = +2.0 sem perda pendente, ou recupera 2.0 na 1ª vez e
+                    3.0 na 2ª / Não: 1ª vez = -2.0, 2ª vez seguida = -3.0)
                   </span>
                 </label>
+                {!!selectedEmpresaObj?.scoreContadoresPerda?.recordaTemas && (
+                  <span className="score-hint" style={{ display: "block" }}>
+                    Perda salva: -
+                    {selectedEmpresaObj.scoreContadoresPerda.recordaTemas.toFixed(
+                      1,
+                    )}
+                  </span>
+                )}
                 <div className="radio-group-score">
                   <label>
                     <input
@@ -4242,6 +4351,54 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                     Não
                   </label>
                 </div>
+                {respostasScore.recordaTemas === "Não" && (
+                  <div className="hist-duvidas-temas">
+                    <label>Dúvidas do cliente sobre temas anteriores:</label>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <input
+                        type="text"
+                        value={novaDuvidaTemaHistorico}
+                        onChange={(e) =>
+                          setNovaDuvidaTemaHistorico(e.target.value)
+                        }
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            adicionarDuvidaTemaHistorico();
+                          }
+                        }}
+                        placeholder="Descreva a dúvida do cliente"
+                        style={{ flex: 1 }}
+                      />
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        onClick={adicionarDuvidaTemaHistorico}
+                      >
+                        Adicionar
+                      </button>
+                    </div>
+                    {duvidasTemasHistorico.length > 0 && (
+                      <ul className="hist-duvidas-temas-lista">
+                        {duvidasTemasHistorico.map((duvida, index) => (
+                          <li key={index}>
+                            {duvida}
+                            <button
+                              type="button"
+                              className="hist-duvida-tema-remover"
+                              onClick={() =>
+                                removerDuvidaTemaHistorico(index)
+                              }
+                              title="Remover"
+                            >
+                              ×
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Pergunta 6 */}
@@ -4532,6 +4689,54 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   Confirmar Cálculo
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {modalDuvidasClienteAberto && (
+        <div className="score-modal-overlay">
+          <div className="score-modal-card hist-duvidas-cliente-card">
+            <div className="score-modal-header">
+              <h2>Dúvidas de {empresaFiltro}</h2>
+              <button
+                className="score-modal-fechar"
+                onClick={() => setModalDuvidasClienteAberto(false)}
+                aria-label="Fechar dúvidas do cliente"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="score-modal-body">
+              {duvidasClienteModal.length === 0 ? (
+                <p className="score-hint">
+                  Nenhuma dúvida registrada para este cliente.
+                </p>
+              ) : (
+                <ul className="hist-duvidas-cliente-lista">
+                  {duvidasClienteModal.map((duvida, index) => (
+                    <li key={index} className="hist-duvidas-cliente-item">
+                      <span className="hist-duvidas-cliente-numero">
+                        {index + 1}
+                      </span>
+                      <span className="hist-duvidas-cliente-texto">
+                        {duvida}
+                      </span>
+                      <button
+                        type="button"
+                        className="hist-duvidas-cliente-remover"
+                        onClick={() => removerDuvidaCliente(index)}
+                        disabled={removendoDuvidaCliente === index}
+                        title="Excluir dúvida"
+                        aria-label="Excluir dúvida"
+                      >
+                        <X size={14} />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </div>
         </div>

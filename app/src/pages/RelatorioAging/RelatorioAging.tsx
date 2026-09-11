@@ -60,7 +60,9 @@ export const RelatorioAging: React.FC = () => {
     Promise.all([listarEmpresas(), listarOcorrencias()])
       .then(([lista, historico]) => {
         setEmpresas(
-          lista.filter((e) => e.id && !isEmpresaInterna(e) && !e.isCancelled && !e.isOngoing),
+          lista.filter(
+            (e) => e.id && !isEmpresaInterna(e) && !e.isCancelled && !e.isOngoing && !e.isSuspended,
+          ),
         );
         setOcorrencias(historico);
       })

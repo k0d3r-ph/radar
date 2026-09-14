@@ -138,6 +138,7 @@ const SOLICITACAO_OPCOES = [
   "Informações ou configurações de API",
   "Exclusão de UR gerada por aplicativo",
   "Antecipação de tema",
+  "Sugestão de desenvolvimento",
 ];
 
 const DEPARTAMENTO_CLASS: Record<string, string> = {
@@ -616,9 +617,7 @@ export function Historico() {
   const [modalScoreAberto, setModalScoreAberto] = useState(false);
   const [modalDuvidasClienteAberto, setModalDuvidasClienteAberto] =
     useState(false);
-  const [duvidasClienteModal, setDuvidasClienteModal] = useState<string[]>(
-    [],
-  );
+  const [duvidasClienteModal, setDuvidasClienteModal] = useState<string[]>([]);
   const [duvidasClienteModalEmpresaId, setDuvidasClienteModalEmpresaId] =
     useState<string | undefined>(undefined);
   const [removendoDuvidaCliente, setRemovendoDuvidaCliente] = useState<
@@ -633,9 +632,9 @@ export function Historico() {
   const [respostasScore, setRespostasScore] = useState<ScoreFormAnswers>({
     ...INITIAL_SCORE_ANSWERS,
   });
-  const [duvidasTemasHistorico, setDuvidasTemasHistorico] = useState<
-    string[]
-  >([]);
+  const [duvidasTemasHistorico, setDuvidasTemasHistorico] = useState<string[]>(
+    [],
+  );
   const [novaDuvidaTemaHistorico, setNovaDuvidaTemaHistorico] = useState("");
 
   function adicionarDuvidaTemaHistorico() {
@@ -651,9 +650,7 @@ export function Historico() {
 
   async function removerDuvidaCliente(index: number) {
     if (!duvidasClienteModalEmpresaId) return;
-    const emp = empresasList.find(
-      (e) => e.id === duvidasClienteModalEmpresaId,
-    );
+    const emp = empresasList.find((e) => e.id === duvidasClienteModalEmpresaId);
     if (!emp) return;
 
     const novaLista = duvidasClienteModal.filter((_, i) => i !== index);
@@ -4386,9 +4383,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                             <button
                               type="button"
                               className="hist-duvida-tema-remover"
-                              onClick={() =>
-                                removerDuvidaTemaHistorico(index)
-                              }
+                              onClick={() => removerDuvidaTemaHistorico(index)}
                               title="Remover"
                             >
                               ×

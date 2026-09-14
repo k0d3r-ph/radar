@@ -30,11 +30,11 @@
 
 .tipos-ocorrencia-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 24px;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 700px) {
   .tipos-ocorrencia-grid {
     grid-template-columns: 1fr;
   }
@@ -148,6 +148,25 @@
   padding: 8px 0;
 }
 
+.tipos-ocorrencia-aviso-sistema {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #9ca3af;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin: -4px 0 14px 0;
+  line-height: 1.4;
+}
+
+.tipos-ocorrencia-aviso-sistema svg {
+  flex-shrink: 0;
+  color: #fbbf24;
+}
+
 .tipos-ocorrencia-item {
   display: flex;
   align-items: center;
@@ -156,10 +175,96 @@
   border-radius: 10px;
   font-size: 14px;
   color: #e5e7eb;
+  gap: 10px;
 }
 
 .tipos-ocorrencia-item:hover {
   background: rgba(255, 255, 255, 0.03);
+}
+
+.tipos-ocorrencia-item-nome {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tipos-ocorrencia-icone-aviso {
+  color: #fbbf24;
+  flex-shrink: 0;
+}
+
+.tipos-ocorrencia-acoes {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.tipos-ocorrencia-acoes-edicao {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.tipos-ocorrencia-input-edicao {
+  flex: 1;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(99, 102, 241, 0.5);
+  background: rgba(255, 255, 255, 0.06);
+  color: #f3f4f6;
+  font-size: 14px;
+  min-width: 0;
+}
+
+.tipos-ocorrencia-input-edicao:focus {
+  outline: none;
+}
+
+.tipos-ocorrencia-btn-editar,
+.tipos-ocorrencia-btn-confirmar,
+.tipos-ocorrencia-btn-cancelar-inline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+  transition: background 0.2s ease;
+}
+
+.tipos-ocorrencia-btn-editar {
+  color: #93c5fd;
+}
+
+.tipos-ocorrencia-btn-editar:hover:not(:disabled) {
+  background: rgba(59, 130, 246, 0.12);
+}
+
+.tipos-ocorrencia-btn-confirmar {
+  color: #34d399;
+}
+
+.tipos-ocorrencia-btn-confirmar:hover:not(:disabled) {
+  background: rgba(16, 185, 129, 0.12);
+}
+
+.tipos-ocorrencia-btn-cancelar-inline {
+  color: #9ca3af;
+}
+
+.tipos-ocorrencia-btn-cancelar-inline:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.tipos-ocorrencia-btn-editar:disabled,
+.tipos-ocorrencia-btn-confirmar:disabled,
+.tipos-ocorrencia-btn-cancelar-inline:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .tipos-ocorrencia-btn-remove {

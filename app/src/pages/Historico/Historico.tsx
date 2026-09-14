@@ -28,7 +28,7 @@ import {
 } from "../../services/notificacoes";
 import type { DestinatarioGestao } from "../../services/notificacoes";
 import { resumirOcorrencias } from "../../services/ia";
-import { listarTemas } from "../../services/temasOcorrencia";
+import { listarTemas, TIPOS_PADRAO_SISTEMA } from "../../services/temasOcorrencia";
 import { generateEsteiraImage } from "../../utils/generateEsteiraImage";
 import { GestaoNotificacaoModal } from "../../components/GestaoNotificacaoModal";
 
@@ -72,18 +72,7 @@ import {
   Share2,
 } from "lucide-react";
 
-const TIPOS = [
-  "Informativa",
-  "Financeira",
-  "Comercial",
-  "Treinamento",
-  "Checkpoint",
-  "Mudança de score",
-  "Problema",
-  "Dúvida",
-  "Solicitação",
-  "Gol",
-];
+const TIPOS_PADRAO = TIPOS_PADRAO_SISTEMA;
 
 const DEPARTAMENTO = ["Treinamento", "CS", "Suporte", "Hardware", "Comercial"];
 
@@ -648,6 +637,12 @@ export function Historico() {
   const [solicitacaoOpcoes, setSolicitacaoOpcoes] = useState<string[]>(
     SOLICITACAO_OPCOES_PADRAO,
   );
+  // Lista completa de tipos de ocorrência, vinda do Firestore (coleção
+  // "temasOcorrencia", categoria "tipo"). Inclui tanto os tipos originais do
+  // sistema quanto os personalizados — todos livremente editáveis/excluíveis
+  // em /tipos-ocorrencia. TIPOS_PADRAO serve só de valor inicial (antes do
+  // primeiro carregamento) para a tela não aparecer vazia.
+  const [tipos, setTipos] = useState<string[]>(TIPOS_PADRAO);
 
   useEffect(() => {
     listarTemas("duvida")
@@ -659,6 +654,11 @@ export function Historico() {
       .then((lista) => setSolicitacaoOpcoes(lista.map((t) => t.nome)))
       .catch((error) =>
         console.error("Erro ao carregar assuntos de solicitação:", error),
+      );
+    listarTemas("tipo")
+      .then((lista) => setTipos(lista.map((t) => t.nome)))
+      .catch((error) =>
+        console.error("Erro ao carregar tipos de ocorrência:", error),
       );
   }, []);
 
@@ -1243,13 +1243,13 @@ export function Historico() {
     if (
       isTreinador &&
       !editandoId &&
-      (form.tipo === "Informativa" || form.tipo === "Treinamento") &&
+      form.tipo === "Treinamento" &&
       !calculoScoreResult &&
       !isOngoing &&
-      !(form.tipo === "Treinamento" && CanceladoOuAusente)
+      !CanceladoOuAusente
     ) {
       toast.error(
-        "O cálculo de score é obrigatório para ocorrências do tipo Informativa ou Treinamento.",
+        "O cálculo de score é obrigatório para ocorrências do tipo Treinamento.",
       );
       return;
     }
@@ -2110,45 +2110,58 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
   }
 
   const getAllowedTypes = () => {
-    if (role === "master") {
-      return [
-        "Informativa",
-        "Financeira",
-        "Comercial",
-        "Treinamento",
-        "Checkpoint",
-        "Problema",
-        "Dúvida",
-        "Solicitação",
-        "Gol",
-      ];
-    }
-    if (role === "treinador") {
-      return [
-        "Informativa",
-        "Treinamento",
-        "Checkpoint",
-        "Dúvida",
-        "Solicitação",
-        "Gol",
-      ];
-    }
-    if (role === "suporte") {
-      return ["Informativa", "Problema", "Dúvida", "Solicitação"];
-    }
-    if (role === "hardware") {
-      return ["Informativa"];
-    }
-    if (role === "comercial") {
-      return ["Comercial", "Informativa"];
-    }
-    if (role === "financeiro") {
-      return ["Financeira", "Informativa"];
-    }
-    if (role === "cs") {
-      return ["Informativa", "Financeira", "Comercial"];
-    }
-    return [];
+    const base = (() => {
+      if (role === "master") {
+        return [
+          "Informativa",
+          "Financeira",
+          "Comercial",
+          "Treinamento",
+          "Checkpoint",
+          "Problema",
+          "Dúvida",
+          "Solicitação",
+          "Gol",
+        ];
+      }
+      if (role === "treinador") {
+        return [
+          "Informativa",
+          "Treinamento",
+          "Checkpoint",
+          "Dúvida",
+          "Solicitação",
+          "Gol",
+        ];
+      }
+      if (role === "suporte") {
+        return ["Informativa", "Problema", "Dúvida", "Solicitação"];
+      }
+      if (role === "hardware") {
+        return ["Informativa"];
+      }
+      if (role === "comercial") {
+        return ["Comercial", "Informativa"];
+      }
+      if (role === "financeiro") {
+        return ["Financeira", "Informativa"];
+      }
+      if (role === "cs") {
+        return ["Informativa", "Financeira", "Comercial"];
+      }
+      return [];
+    })();
+
+    if (base.length === 0) return [];
+
+    // "tipos" reflete o que está cadastrado em /tipos-ocorrencia agora (pode
+    // ter itens renomeados/excluídos desde a curadoria acima). Mantemos só os
+    // nomes ainda existentes e acrescentamos qualquer tipo que não faça parte
+    // da lista original do sistema (novo ou renomeado) — esses ficam
+    // disponíveis para qualquer perfil que já tenha acesso ao Histórico.
+    const baseDisponivel = base.filter((t) => tipos.includes(t));
+    const extras = tipos.filter((t) => !TIPOS_PADRAO_SISTEMA.includes(t));
+    return [...baseDisponivel, ...extras];
   };
 
   const getAllowedDepartments = () => {
@@ -2306,7 +2319,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
   const tipoChartData = useMemo(() => {
     const counts: Record<string, number> = {};
-    TIPOS.forEach((t) => {
+    tipos.forEach((t) => {
       counts[t] = 0;
     });
 
@@ -2321,9 +2334,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
     return Object.entries(counts).map(([label, value]) => ({
       label,
       value,
-      color: TIPO_CORES[label] || "#94a3b8",
+      color: TIPO_CORES[label] || "#6b7280",
     }));
-  }, [filtradasSemTipo]);
+  }, [filtradasSemTipo, tipos]);
 
   const deptoChartData = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -2698,7 +2711,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             onChange={(e) => setFiltroTipo(e.target.value)}
           >
             <option value="">Todos os tipos</option>
-            {TIPOS.filter((t) => t !== "Gol" || isTreinador).map((t) => (
+            {tipos.filter((t) => t !== "Gol" || isTreinador).map((t) => (
               <option key={t} value={t}>
                 {t}
               </option>
@@ -3648,7 +3661,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
             {!editandoId &&
               isTreinador &&
-              (form.tipo === "Informativa" || form.tipo === "Treinamento") &&
+              form.tipo === "Treinamento" &&
               !isSelectedEmpresaOngoing && (
                 <div className="hist-campo score-btn-container">
                   <button

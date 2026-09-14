@@ -12,7 +12,31 @@ import { db } from "./firebase";
 
 const COLLECTION_TEMAS = "temasOcorrencia";
 
-export type CategoriaTema = "duvida" | "solicitacao";
+export type CategoriaTema = "duvida" | "solicitacao" | "tipo";
+
+// Nomes originais dos tipos de ocorrência do sistema (Informativa, Comercial
+// etc.), usados apenas para semear a coleção "temasOcorrencia" (categoria
+// "tipo") na primeira consulta. A partir daí o Firestore é a única fonte da
+// verdade: todos os tipos — inclusive esses — podem ser livremente criados,
+// renomeados ou excluídos pela tela de administração (Master).
+//
+// Atenção: alguns desses nomes acionam regras de negócio específicas no
+// Histórico por comparação exata de string (ex.: "Treinamento" exige cálculo
+// de score, "Checkpoint" exige data, "Dúvida"/"Solicitação" exigem assunto).
+// Renomear ou excluir um deles remove essa regra especial para o tipo restante
+// — ele passa a se comportar como um tipo genérico.
+export const TIPOS_PADRAO_SISTEMA = [
+  "Informativa",
+  "Financeira",
+  "Comercial",
+  "Treinamento",
+  "Checkpoint",
+  "Mudança de score",
+  "Problema",
+  "Dúvida",
+  "Solicitação",
+  "Gol",
+];
 
 export interface TemaOcorrencia {
   id: string;
@@ -82,10 +106,12 @@ const SEED_SOLICITACAO = [
 const cachePorCategoria: Record<CategoriaTema, TemaOcorrencia[] | null> = {
   duvida: null,
   solicitacao: null,
+  tipo: null,
 };
 const lastFetchPorCategoria: Record<CategoriaTema, number> = {
   duvida: 0,
   solicitacao: 0,
+  tipo: 0,
 };
 const CACHE_TTL = 30000; // 30 segundos
 
@@ -109,8 +135,15 @@ function gerarIdTema(categoria: CategoriaTema, nome: string): string {
   return `${categoria}__${slug}`;
 }
 
+const SEED_TIPO = TIPOS_PADRAO_SISTEMA;
+
 async function semearCategoria(categoria: CategoriaTema): Promise<void> {
-  const seed = categoria === "duvida" ? SEED_DUVIDA : SEED_SOLICITACAO;
+  const seed =
+    categoria === "duvida"
+      ? SEED_DUVIDA
+      : categoria === "solicitacao"
+        ? SEED_SOLICITACAO
+        : SEED_TIPO;
   await Promise.all(
     seed.map((nome) =>
       setDoc(
@@ -229,6 +262,49 @@ export async function criarTema(
     categoria,
     createdAt: Date.now(),
   });
+}
+
+export async function editarTema(
+  id: string,
+  novoNome: string,
+  categoria: CategoriaTema,
+): Promise<void> {
+  const nomeLimpo = novoNome.trim();
+  if (!nomeLimpo) return;
+
+  const existentes = await listarTemas(categoria);
+  const conflito = existentes.some(
+    (t) => t.id !== id && t.nome.toLowerCase() === nomeLimpo.toLowerCase(),
+  );
+  if (conflito) {
+    throw new Error("Já existe um item com esse nome nessa categoria.");
+  }
+
+  const atual = existentes.find((t) => t.id === id);
+  if (!atual) {
+    throw new Error("Item não encontrado.");
+  }
+
+  invalidarCacheTemas(categoria);
+  const novoId = gerarIdTema(categoria, nomeLimpo);
+
+  if (novoId === id) {
+    await setDoc(
+      doc(db, COLLECTION_TEMAS, id),
+      { nome: nomeLimpo, categoria, createdAt: atual.createdAt },
+      { merge: true },
+    );
+    return;
+  }
+
+  // O ID é determinístico a partir do nome, então renomear implica criar um
+  // novo documento com o novo ID e remover o antigo.
+  await setDoc(doc(db, COLLECTION_TEMAS, novoId), {
+    nome: nomeLimpo,
+    categoria,
+    createdAt: atual.createdAt,
+  });
+  await deleteDoc(doc(db, COLLECTION_TEMAS, id));
 }
 
 export async function removerTema(

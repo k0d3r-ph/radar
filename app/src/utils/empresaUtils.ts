@@ -95,7 +95,9 @@ export function obterInfoTipoOcorrencia(o: Ocorrencia): { label: string; classNa
 
   return {
     label: o.tipo === "Gol" ? "⚽ Gol" : o.tipo,
-    className: classes[o.tipo] || "",
+    // Tipos personalizados (criados em /tipos-ocorrencia) não têm classe de
+    // cor própria e caem sempre na mesma tag cinza usada por "Informativa".
+    className: classes[o.tipo] || "tipo--informativa",
   };
 }
 

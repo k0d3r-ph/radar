@@ -12,6 +12,7 @@ import { Relatorios } from "./pages/Relatorios/Relatorios";
 import { useTheme } from "./context/ThemeContext";
 import { WhatsAppSettings } from "./pages/WhatsApp/WhatsAppSettings";
 import { AvaliacaoTreinamento } from "./pages/AvaliacaoTreinamento/AvaliacaoTreinamento";
+import { TiposOcorrencia } from "./pages/TiposOcorrencia/TiposOcorrencia";
 import ChecklistTarefas from "./components/ChecklistTarefas";
 import { useVerificaVersao } from "./utils/useVerificaVersao";
 
@@ -114,6 +115,14 @@ function AppRoutes() {
               </NavLink>
             </>
           )}
+          {role === "master" && (
+            <NavLink
+              to="/tipos-ocorrencia"
+              className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
+            >
+              Tipos de Ocorrência
+            </NavLink>
+          )}
           <NavLink
             to="/relatorios"
             className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
@@ -179,6 +188,12 @@ function AppRoutes() {
           <Route path="/avaliacao-treinamento" element={<AvaliacaoTreinamento />} />
         ) : (
           <Route path="/avaliacao-treinamento" element={<Navigate to={role === "painel" ? "/relatorios" : "/home"} replace />} />
+        )}
+
+        {role === "master" ? (
+          <Route path="/tipos-ocorrencia" element={<TiposOcorrencia />} />
+        ) : (
+          <Route path="/tipos-ocorrencia" element={<Navigate to={role === "painel" ? "/relatorios" : "/home"} replace />} />
         )}
 
         <Route path="/relatorio-score" element={<Navigate to="/relatorios" replace />} />

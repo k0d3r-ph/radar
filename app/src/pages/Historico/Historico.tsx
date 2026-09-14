@@ -28,6 +28,7 @@ import {
 } from "../../services/notificacoes";
 import type { DestinatarioGestao } from "../../services/notificacoes";
 import { resumirOcorrencias } from "../../services/ia";
+import { listarTemas } from "../../services/temasOcorrencia";
 import { generateEsteiraImage } from "../../utils/generateEsteiraImage";
 import { GestaoNotificacaoModal } from "../../components/GestaoNotificacaoModal";
 
@@ -86,7 +87,9 @@ const TIPOS = [
 
 const DEPARTAMENTO = ["Treinamento", "CS", "Suporte", "Hardware", "Comercial"];
 
-const DUVIDA_OPCOES = [
+// Listas padrão usadas apenas como fallback antes do primeiro carregamento
+// do Firestore (coleção "temasOcorrencia", gerenciada em /tipos-ocorrencia).
+const DUVIDA_OPCOES_PADRAO = [
   "Acesso a plataforma",
   "Configurar/apontar câmera",
   "Apontar rastreador tradicional (QS)",
@@ -129,7 +132,7 @@ const DUVIDA_OPCOES = [
   "Gestão de Multas",
 ];
 
-const SOLICITACAO_OPCOES = [
+const SOLICITACAO_OPCOES_PADRAO = [
   "Mascaramento da URL",
   "Liberação/Exclusão de Gateway",
   "Material de apoio",
@@ -639,6 +642,25 @@ export function Historico() {
     [],
   );
   const [novaDuvidaTemaHistorico, setNovaDuvidaTemaHistorico] = useState("");
+  const [duvidaOpcoes, setDuvidaOpcoes] = useState<string[]>(
+    DUVIDA_OPCOES_PADRAO,
+  );
+  const [solicitacaoOpcoes, setSolicitacaoOpcoes] = useState<string[]>(
+    SOLICITACAO_OPCOES_PADRAO,
+  );
+
+  useEffect(() => {
+    listarTemas("duvida")
+      .then((lista) => setDuvidaOpcoes(lista.map((t) => t.nome)))
+      .catch((error) =>
+        console.error("Erro ao carregar assuntos de dúvida:", error),
+      );
+    listarTemas("solicitacao")
+      .then((lista) => setSolicitacaoOpcoes(lista.map((t) => t.nome)))
+      .catch((error) =>
+        console.error("Erro ao carregar assuntos de solicitação:", error),
+      );
+  }, []);
 
   function adicionarDuvidaTemaHistorico() {
     const texto = novaDuvidaTemaHistorico.trim();
@@ -2326,7 +2348,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
   const duvidaTemasChartData = useMemo(() => {
     const counts: Record<string, number> = {};
-    DUVIDA_OPCOES.forEach((op) => {
+    duvidaOpcoes.forEach((op) => {
       counts[op] = 0;
     });
 
@@ -2343,7 +2365,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
     return Object.entries(counts)
       .map(([label, value]) => ({ label, value }))
       .sort((a, b) => b.value - a.value);
-  }, [filtradasSemTipo]);
+  }, [filtradasSemTipo, duvidaOpcoes]);
 
   const topClientesDuvidasChartData = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -3691,7 +3713,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   onChange={(e) => setBuscaAssunto(e.target.value)}
                 />
                 <div className="temas-lista">
-                  {DUVIDA_OPCOES.filter((opcao) =>
+                  {duvidaOpcoes.filter((opcao) =>
                     opcao
                       .toLowerCase()
                       .includes(buscaAssunto.trim().toLowerCase()),
@@ -3722,7 +3744,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               <div className="hist-campo">
                 <label>Assunto da solicitação</label>
                 <div className="temas-lista">
-                  {SOLICITACAO_OPCOES.map((opcao) => (
+                  {solicitacaoOpcoes.map((opcao) => (
                     <label key={opcao} className="tema-opcao">
                       <input
                         type="checkbox"

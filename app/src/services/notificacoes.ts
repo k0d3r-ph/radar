@@ -116,7 +116,7 @@ export function aplicarNomeDestinatario(texto: string, nome: string): string {
 export function montarMensagemAlertaGestao(empresa: Empresa, ocorrenciaId?: string): string {
   const csLinha = empresa.csResponsavel ? `\nCS Responsável: *${empresa.csResponsavel}*` : "";
   const linkLinha = ocorrenciaId ? `\n${construirUrlOcorrencia(ocorrenciaId)}` : "";
-  return `⚠️ *ALERTA* gerado para o cliente *${empresa.nomeEmpresa}*!${csLinha}${linkLinha}\n\nAcesse o sistema para mais detalhes.`;
+  return `⚠️ *ALERTA* gerado para o cliente *${empresa.nomeEmpresa}*!${csLinha}${linkLinha}\n\nAcesse o Radar para mais detalhes.`;
 }
 
 /**
@@ -127,10 +127,10 @@ export function montarMensagemAlertaGestao(empresa: Empresa, ocorrenciaId?: stri
 export function montarMensagemConclusaoEsteiraGestao(empresa: Empresa, ocorrenciaId?: string): string {
   const csLinha = empresa.csResponsavel ? `\nCS Responsável: *${empresa.csResponsavel}*` : "";
   const linkLinha = ocorrenciaId ? `\n${construirUrlOcorrencia(ocorrenciaId)}` : "";
-  return `🎉 O cliente *${empresa.nomeEmpresa}* concluiu a esteira de onboarding!${csLinha}${linkLinha}\n\nAcesse o sistema para mais detalhes.`;
+  return `🎉 O cliente *${empresa.nomeEmpresa}* concluiu a esteira de onboarding!${csLinha}${linkLinha}\n\nAcesse o Radar para mais detalhes.`;
 }
 
 export function montarMensagemSuspensaoGestao(empresa: Empresa): string {
   const csLinha = empresa.csResponsavel ? `\nCS Responsável: *${empresa.csResponsavel}*` : "";
-  return `⏸️ O cliente *${empresa.nomeEmpresa}* foi *suspenso temporariamente*!${csLinha}\n\nAcesse o sistema para mais detalhes.`;
+  return `⏸️ O cliente *${empresa.nomeEmpresa}* foi *suspenso temporariamente*!${csLinha}\n\nAcesse o Radar para mais detalhes.`;
 }

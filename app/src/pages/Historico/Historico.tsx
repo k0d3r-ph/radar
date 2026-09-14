@@ -620,6 +620,9 @@ export function Historico() {
   const [duvidasClienteModal, setDuvidasClienteModal] = useState<string[]>([]);
   const [duvidasClienteModalEmpresaId, setDuvidasClienteModalEmpresaId] =
     useState<string | undefined>(undefined);
+  const [rankingDuvidasCliente, setRankingDuvidasCliente] = useState<
+    { tema: string; contagem: number; origemManual: boolean }[]
+  >([]);
   const [removendoDuvidaCliente, setRemovendoDuvidaCliente] = useState<
     number | null
   >(null);
@@ -648,6 +651,47 @@ export function Historico() {
     setDuvidasTemasHistorico((prev) => prev.filter((_, i) => i !== index));
   }
 
+  // Rankeia (do maior pro menor) os temas de dúvida do cliente, somando as dúvidas
+  // manuais registradas no questionário de score com os temas marcados nas ocorrências
+  // de Dúvida abertas pelo Suporte/Treinamento para essa empresa.
+  function montarRankingDuvidas(
+    nomeEmpresa: string,
+    duvidasManuais: string[],
+  ): { tema: string; contagem: number; origemManual: boolean }[] {
+    const contagens: Record<string, number> = {};
+    const temasComOrigemManual = new Set<string>();
+
+    duvidasManuais.forEach((texto) => {
+      const chave = texto.trim();
+      if (!chave) return;
+      contagens[chave] = (contagens[chave] || 0) + 1;
+      temasComOrigemManual.add(chave);
+    });
+
+    ocorrencias
+      .filter(
+        (o) =>
+          o.tipo === "Dúvida" &&
+          (o.departamento === "Suporte" || o.departamento === "Treinamento") &&
+          normalizar(o.empresa) === normalizar(nomeEmpresa),
+      )
+      .forEach((o) => {
+        (o.temaOcorrencia ?? []).forEach((tema) => {
+          const chave = tema.trim();
+          if (!chave) return;
+          contagens[chave] = (contagens[chave] || 0) + 1;
+        });
+      });
+
+    return Object.entries(contagens)
+      .map(([tema, contagem]) => ({
+        tema,
+        contagem,
+        origemManual: temasComOrigemManual.has(tema),
+      }))
+      .sort((a, b) => b.contagem - a.contagem);
+  }
+
   async function removerDuvidaCliente(index: number) {
     if (!duvidasClienteModalEmpresaId) return;
     const emp = empresasList.find((e) => e.id === duvidasClienteModalEmpresaId);
@@ -664,6 +708,9 @@ export function Historico() {
       };
       await salvarEmpresas(empresaAtualizada);
       setDuvidasClienteModal(novaLista);
+      setRankingDuvidasCliente(
+        montarRankingDuvidas(emp.nomeEmpresa, novaLista),
+      );
       setEmpresasList((prev) =>
         prev.map((e) =>
           e.id === duvidasClienteModalEmpresaId ? empresaAtualizada : e,
@@ -2402,8 +2449,15 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                     (e) =>
                       normalizar(e.nomeEmpresa) === normalizar(empresaFiltro),
                   );
-                  setDuvidasClienteModal(emp?.duvidasTemasAnteriores || []);
+                  const duvidasManuais = emp?.duvidasTemasAnteriores || [];
+                  setDuvidasClienteModal(duvidasManuais);
                   setDuvidasClienteModalEmpresaId(emp?.id);
+                  setRankingDuvidasCliente(
+                    montarRankingDuvidas(
+                      emp?.nomeEmpresa || empresaFiltro,
+                      duvidasManuais,
+                    ),
+                  );
                   setModalDuvidasClienteAberto(true);
                 }}
                 style={{
@@ -4704,32 +4758,41 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             </div>
 
             <div className="score-modal-body">
-              {duvidasClienteModal.length === 0 ? (
+              {rankingDuvidasCliente.length === 0 ? (
                 <p className="score-hint">
                   Nenhuma dúvida registrada para este cliente.
                 </p>
               ) : (
                 <ul className="hist-duvidas-cliente-lista">
-                  {duvidasClienteModal.map((duvida, index) => (
-                    <li key={index} className="hist-duvidas-cliente-item">
-                      <span className="hist-duvidas-cliente-numero">
-                        {index + 1}
-                      </span>
-                      <span className="hist-duvidas-cliente-texto">
-                        {duvida}
-                      </span>
-                      <button
-                        type="button"
-                        className="hist-duvidas-cliente-remover"
-                        onClick={() => removerDuvidaCliente(index)}
-                        disabled={removendoDuvidaCliente === index}
-                        title="Excluir dúvida"
-                        aria-label="Excluir dúvida"
-                      >
-                        <X size={14} />
-                      </button>
-                    </li>
-                  ))}
+                  {rankingDuvidasCliente.map(({ tema, contagem, origemManual }) => {
+                    const indexManual = origemManual
+                      ? duvidasClienteModal.findIndex(
+                          (d) => d.trim() === tema,
+                        )
+                      : -1;
+                    return (
+                      <li key={tema} className="hist-duvidas-cliente-item">
+                        <span className="hist-duvidas-cliente-texto">
+                          {tema}
+                        </span>
+                        <span className="hist-duvidas-cliente-contagem">
+                          {contagem}
+                        </span>
+                        {indexManual !== -1 && (
+                          <button
+                            type="button"
+                            className="hist-duvidas-cliente-remover"
+                            onClick={() => removerDuvidaCliente(indexManual)}
+                            disabled={removendoDuvidaCliente === indexManual}
+                            title="Excluir dúvida manual registrada para este tema"
+                            aria-label="Excluir dúvida manual"
+                          >
+                            <X size={14} />
+                          </button>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </div>

@@ -178,11 +178,6 @@ body.dark-theme .hist-duvidas-cliente-texto {
   color: #f1f5f9 !important;
 }
 
-body.dark-theme .hist-duvidas-cliente-numero {
-  background: rgba(99, 102, 241, 0.25) !important;
-  color: #c7d2fe !important;
-}
-
 body.dark-theme .hist-duvidas-cliente-remover {
   background: rgba(239, 68, 68, 0.12) !important;
   border-color: rgba(239, 68, 68, 0.35) !important;
@@ -191,6 +186,11 @@ body.dark-theme .hist-duvidas-cliente-remover {
 
 body.dark-theme .hist-duvidas-cliente-remover:hover {
   background: rgba(239, 68, 68, 0.2) !important;
+}
+
+body.dark-theme .hist-duvidas-cliente-contagem {
+  background: rgba(99, 102, 241, 0.25) !important;
+  color: #c7d2fe !important;
 }
 
 body.dark-theme .score-pergunta label,
@@ -1128,6 +1128,11 @@ body.light-theme .hist-duvidas-cliente-item {
 
 body.light-theme .hist-duvidas-cliente-texto {
   color: #1e293b !important;
+}
+
+body.light-theme .hist-duvidas-cliente-contagem {
+  background: #eef2ff !important;
+  color: #4338ca !important;
 }
 
 body.light-theme .checkbox-label-score,

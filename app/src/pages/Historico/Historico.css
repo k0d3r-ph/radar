@@ -1563,26 +1563,12 @@ body.light-theme .tema-opcao:hover {
 
 .hist-duvidas-cliente-item {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
   padding: 10px 12px;
-}
-
-.hist-duvidas-cliente-numero {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 999px;
-  background: #e0e7ff;
-  color: #4338ca;
-  font-size: 0.72rem;
-  font-weight: 700;
 }
 
 .hist-duvidas-cliente-texto {
@@ -1615,6 +1601,21 @@ body.light-theme .tema-opcao:hover {
 .hist-duvidas-cliente-remover:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.hist-duvidas-cliente-contagem {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #4338ca;
+  font-size: 0.78rem;
+  font-weight: 700;
 }
 
 .score-deducoes-ativas {

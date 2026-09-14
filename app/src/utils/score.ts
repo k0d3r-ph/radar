@@ -16,11 +16,11 @@ export interface ScoreFormAnswers {
 }
 
 /**
- * Perguntas cuja perda é escalonada: a contribuição ao score é `ganhoSim` menos
- * `valorPorMarcacao * marcações seguidas` (desde o último "Sim"), até o teto de
- * `maxMarcacoes` marcações. Ou seja, a 1ª marcação de "Não" só cancela o bônus do
- * "Sim" (contribuição 0); a partir da 2ª a pergunta passa a puxar o score para
- * baixo do neutro. Marcar "Sim" volta ao ganho cheio e zera o contador.
+ * Perguntas cuja perda é escalonada: cada marcação seguida de "Não" (desde o
+ * último "Sim") já pune `valorPorMarcacao`, acumulando até o teto de
+ * `maxMarcacoes * valorPorMarcacao`. Ou seja, a 1ª marcação de "Não" já custa
+ * `valorPorMarcacao`; a 2ª custa mais `valorPorMarcacao`, até o teto. Marcar
+ * "Sim" dá o ganho cheio (`ganhoSim`) e zera o contador de perdas.
  */
 const PERGUNTAS_PERDA_ESCALONADA = {
   facilContato: { ganhoSim: 0.5, valorPorMarcacao: 0.5, maxMarcacoes: 2 },
@@ -42,43 +42,25 @@ const RECORDA_TEMAS_PERDA_MAX =
  * Calcula a contribuição ao score da pergunta "Cliente se recorda de temas anteriores?"
  * e a nova perda acumulada a persistir em {@link ContadorPerdasScore.recordaTemas}.
  *
- * O score é recalculado do zero a cada cálculo (não é um valor incremental persistido),
- * então a contribuição desta pergunta precisa ser o valor líquido
- * `{@link RECORDA_TEMAS_GANHO_SIM} - perda pendente`, não "quanto foi recuperado" — é essa
- * subtração que faz a mudança de resposta refletir como delta correto no score total.
- *
- * A perda acumulada anda em degraus: 0 → {@link RECORDA_TEMAS_PERDA_NIVEL_1} (1ª marcação
- * de "Não", cancelando o bônus do "Sim") → {@link RECORDA_TEMAS_PERDA_MAX} (2ª marcação
- * seguida). "Sim" desfaz os degraus na mesma ordem em que foram criados: a 1ª marcação de
- * "Sim" recupera os {@link RECORDA_TEMAS_PERDA_NIVEL_1} pontos do 1º degrau (mesmo partindo
- * do teto, passando por um estado intermediário de perda {@link RECORDA_TEMAS_PERDA_NIVEL_2}),
- * e a 2ª recupera os {@link RECORDA_TEMAS_PERDA_NIVEL_2} pontos do 2º degrau, voltando a 0 (e
- * a contribuição ao bônus cheio). Marcar "Não" com o degrau 1 já recuperado (perda =
- * {@link RECORDA_TEMAS_PERDA_NIVEL_2}) reaplica o 1º degrau, voltando ao teto.
+ * "Não" já pune desde a 1ª marcação seguida: {@link RECORDA_TEMAS_PERDA_NIVEL_1} na 1ª,
+ * acumulando até o teto {@link RECORDA_TEMAS_PERDA_MAX} na 2ª. "Sim" dá o ganho cheio
+ * {@link RECORDA_TEMAS_GANHO_SIM} e zera o contador de perdas.
  */
 function calcularRecordaTemas(
   resposta: RespostaSimNao,
   perdaAnterior: number,
 ): { contribuicao: number; perda: number } {
-  let perda: number;
-
   if (resposta === "Sim") {
-    if (perdaAnterior >= RECORDA_TEMAS_PERDA_MAX) {
-      perda = RECORDA_TEMAS_PERDA_NIVEL_2;
-    } else {
-      perda = 0;
-    }
-  } else if (resposta === "Não") {
-    if (perdaAnterior <= 0) {
-      perda = RECORDA_TEMAS_PERDA_NIVEL_1;
-    } else {
-      perda = RECORDA_TEMAS_PERDA_MAX;
-    }
-  } else {
-    return { contribuicao: 0, perda: perdaAnterior };
+    return { contribuicao: RECORDA_TEMAS_GANHO_SIM, perda: 0 };
   }
 
-  return { contribuicao: RECORDA_TEMAS_GANHO_SIM - perda, perda };
+  if (resposta === "Não") {
+    const perda =
+      perdaAnterior <= 0 ? RECORDA_TEMAS_PERDA_NIVEL_1 : RECORDA_TEMAS_PERDA_MAX;
+    return { contribuicao: -perda, perda };
+  }
+
+  return { contribuicao: 0, perda: perdaAnterior };
 }
 
 /**
@@ -104,9 +86,8 @@ export function calcularPontuacaoScore(
       } else if (resposta === "Não") {
         const marcacoes = Math.min((contadoresAnteriores?.[chave] || 0) + 1, config.maxMarcacoes);
         contadores[chave] = marcacoes;
-        // A 1ª marcação apenas cancela o bônus do "Sim" (contribuição 0); só a partir da
-        // 2ª a pergunta passa a puxar o score para baixo do neutro.
-        score += config.ganhoSim - config.valorPorMarcacao * marcacoes;
+        // Já pune desde a 1ª marcação, acumulando até o teto de maxMarcacoes.
+        score -= config.valorPorMarcacao * marcacoes;
       } else {
         contadores[chave] = contadoresAnteriores?.[chave] || 0;
       }

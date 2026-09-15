@@ -720,92 +720,92 @@ export default function Home() {
     return empresas
       .filter((empresa) => !isEmpresaInterna(empresa))
       .map((empresa) => {
-      const ultimoTreinamento = obterUltimoTreinamento(
-        historico,
-        empresa.nomeEmpresa,
-      );
+        const ultimoTreinamento = obterUltimoTreinamento(
+          historico,
+          empresa.nomeEmpresa,
+        );
 
-      const dataBase =
-        ultimoTreinamento?.dataOcorrencia || ultimoTreinamento?.createdAt;
+        const dataBase =
+          ultimoTreinamento?.dataOcorrencia || ultimoTreinamento?.createdAt;
 
-      const tme = calcularTME(dataBase);
+        const tme = calcularTME(dataBase);
 
-      const totalFases = calcularTotalFases(empresa.temaText);
+        const totalFases = calcularTotalFases(empresa.temaText);
 
-      const progresso = calcularProgressoPorFases(
-        empresa.currentPhase,
-        totalFases,
-      );
+        const progresso = calcularProgressoPorFases(
+          empresa.currentPhase,
+          totalFases,
+        );
 
-      // Encontra a ocorrência mais recente da empresa que define ou resolve um alerta.
-      // Ordena por `createdAt` (momento em que foi registrada) e não por `dataOcorrencia`
-      // (data agendada), pois a data agendada do alerta original pode ser futura e fazer
-      // com que ele apareça como mais recente do que a resolução.
-      const ocsAlertaEmpresa = historico.filter(
-        (o) =>
-          o.empresa.trim().toLowerCase() ===
+        // Encontra a ocorrência mais recente da empresa que define ou resolve um alerta.
+        // Ordena por `createdAt` (momento em que foi registrada) e não por `dataOcorrencia`
+        // (data agendada), pois a data agendada do alerta original pode ser futura e fazer
+        // com que ele apareça como mais recente do que a resolução.
+        const ocsAlertaEmpresa = historico.filter(
+          (o) =>
+            o.empresa.trim().toLowerCase() ===
             empresa.nomeEmpresa.trim().toLowerCase() &&
-          (o.alerta === true || o.retirarAlerta === true),
-      );
+            (o.alerta === true || o.retirarAlerta === true),
+        );
 
-      // Última ocorrência de alerta (por createdAt)
-      const ultimoAlerta = ocsAlertaEmpresa
-        .filter((o) => o.alerta === true)
-        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0];
+        // Última ocorrência de alerta (por createdAt)
+        const ultimoAlerta = ocsAlertaEmpresa
+          .filter((o) => o.alerta === true)
+          .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0];
 
-      // Última resolução de alerta (por createdAt)
-      const ultimaResolucao = ocsAlertaEmpresa
-        .filter((o) => o.retirarAlerta === true)
-        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0];
+        // Última resolução de alerta (por createdAt)
+        const ultimaResolucao = ocsAlertaEmpresa
+          .filter((o) => o.retirarAlerta === true)
+          .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0];
 
-      let temAlerta = false;
-      let ocorrenciaAlertaId = undefined;
+        let temAlerta = false;
+        let ocorrenciaAlertaId = undefined;
 
-      if (ultimoAlerta) {
-        const tsAlerta = ultimoAlerta.createdAt || 0;
-        const tsResolucao = ultimaResolucao?.createdAt || 0;
-        // O alerta está ativo somente se não houver resolução posterior
-        if (tsResolucao > tsAlerta) {
+        if (ultimoAlerta) {
+          const tsAlerta = ultimoAlerta.createdAt || 0;
+          const tsResolucao = ultimaResolucao?.createdAt || 0;
+          // O alerta está ativo somente se não houver resolução posterior
+          if (tsResolucao > tsAlerta) {
+            temAlerta = false;
+          } else {
+            temAlerta = true;
+            ocorrenciaAlertaId = ultimoAlerta.id;
+          }
+        } else if (ultimaResolucao) {
+          // Só existe resolução, sem alerta registrado → não está em alerta
           temAlerta = false;
         } else {
-          temAlerta = true;
-          ocorrenciaAlertaId = ultimoAlerta.id;
+          // Nenhuma ocorrência de alerta/resolução: usa a flag salva na empresa
+          temAlerta = !!empresa.alerta;
         }
-      } else if (ultimaResolucao) {
-        // Só existe resolução, sem alerta registrado → não está em alerta
-        temAlerta = false;
-      } else {
-        // Nenhuma ocorrência de alerta/resolução: usa a flag salva na empresa
-        temAlerta = !!empresa.alerta;
-      }
 
-      const farol = calcularFarol({
-        progresso,
-        tme,
-        alerta: temAlerta,
-        dataFinalizacao: empresa.dataFinalizacao,
-        dataFollowUpFinal: empresa.dataFollowUpFinal,
-      });
-
-      return {
-        ...empresa,
-        alerta: temAlerta,
-        ocorrenciaAlertaId: ocorrenciaAlertaId,
-        tme,
-        progresso,
-        farol,
-        dias: calcularDiasNaEsteira(
-          empresa.dataEntrada,
+        const farol = calcularFarol({
           progresso,
-          dataBase,
-          empresa.dataFinalizacao,
-          empresa.isSuspended,
-          empresa.dataSuspensao,
-          empresa.diasSuspensoAcumulado,
-          calcularDiasCongeladosPorCheckpoint(historico, empresa.nomeEmpresa),
-        ),
-      };
-    });
+          tme,
+          alerta: temAlerta,
+          dataFinalizacao: empresa.dataFinalizacao,
+          dataFollowUpFinal: empresa.dataFollowUpFinal,
+        });
+
+        return {
+          ...empresa,
+          alerta: temAlerta,
+          ocorrenciaAlertaId: ocorrenciaAlertaId,
+          tme,
+          progresso,
+          farol,
+          dias: calcularDiasNaEsteira(
+            empresa.dataEntrada,
+            progresso,
+            dataBase,
+            empresa.dataFinalizacao,
+            empresa.isSuspended,
+            empresa.dataSuspensao,
+            empresa.diasSuspensoAcumulado,
+            calcularDiasCongeladosPorCheckpoint(historico, empresa.nomeEmpresa),
+          ),
+        };
+      });
   }, [empresas, historico]);
 
   const dadosAtivos = useMemo(() => {
@@ -1378,25 +1378,25 @@ export default function Home() {
           filtroCardAlerta ||
           ordenacaoContrato ||
           ordenacaoScore) && (
-          <button
-            onClick={() => {
-              setFiltroCliente("");
-              setFiltroResponsavel("");
-              setFiltroCs("");
-              setFiltroComercial("");
-              setFiltroProgresso("");
-              setFiltroProduto("");
-              setFiltroCardStatus("");
-              setFiltroCardTipo("");
-              setFiltroCardAlerta("");
-              setOrdenacaoContrato("");
-              setOrdenacaoScore("");
-              setOrdenacaoPrincipal("");
-            }}
-          >
-            Limpar filtros
-          </button>
-        )}
+            <button
+              onClick={() => {
+                setFiltroCliente("");
+                setFiltroResponsavel("");
+                setFiltroCs("");
+                setFiltroComercial("");
+                setFiltroProgresso("");
+                setFiltroProduto("");
+                setFiltroCardStatus("");
+                setFiltroCardTipo("");
+                setFiltroCardAlerta("");
+                setOrdenacaoContrato("");
+                setOrdenacaoScore("");
+                setOrdenacaoPrincipal("");
+              }}
+            >
+              Limpar filtros
+            </button>
+          )}
       </div>
 
       {/* Tabela de Clientes Ativos */}
@@ -1564,11 +1564,11 @@ export default function Home() {
                     </td>
                     <td style={{ textAlign: "right", fontWeight: 600 }}>
                       {empresa.valorContrato !== undefined &&
-                      empresa.valorContrato !== null
+                        empresa.valorContrato !== null
                         ? new Intl.NumberFormat("pt-BR", {
-                            style: "currency",
-                            currency: "BRL",
-                          }).format(empresa.valorContrato)
+                          style: "currency",
+                          currency: "BRL",
+                        }).format(empresa.valorContrato)
                         : "—"}
                     </td>
                   </tr>
@@ -1694,11 +1694,11 @@ export default function Home() {
                     </td>
                     <td style={{ textAlign: "right", fontWeight: 600 }}>
                       {empresa.valorContrato !== undefined &&
-                      empresa.valorContrato !== null
+                        empresa.valorContrato !== null
                         ? new Intl.NumberFormat("pt-BR", {
-                            style: "currency",
-                            currency: "BRL",
-                          }).format(empresa.valorContrato)
+                          style: "currency",
+                          currency: "BRL",
+                        }).format(empresa.valorContrato)
                         : "—"}
                     </td>
                   </tr>
@@ -1829,11 +1829,11 @@ export default function Home() {
                     </td>
                     <td style={{ textAlign: "right", fontWeight: 600 }}>
                       {empresa.valorContrato !== undefined &&
-                      empresa.valorContrato !== null
+                        empresa.valorContrato !== null
                         ? new Intl.NumberFormat("pt-BR", {
-                            style: "currency",
-                            currency: "BRL",
-                          }).format(empresa.valorContrato)
+                          style: "currency",
+                          currency: "BRL",
+                        }).format(empresa.valorContrato)
                         : "—"}
                     </td>
                   </tr>
@@ -1927,11 +1927,11 @@ export default function Home() {
                     </td>
                     <td style={{ textAlign: "right", fontWeight: 600 }}>
                       {empresa.valorContrato !== undefined &&
-                      empresa.valorContrato !== null
+                        empresa.valorContrato !== null
                         ? new Intl.NumberFormat("pt-BR", {
-                            style: "currency",
-                            currency: "BRL",
-                          }).format(empresa.valorContrato)
+                          style: "currency",
+                          currency: "BRL",
+                        }).format(empresa.valorContrato)
                         : "—"}
                     </td>
                   </tr>
@@ -2046,15 +2046,15 @@ export default function Home() {
                   {(() => {
                     const contatos =
                       clienteSelecionado.contatos &&
-                      clienteSelecionado.contatos.length > 0
+                        clienteSelecionado.contatos.length > 0
                         ? clienteSelecionado.contatos
                         : clienteSelecionado.contato
                           ? [
-                              {
-                                nome: clienteSelecionado.contato,
-                                telefone: clienteSelecionado.telefone || "",
-                              },
-                            ]
+                            {
+                              nome: clienteSelecionado.contato,
+                              telefone: clienteSelecionado.telefone || "",
+                            },
+                          ]
                           : [];
 
                     if (contatos.length === 0) return "-";
@@ -2078,11 +2078,11 @@ export default function Home() {
                 <span className="info-label">Valor do Contrato</span>
                 <span className="info-value">
                   {clienteSelecionado.valorContrato !== undefined &&
-                  clienteSelecionado.valorContrato !== null
+                    clienteSelecionado.valorContrato !== null
                     ? new Intl.NumberFormat("pt-BR", {
-                        style: "currency",
-                        currency: "BRL",
-                      }).format(clienteSelecionado.valorContrato)
+                      style: "currency",
+                      currency: "BRL",
+                    }).format(clienteSelecionado.valorContrato)
                     : "—"}
                 </span>
               </div>
@@ -2159,7 +2159,7 @@ export default function Home() {
                   style={{ display: "flex", alignItems: "center", gap: "6px" }}
                 >
                   {clienteSelecionado.score !== undefined &&
-                  clienteSelecionado.score !== null ? (
+                    clienteSelecionado.score !== null ? (
                     <span
                       style={{
                         fontWeight: "bold",
@@ -2214,18 +2214,18 @@ export default function Home() {
                   <>
                     {(progressoSel >= 100 ||
                       clienteSelecionado.dataFinalizacao) && (
-                      <div className="info-item">
-                        <span
-                          className="info-label"
-                          style={{ fontSize: "0.68rem" }}
-                        >
-                          Finalização da Esteira
-                        </span>
-                        <span className="info-value">
-                          {formatarData(clienteSelecionado.dataFinalizacao)}
-                        </span>
-                      </div>
-                    )}
+                        <div className="info-item">
+                          <span
+                            className="info-label"
+                            style={{ fontSize: "0.68rem" }}
+                          >
+                            Finalização da Esteira
+                          </span>
+                          <span className="info-value">
+                            {formatarData(clienteSelecionado.dataFinalizacao)}
+                          </span>
+                        </div>
+                      )}
                     {clienteSelecionado.dataFollowUpFinal && (
                       <div className="info-item">
                         <span
@@ -2699,27 +2699,6 @@ export default function Home() {
                     }
                   />
                   Cliente Ongoing 🔄
-                </label>
-                <label
-                  className="checkbox-label"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    cursor: "pointer",
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={clienteForm.isSuspended ?? false}
-                    onChange={(e) =>
-                      setClienteForm({
-                        ...clienteForm,
-                        isSuspended: e.target.checked,
-                      })
-                    }
-                  />
-                  Suspenso Temporariamente ⏸️
                 </label>
                 <label
                   className="checkbox-label"
@@ -3314,9 +3293,9 @@ export default function Home() {
                   );
                   const deducaoAtiva = clienteSelecionado
                     ? obterAjustesAtivos(clienteSelecionado).reduce(
-                        (soma, a) => soma + a.valor,
-                        0,
-                      )
+                      (soma, a) => soma + a.valor,
+                      0,
+                    )
                     : 0;
                   const totalComDeducao = res.score - deducaoAtiva;
                   return (

@@ -23,6 +23,7 @@ import {
   obterDestinatariosGestao,
   montarMensagemAlertaGestao,
   montarMensagemConclusaoEsteiraGestao,
+  montarMensagemSuspensaoGestao,
   aplicarNomeDestinatario,
   PLACEHOLDER_NOME,
 } from "../../services/notificacoes";
@@ -73,6 +74,11 @@ import {
 } from "lucide-react";
 
 const TIPOS_PADRAO = TIPOS_PADRAO_SISTEMA;
+
+/** Valores especiais do filtro "Tipo", que não correspondem a um `tipo` de ocorrência
+ * e sim ao status de alerta/suspensão sincronizado na empresa a partir da ocorrência. */
+const FILTRO_ALERTAS = "__alertas__";
+const FILTRO_SUSPENSOES = "__suspensoes__";
 
 const DEPARTAMENTO = ["Treinamento", "CS", "Suporte", "Hardware", "Comercial"];
 
@@ -421,6 +427,7 @@ const EMPTY: OcorrenciaForm = {
   createdAt: "",
   horaCriacao: "",
   retornarEsteira: false,
+  suspenderCliente: false,
   temaForaEsteira: false,
 };
 
@@ -1133,6 +1140,7 @@ export function Historico() {
       createdAt: dataCriacaoFormatada,
       horaCriacao: horaCriacaoFormatada,
       retornarEsteira: o.retornarEsteira ?? false,
+      suspenderCliente: o.suspenderCliente ?? false,
     });
     setTemaOcorrenciaOngoingText(o.temaOcorrencia?.join(", ") ?? "");
     setBuscaAssunto("");
@@ -1685,6 +1693,42 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       } catch (error) {
         console.error("Erro ao remover suspensão da empresa:", error);
       }
+    } else if (form.suspenderCliente && !empresaObjeto.isSuspended) {
+      try {
+        const hoje = new Date();
+        const dataSuspensao = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-${String(hoje.getDate()).padStart(2, "0")}`;
+
+        const empresaSuspensa: Empresa = {
+          ...empresaObjeto,
+          ...(!!form.alerta !== !!empresaObjeto.alerta || form.retirarAlerta
+            ? { alerta: !!form.alerta }
+            : {}),
+          isSuspended: true,
+          dataSuspensao,
+          updatedAt: Date.now(),
+        };
+
+        await salvarEmpresas(empresaSuspensa);
+
+        // Notifica Supervisor + CS Responsável sobre a suspensão originada pela ocorrência
+        obterDestinatariosGestao(empresaSuspensa)
+          .then(({ destinatarios, avisos }) => {
+            if (destinatarios.length === 0) return;
+            setGestaoDestinatarios(destinatarios);
+            setGestaoAvisos(avisos);
+            setGestaoMensagem(montarMensagemSuspensaoGestao(empresaSuspensa));
+            setGestaoOcorrenciaId(savedId);
+            setGestaoConfirmModalOpen(true);
+          })
+          .catch((err) =>
+            console.error(
+              "[notificações] Falha ao montar destinatários de suspensão:",
+              err,
+            ),
+          );
+      } catch (error) {
+        console.error("Erro ao suspender empresa a partir da ocorrência:", error);
+      }
     } else if (!!form.alerta !== !!empresaObjeto.alerta || form.retirarAlerta) {
       try {
         await salvarEmpresas({
@@ -2226,7 +2270,14 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       const empresaOk =
         !empresaFiltro || normalizar(o.empresa) === normalizar(empresaFiltro);
 
-      const tipoOk = ignoreTipo || !filtroTipo || o.tipo === filtroTipo;
+      const tipoOk =
+        ignoreTipo ||
+        !filtroTipo ||
+        (filtroTipo === FILTRO_ALERTAS
+          ? !!o.alerta
+          : filtroTipo === FILTRO_SUSPENSOES
+            ? !!o.suspenderCliente
+            : o.tipo === filtroTipo);
       const deptoOk =
         ignoreDepto || !filtroDepto || o.departamento === filtroDepto;
 
@@ -2711,6 +2762,8 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             onChange={(e) => setFiltroTipo(e.target.value)}
           >
             <option value="">Todos os tipos</option>
+            <option value={FILTRO_ALERTAS}>Alertas 🔥</option>
+            <option value={FILTRO_SUSPENSOES}>Suspensões ⏸️</option>
             {tipos.filter((t) => t !== "Gol" || isTreinador).map((t) => (
               <option key={t} value={t}>
                 {t}
@@ -4103,7 +4156,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               const isSuspended = empresaObjetoForm?.isSuspended ?? false;
               const canReactivate =
                 role === "master" || role === "treinador" || role === "cs";
-              if ((isSuspended || form.retornarEsteira) && canReactivate) {
+              if (!canReactivate) return null;
+
+              if (isSuspended || form.retornarEsteira) {
                 return (
                   <div className="hist-campo hist-campo-row">
                     <label
@@ -4126,7 +4181,27 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   </div>
                 );
               }
-              return null;
+
+              return (
+                <div className="hist-campo hist-campo-row">
+                  <label
+                    className="checkbox-label"
+                    style={{ fontWeight: 600, color: "#ef4444" }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={form.suspenderCliente ?? false}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          suspenderCliente: e.target.checked,
+                        })
+                      }
+                    />
+                    Suspender cliente temporariamente ⏸️
+                  </label>
+                </div>
+              );
             })()}
 
             <div className="hist-campo">

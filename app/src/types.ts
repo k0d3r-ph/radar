@@ -148,6 +148,8 @@ export type Ocorrencia = {
   treinamentoResultados?: ("Bom" | "Ruim")[];
   isRevisao?: boolean;
   retornarEsteira?: boolean;
+  /** Marca que esta ocorrência foi a responsável por suspender o cliente temporariamente. */
+  suspenderCliente?: boolean;
   temaForaEsteira?: boolean;
   whatsappStatus?: WhatsappStatus;
   whatsappEnviadoEm?: number;
@@ -178,6 +180,7 @@ export type OcorrenciaForm = {
   createdAt?: string;
   horaCriacao?: string;
   retornarEsteira?: boolean;
+  suspenderCliente?: boolean;
   temaForaEsteira?: boolean;
 };
 

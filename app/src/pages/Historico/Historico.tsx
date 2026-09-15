@@ -1716,7 +1716,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             if (destinatarios.length === 0) return;
             setGestaoDestinatarios(destinatarios);
             setGestaoAvisos(avisos);
-            setGestaoMensagem(montarMensagemSuspensaoGestao(empresaSuspensa));
+            setGestaoMensagem(montarMensagemSuspensaoGestao(empresaSuspensa, savedId));
             setGestaoOcorrenciaId(savedId);
             setGestaoConfirmModalOpen(true);
           })

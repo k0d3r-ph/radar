@@ -967,12 +967,32 @@ export function Historico() {
     const falhos = (oc.whatsappDestinatarios ?? []).filter(
       (d) => d.status === "falhou",
     );
-    const alvos = falhos.length > 0 
-      ? falhos.map((d) => ({ nome: d.nome, telefone: d.telefone }))
-      : oc.whatsappDestinatarios?.map(d => ({ nome: d.nome, telefone: d.telefone })) ?? [];
+
+    let alvos: { nome: string; telefone: string }[];
+    if (falhos.length > 0) {
+      alvos = falhos.map((d) => ({ nome: d.nome, telefone: d.telefone }));
+    } else if (oc.whatsappDestinatarios && oc.whatsappDestinatarios.length > 0) {
+      alvos = oc.whatsappDestinatarios.map((d) => ({ nome: d.nome, telefone: d.telefone }));
+    } else {
+      // Ocorrência sem envio registrado (ex: usuário escolheu "Não enviar" na hora) —
+      // busca os contatos do cliente novamente, do mesmo jeito que no envio original.
+      const contatosBase =
+        empresaObjeto.contatos && empresaObjeto.contatos.length > 0
+          ? empresaObjeto.contatos
+          : empresaObjeto.telefone || empresaObjeto.contato
+            ? [{ nome: empresaObjeto.contato || "", telefone: empresaObjeto.telefone || "" }]
+            : [];
+
+      alvos = contatosBase
+        .map((c) => ({
+          nome: c.nome || "Cliente",
+          telefone: normalizarTelefoneWhatsApp(c.telefone),
+        }))
+        .filter((c): c is { nome: string; telefone: string } => !!c.telefone);
+    }
 
     if (alvos.length === 0) {
-      toast.error("Nenhum destinatário encontrado para retentar o envio.");
+      toast.error("O cliente não possui telefone de contato cadastrado para envio do WhatsApp.");
       return;
     }
 
@@ -3650,8 +3670,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               )}
 
               {/* Bloco de status WhatsApp — para qualquer ocorrência com envio registrado */}
-              {selecionada.whatsappStatus &&
-                selecionada.whatsappStatus !== "nao_enviado" && (
+              {selecionada.whatsappStatus && (
                   <div
                     style={{
                       marginTop: "16px",
@@ -3663,7 +3682,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                           ? "1px solid rgba(34,197,94,0.25)"
                           : selecionada.whatsappStatus === "falhou"
                             ? "1px solid rgba(239,68,68,0.3)"
-                            : "1px solid rgba(251,191,36,0.3)",
+                            : selecionada.whatsappStatus === "nao_enviado"
+                              ? "1px solid rgba(100,116,139,0.3)"
+                              : "1px solid rgba(251,191,36,0.3)",
                     }}
                   >
                     <div
@@ -3687,14 +3708,18 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                               ? "#22c55e"
                               : selecionada.whatsappStatus === "falhou"
                                 ? "#ef4444"
-                                : "#fbbf24",
+                                : selecionada.whatsappStatus === "nao_enviado"
+                                  ? "#94a3b8"
+                                  : "#fbbf24",
                         }}
                       >
                         {selecionada.whatsappStatus === "enviado"
                           ? "✅ Notificação WhatsApp enviada"
                           : selecionada.whatsappStatus === "falhou"
                             ? "❌ Falha ao enviar notificação WhatsApp"
-                            : "⚠️ Notificação WhatsApp enviada parcialmente"}
+                            : selecionada.whatsappStatus === "nao_enviado"
+                              ? "🚫 Notificação WhatsApp não enviada"
+                              : "⚠️ Notificação WhatsApp enviada parcialmente"}
                         {selecionada.whatsappEnviadoEm ? (
                           <span
                             style={{
@@ -3716,7 +3741,8 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                         ) : null}
                       </span>
                       {(selecionada.whatsappStatus === "falhou" ||
-                        selecionada.whatsappStatus === "parcial") && (
+                        selecionada.whatsappStatus === "parcial" ||
+                        selecionada.whatsappStatus === "nao_enviado") && (
                         <button
                           type="button"
                           className="btn-primary btn-small"
@@ -3742,7 +3768,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                             flexShrink: 0,
                           }}
                         >
-                          Tentar novamente
+                          {selecionada.whatsappStatus === "nao_enviado"
+                            ? "Enviar agora"
+                            : "Tentar novamente"}
                         </button>
                       )}
                     </div>

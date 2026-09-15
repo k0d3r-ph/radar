@@ -115,9 +115,35 @@ export async function generateEsteiraImage(empresa: Empresa): Promise<string> {
   }
 
   // Gera o HTML do SVG em string com as classes e estilos idênticos ao do arquivo Esteira.css
+  const temaGol = (empresa.temaGol || "").trim();
+
   const circlesHtml = pontos.map((ponto, i) => {
     const isActive = i === empresa.currentPhase;
     const item = temas[i];
+    const isGol = !!temaGol && item?.tema?.trim() === temaGol;
+
+    let golRingHtml = "";
+    let golBadgeHtml = "";
+    if (isGol) {
+      golRingHtml = `
+        <circle
+          cx="${ponto.x}"
+          cy="${ponto.y}"
+          r="20"
+          class="gol-ring"
+        />
+      `;
+      golBadgeHtml = `
+        <text
+          x="${ponto.x + 26}"
+          y="${ponto.y - 20}"
+          text-anchor="middle"
+          class="gol-badge"
+        >
+          ⚽
+        </text>
+      `;
+    }
 
     let activeMarkerHtml = "";
     if (isActive) {
@@ -162,6 +188,7 @@ export async function generateEsteiraImage(empresa: Empresa): Promise<string> {
 
     return `
       <g>
+        ${golRingHtml}
         ${activeMarkerHtml}
         <circle
           cx="${ponto.x}"
@@ -170,6 +197,7 @@ export async function generateEsteiraImage(empresa: Empresa): Promise<string> {
           class="${isActive ? 'active-circle' : 'normal-circle'}"
           stroke-width="4"
         />
+        ${golBadgeHtml}
         ${dateHtml}
         <text
           x="${ponto.x}"
@@ -220,6 +248,14 @@ export async function generateEsteiraImage(empresa: Empresa): Promise<string> {
           fill: white;
           font-size: 18px;
           font-weight: bold;
+        }
+        .gol-ring {
+          fill: none;
+          stroke: #22c55e;
+          stroke-width: 4;
+        }
+        .gol-badge {
+          font-size: 28px;
         }
       </style>
       <text

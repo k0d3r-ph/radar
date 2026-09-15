@@ -904,6 +904,107 @@ export function Historico() {
     return enriquecidas;
   }
 
+  /**
+   * Abre o GestaoNotificacaoModal para retentar o envio da notificação de gestão
+   * de uma ocorrência que já foi processada mas teve falhas no WhatsApp.
+   * Filtra apenas os destinatários que falharam para não reincidir sobre os que já receberam.
+   */
+  async function reabrirNotificacaoGestao(oc: Ocorrencia) {
+    const empresaObjeto = empresasList.find(
+      (e) => normalizar(e.nomeEmpresa) === normalizar(oc.empresa),
+    );
+    if (!empresaObjeto) {
+      toast.error("Empresa não encontrada para retentar a notificação.");
+      return;
+    }
+
+    // Filtra só os que falharam (se houver registro) — caso contrário reusa todos
+    const falhos = (oc.whatsappDestinatarios ?? []).filter(
+      (d) => d.status === "falhou",
+    );
+    const alvos: { nome: string; telefone: string }[] =
+      falhos.length > 0
+        ? falhos.map((d) => ({ nome: d.nome, telefone: d.telefone }))
+        : await obterDestinatariosGestao(empresaObjeto).then(
+            ({ destinatarios }) => destinatarios,
+          );
+
+    if (alvos.length === 0) {
+      toast.error("Nenhum destinatário encontrado para retentar o envio.");
+      return;
+    }
+
+    // Reconstrói a mensagem com base no tipo da ocorrência
+    let mensagem: string;
+    if (oc.suspenderCliente) {
+      mensagem = montarMensagemSuspensaoGestao(empresaObjeto, oc.id);
+    } else if (oc.alerta) {
+      mensagem = montarMensagemAlertaGestao(empresaObjeto, oc.id);
+    } else {
+      mensagem = montarMensagemConclusaoEsteiraGestao(empresaObjeto, oc.id);
+    }
+
+    setGestaoDestinatarios(alvos);
+    setGestaoAvisos([]);
+    setGestaoMensagem(mensagem);
+    setGestaoOcorrenciaId(oc.id);
+    setGestaoConfirmModalOpen(true);
+  }
+
+  /**
+   * Abre o whatsappConfirmModalOpen para retentar o envio da notificação de Esteira
+   * (Treinamento) para o cliente.
+   */
+  async function reabrirNotificacaoEsteira(oc: Ocorrencia) {
+    const empresaObjeto = empresasList.find(
+      (e) => normalizar(e.nomeEmpresa) === normalizar(oc.empresa),
+    );
+    if (!empresaObjeto) {
+      toast.error("Empresa não encontrada para retentar a notificação.");
+      return;
+    }
+
+    const falhos = (oc.whatsappDestinatarios ?? []).filter(
+      (d) => d.status === "falhou",
+    );
+    const alvos = falhos.length > 0 
+      ? falhos.map((d) => ({ nome: d.nome, telefone: d.telefone }))
+      : oc.whatsappDestinatarios?.map(d => ({ nome: d.nome, telefone: d.telefone })) ?? [];
+
+    if (alvos.length === 0) {
+      toast.error("Nenhum destinatário encontrado para retentar o envio.");
+      return;
+    }
+
+    const temas = oc.temaOcorrencia ?? [];
+    let dataCompleta = new Date(oc.dataOcorrencia).toLocaleDateString("pt-BR");
+    if (oc.treinamentoDataSolicitacao) {
+      // Se houver, mantemos a lógica simplificada
+      const partes = oc.treinamentoDataSolicitacao.split("-");
+      if (partes.length === 3) {
+        dataCompleta = `${partes[2]}/${partes[1]}/${partes[0]}`;
+      }
+    }
+    
+    const temasParaMensagem = temas.filter(
+      (t) => t.trim().toLowerCase() !== "inicio" && t.trim().toLowerCase() !== "conclusao",
+    );
+    const plural = temasParaMensagem.length > 1;
+    const textoMensagem = `Olá, *${PLACEHOLDER_NOME}*! 🚀\nSeu treinamento sobre ${plural ? "os temas" : "o tema"} *${temasParaMensagem.join(", ")}* foi registrado com sucesso em *${dataCompleta}*.\n\nConfira acima a sua esteira de evolução atualizada:`;
+
+    setPendingWhatsAppMessage({
+      ocorrenciaId: oc.id!,
+      destinatarios: alvos,
+      empresaNome: empresaObjeto.nomeEmpresa,
+      temas,
+      dataStr: dataCompleta,
+      empresaObjeto: empresaObjeto,
+    });
+    setEditedWhatsAppText(textoMensagem);
+    setSendConveyorImage(true);
+    setWhatsappConfirmModalOpen(true);
+  }
+
   async function salvarNovaAtualizacao() {
     if (!novaDescricaoAtual.trim()) {
       toast.error("Preencha a descrição da atualização.");
@@ -2913,6 +3014,26 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                           ✅
                         </span>
                       )}
+                      {o.suspenderCliente && (
+                        <span
+                          style={{
+                            marginLeft: "6px",
+                          }}
+                          title="Ocorrência que suspendeu o cliente"
+                        >
+                          ⏸️
+                        </span>
+                      )}
+                      {o.retornarEsteira && (
+                        <span
+                          style={{
+                            marginLeft: "6px",
+                          }}
+                          title="Ocorrência que retornou o cliente à esteira"
+                        >
+                          ▶️
+                        </span>
+                      )}
                     </td>
 
                     <td>{data ? data.toLocaleDateString("pt-BR") : "—"}</td>
@@ -3527,6 +3648,175 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   </div>
                 </div>
               )}
+
+              {/* Bloco de status WhatsApp — para qualquer ocorrência com envio registrado */}
+              {selecionada.whatsappStatus &&
+                selecionada.whatsappStatus !== "nao_enviado" && (
+                  <div
+                    style={{
+                      marginTop: "16px",
+                      padding: "14px 16px",
+                      borderRadius: "10px",
+                      background: "rgba(255,255,255,0.03)",
+                      border:
+                        selecionada.whatsappStatus === "enviado"
+                          ? "1px solid rgba(34,197,94,0.25)"
+                          : selecionada.whatsappStatus === "falhou"
+                            ? "1px solid rgba(239,68,68,0.3)"
+                            : "1px solid rgba(251,191,36,0.3)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: "8px",
+                        marginBottom:
+                          (selecionada.whatsappDestinatarios ?? []).length > 0
+                            ? "10px"
+                            : 0,
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: "0.8rem",
+                          fontWeight: 700,
+                          color:
+                            selecionada.whatsappStatus === "enviado"
+                              ? "#22c55e"
+                              : selecionada.whatsappStatus === "falhou"
+                                ? "#ef4444"
+                                : "#fbbf24",
+                        }}
+                      >
+                        {selecionada.whatsappStatus === "enviado"
+                          ? "✅ Notificação WhatsApp enviada"
+                          : selecionada.whatsappStatus === "falhou"
+                            ? "❌ Falha ao enviar notificação WhatsApp"
+                            : "⚠️ Notificação WhatsApp enviada parcialmente"}
+                        {selecionada.whatsappEnviadoEm ? (
+                          <span
+                            style={{
+                              fontWeight: 400,
+                              color: "var(--text-muted, #94a3b8)",
+                              marginLeft: "6px",
+                            }}
+                          >
+                            {"·"}{" "}
+                            {new Date(
+                              selecionada.whatsappEnviadoEm,
+                            ).toLocaleString("pt-BR", {
+                              day: "2-digit",
+                              month: "2-digit",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                        ) : null}
+                      </span>
+                      {(selecionada.whatsappStatus === "falhou" ||
+                        selecionada.whatsappStatus === "parcial") && (
+                        <button
+                          type="button"
+                          className="btn-primary btn-small"
+                          onClick={() => {
+                            if (
+                              selecionada.alerta ||
+                              selecionada.retirarAlerta ||
+                              selecionada.suspenderCliente ||
+                              selecionada.retornarEsteira
+                            ) {
+                              reabrirNotificacaoGestao(selecionada);
+                            } else if (selecionada.tipo === "Treinamento") {
+                              reabrirNotificacaoEsteira(selecionada);
+                            } else {
+                              // Fallback
+                              reabrirNotificacaoEsteira(selecionada);
+                            }
+                          }}
+                          style={{
+                            background: "var(--warning-color, #f59e0b)",
+                            borderColor: "transparent",
+                            whiteSpace: "nowrap",
+                            flexShrink: 0,
+                          }}
+                        >
+                          Tentar novamente
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Lista detalhada por destinatário */}
+                    {(selecionada.whatsappDestinatarios ?? []).length > 0 && (
+                      <div
+                        style={{ display: "flex", flexDirection: "column", gap: "5px" }}
+                      >
+                        {selecionada.whatsappDestinatarios!.map((d) => (
+                          <div
+                            key={d.telefone}
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              padding: "7px 10px",
+                              borderRadius: "7px",
+                              background:
+                                d.status === "falhou"
+                                  ? "rgba(239,68,68,0.08)"
+                                  : "rgba(34,197,94,0.06)",
+                              border:
+                                d.status === "falhou"
+                                  ? "1px solid rgba(239,68,68,0.2)"
+                                  : "1px solid rgba(34,197,94,0.15)",
+                            }}
+                          >
+                            <div
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  fontSize: "0.82rem",
+                                  color: "var(--text-color, #fff)",
+                                  fontWeight: 500,
+                                }}
+                              >
+                                {d.nome}
+                              </span>
+                              <span
+                                style={{
+                                  fontSize: "0.78rem",
+                                  color:
+                                    d.status === "enviado"
+                                      ? "#22c55e"
+                                      : "#ef4444",
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {d.status === "enviado" ? "✅ Enviado" : "❌ Falhou"}
+                              </span>
+                            </div>
+                            {d.status === "falhou" && d.erro && (
+                              <div
+                                style={{
+                                  marginTop: "4px",
+                                  fontSize: "0.76rem",
+                                  color: "#fca5a5",
+                                  lineHeight: 1.4,
+                                }}
+                              >
+                                {d.erro}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
               <div className="botoes">
                 {!novaAtualizacaoAberta &&

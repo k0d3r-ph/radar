@@ -5590,6 +5590,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               whatsappEnviadoEm: enviadoEm,
               whatsappDestinatarios: destinatarios,
             } as Ocorrencia);
+            await carregar();
           } catch (error) {
             console.error(
               "Erro ao registrar status de envio do alerta:",

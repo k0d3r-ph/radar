@@ -303,7 +303,11 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
     }
 
     // Se após processar todas as ocorrências ainda não chegamos ao fim da jornada
-    if (currentTime < endJourneyTime) {
+    // Só considera "sem próximo passo" após uma carência de 6h do horário agendado, para não
+    // marcar o cliente como sem passo definido logo após o início do treinamento (ex: treino às
+    // 10:00 não deve virar "sem próximo passo" às 10:01, apenas a partir das 16:00).
+    const CARENCIA_SEM_PROXIMO_PASSO_MS = 6 * 60 * 60 * 1000;
+    if (currentTime < endJourneyTime && endJourneyTime - currentTime >= CARENCIA_SEM_PROXIMO_PASSO_MS) {
       const days = calcularDiasUteis(currentTime, endJourneyTime);
       stages.push({
         stage: "Sem próximo passo definido",

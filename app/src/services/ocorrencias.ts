@@ -20,12 +20,26 @@ let cachedOcorrencias: Ocorrencia[] | null = null;
 let lastFetchOcorrencias = 0;
 const CACHE_TTL = 300000; // 5 minutos (300.000 ms)
 
+// Remove `undefined` recursivamente (inclusive dentro de arrays/objetos aninhados),
+// pois o Firestore lança erro em updateDoc/addDoc ao encontrar undefined em qualquer profundidade.
+function removerUndefined<T>(valor: T): T {
+  if (Array.isArray(valor)) {
+    return valor.map((v) => removerUndefined(v)) as unknown as T;
+  }
+  if (valor !== null && typeof valor === "object") {
+    return Object.fromEntries(
+      Object.entries(valor as Record<string, unknown>)
+        .filter(([_, v]) => v !== undefined)
+        .map(([k, v]) => [k, removerUndefined(v)]),
+    ) as T;
+  }
+  return valor;
+}
+
 export async function salvarOcorrencia(ocorrencia: Ocorrencia) {
   const { horaOcorrencia, id, ...dados } = ocorrencia as any;
 
-  const dadosLimpos = Object.fromEntries(
-    Object.entries(dados).filter(([_, v]) => v !== undefined),
-  );
+  const dadosLimpos = removerUndefined(dados);
 
   if (id) {
     const ref = doc(db, COLLECTION, id);

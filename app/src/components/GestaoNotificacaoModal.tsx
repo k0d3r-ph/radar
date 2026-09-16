@@ -136,11 +136,14 @@ export function GestaoNotificacaoModal({
             nome: r.nome,
             telefone: r.telefone,
             status: r.status === "enviado" ? "enviado" : "falhou",
-            erro: r.erro,
+            ...(r.erro ? { erro: r.erro } : {}),
           })),
         });
       } catch (error) {
         console.error("Erro ao registrar status de envio da notificação de gestão:", error);
+        toast.error("Mensagem enviada, mas houve falha ao registrar o status. Recarregue e tente novamente.");
+        setEnviando(false);
+        return;
       }
     }
 

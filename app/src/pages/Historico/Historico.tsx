@@ -5726,6 +5726,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               "Erro ao registrar status de envio do alerta:",
               error,
             );
+            throw error;
           }
         }}
         onClose={() => {

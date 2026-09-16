@@ -18,6 +18,20 @@ export class WhatsAppController {
       return;
     }
 
+    // Checagem síncrona (sem custo, não passa pelo Puppeteer): se a sessão não
+    // está conectada, o envio nem seria tentado — então respondemos o erro na
+    // hora, em vez de aceitar com 202 e deixar o frontend marcar "enviado"
+    // para uma mensagem que nunca sairá. Ver sendMessage() em WhatsAppWebClient,
+    // que lança esse mesmo erro internamente quando desconectado.
+    const session = this.getConnectionStatusUseCase.execute();
+    if (session.status !== 'connected') {
+      res.status(503).json({
+        success: false,
+        error: 'WhatsApp desconectado — não há sessão ativa.',
+      });
+      return;
+    }
+
     // Responde imediatamente — o envio pelo Puppeteer acontece em background.
     // Isso evita que o frontend fique bloqueado aguardando o WhatsApp Web
     // (getNumberId + sendMessage podem levar 10–30 s em VMs com poucos recursos).

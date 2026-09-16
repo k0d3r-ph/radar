@@ -1729,8 +1729,27 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       );
       if (empresaObjetoAlerta) {
         obterDestinatariosGestao(empresaObjetoAlerta)
-          .then(({ destinatarios, avisos }) => {
-            if (destinatarios.length === 0) return;
+          .then(async ({ destinatarios, avisos }) => {
+            if (destinatarios.length === 0) {
+              // Nenhum destinatário de gestão encontrado — registra a falha na
+              // ocorrência para que fique visível no Histórico, em vez de
+              // deixar o envio silenciosamente sem status.
+              try {
+                await salvarOcorrencia({
+                  id: savedId,
+                  whatsappStatus: "sem_destinatario",
+                  whatsappEnviadoEm: Date.now(),
+                  whatsappDestinatarios: [],
+                } as Ocorrencia);
+                await carregar();
+              } catch (error) {
+                console.error(
+                  "Erro ao registrar falha de notificação de gestão (sem destinatários):",
+                  error,
+                );
+              }
+              return;
+            }
             setGestaoDestinatarios(destinatarios);
             setGestaoAvisos(avisos);
             setGestaoMensagem(
@@ -1833,8 +1852,27 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
         // Notifica Supervisor + CS Responsável sobre a suspensão originada pela ocorrência
         obterDestinatariosGestao(empresaSuspensa)
-          .then(({ destinatarios, avisos }) => {
-            if (destinatarios.length === 0) return;
+          .then(async ({ destinatarios, avisos }) => {
+            if (destinatarios.length === 0) {
+              // Nenhum destinatário de gestão encontrado — registra a falha na
+              // ocorrência para que fique visível no Histórico, em vez de
+              // deixar o envio silenciosamente sem status.
+              try {
+                await salvarOcorrencia({
+                  id: savedId,
+                  whatsappStatus: "sem_destinatario",
+                  whatsappEnviadoEm: Date.now(),
+                  whatsappDestinatarios: [],
+                } as Ocorrencia);
+                await carregar();
+              } catch (error) {
+                console.error(
+                  "Erro ao registrar falha de notificação de gestão (sem destinatários):",
+                  error,
+                );
+              }
+              return;
+            }
             setGestaoDestinatarios(destinatarios);
             setGestaoAvisos(avisos);
             setGestaoMensagem(montarMensagemSuspensaoGestao(empresaSuspensa, savedId));
@@ -2017,8 +2055,27 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
           if (concluiuAgora) {
             obterDestinatariosGestao(empresaAtualizadaEsteira)
-              .then(({ destinatarios, avisos }) => {
-                if (destinatarios.length === 0) return;
+              .then(async ({ destinatarios, avisos }) => {
+                if (destinatarios.length === 0) {
+                  // Nenhum destinatário de gestão encontrado — registra a falha na
+                  // ocorrência para que fique visível no Histórico, em vez de
+                  // deixar o envio silenciosamente sem status.
+                  try {
+                    await salvarOcorrencia({
+                      id: savedId,
+                      whatsappStatus: "sem_destinatario",
+                      whatsappEnviadoEm: Date.now(),
+                      whatsappDestinatarios: [],
+                    } as Ocorrencia);
+                    await carregar();
+                  } catch (error) {
+                    console.error(
+                      "Erro ao registrar falha de notificação de gestão (sem destinatários):",
+                      error,
+                    );
+                  }
+                  return;
+                }
                 setGestaoDestinatarios(destinatarios);
                 setGestaoAvisos(avisos);
                 setGestaoMensagem(
@@ -2027,6 +2084,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                     savedId,
                   ),
                 );
+                setGestaoOcorrenciaId(savedId);
                 setGestaoConfirmModalOpen(true);
               })
               .catch((err) =>
@@ -2089,6 +2147,19 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         toast.warning(
           "Ocorrência registrada! No entanto, o cliente não possui telefone de contato cadastrado para envio do WhatsApp.",
         );
+        try {
+          await salvarOcorrencia({
+            id: savedId,
+            whatsappStatus: "sem_destinatario",
+            whatsappEnviadoEm: Date.now(),
+            whatsappDestinatarios: [],
+          } as Ocorrencia);
+        } catch (error) {
+          console.error(
+            "Erro ao registrar falha de envio do WhatsApp (sem telefone):",
+            error,
+          );
+        }
         await carregar();
         setSalvando(false);
         cancelar();
@@ -3133,6 +3204,14 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                             🚫 Não enviado
                           </span>
                         )}
+                        {o.whatsappStatus === "sem_destinatario" && (
+                          <span
+                            style={{ color: "#d97706", fontWeight: "bold" }}
+                            title="Nenhum destinatário encontrado (telefone do cliente ou destinatário de gestão não cadastrado)"
+                          >
+                            📵 Sem destinatário
+                          </span>
+                        )}
                         {!o.whatsappStatus && (
                           <span style={{ color: "#64748b" }}>—</span>
                         )}
@@ -3684,7 +3763,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                             ? "1px solid rgba(239,68,68,0.3)"
                             : selecionada.whatsappStatus === "nao_enviado"
                               ? "1px solid rgba(100,116,139,0.3)"
-                              : "1px solid rgba(251,191,36,0.3)",
+                              : selecionada.whatsappStatus === "sem_destinatario"
+                                ? "1px solid rgba(217,119,6,0.3)"
+                                : "1px solid rgba(251,191,36,0.3)",
                     }}
                   >
                     <div
@@ -3710,7 +3791,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                                 ? "#ef4444"
                                 : selecionada.whatsappStatus === "nao_enviado"
                                   ? "#94a3b8"
-                                  : "#fbbf24",
+                                  : selecionada.whatsappStatus === "sem_destinatario"
+                                    ? "#d97706"
+                                    : "#fbbf24",
                         }}
                       >
                         {selecionada.whatsappStatus === "enviado"
@@ -3719,7 +3802,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                             ? "❌ Falha ao enviar notificação WhatsApp"
                             : selecionada.whatsappStatus === "nao_enviado"
                               ? "🚫 Notificação WhatsApp não enviada"
-                              : "⚠️ Notificação WhatsApp enviada parcialmente"}
+                              : selecionada.whatsappStatus === "sem_destinatario"
+                                ? "📵 Nenhum destinatário encontrado para envio"
+                                : "⚠️ Notificação WhatsApp enviada parcialmente"}
                         {selecionada.whatsappEnviadoEm ? (
                           <span
                             style={{
@@ -3742,7 +3827,8 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       </span>
                       {(selecionada.whatsappStatus === "falhou" ||
                         selecionada.whatsappStatus === "parcial" ||
-                        selecionada.whatsappStatus === "nao_enviado") && (
+                        selecionada.whatsappStatus === "nao_enviado" ||
+                        selecionada.whatsappStatus === "sem_destinatario") && (
                         <button
                           type="button"
                           className="btn-primary btn-small"
@@ -3768,7 +3854,8 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                             flexShrink: 0,
                           }}
                         >
-                          {selecionada.whatsappStatus === "nao_enviado"
+                          {selecionada.whatsappStatus === "nao_enviado" ||
+                          selecionada.whatsappStatus === "sem_destinatario"
                             ? "Enviar agora"
                             : "Tentar novamente"}
                         </button>

@@ -23,7 +23,12 @@ export type ContatoCliente = {
   telefone: string;
 };
 
-export type WhatsappStatus = "enviado" | "falhou" | "parcial" | "nao_enviado";
+export type WhatsappStatus =
+  | "enviado"
+  | "falhou"
+  | "parcial"
+  | "nao_enviado"
+  | "sem_destinatario";
 
 export type WhatsappDestinatarioEnvio = {
   nome: string;

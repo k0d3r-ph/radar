@@ -3825,41 +3825,44 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                           </span>
                         ) : null}
                       </span>
-                      {(selecionada.whatsappStatus === "falhou" ||
-                        selecionada.whatsappStatus === "parcial" ||
-                        selecionada.whatsappStatus === "nao_enviado" ||
-                        selecionada.whatsappStatus === "sem_destinatario") && (
-                        <button
-                          type="button"
-                          className="btn-primary btn-small"
-                          onClick={() => {
-                            if (
-                              selecionada.alerta ||
-                              selecionada.retirarAlerta ||
-                              selecionada.suspenderCliente ||
-                              selecionada.retornarEsteira
-                            ) {
-                              reabrirNotificacaoGestao(selecionada);
-                            } else if (selecionada.tipo === "Treinamento") {
-                              reabrirNotificacaoEsteira(selecionada);
-                            } else {
-                              // Fallback
-                              reabrirNotificacaoEsteira(selecionada);
-                            }
-                          }}
-                          style={{
-                            background: "var(--warning-color, #f59e0b)",
-                            borderColor: "transparent",
-                            whiteSpace: "nowrap",
-                            flexShrink: 0,
-                          }}
-                        >
-                          {selecionada.whatsappStatus === "nao_enviado" ||
-                          selecionada.whatsappStatus === "sem_destinatario"
-                            ? "Enviar agora"
+                      <button
+                        type="button"
+                        className="btn-primary btn-small"
+                        onClick={() => {
+                          if (
+                            selecionada.alerta ||
+                            selecionada.retirarAlerta ||
+                            selecionada.suspenderCliente ||
+                            selecionada.retornarEsteira
+                          ) {
+                            reabrirNotificacaoGestao(selecionada);
+                          } else if (selecionada.tipo === "Treinamento") {
+                            reabrirNotificacaoEsteira(selecionada);
+                          } else {
+                            // Fallback
+                            reabrirNotificacaoEsteira(selecionada);
+                          }
+                        }}
+                        style={{
+                          background:
+                            selecionada.whatsappStatus === "enviado"
+                              ? "transparent"
+                              : "var(--warning-color, #f59e0b)",
+                          border:
+                            selecionada.whatsappStatus === "enviado"
+                              ? "1px solid rgba(255,255,255,0.15)"
+                              : "1px solid transparent",
+                          whiteSpace: "nowrap",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {selecionada.whatsappStatus === "nao_enviado" ||
+                        selecionada.whatsappStatus === "sem_destinatario"
+                          ? "Enviar agora"
+                          : selecionada.whatsappStatus === "enviado"
+                            ? "Enviar novamente"
                             : "Tentar novamente"}
-                        </button>
-                      )}
+                      </button>
                     </div>
 
                     {/* Lista detalhada por destinatário */}

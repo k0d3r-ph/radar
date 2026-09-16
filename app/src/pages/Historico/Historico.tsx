@@ -3748,8 +3748,13 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 </div>
               )}
 
-              {/* Bloco de status WhatsApp — para qualquer ocorrência com envio registrado */}
-              {selecionada.whatsappStatus && (
+              {/* Bloco de status WhatsApp — para qualquer ocorrência com envio registrado,
+                  ou que dispare notificação de gestão (alerta/suspensão) mesmo que o
+                  envio nunca tenha sido registrado. retirarAlerta/retornarEsteira ficam
+                  de fora: essas ações não têm fluxo de notificação de gestão associado. */}
+              {(selecionada.whatsappStatus ||
+                selecionada.alerta ||
+                selecionada.suspenderCliente) && (
                   <div
                     style={{
                       marginTop: "16px",
@@ -3765,7 +3770,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                               ? "1px solid rgba(100,116,139,0.3)"
                               : selecionada.whatsappStatus === "sem_destinatario"
                                 ? "1px solid rgba(217,119,6,0.3)"
-                                : "1px solid rgba(251,191,36,0.3)",
+                                : selecionada.whatsappStatus === "parcial"
+                                  ? "1px solid rgba(251,191,36,0.3)"
+                                  : "1px solid rgba(100,116,139,0.3)",
                     }}
                   >
                     <div
@@ -3793,7 +3800,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                                   ? "#94a3b8"
                                   : selecionada.whatsappStatus === "sem_destinatario"
                                     ? "#d97706"
-                                    : "#fbbf24",
+                                    : selecionada.whatsappStatus === "parcial"
+                                      ? "#fbbf24"
+                                      : "#94a3b8",
                         }}
                       >
                         {selecionada.whatsappStatus === "enviado"
@@ -3804,7 +3813,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                               ? "🚫 Notificação WhatsApp não enviada"
                               : selecionada.whatsappStatus === "sem_destinatario"
                                 ? "📵 Nenhum destinatário encontrado para envio"
-                                : "⚠️ Notificação WhatsApp enviada parcialmente"}
+                                : selecionada.whatsappStatus === "parcial"
+                                  ? "⚠️ Notificação WhatsApp enviada parcialmente"
+                                  : "🔔 Notificação de gestão ainda não registrada"}
                         {selecionada.whatsappEnviadoEm ? (
                           <span
                             style={{
@@ -3857,7 +3868,8 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                         }}
                       >
                         {selecionada.whatsappStatus === "nao_enviado" ||
-                        selecionada.whatsappStatus === "sem_destinatario"
+                        selecionada.whatsappStatus === "sem_destinatario" ||
+                        !selecionada.whatsappStatus
                           ? "Enviar agora"
                           : selecionada.whatsappStatus === "enviado"
                             ? "Enviar novamente"

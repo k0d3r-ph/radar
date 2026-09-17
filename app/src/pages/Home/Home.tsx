@@ -1764,6 +1764,7 @@ export default function Home() {
                 <col style={{ width: "5%" }} />
                 <col style={{ width: "5%" }} />
                 <col style={{ width: "5%" }} />
+                <col style={{ width: "5%" }} />
               </colgroup>
               <thead>
                 <tr>
@@ -1771,6 +1772,7 @@ export default function Home() {
                   <th>Contato</th>
                   <th>CS Responsável</th>
                   <th>Comercial Responsável</th>
+                  <th>Dias</th>
                   <th className="td-progresso">Progresso</th>
                   <th style={{ textAlign: "right" }}>Valor Contrato</th>
                 </tr>
@@ -1824,6 +1826,7 @@ export default function Home() {
                         mapaComerciais,
                       ) || "-"}
                     </td>
+                    <td>{empresa.dias}</td>
                     <td className="td-progresso">
                       <ProgressBar value={empresa.progresso} />
                     </td>
@@ -1841,7 +1844,7 @@ export default function Home() {
                 {dadosSuspensosFiltrados.length === 0 && (
                   <tr>
                     <td
-                      colSpan={6}
+                      colSpan={7}
                       style={{
                         textAlign: "center",
                         color: "#64748b",

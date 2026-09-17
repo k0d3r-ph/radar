@@ -45,6 +45,10 @@ import { RelatorioAging } from "../RelatorioAging/RelatorioAging";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
+// Carência aplicada antes de considerar um cliente "sem próximo passo definido"
+// após o horário de um agendamento (mesma regra usada na Jornada do Cliente).
+const CARENCIA_SEM_PROXIMO_PASSO_MS = 6 * 60 * 60 * 1000;
+
 type DecorredEmpresa = Empresa & {
   alerta: boolean;
   tme: number | null;
@@ -404,6 +408,10 @@ export const Relatorios: React.FC = () => {
     const fimTimestamp = limitesSemana.fim.getTime();
     const agora = Date.now();
     const limiteCorte = fimTimestamp > agora ? agora : fimTimestamp;
+    // Só considera "sem próximo passo" após uma carência de 6h do horário agendado,
+    // para não marcar o cliente como sem passo definido logo após o horário da agenda
+    // (ex: agenda às 14:00 não deve virar "sem próximo passo" às 14:01, apenas às 20:00).
+    const limiteCorteComCarencia = limiteCorte - CARENCIA_SEM_PROXIMO_PASSO_MS;
 
     return dadosEmpresas.filter((e) => {
       // 1. Deve ter entrado antes/durante a semana
@@ -419,7 +427,7 @@ export const Relatorios: React.FC = () => {
       // 3. Status live (ongoing/suspenso/concluído/cancelado) - Exclui suspensos que vão para o painel de CS
       if (e.isOngoing || e.isSuspended || e.isCancelled || e.progresso >= 100) return false;
 
-      // 4. Sem agendamento futuro em relação ao limite de corte
+      // 4. Sem agendamento futuro em relação ao limite de corte (com carência de 6h)
       const ocorrenciasDaEmpresa = ocorrencias.filter(
         (o) => o.empresa.trim().toLowerCase() === e.nomeEmpresa.trim().toLowerCase()
       );
@@ -427,7 +435,7 @@ export const Relatorios: React.FC = () => {
         (o) =>
           (o.tipo === "Informativa" || o.tipo === "Treinamento" || o.tipo === "Checkpoint") &&
           o.dataOcorrencia &&
-          o.dataOcorrencia > limiteCorte
+          o.dataOcorrencia > limiteCorteComCarencia
       );
 
       return !temAgendamentoFuturo;
@@ -439,6 +447,7 @@ export const Relatorios: React.FC = () => {
     const fimTimestamp = limitesSemanaComparacao.fim.getTime();
     const agora = Date.now();
     const limiteCorte = fimTimestamp > agora ? agora : fimTimestamp;
+    const limiteCorteComCarencia = limiteCorte - CARENCIA_SEM_PROXIMO_PASSO_MS;
 
     return dadosEmpresas.filter((e) => {
       // 1. Deve ter entrado antes/durante a semana de comparação
@@ -454,7 +463,7 @@ export const Relatorios: React.FC = () => {
       // 3. Status live (ongoing/suspenso/concluído/cancelado) - Exclui suspensos
       if (e.isOngoing || e.isSuspended || e.isCancelled || e.progresso >= 100) return false;
 
-      // 4. Sem agendamento futuro em relação ao limite de corte
+      // 4. Sem agendamento futuro em relação ao limite de corte (com carência de 6h)
       const ocorrenciasDaEmpresa = ocorrencias.filter(
         (o) => o.empresa.trim().toLowerCase() === e.nomeEmpresa.trim().toLowerCase()
       );
@@ -462,7 +471,7 @@ export const Relatorios: React.FC = () => {
         (o) =>
           (o.tipo === "Informativa" || o.tipo === "Treinamento" || o.tipo === "Checkpoint") &&
           o.dataOcorrencia &&
-          o.dataOcorrencia > limiteCorte
+          o.dataOcorrencia > limiteCorteComCarencia
       );
 
       return !temAgendamentoFuturo;

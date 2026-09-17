@@ -147,6 +147,21 @@ export function calcularScoreEfetivo(empresa: Pick<Empresa, "score" | "scoreAjus
   return empresa.score - reducaoAtiva;
 }
 
+/**
+ * Tipo (Fast/Safety) do cliente considerando o score efetivo (já com reduções
+ * temporárias aplicadas), não apenas o `tipo` gravado no momento do questionário.
+ * Sem isso, uma redução temporária (ex.: contato com o Suporte) pode derrubar o
+ * score para menos de 6 sem que o `tipo` armazenado seja atualizado, deixando o
+ * cliente marcado como Fast mesmo com score efetivo baixo.
+ */
+export function obterTipoEfetivo(
+  empresa: Pick<Empresa, "score" | "scoreAjustesTemporarios" | "tipo">,
+): "Fast" | "Safety" | "" {
+  const scoreEfetivo = calcularScoreEfetivo(empresa);
+  if (typeof scoreEfetivo !== "number") return empresa.tipo;
+  return scoreEfetivo >= 6 ? "Fast" : "Safety";
+}
+
 /** Ajustes temporários de score ainda dentro do prazo (não vencidos), para exibir a composição do resultado. */
 export function obterAjustesAtivos(
   empresa: Pick<Empresa, "scoreAjustesTemporarios">,

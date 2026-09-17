@@ -35,6 +35,7 @@ import {
   calcularScoreEfetivo,
   calcularPontuacaoScore,
   obterAjustesAtivos,
+  obterTipoEfetivo,
   encontrarOcorrenciaDoAjuste,
 } from "../../utils/score";
 import { atribuirIdsOcorrencias } from "../../utils/empresaUtils";
@@ -840,8 +841,8 @@ export default function Home() {
     const emAndamento = dadosAtivos.filter(
       (e) => e.progresso > 0 && e.progresso < 100,
     ).length;
-    const safety = dadosAtivos.filter((e) => e.tipo === "Safety").length;
-    const fast = dadosAtivos.filter((e) => e.tipo === "Fast").length;
+    const safety = dadosAtivos.filter((e) => obterTipoEfetivo(e) === "Safety").length;
+    const fast = dadosAtivos.filter((e) => obterTipoEfetivo(e) === "Fast").length;
     const alerta = dadosAtivos.filter((e) => e.alerta).length;
     return { total, concluidos, emAndamento, safety, fast, alerta };
   }, [dadosAtivos]);
@@ -925,10 +926,11 @@ export default function Home() {
             e.progresso > 0 &&
             e.progresso < 100);
 
+        const tipoEfetivo = obterTipoEfetivo(e);
         const tipoCardOk =
           !filtroCardTipo ||
-          (filtroCardTipo === "safety" && e.tipo === "Safety") ||
-          (filtroCardTipo === "fast" && e.tipo === "Fast");
+          (filtroCardTipo === "safety" && tipoEfetivo === "Safety") ||
+          (filtroCardTipo === "fast" && tipoEfetivo === "Fast");
 
         const alertaCardOk =
           !filtroCardAlerta || (filtroCardAlerta === "alerta" && e.alerta);
@@ -1499,7 +1501,7 @@ export default function Home() {
                     <td>{formatarNome(empresa.responsavel)}</td>
 
                     <td>
-                      {empresa.tipo && (
+                      {obterTipoEfetivo(empresa) && (
                         <span
                           style={{
                             padding: "2px 10px",
@@ -1507,11 +1509,11 @@ export default function Home() {
                             fontSize: "0.8rem",
                             fontWeight: 600,
                             background:
-                              empresa.tipo === "Fast" ? "#16a34a" : "#dc2626",
+                              obterTipoEfetivo(empresa) === "Fast" ? "#16a34a" : "#dc2626",
                             color: "white",
                           }}
                         >
-                          {empresa.tipo}
+                          {obterTipoEfetivo(empresa)}
                         </span>
                       )}
                     </td>
@@ -1542,7 +1544,7 @@ export default function Home() {
                           style={{
                             fontWeight: 600,
                             color:
-                              empresa.tipo === "Fast" ? "#16a34a" : "#dc2626",
+                              obterTipoEfetivo(empresa) === "Fast" ? "#16a34a" : "#dc2626",
                           }}
                           title={
                             (calcularScoreEfetivo(empresa) ?? empresa.score) !== empresa.score
@@ -2182,7 +2184,7 @@ export default function Home() {
                       style={{
                         fontWeight: "bold",
                         color:
-                          clienteSelecionado.tipo === "Fast"
+                          obterTipoEfetivo(clienteSelecionado) === "Fast"
                             ? "#10b981"
                             : "#ef4444",
                       }}
@@ -2193,7 +2195,7 @@ export default function Home() {
                       }
                     >
                       {(calcularScoreEfetivo(clienteSelecionado) ?? clienteSelecionado.score).toFixed(1)} (
-                      {clienteSelecionado.tipo})
+                      {obterTipoEfetivo(clienteSelecionado)})
                     </span>
                   ) : (
                     "—"

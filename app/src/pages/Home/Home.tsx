@@ -279,6 +279,7 @@ export default function Home() {
     dataFinalizacao: "",
     dataFollowUpFinal: "",
     contatos: [],
+    emails: [],
   };
 
   const [clienteForm, setClienteForm] = useState<Empresa>(EMPTY_CLIENTE);
@@ -409,6 +410,10 @@ export default function Home() {
         telefone: normalizarTelefoneWhatsApp(c.telefone) || c.telefone.trim(),
       }));
 
+    const emailsValidos = (clienteForm.emails || [])
+      .map((e) => e.trim())
+      .filter((e) => e.length > 0);
+
     // Congela a contagem de dias na esteira ao suspender o cliente, registrando
     // a data da suspensão para uso em calcularDiasNaEsteira. Ao retornar (checkbox
     // desmarcado por aqui), acumula os dias que ficaram congelados.
@@ -450,6 +455,7 @@ export default function Home() {
       contatos: contatosValidos,
       contato: contatosValidos[0]?.nome || "",
       telefone: contatosValidos[0]?.telefone || "",
+      emails: emailsValidos,
       dataEntrada: dataEntradaFinal,
       dataSuspensao,
       diasSuspensoAcumulado,
@@ -2072,6 +2078,15 @@ export default function Home() {
                 </span>
               </div>
               <div className="info-item full-width">
+                <span className="info-label">E-mails</span>
+                <span className="info-value">
+                  {clienteSelecionado.emails &&
+                  clienteSelecionado.emails.length > 0
+                    ? clienteSelecionado.emails.join(" | ")
+                    : "-"}
+                </span>
+              </div>
+              <div className="info-item full-width">
                 <span className="info-label">Localização</span>
                 <span className="info-value">
                   {clienteSelecionado.localizacao || "-"}
@@ -2564,6 +2579,83 @@ export default function Home() {
                 }
               >
                 + Adicionar contato
+              </button>
+            </div>
+
+            <div className="form-group">
+              <label>E-mails (opcional)</label>
+
+              {(clienteForm.emails || []).length === 0 && (
+                <p className="contatos-vazio">
+                  Nenhum e-mail cadastrado ainda.
+                </p>
+              )}
+
+              <div className="contatos-lista">
+                {(clienteForm.emails || []).map((email, idx) => {
+                  const emailPreenchido = email.trim().length > 0;
+                  const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+                    email.trim(),
+                  );
+
+                  return (
+                    <div key={idx} className="email-item">
+                      <div className="contato-campo">
+                        <label>E-mail</label>
+                        <input
+                          type="email"
+                          placeholder="Ex: contato@empresa.com"
+                          value={email}
+                          onChange={(e) => {
+                            const novaLista = [...(clienteForm.emails || [])];
+                            novaLista[idx] = e.target.value;
+                            setClienteForm({
+                              ...clienteForm,
+                              emails: novaLista,
+                            });
+                          }}
+                        />
+                        <span
+                          className={`contato-feedback ${emailPreenchido ? (emailValido ? "valido" : "invalido") : ""}`}
+                        >
+                          {emailPreenchido && !emailValido
+                            ? "E-mail em formato inválido"
+                            : ""}
+                        </span>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="contato-remover"
+                        title="Remover e-mail"
+                        onClick={() => {
+                          const novaLista = (clienteForm.emails || []).filter(
+                            (_, i) => i !== idx,
+                          );
+                          setClienteForm({
+                            ...clienteForm,
+                            emails: novaLista,
+                          });
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <button
+                type="button"
+                className="btn-add-contato"
+                onClick={() =>
+                  setClienteForm({
+                    ...clienteForm,
+                    emails: [...(clienteForm.emails || []), ""],
+                  })
+                }
+              >
+                + Adicionar e-mail
               </button>
             </div>
 

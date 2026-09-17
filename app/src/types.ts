@@ -75,6 +75,9 @@ export type Empresa = {
 
   contatos?: ContatoCliente[];
 
+  /** E-mails do cliente, campo opcional para contato adicional. */
+  emails?: string[];
+
   localizacao?: string;
 
   dataFinalizacao?: string;

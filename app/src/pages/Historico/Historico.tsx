@@ -29,7 +29,10 @@ import {
 } from "../../services/notificacoes";
 import type { DestinatarioGestao } from "../../services/notificacoes";
 import { resumirOcorrencias } from "../../services/ia";
-import { listarTemas, TIPOS_PADRAO_SISTEMA } from "../../services/temasOcorrencia";
+import {
+  listarTemas,
+  TIPOS_PADRAO_SISTEMA,
+} from "../../services/temasOcorrencia";
 import { generateEsteiraImage } from "../../utils/generateEsteiraImage";
 import { GestaoNotificacaoModal } from "../../components/GestaoNotificacaoModal";
 
@@ -79,6 +82,9 @@ const TIPOS_PADRAO = TIPOS_PADRAO_SISTEMA;
  * e sim ao status de alerta/suspensão sincronizado na empresa a partir da ocorrência. */
 const FILTRO_ALERTAS = "__alertas__";
 const FILTRO_SUSPENSOES = "__suspensoes__";
+const FILTRO_TREINAMENTO_CAN = "__treinamento_can__";
+const FILTRO_TREINAMENTO_AUS = "__treinamento_aus__";
+const FILTRO_TREINAMENTO_REA = "__treinamento_rea__";
 
 const DEPARTAMENTO = ["Treinamento", "CS", "Suporte", "Hardware", "Comercial"];
 
@@ -638,9 +644,8 @@ export function Historico() {
     [],
   );
   const [novaDuvidaTemaHistorico, setNovaDuvidaTemaHistorico] = useState("");
-  const [duvidaOpcoes, setDuvidaOpcoes] = useState<string[]>(
-    DUVIDA_OPCOES_PADRAO,
-  );
+  const [duvidaOpcoes, setDuvidaOpcoes] =
+    useState<string[]>(DUVIDA_OPCOES_PADRAO);
   const [solicitacaoOpcoes, setSolicitacaoOpcoes] = useState<string[]>(
     SOLICITACAO_OPCOES_PADRAO,
   );
@@ -971,8 +976,14 @@ export function Historico() {
     let alvos: { nome: string; telefone: string }[];
     if (falhos.length > 0) {
       alvos = falhos.map((d) => ({ nome: d.nome, telefone: d.telefone }));
-    } else if (oc.whatsappDestinatarios && oc.whatsappDestinatarios.length > 0) {
-      alvos = oc.whatsappDestinatarios.map((d) => ({ nome: d.nome, telefone: d.telefone }));
+    } else if (
+      oc.whatsappDestinatarios &&
+      oc.whatsappDestinatarios.length > 0
+    ) {
+      alvos = oc.whatsappDestinatarios.map((d) => ({
+        nome: d.nome,
+        telefone: d.telefone,
+      }));
     } else {
       // Ocorrência sem envio registrado (ex: usuário escolheu "Não enviar" na hora) —
       // busca os contatos do cliente novamente, do mesmo jeito que no envio original.
@@ -980,7 +991,12 @@ export function Historico() {
         empresaObjeto.contatos && empresaObjeto.contatos.length > 0
           ? empresaObjeto.contatos
           : empresaObjeto.telefone || empresaObjeto.contato
-            ? [{ nome: empresaObjeto.contato || "", telefone: empresaObjeto.telefone || "" }]
+            ? [
+                {
+                  nome: empresaObjeto.contato || "",
+                  telefone: empresaObjeto.telefone || "",
+                },
+              ]
             : [];
 
       alvos = contatosBase
@@ -992,7 +1008,9 @@ export function Historico() {
     }
 
     if (alvos.length === 0) {
-      toast.error("O cliente não possui telefone de contato cadastrado para envio do WhatsApp.");
+      toast.error(
+        "O cliente não possui telefone de contato cadastrado para envio do WhatsApp.",
+      );
       return;
     }
 
@@ -1005,9 +1023,11 @@ export function Historico() {
         dataCompleta = `${partes[2]}/${partes[1]}/${partes[0]}`;
       }
     }
-    
+
     const temasParaMensagem = temas.filter(
-      (t) => t.trim().toLowerCase() !== "inicio" && t.trim().toLowerCase() !== "conclusao",
+      (t) =>
+        t.trim().toLowerCase() !== "inicio" &&
+        t.trim().toLowerCase() !== "conclusao",
     );
     const plural = temasParaMensagem.length > 1;
     const textoMensagem = `Olá, *${PLACEHOLDER_NOME}*! 🚀\nSeu treinamento sobre ${plural ? "os temas" : "o tema"} *${temasParaMensagem.join(", ")}* foi registrado com sucesso em *${dataCompleta}*.\n\nConfira acima a sua esteira de evolução atualizada:`;
@@ -1875,7 +1895,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             }
             setGestaoDestinatarios(destinatarios);
             setGestaoAvisos(avisos);
-            setGestaoMensagem(montarMensagemSuspensaoGestao(empresaSuspensa, savedId));
+            setGestaoMensagem(
+              montarMensagemSuspensaoGestao(empresaSuspensa, savedId),
+            );
             setGestaoOcorrenciaId(savedId);
             setGestaoConfirmModalOpen(true);
           })
@@ -1886,7 +1908,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             ),
           );
       } catch (error) {
-        console.error("Erro ao suspender empresa a partir da ocorrência:", error);
+        console.error(
+          "Erro ao suspender empresa a partir da ocorrência:",
+          error,
+        );
       }
     } else if (!!form.alerta !== !!empresaObjeto.alerta || form.retirarAlerta) {
       try {
@@ -2462,14 +2487,38 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       const empresaOk =
         !empresaFiltro || normalizar(o.empresa) === normalizar(empresaFiltro);
 
-      const tipoOk =
-        ignoreTipo ||
-        !filtroTipo ||
-        (filtroTipo === FILTRO_ALERTAS
-          ? !!o.alerta
-          : filtroTipo === FILTRO_SUSPENSOES
-            ? !!o.suspenderCliente
-            : o.tipo === filtroTipo);
+      let tipoOk = ignoreTipo || !filtroTipo;
+
+      if (!tipoOk) {
+        if (filtroTipo === FILTRO_ALERTAS) {
+          tipoOk = !!o.alerta;
+        } else if (filtroTipo === FILTRO_SUSPENSOES) {
+          tipoOk = !!o.suspenderCliente;
+        } else if (filtroTipo === FILTRO_TREINAMENTO_CAN) {
+          tipoOk =
+            o.tipo === "Treinamento" &&
+            (o.temaOcorrencia || []).some(
+              (t) => t.trim().toLowerCase() === "cancelado",
+            );
+        } else if (filtroTipo === FILTRO_TREINAMENTO_AUS) {
+          tipoOk =
+            o.tipo === "Treinamento" &&
+            (o.temaOcorrencia || []).some(
+              (t) => t.trim().toLowerCase() === "ausente",
+            );
+        } else if (filtroTipo === FILTRO_TREINAMENTO_REA) {
+          tipoOk =
+            o.tipo === "Treinamento" &&
+            !(o.temaOcorrencia || []).some(
+              (t) =>
+                t.trim().toLowerCase() === "cancelado" ||
+                t.trim().toLowerCase() === "ausente",
+            );
+        } else {
+          tipoOk = o.tipo === filtroTipo; // Funciona para pesquisa geral de "Treinamento" e outros tipos
+        }
+      }
+
       const deptoOk =
         ignoreDepto || !filtroDepto || o.departamento === filtroDepto;
 
@@ -2956,11 +3005,17 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             <option value="">Todos os tipos</option>
             <option value={FILTRO_ALERTAS}>Alertas 🔥</option>
             <option value={FILTRO_SUSPENSOES}>Suspensões ⏸️</option>
-            {tipos.filter((t) => t !== "Gol" || isTreinador).map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
+            {tipos
+              .filter((t) => t !== "Gol" || isTreinador)
+              .map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            {/* Opções específicas de Treinamento */}
+            <option value={FILTRO_TREINAMENTO_REA}>Treinamento (Rea.)</option>
+            <option value={FILTRO_TREINAMENTO_CAN}>Treinamento (Can.)</option>
+            <option value={FILTRO_TREINAMENTO_AUS}>Treinamento (Aus.)</option>
           </select>
 
           <select
@@ -3755,198 +3810,205 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               {(selecionada.whatsappStatus ||
                 selecionada.alerta ||
                 selecionada.suspenderCliente) && (
+                <div
+                  style={{
+                    marginTop: "16px",
+                    padding: "14px 16px",
+                    borderRadius: "10px",
+                    background: "rgba(255,255,255,0.03)",
+                    border:
+                      selecionada.whatsappStatus === "enviado"
+                        ? "1px solid rgba(34,197,94,0.25)"
+                        : selecionada.whatsappStatus === "falhou"
+                          ? "1px solid rgba(239,68,68,0.3)"
+                          : selecionada.whatsappStatus === "nao_enviado"
+                            ? "1px solid rgba(100,116,139,0.3)"
+                            : selecionada.whatsappStatus === "sem_destinatario"
+                              ? "1px solid rgba(217,119,6,0.3)"
+                              : selecionada.whatsappStatus === "parcial"
+                                ? "1px solid rgba(251,191,36,0.3)"
+                                : "1px solid rgba(100,116,139,0.3)",
+                  }}
+                >
                   <div
                     style={{
-                      marginTop: "16px",
-                      padding: "14px 16px",
-                      borderRadius: "10px",
-                      background: "rgba(255,255,255,0.03)",
-                      border:
-                        selecionada.whatsappStatus === "enviado"
-                          ? "1px solid rgba(34,197,94,0.25)"
-                          : selecionada.whatsappStatus === "falhou"
-                            ? "1px solid rgba(239,68,68,0.3)"
-                            : selecionada.whatsappStatus === "nao_enviado"
-                              ? "1px solid rgba(100,116,139,0.3)"
-                              : selecionada.whatsappStatus === "sem_destinatario"
-                                ? "1px solid rgba(217,119,6,0.3)"
-                                : selecionada.whatsappStatus === "parcial"
-                                  ? "1px solid rgba(251,191,36,0.3)"
-                                  : "1px solid rgba(100,116,139,0.3)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: "8px",
+                      marginBottom:
+                        (selecionada.whatsappDestinatarios ?? []).length > 0
+                          ? "10px"
+                          : 0,
                     }}
                   >
+                    <span
+                      style={{
+                        fontSize: "0.8rem",
+                        fontWeight: 700,
+                        color:
+                          selecionada.whatsappStatus === "enviado"
+                            ? "#22c55e"
+                            : selecionada.whatsappStatus === "falhou"
+                              ? "#ef4444"
+                              : selecionada.whatsappStatus === "nao_enviado"
+                                ? "#94a3b8"
+                                : selecionada.whatsappStatus ===
+                                    "sem_destinatario"
+                                  ? "#d97706"
+                                  : selecionada.whatsappStatus === "parcial"
+                                    ? "#fbbf24"
+                                    : "#94a3b8",
+                      }}
+                    >
+                      {selecionada.whatsappStatus === "enviado"
+                        ? "✅ Notificação WhatsApp enviada"
+                        : selecionada.whatsappStatus === "falhou"
+                          ? "❌ Falha ao enviar notificação WhatsApp"
+                          : selecionada.whatsappStatus === "nao_enviado"
+                            ? "🚫 Notificação WhatsApp não enviada"
+                            : selecionada.whatsappStatus === "sem_destinatario"
+                              ? "📵 Nenhum destinatário encontrado para envio"
+                              : selecionada.whatsappStatus === "parcial"
+                                ? "⚠️ Notificação WhatsApp enviada parcialmente"
+                                : "🔔 Notificação de gestão ainda não registrada"}
+                      {selecionada.whatsappEnviadoEm ? (
+                        <span
+                          style={{
+                            fontWeight: 400,
+                            color: "var(--text-muted, #94a3b8)",
+                            marginLeft: "6px",
+                          }}
+                        >
+                          {"·"}{" "}
+                          {new Date(
+                            selecionada.whatsappEnviadoEm,
+                          ).toLocaleString("pt-BR", {
+                            day: "2-digit",
+                            month: "2-digit",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      ) : null}
+                    </span>
+                    <button
+                      type="button"
+                      className="btn-primary btn-small"
+                      onClick={() => {
+                        if (
+                          selecionada.alerta ||
+                          selecionada.retirarAlerta ||
+                          selecionada.suspenderCliente ||
+                          selecionada.retornarEsteira
+                        ) {
+                          reabrirNotificacaoGestao(selecionada);
+                        } else if (selecionada.tipo === "Treinamento") {
+                          reabrirNotificacaoEsteira(selecionada);
+                        } else {
+                          // Fallback
+                          reabrirNotificacaoEsteira(selecionada);
+                        }
+                      }}
+                      style={{
+                        background:
+                          selecionada.whatsappStatus === "enviado"
+                            ? "transparent"
+                            : "var(--warning-color, #f59e0b)",
+                        border:
+                          selecionada.whatsappStatus === "enviado"
+                            ? "1px solid rgba(255,255,255,0.15)"
+                            : "1px solid transparent",
+                        whiteSpace: "nowrap",
+                        flexShrink: 0,
+                      }}
+                    >
+                      {selecionada.whatsappStatus === "nao_enviado" ||
+                      selecionada.whatsappStatus === "sem_destinatario" ||
+                      !selecionada.whatsappStatus
+                        ? "Enviar agora"
+                        : selecionada.whatsappStatus === "enviado"
+                          ? "Enviar novamente"
+                          : "Tentar novamente"}
+                    </button>
+                  </div>
+
+                  {/* Lista detalhada por destinatário */}
+                  {(selecionada.whatsappDestinatarios ?? []).length > 0 && (
                     <div
                       style={{
                         display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        gap: "8px",
-                        marginBottom:
-                          (selecionada.whatsappDestinatarios ?? []).length > 0
-                            ? "10px"
-                            : 0,
+                        flexDirection: "column",
+                        gap: "5px",
                       }}
                     >
-                      <span
-                        style={{
-                          fontSize: "0.8rem",
-                          fontWeight: 700,
-                          color:
-                            selecionada.whatsappStatus === "enviado"
-                              ? "#22c55e"
-                              : selecionada.whatsappStatus === "falhou"
-                                ? "#ef4444"
-                                : selecionada.whatsappStatus === "nao_enviado"
-                                  ? "#94a3b8"
-                                  : selecionada.whatsappStatus === "sem_destinatario"
-                                    ? "#d97706"
-                                    : selecionada.whatsappStatus === "parcial"
-                                      ? "#fbbf24"
-                                      : "#94a3b8",
-                        }}
-                      >
-                        {selecionada.whatsappStatus === "enviado"
-                          ? "✅ Notificação WhatsApp enviada"
-                          : selecionada.whatsappStatus === "falhou"
-                            ? "❌ Falha ao enviar notificação WhatsApp"
-                            : selecionada.whatsappStatus === "nao_enviado"
-                              ? "🚫 Notificação WhatsApp não enviada"
-                              : selecionada.whatsappStatus === "sem_destinatario"
-                                ? "📵 Nenhum destinatário encontrado para envio"
-                                : selecionada.whatsappStatus === "parcial"
-                                  ? "⚠️ Notificação WhatsApp enviada parcialmente"
-                                  : "🔔 Notificação de gestão ainda não registrada"}
-                        {selecionada.whatsappEnviadoEm ? (
-                          <span
-                            style={{
-                              fontWeight: 400,
-                              color: "var(--text-muted, #94a3b8)",
-                              marginLeft: "6px",
-                            }}
-                          >
-                            {"·"}{" "}
-                            {new Date(
-                              selecionada.whatsappEnviadoEm,
-                            ).toLocaleString("pt-BR", {
-                              day: "2-digit",
-                              month: "2-digit",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </span>
-                        ) : null}
-                      </span>
-                      <button
-                        type="button"
-                        className="btn-primary btn-small"
-                        onClick={() => {
-                          if (
-                            selecionada.alerta ||
-                            selecionada.retirarAlerta ||
-                            selecionada.suspenderCliente ||
-                            selecionada.retornarEsteira
-                          ) {
-                            reabrirNotificacaoGestao(selecionada);
-                          } else if (selecionada.tipo === "Treinamento") {
-                            reabrirNotificacaoEsteira(selecionada);
-                          } else {
-                            // Fallback
-                            reabrirNotificacaoEsteira(selecionada);
-                          }
-                        }}
-                        style={{
-                          background:
-                            selecionada.whatsappStatus === "enviado"
-                              ? "transparent"
-                              : "var(--warning-color, #f59e0b)",
-                          border:
-                            selecionada.whatsappStatus === "enviado"
-                              ? "1px solid rgba(255,255,255,0.15)"
-                              : "1px solid transparent",
-                          whiteSpace: "nowrap",
-                          flexShrink: 0,
-                        }}
-                      >
-                        {selecionada.whatsappStatus === "nao_enviado" ||
-                        selecionada.whatsappStatus === "sem_destinatario" ||
-                        !selecionada.whatsappStatus
-                          ? "Enviar agora"
-                          : selecionada.whatsappStatus === "enviado"
-                            ? "Enviar novamente"
-                            : "Tentar novamente"}
-                      </button>
-                    </div>
-
-                    {/* Lista detalhada por destinatário */}
-                    {(selecionada.whatsappDestinatarios ?? []).length > 0 && (
-                      <div
-                        style={{ display: "flex", flexDirection: "column", gap: "5px" }}
-                      >
-                        {selecionada.whatsappDestinatarios!.map((d) => (
+                      {selecionada.whatsappDestinatarios!.map((d) => (
+                        <div
+                          key={d.telefone}
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            padding: "7px 10px",
+                            borderRadius: "7px",
+                            background:
+                              d.status === "falhou"
+                                ? "rgba(239,68,68,0.08)"
+                                : "rgba(34,197,94,0.06)",
+                            border:
+                              d.status === "falhou"
+                                ? "1px solid rgba(239,68,68,0.2)"
+                                : "1px solid rgba(34,197,94,0.15)",
+                          }}
+                        >
                           <div
-                            key={d.telefone}
                             style={{
                               display: "flex",
-                              flexDirection: "column",
-                              padding: "7px 10px",
-                              borderRadius: "7px",
-                              background:
-                                d.status === "falhou"
-                                  ? "rgba(239,68,68,0.08)"
-                                  : "rgba(34,197,94,0.06)",
-                              border:
-                                d.status === "falhou"
-                                  ? "1px solid rgba(239,68,68,0.2)"
-                                  : "1px solid rgba(34,197,94,0.15)",
+                              justifyContent: "space-between",
+                              alignItems: "center",
                             }}
                           >
-                            <div
+                            <span
                               style={{
-                                display: "flex",
-                                justifyContent: "space-between",
-                                alignItems: "center",
+                                fontSize: "0.82rem",
+                                color: "var(--text-color, #fff)",
+                                fontWeight: 500,
                               }}
                             >
-                              <span
-                                style={{
-                                  fontSize: "0.82rem",
-                                  color: "var(--text-color, #fff)",
-                                  fontWeight: 500,
-                                }}
-                              >
-                                {d.nome}
-                              </span>
-                              <span
-                                style={{
-                                  fontSize: "0.78rem",
-                                  color:
-                                    d.status === "enviado"
-                                      ? "#22c55e"
-                                      : "#ef4444",
-                                  fontWeight: 600,
-                                }}
-                              >
-                                {d.status === "enviado" ? "✅ Enviado" : "❌ Falhou"}
-                              </span>
-                            </div>
-                            {d.status === "falhou" && d.erro && (
-                              <div
-                                style={{
-                                  marginTop: "4px",
-                                  fontSize: "0.76rem",
-                                  color: "#fca5a5",
-                                  lineHeight: 1.4,
-                                }}
-                              >
-                                {d.erro}
-                              </div>
-                            )}
+                              {d.nome}
+                            </span>
+                            <span
+                              style={{
+                                fontSize: "0.78rem",
+                                color:
+                                  d.status === "enviado"
+                                    ? "#22c55e"
+                                    : "#ef4444",
+                                fontWeight: 600,
+                              }}
+                            >
+                              {d.status === "enviado"
+                                ? "✅ Enviado"
+                                : "❌ Falhou"}
+                            </span>
                           </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
+                          {d.status === "falhou" && d.erro && (
+                            <div
+                              style={{
+                                marginTop: "4px",
+                                fontSize: "0.76rem",
+                                color: "#fca5a5",
+                                lineHeight: 1.4,
+                              }}
+                            >
+                              {d.erro}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="botoes">
                 {!novaAtualizacaoAberta &&
@@ -4199,29 +4261,33 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   onChange={(e) => setBuscaAssunto(e.target.value)}
                 />
                 <div className="temas-lista">
-                  {duvidaOpcoes.filter((opcao) =>
-                    opcao
-                      .toLowerCase()
-                      .includes(buscaAssunto.trim().toLowerCase()),
-                  ).map((opcao) => (
-                    <label key={opcao} className="tema-opcao">
-                      <input
-                        type="checkbox"
-                        checked={form.temaOcorrencia?.includes(opcao) ?? false}
-                        onChange={(e) => {
-                          const atual = form.temaOcorrencia ?? [];
-                          const novoTema = e.target.checked
-                            ? [...atual, opcao]
-                            : atual.filter((t) => t !== opcao);
-                          setForm({
-                            ...form,
-                            temaOcorrencia: novoTema,
-                          });
-                        }}
-                      />
-                      {opcao}
-                    </label>
-                  ))}
+                  {duvidaOpcoes
+                    .filter((opcao) =>
+                      opcao
+                        .toLowerCase()
+                        .includes(buscaAssunto.trim().toLowerCase()),
+                    )
+                    .map((opcao) => (
+                      <label key={opcao} className="tema-opcao">
+                        <input
+                          type="checkbox"
+                          checked={
+                            form.temaOcorrencia?.includes(opcao) ?? false
+                          }
+                          onChange={(e) => {
+                            const atual = form.temaOcorrencia ?? [];
+                            const novoTema = e.target.checked
+                              ? [...atual, opcao]
+                              : atual.filter((t) => t !== opcao);
+                            setForm({
+                              ...form,
+                              temaOcorrencia: novoTema,
+                            });
+                          }}
+                        />
+                        {opcao}
+                      </label>
+                    ))}
                 </div>
               </div>
             )}
@@ -5294,35 +5360,37 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 </p>
               ) : (
                 <ul className="hist-duvidas-cliente-lista">
-                  {rankingDuvidasCliente.map(({ tema, contagem, origemManual }) => {
-                    const indexManual = origemManual
-                      ? duvidasClienteModal.findIndex(
-                          (d) => d.trim() === tema,
-                        )
-                      : -1;
-                    return (
-                      <li key={tema} className="hist-duvidas-cliente-item">
-                        <span className="hist-duvidas-cliente-texto">
-                          {tema}
-                        </span>
-                        <span className="hist-duvidas-cliente-contagem">
-                          {contagem}
-                        </span>
-                        {indexManual !== -1 && (
-                          <button
-                            type="button"
-                            className="hist-duvidas-cliente-remover"
-                            onClick={() => removerDuvidaCliente(indexManual)}
-                            disabled={removendoDuvidaCliente === indexManual}
-                            title="Excluir dúvida manual registrada para este tema"
-                            aria-label="Excluir dúvida manual"
-                          >
-                            <X size={14} />
-                          </button>
-                        )}
-                      </li>
-                    );
-                  })}
+                  {rankingDuvidasCliente.map(
+                    ({ tema, contagem, origemManual }) => {
+                      const indexManual = origemManual
+                        ? duvidasClienteModal.findIndex(
+                            (d) => d.trim() === tema,
+                          )
+                        : -1;
+                      return (
+                        <li key={tema} className="hist-duvidas-cliente-item">
+                          <span className="hist-duvidas-cliente-texto">
+                            {tema}
+                          </span>
+                          <span className="hist-duvidas-cliente-contagem">
+                            {contagem}
+                          </span>
+                          {indexManual !== -1 && (
+                            <button
+                              type="button"
+                              className="hist-duvidas-cliente-remover"
+                              onClick={() => removerDuvidaCliente(indexManual)}
+                              disabled={removendoDuvidaCliente === indexManual}
+                              title="Excluir dúvida manual registrada para este tema"
+                              aria-label="Excluir dúvida manual"
+                            >
+                              <X size={14} />
+                            </button>
+                          )}
+                        </li>
+                      );
+                    },
+                  )}
                 </ul>
               )}
             </div>

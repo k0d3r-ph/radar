@@ -12,12 +12,15 @@ export function construirUrlOcorrencia(id: string): string {
 }
 
 function normalizarTexto(s: string): string {
-  return s.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return s
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
 }
 
 // A normalização vive em utils/telefone para que cadastro, gestão e esteira
 // sigam exatamente a mesma regra.
-
 
 export interface DestinatarioGestao {
   nome: string;
@@ -39,7 +42,7 @@ export interface ResultadoDestinatariosGestao {
  * que a omissão não passe despercebida na hora de confirmar o envio.
  */
 export async function obterDestinatariosGestao(
-  empresaObjeto: Empresa
+  empresaObjeto: Empresa,
 ): Promise<ResultadoDestinatariosGestao> {
   const usuarios = await listarUsuarios();
   const destinatarios: DestinatarioGestao[] = [];
@@ -62,19 +65,19 @@ export async function obterDestinatariosGestao(
     avisos.push(
       `Sem telefone válido cadastrado: ${supervisoresSemTelefone
         .map((u) => u.nome || u.email)
-        .join(", ")}.`
+        .join(", ")}.`,
     );
   }
 
   const mastersNotificaveis = usuarios.filter(
-    (u) => u.role === "master" && u.recebeNotificacoesGestao
+    (u) => u.role === "master" && u.recebeNotificacoesGestao,
   );
   const mastersSemTelefone = mastersNotificaveis.filter((u) => !adicionar(u));
   if (mastersSemTelefone.length > 0) {
     avisos.push(
       `Sem telefone válido cadastrado: ${mastersSemTelefone
         .map((u) => u.nome || u.email)
-        .join(", ")}.`
+        .join(", ")}.`,
     );
   }
 
@@ -82,21 +85,45 @@ export async function obterDestinatariosGestao(
   if (csNome) {
     const csResponsavel = usuarios.find(
       (u) =>
-        (u.cargo === "analista" || u.role?.toLowerCase() === "cs" || u.cargo?.toLowerCase() === "cs") &&
-        (compararCS(u.nome, csNome) || normalizarTexto(u.nome) === normalizarTexto(csNome))
+        (u.cargo === "analista" ||
+          u.role?.toLowerCase() === "cs" ||
+          u.cargo?.toLowerCase() === "cs") &&
+        (compararCS(u.nome, csNome) ||
+          normalizarTexto(u.nome) === normalizarTexto(csNome)),
     );
     if (!csResponsavel) {
       avisos.push(
-        `O CS Responsável "${csNome}" não tem usuário com cargo Analista e nome equivalente, então não será notificado.`
+        `O CS Responsável "${csNome}" não tem usuário com cargo Analista e nome equivalente, então não será notificado.`,
       );
     } else if (!adicionar(csResponsavel)) {
       avisos.push(
-        `O CS Responsável "${csNome}" está sem telefone válido cadastrado, então não será notificado.`
+        `O CS Responsável "${csNome}" está sem telefone válido cadastrado, então não será notificado.`,
       );
     }
   } else {
     avisos.push("Este cliente não tem CS Responsável definido no cadastro.");
   }
+
+  const comercialNome = empresaObjeto.comercialResponsavel;
+
+  if (comercialNome) {
+    const comercialResponsavel = usuarios.find(
+      (u) =>
+        compararCS(u.nome, comercialNome) ||
+        normalizarTexto(u.nome) === normalizarTexto(comercialNome),
+    );
+
+    if (!comercialResponsavel) {
+      avisos.push(
+        `O Comercial "${comercialNome}" não tem um usuário no sistema com nome equivalente, então não será notificado.`,
+      );
+    } else if (!adicionar(comercialResponsavel)) {
+      avisos.push(
+        `O Comercial "${comercialNome}" está sem telefone válido cadastrado, então não será notificado.`,
+      );
+    }
+  }
+  // --------------------------------
 
   return { destinatarios, avisos };
 }
@@ -113,10 +140,20 @@ export function aplicarNomeDestinatario(texto: string, nome: string): string {
   return texto.replace(/\{nome\}/gi, nome);
 }
 
-export function montarMensagemAlertaGestao(empresa: Empresa, ocorrenciaId?: string): string {
-  const csLinha = empresa.csResponsavel ? `\nCS Responsável: *${empresa.csResponsavel}*` : "";
-  const linkLinha = ocorrenciaId ? `\n${construirUrlOcorrencia(ocorrenciaId)}` : "";
-  return `⚠️ *ALERTA* gerado para o cliente *${empresa.nomeEmpresa}*!${csLinha}${linkLinha}\n\nAcesse o Radar para mais detalhes.`;
+export function montarMensagemAlertaGestao(
+  empresa: Empresa,
+  ocorrenciaId?: string,
+): string {
+  const csLinha = empresa.csResponsavel
+    ? `\nCS Responsável: *${empresa.csResponsavel}*`
+    : "";
+  const comercialLinha = empresa.comercialResponsavel
+    ? `\nComercial: *${empresa.comercialResponsavel}*`
+    : "";
+  const linkLinha = ocorrenciaId
+    ? `\n${construirUrlOcorrencia(ocorrenciaId)}`
+    : "";
+  return `⚠️ *ALERTA* gerado para o cliente *${empresa.nomeEmpresa}*!${csLinha}${comercialLinha}${linkLinha}\n\nAcesse o Radar para mais detalhes.`;
 }
 
 /**
@@ -124,14 +161,34 @@ export function montarMensagemAlertaGestao(empresa: Empresa, ocorrenciaId?: stri
  * que completou a esteira), inclui o link dessa ocorrência. Quando a esteira é concluída manualmente
  * (sem uma ocorrência associada), o parâmetro deve ser omitido.
  */
-export function montarMensagemConclusaoEsteiraGestao(empresa: Empresa, ocorrenciaId?: string): string {
-  const csLinha = empresa.csResponsavel ? `\nCS Responsável: *${empresa.csResponsavel}*` : "";
-  const linkLinha = ocorrenciaId ? `\n${construirUrlOcorrencia(ocorrenciaId)}` : "";
-  return `🎉 O cliente *${empresa.nomeEmpresa}* concluiu a esteira de onboarding!${csLinha}${linkLinha}\n\nAcesse o Radar para mais detalhes.`;
+export function montarMensagemConclusaoEsteiraGestao(
+  empresa: Empresa,
+  ocorrenciaId?: string,
+): string {
+  const csLinha = empresa.csResponsavel
+    ? `\nCS Responsável: *${empresa.csResponsavel}*`
+    : "";
+  const comercialLinha = empresa.comercialResponsavel
+    ? `\nComercial: *${empresa.comercialResponsavel}*`
+    : "";
+  const linkLinha = ocorrenciaId
+    ? `\n${construirUrlOcorrencia(ocorrenciaId)}`
+    : "";
+  return `🎉 O cliente *${empresa.nomeEmpresa}* concluiu a esteira de onboarding!${csLinha}${comercialLinha}${linkLinha}\n\nAcesse o Radar para mais detalhes.`;
 }
 
-export function montarMensagemSuspensaoGestao(empresa: Empresa, ocorrenciaId?: string): string {
-  const csLinha = empresa.csResponsavel ? `\nCS Responsável: *${empresa.csResponsavel}*` : "";
-  const linkLinha = ocorrenciaId ? `\n${construirUrlOcorrencia(ocorrenciaId)}` : "";
-  return `⏸️ O cliente *${empresa.nomeEmpresa}* foi *suspenso temporariamente*!${csLinha}${linkLinha}\n\nAcesse o Radar para mais detalhes.`;
+export function montarMensagemSuspensaoGestao(
+  empresa: Empresa,
+  ocorrenciaId?: string,
+): string {
+  const csLinha = empresa.csResponsavel
+    ? `\nCS Responsável: *${empresa.csResponsavel}*`
+    : "";
+  const comercialLinha = empresa.comercialResponsavel
+    ? `\nComercial: *${empresa.comercialResponsavel}*`
+    : "";
+  const linkLinha = ocorrenciaId
+    ? `\n${construirUrlOcorrencia(ocorrenciaId)}`
+    : "";
+  return `⏸️ O cliente *${empresa.nomeEmpresa}* foi *suspenso temporariamente*!${csLinha}${comercialLinha}${linkLinha}\n\nAcesse o Radar para mais detalhes.`;
 }

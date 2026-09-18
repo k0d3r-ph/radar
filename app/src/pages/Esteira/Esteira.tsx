@@ -414,7 +414,7 @@ function Esteira() {
                   duration: 2000,
                 });
 
-                // Esteira concluída agora (não estava finalizada antes e o cliente não é Ongoing): notifica Supervisor + CS Responsável
+                // Esteira concluída agora (não estava finalizada antes e o cliente não é Ongoing): notifica Supervisor + CS + Comercial
                 if (
                   isFinished &&
                   !empresaExistente?.dataFinalizacao &&
@@ -774,7 +774,7 @@ function Esteira() {
 
       <GestaoNotificacaoModal
         open={gestaoConfirmModalOpen}
-        titulo="🎉 Notificar Supervisor e CS Responsável sobre a conclusão da esteira?"
+        titulo="🎉 Notificar Supervisor, CS e Comercial sobre a conclusão da esteira?"
         destinatarios={gestaoDestinatarios}
         avisos={gestaoAvisos}
         mensagem={gestaoMensagem}

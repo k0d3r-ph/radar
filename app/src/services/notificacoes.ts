@@ -4,6 +4,7 @@ import type { Empresa } from "../types";
 import { normalizarTelefoneWhatsApp } from "../utils/telefone";
 
 import { compararCS } from "../utils/cs";
+import { compararComercial } from "../utils/comercial";
 
 const BASE_URL = window.location.origin;
 
@@ -16,7 +17,7 @@ function normalizarTexto(s: string): string {
     .trim()
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
+    .replace(/[̀-ͯ]/g, "");
 }
 
 // A normalização vive em utils/telefone para que cadastro, gestão e esteira
@@ -33,21 +34,88 @@ export interface ResultadoDestinatariosGestao {
   avisos: string[];
 }
 
+/** Os 4 tipos de mensagem de gestão que cada usuário habilita individualmente no seu cadastro. */
+export type EventoNotificacaoGestao =
+  | "suspenso"
+  | "alerta"
+  | "cancelado"
+  | "conclusao";
+
+const ROTULO_EVENTO: Record<EventoNotificacaoGestao, string> = {
+  suspenso: "Suspensão",
+  alerta: "Alerta",
+  cancelado: "Cancelamento",
+  conclusao: "Conclusão",
+};
+
+const CAMPO_NOTIFICACAO: Record<
+  EventoNotificacaoGestao,
+  keyof Pick<
+    UsuarioDocument,
+    | "notificarSuspenso"
+    | "notificarAlerta"
+    | "notificarCancelado"
+    | "notificarConclusao"
+  >
+> = {
+  suspenso: "notificarSuspenso",
+  alerta: "notificarAlerta",
+  cancelado: "notificarCancelado",
+  conclusao: "notificarConclusao",
+};
+
+/** Habilitado por padrão: só fica de fora quem desmarcou explicitamente (`false`) o tipo de mensagem. */
+function notificacaoHabilitada(
+  u: UsuarioDocument,
+  evento: EventoNotificacaoGestao,
+): boolean {
+  return u[CAMPO_NOTIFICACAO[evento]] !== false;
+}
+
+export function ehSupervisorOuMaster(u: UsuarioDocument): boolean {
+  return u.cargo === "supervisor" || u.role === "master";
+}
+
+export function ehCS(u: UsuarioDocument): boolean {
+  return (
+    u.cargo === "analista" ||
+    u.role?.toLowerCase() === "cs" ||
+    u.cargo?.toLowerCase() === "cs"
+  );
+}
+
+export function ehComercial(u: UsuarioDocument): boolean {
+  return u.role?.toLowerCase() === "comercial" || u.cargo === "comercial";
+}
+
+/** Usuário se qualifica para receber alguma notificação de gestão via WhatsApp (Supervisor/master/CS/Comercial). */
+export function elegivelNotificacoesGestao(u: UsuarioDocument): boolean {
+  return ehSupervisorOuMaster(u) || ehCS(u) || ehComercial(u);
+}
+
 /**
- * Monta a lista de destinatários (WhatsApp) para notificações de gestão de um cliente:
- * todos os usuários com cargo "supervisor" + o CS Responsável (cargo "analista") do cliente.
+ * Monta a lista de destinatários (WhatsApp) para a notificação de gestão de um evento
+ * (Suspenso, Alerta, Cancelado ou Conclusão) de um cliente, respeitando a habilitação por
+ * tipo de mensagem de cada usuário:
  *
- * Quando o CS Responsável do cliente não tem usuário correspondente, ou o usuário
- * encontrado está sem telefone, ele não entra na lista — e isso vira um aviso, para
- * que a omissão não passe despercebida na hora de confirmar o envio.
+ * - Supervisor e master: recebem de todos os clientes.
+ * - CS: recebe apenas quando é o CS Responsável do cliente.
+ * - Comercial: recebe apenas quando é o Comercial Responsável do cliente.
+ *
+ * Quando o CS/Comercial Responsável do cliente não tem usuário correspondente, o usuário
+ * encontrado está sem telefone, ou optou por não receber esse tipo de mensagem, ele não
+ * entra na lista — e isso vira um aviso, para que a omissão não passe despercebida na
+ * hora de confirmar o envio.
  */
 export async function obterDestinatariosGestao(
   empresaObjeto: Empresa,
+  evento: EventoNotificacaoGestao,
 ): Promise<ResultadoDestinatariosGestao> {
   const usuarios = await listarUsuarios();
   const destinatarios: DestinatarioGestao[] = [];
   const avisos: string[] = [];
   const telefonesAdicionados = new Set<string>();
+  const rotulo = ROTULO_EVENTO[evento];
 
   const adicionar = (u: UsuarioDocument) => {
     if (!u.telefone || !u.telefone.trim()) return false;
@@ -59,23 +127,15 @@ export async function obterDestinatariosGestao(
     return true;
   };
 
-  const supervisores = usuarios.filter((u) => u.cargo === "supervisor");
-  const supervisoresSemTelefone = supervisores.filter((u) => !adicionar(u));
+  const supervisoresEMasters = usuarios.filter(
+    (u) => ehSupervisorOuMaster(u) && notificacaoHabilitada(u, evento),
+  );
+  const supervisoresSemTelefone = supervisoresEMasters.filter(
+    (u) => !adicionar(u),
+  );
   if (supervisoresSemTelefone.length > 0) {
     avisos.push(
       `Sem telefone válido cadastrado: ${supervisoresSemTelefone
-        .map((u) => u.nome || u.email)
-        .join(", ")}.`,
-    );
-  }
-
-  const mastersNotificaveis = usuarios.filter(
-    (u) => u.role === "master" && u.recebeNotificacoesGestao,
-  );
-  const mastersSemTelefone = mastersNotificaveis.filter((u) => !adicionar(u));
-  if (mastersSemTelefone.length > 0) {
-    avisos.push(
-      `Sem telefone válido cadastrado: ${mastersSemTelefone
         .map((u) => u.nome || u.email)
         .join(", ")}.`,
     );
@@ -85,15 +145,17 @@ export async function obterDestinatariosGestao(
   if (csNome) {
     const csResponsavel = usuarios.find(
       (u) =>
-        (u.cargo === "analista" ||
-          u.role?.toLowerCase() === "cs" ||
-          u.cargo?.toLowerCase() === "cs") &&
+        ehCS(u) &&
         (compararCS(u.nome, csNome) ||
           normalizarTexto(u.nome) === normalizarTexto(csNome)),
     );
     if (!csResponsavel) {
       avisos.push(
         `O CS Responsável "${csNome}" não tem usuário com cargo Analista e nome equivalente, então não será notificado.`,
+      );
+    } else if (!notificacaoHabilitada(csResponsavel, evento)) {
+      avisos.push(
+        `O CS Responsável "${csNome}" optou por não receber mensagens de ${rotulo}.`,
       );
     } else if (!adicionar(csResponsavel)) {
       avisos.push(
@@ -105,17 +167,18 @@ export async function obterDestinatariosGestao(
   }
 
   const comercialNome = empresaObjeto.comercialResponsavel;
-
   if (comercialNome) {
     const comercialResponsavel = usuarios.find(
-      (u) =>
-        compararCS(u.nome, comercialNome) ||
-        normalizarTexto(u.nome) === normalizarTexto(comercialNome),
+      (u) => ehComercial(u) && compararComercial(u.nome, comercialNome),
     );
 
     if (!comercialResponsavel) {
       avisos.push(
-        `O Comercial "${comercialNome}" não tem um usuário no sistema com nome equivalente, então não será notificado.`,
+        `O Comercial "${comercialNome}" não tem usuário com cargo Comercial e nome equivalente, então não será notificado.`,
+      );
+    } else if (!notificacaoHabilitada(comercialResponsavel, evento)) {
+      avisos.push(
+        `O Comercial "${comercialNome}" optou por não receber mensagens de ${rotulo}.`,
       );
     } else if (!adicionar(comercialResponsavel)) {
       avisos.push(
@@ -123,7 +186,6 @@ export async function obterDestinatariosGestao(
       );
     }
   }
-  // --------------------------------
 
   return { destinatarios, avisos };
 }
@@ -191,4 +253,20 @@ export function montarMensagemSuspensaoGestao(
     ? `\n${construirUrlOcorrencia(ocorrenciaId)}`
     : "";
   return `⏸️ O cliente *${empresa.nomeEmpresa}* foi *suspenso temporariamente*!${csLinha}${comercialLinha}${linkLinha}\n\nAcesse o Radar para mais detalhes.`;
+}
+
+export function montarMensagemCanceladoGestao(
+  empresa: Empresa,
+  ocorrenciaId?: string,
+): string {
+  const csLinha = empresa.csResponsavel
+    ? `\nCS Responsável: *${empresa.csResponsavel}*`
+    : "";
+  const comercialLinha = empresa.comercialResponsavel
+    ? `\nComercial: *${empresa.comercialResponsavel}*`
+    : "";
+  const linkLinha = ocorrenciaId
+    ? `\n${construirUrlOcorrencia(ocorrenciaId)}`
+    : "";
+  return `🚫 O cliente *${empresa.nomeEmpresa}* foi *cancelado*!${csLinha}${comercialLinha}${linkLinha}\n\nAcesse o Radar para mais detalhes.`;
 }

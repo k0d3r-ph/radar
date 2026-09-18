@@ -25,6 +25,7 @@ import {
 import type { UsuarioDocument, CargoCsUsuario } from "../../services/auth";
 import { formatarNome } from "../../utils/formatarNome";
 import { atuaComoTreinador } from "../../utils/perfis";
+import { elegivelNotificacoesGestao } from "../../services/notificacoes";
 import { useAuth } from "../../context/AuthContext";
 import { listarLancamentosPontos, reassociarPontosTreinador } from "../../services/gamificacao";
 import "./Usuarios.css";
@@ -68,6 +69,10 @@ export const Usuarios: React.FC = () => {
   const [cargo, setCargo] = useState<CargoCsUsuario>("");
   const [telefone, setTelefone] = useState("");
   const [fatorCapacidade, setFatorCapacidade] = useState("");
+  const [notificarSuspenso, setNotificarSuspenso] = useState(true);
+  const [notificarAlerta, setNotificarAlerta] = useState(true);
+  const [notificarCancelado, setNotificarCancelado] = useState(true);
+  const [notificarConclusao, setNotificarConclusao] = useState(true);
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -81,7 +86,10 @@ export const Usuarios: React.FC = () => {
   const [editingUserTelefone, setEditingUserTelefone] = useState("");
   const [editingUserFator, setEditingUserFator] = useState("");
   const [editingUserSuspenso, setEditingUserSuspenso] = useState(false);
-  const [editingUserRecebeNotificacoes, setEditingUserRecebeNotificacoes] = useState(false);
+  const [editingUserNotificarSuspenso, setEditingUserNotificarSuspenso] = useState(true);
+  const [editingUserNotificarAlerta, setEditingUserNotificarAlerta] = useState(true);
+  const [editingUserNotificarCancelado, setEditingUserNotificarCancelado] = useState(true);
+  const [editingUserNotificarConclusao, setEditingUserNotificarConclusao] = useState(true);
   const [savingRole, setSavingRole] = useState(false);
 
   // Estados para redefinição de senha de usuários
@@ -234,11 +242,19 @@ export const Usuarios: React.FC = () => {
       const fator = atuaComoTreinador(role)
         ? parseFatorCapacidade(fatorCapacidade)
         : undefined;
+      const elegivelNotificacoes = elegivelNotificacoesGestao({
+        role,
+        cargo,
+      } as UsuarioDocument);
       if (novoUsuario && (cargo || telefone.trim() || fator !== undefined)) {
         await atualizarDadosUsuario(novoUsuario.uid, {
           cargo: cargo || undefined,
           telefone: telefone.trim() || undefined,
           fatorCapacidade: fator,
+          notificarSuspenso: elegivelNotificacoes ? notificarSuspenso : undefined,
+          notificarAlerta: elegivelNotificacoes ? notificarAlerta : undefined,
+          notificarCancelado: elegivelNotificacoes ? notificarCancelado : undefined,
+          notificarConclusao: elegivelNotificacoes ? notificarConclusao : undefined,
         });
       }
       toast.success("Usuário pré-cadastrado com sucesso!");
@@ -249,6 +265,10 @@ export const Usuarios: React.FC = () => {
       setCargo("");
       setTelefone("");
       setFatorCapacidade("");
+      setNotificarSuspenso(true);
+      setNotificarAlerta(true);
+      setNotificarCancelado(true);
+      setNotificarConclusao(true);
       await carregarUsuarios();
     } catch (error: any) {
       console.error("Erro ao criar usuário:", error);
@@ -294,6 +314,10 @@ export const Usuarios: React.FC = () => {
     if (!editingUser) return;
     setSavingRole(true);
     try {
+      const elegivelNotificacoes = elegivelNotificacoesGestao({
+        role: editingUserRole,
+        cargo: editingUserCargo,
+      } as UsuarioDocument);
       await atualizarRoleUsuario(editingUser.uid, editingUserRole);
       await atualizarDadosUsuario(editingUser.uid, {
         cargo: editingUserCargo || undefined,
@@ -303,7 +327,10 @@ export const Usuarios: React.FC = () => {
           ? (parseFatorCapacidade(editingUserFator) ?? FATOR_CAPACIDADE_PADRAO)
           : undefined,
         suspensoDistribuicao: atuaComoTreinador(editingUserRole) ? editingUserSuspenso : undefined,
-        recebeNotificacoesGestao: editingUserRole === "master" ? editingUserRecebeNotificacoes : undefined,
+        notificarSuspenso: elegivelNotificacoes ? editingUserNotificarSuspenso : undefined,
+        notificarAlerta: elegivelNotificacoes ? editingUserNotificarAlerta : undefined,
+        notificarCancelado: elegivelNotificacoes ? editingUserNotificarCancelado : undefined,
+        notificarConclusao: elegivelNotificacoes ? editingUserNotificarConclusao : undefined,
       });
       toast.success("Perfil de acesso atualizado com sucesso!");
       setEditingUser(null);
@@ -501,6 +528,52 @@ export const Usuarios: React.FC = () => {
               </div>
             )}
 
+            {elegivelNotificacoesGestao({ role, cargo } as UsuarioDocument) && (
+              <div className="input-group">
+                <label style={{ marginBottom: "6px", display: "block" }}>
+                  Mensagens automáticas de gestão (WhatsApp) que deseja receber
+                </label>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "12px" }}>
+                  <label style={{ fontSize: "13px", display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={notificarSuspenso}
+                      onChange={(e) => setNotificarSuspenso(e.target.checked)}
+                      disabled={submitting}
+                    />
+                    Suspenso
+                  </label>
+                  <label style={{ fontSize: "13px", display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={notificarAlerta}
+                      onChange={(e) => setNotificarAlerta(e.target.checked)}
+                      disabled={submitting}
+                    />
+                    Alerta
+                  </label>
+                  <label style={{ fontSize: "13px", display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={notificarCancelado}
+                      onChange={(e) => setNotificarCancelado(e.target.checked)}
+                      disabled={submitting}
+                    />
+                    Cancelado
+                  </label>
+                  <label style={{ fontSize: "13px", display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={notificarConclusao}
+                      onChange={(e) => setNotificarConclusao(e.target.checked)}
+                      disabled={submitting}
+                    />
+                    Conclusão
+                  </label>
+                </div>
+              </div>
+            )}
+
             <button type="submit" className="btn-primary form-submit-btn" disabled={submitting}>
               {submitting ? <div className="spinner"></div> : "Criar Usuário"}
             </button>
@@ -605,7 +678,10 @@ export const Usuarios: React.FC = () => {
                                     : "",
                                 );
                                 setEditingUserSuspenso(!!u.suspensoDistribuicao);
-                                setEditingUserRecebeNotificacoes(!!u.recebeNotificacoesGestao);
+                                setEditingUserNotificarSuspenso(u.notificarSuspenso !== false);
+                                setEditingUserNotificarAlerta(u.notificarAlerta !== false);
+                                setEditingUserNotificarCancelado(u.notificarCancelado !== false);
+                                setEditingUserNotificarConclusao(u.notificarConclusao !== false);
                               }}
                               title="Editar Perfil"
                             >
@@ -850,16 +926,48 @@ export const Usuarios: React.FC = () => {
                 </label>
               </div>
             )}
-            {editingUserRole === "master" && (
+            {elegivelNotificacoesGestao({
+              role: editingUserRole,
+              cargo: editingUserCargo,
+            } as UsuarioDocument) && (
               <div className="input-group" style={{ marginTop: "12px" }}>
-                <label style={{ fontSize: "13px", fontWeight: 600, color: "#e5e7eb", display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
-                  <input
-                    type="checkbox"
-                    checked={editingUserRecebeNotificacoes}
-                    onChange={(e) => setEditingUserRecebeNotificacoes(e.target.checked)}
-                  />
-                  Receber mensagens automáticas de Alerta e Suspensão no WhatsApp
+                <label style={{ fontSize: "13px", fontWeight: 600, color: "#e5e7eb", marginBottom: "6px", display: "block" }}>
+                  Mensagens automáticas de gestão (WhatsApp) que deseja receber
                 </label>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "12px" }}>
+                  <label style={{ fontSize: "13px", color: "#e5e7eb", display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={editingUserNotificarSuspenso}
+                      onChange={(e) => setEditingUserNotificarSuspenso(e.target.checked)}
+                    />
+                    Suspenso
+                  </label>
+                  <label style={{ fontSize: "13px", color: "#e5e7eb", display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={editingUserNotificarAlerta}
+                      onChange={(e) => setEditingUserNotificarAlerta(e.target.checked)}
+                    />
+                    Alerta
+                  </label>
+                  <label style={{ fontSize: "13px", color: "#e5e7eb", display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={editingUserNotificarCancelado}
+                      onChange={(e) => setEditingUserNotificarCancelado(e.target.checked)}
+                    />
+                    Cancelado
+                  </label>
+                  <label style={{ fontSize: "13px", color: "#e5e7eb", display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={editingUserNotificarConclusao}
+                      onChange={(e) => setEditingUserNotificarConclusao(e.target.checked)}
+                    />
+                    Conclusão
+                  </label>
+                </div>
               </div>
             )}
             <div className="confirm-modal-actions">

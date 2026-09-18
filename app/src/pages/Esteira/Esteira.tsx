@@ -429,7 +429,7 @@ function Esteira() {
                     currentPhase,
                     dataFinalizacao,
                   };
-                  obterDestinatariosGestao(empresaConcluida)
+                  obterDestinatariosGestao(empresaConcluida, "conclusao")
                     .then(({ destinatarios, avisos }) => {
                       if (destinatarios.length === 0) return;
                       setGestaoDestinatarios(destinatarios);

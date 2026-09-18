@@ -95,11 +95,17 @@ export interface UsuarioDocument {
    */
   suspensoDistribuicao?: boolean;
   /**
-   * Quando true (apenas para usuários com role "master"), este usuário também recebe
-   * as mensagens automáticas de WhatsApp de gestão (Alerta, Suspensão e conclusão de
-   * esteira), desde que tenha telefone cadastrado.
+   * Habilitação por tipo de mensagem de gestão via WhatsApp (Suspenso, Alerta, Cancelado,
+   * Conclusão). Quando o campo está ausente (`undefined`), o tipo é considerado habilitado —
+   * só fica desabilitado quando o próprio usuário/admin desmarca explicitamente (`false`).
+   * Vale para quem se qualifica para receber notificações de gestão: cargo Supervisor
+   * (todos os clientes), role "master" (todos os clientes, mesmo tratamento do Supervisor),
+   * cargo/role CS e cargo/role Comercial (apenas os clientes de sua responsabilidade).
    */
-  recebeNotificacoesGestao?: boolean;
+  notificarSuspenso?: boolean;
+  notificarAlerta?: boolean;
+  notificarCancelado?: boolean;
+  notificarConclusao?: boolean;
 }
 
 export async function criarNovoUsuario(email: string, senhaTemp: string, role: string, nome: string): Promise<void> {
@@ -157,7 +163,10 @@ export async function listarUsuarios(forceRefresh = false): Promise<UsuarioDocum
       fatorCapacidade:
         typeof data.fatorCapacidade === "number" ? data.fatorCapacidade : undefined,
       suspensoDistribuicao: !!data.suspensoDistribuicao,
-      recebeNotificacoesGestao: !!data.recebeNotificacoesGestao,
+      notificarSuspenso: data.notificarSuspenso,
+      notificarAlerta: data.notificarAlerta,
+      notificarCancelado: data.notificarCancelado,
+      notificarConclusao: data.notificarConclusao,
     });
   });
 
@@ -185,7 +194,10 @@ export async function atualizarDadosUsuario(
     nome?: string;
     fatorCapacidade?: number;
     suspensoDistribuicao?: boolean;
-    recebeNotificacoesGestao?: boolean;
+    notificarSuspenso?: boolean;
+    notificarAlerta?: boolean;
+    notificarCancelado?: boolean;
+    notificarConclusao?: boolean;
   }
 ): Promise<void> {
   invalidarCacheUsuarios();

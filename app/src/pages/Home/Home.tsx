@@ -54,6 +54,7 @@ import { toast } from "sonner";
 import {
   obterDestinatariosGestao,
   montarMensagemSuspensaoGestao,
+  montarMensagemCanceladoGestao,
 } from "../../services/notificacoes";
 import type { DestinatarioGestao } from "../../services/notificacoes";
 import { GestaoNotificacaoModal } from "../../components/GestaoNotificacaoModal";
@@ -299,6 +300,9 @@ export default function Home() {
   const [gestaoAvisos, setGestaoAvisos] = useState<string[]>([]);
   const [gestaoMensagem, setGestaoMensagem] = useState("");
   const [gestaoEmpresaId, setGestaoEmpresaId] = useState<string | undefined>(undefined);
+  const [gestaoEmpresaEvento, setGestaoEmpresaEvento] = useState<
+    "suspenso" | "cancelado"
+  >("suspenso");
 
   const [tabelaAtivaAberta, setTabelaAtivaAberta] = useState(true);
   const [tabelaOngoingAberta, setTabelaOngoingAberta] = useState(true);
@@ -464,20 +468,41 @@ export default function Home() {
 
     await salvarEmpresas(empresaSalva);
 
-    // Cliente acabou de ser suspenso agora (não estava suspenso antes): notifica Supervisor + CS Responsável
+    // Cliente acabou de ser suspenso agora (não estava suspenso antes): notifica Supervisor + CS + Comercial
     if (empresaSalva.isSuspended && !empresaExistente?.isSuspended) {
-      obterDestinatariosGestao(empresaSalva)
+      obterDestinatariosGestao(empresaSalva, "suspenso")
         .then(({ destinatarios, avisos }) => {
           if (destinatarios.length === 0) return;
           setGestaoDestinatarios(destinatarios);
           setGestaoAvisos(avisos);
           setGestaoMensagem(montarMensagemSuspensaoGestao(empresaSalva));
           setGestaoEmpresaId(empresaSalva.id);
+          setGestaoEmpresaEvento("suspenso");
           setGestaoConfirmModalOpen(true);
         })
         .catch((err) =>
           console.error(
             "[notificações] Falha ao montar destinatários de suspensão:",
+            err,
+          ),
+        );
+    }
+
+    // Cliente acabou de ser cancelado agora (não estava cancelado antes): notifica Supervisor + CS + Comercial
+    if (empresaSalva.isCancelled && !empresaExistente?.isCancelled) {
+      obterDestinatariosGestao(empresaSalva, "cancelado")
+        .then(({ destinatarios, avisos }) => {
+          if (destinatarios.length === 0) return;
+          setGestaoDestinatarios(destinatarios);
+          setGestaoAvisos(avisos);
+          setGestaoMensagem(montarMensagemCanceladoGestao(empresaSalva));
+          setGestaoEmpresaId(empresaSalva.id);
+          setGestaoEmpresaEvento("cancelado");
+          setGestaoConfirmModalOpen(true);
+        })
+        .catch((err) =>
+          console.error(
+            "[notificações] Falha ao montar destinatários de cancelamento:",
             err,
           ),
         );
@@ -2172,6 +2197,54 @@ export default function Home() {
                   </span>
                 </div>
               )}
+              {role === "master" && clienteSelecionado.isCancelled && (
+                <div className="info-item">
+                  <span className="info-label">Notificação de Cancelamento (WhatsApp)</span>
+                  <span className="info-value">
+                    {clienteSelecionado.whatsappStatusCancelamento === "enviado" && (
+                      <span
+                        style={{ color: "#16a34a", fontWeight: "bold" }}
+                        title={
+                          clienteSelecionado.whatsappEnviadoEmCancelamento
+                            ? "Enviado em " + new Date(clienteSelecionado.whatsappEnviadoEmCancelamento).toLocaleString("pt-BR")
+                            : undefined
+                        }
+                      >
+                        ✅ Enviado
+                      </span>
+                    )}
+                    {clienteSelecionado.whatsappStatusCancelamento === "parcial" && (
+                      <span
+                        style={{ color: "#d97706", fontWeight: "bold" }}
+                        title={(clienteSelecionado.whatsappDestinatariosCancelamento || [])
+                          .map((d) => `${d.nome}: ${d.status}${d.erro ? " (" + d.erro + ")" : ""}`)
+                          .join("\n")}
+                      >
+                        ⚠️ Parcial
+                      </span>
+                    )}
+                    {clienteSelecionado.whatsappStatusCancelamento === "falhou" && (
+                      <span
+                        style={{ color: "#dc2626", fontWeight: "bold" }}
+                        title={(clienteSelecionado.whatsappDestinatariosCancelamento || [])
+                          .map((d) => d.erro || "")
+                          .filter(Boolean)
+                          .join("\n")}
+                      >
+                        ❌ Falhou
+                      </span>
+                    )}
+                    {clienteSelecionado.whatsappStatusCancelamento === "nao_enviado" && (
+                      <span style={{ color: "#64748b" }} title="O usuário optou por não enviar">
+                        🚫 Não enviado
+                      </span>
+                    )}
+                    {!clienteSelecionado.whatsappStatusCancelamento && (
+                      <span style={{ color: "#64748b" }}>—</span>
+                    )}
+                  </span>
+                </div>
+              )}
               <div className="info-item">
                 <span className="info-label">Score</span>
                 <span
@@ -3434,7 +3507,11 @@ export default function Home() {
 
       <GestaoNotificacaoModal
         open={gestaoConfirmModalOpen}
-        titulo="⏸️ Notificar Supervisor e CS Responsável sobre a suspensão?"
+        titulo={
+          gestaoEmpresaEvento === "cancelado"
+            ? "🚫 Notificar Supervisor, CS e Comercial sobre o cancelamento?"
+            : "⏸️ Notificar Supervisor, CS e Comercial sobre a suspensão?"
+        }
         destinatarios={gestaoDestinatarios}
         avisos={gestaoAvisos}
         mensagem={gestaoMensagem}
@@ -3442,14 +3519,26 @@ export default function Home() {
         onResultado={async ({ status, enviadoEm, destinatarios }) => {
           if (!gestaoEmpresaId) return;
           try {
-            await salvarEmpresas({
-              id: gestaoEmpresaId,
-              whatsappStatusSuspensao: status,
-              whatsappEnviadoEmSuspensao: enviadoEm,
-              whatsappDestinatariosSuspensao: destinatarios,
-            });
+            if (gestaoEmpresaEvento === "cancelado") {
+              await salvarEmpresas({
+                id: gestaoEmpresaId,
+                whatsappStatusCancelamento: status,
+                whatsappEnviadoEmCancelamento: enviadoEm,
+                whatsappDestinatariosCancelamento: destinatarios,
+              });
+            } else {
+              await salvarEmpresas({
+                id: gestaoEmpresaId,
+                whatsappStatusSuspensao: status,
+                whatsappEnviadoEmSuspensao: enviadoEm,
+                whatsappDestinatariosSuspensao: destinatarios,
+              });
+            }
           } catch (error) {
-            console.error("Erro ao registrar status de envio da suspensão:", error);
+            console.error(
+              "Erro ao registrar status de envio da notificação de gestão:",
+              error,
+            );
           }
         }}
         onClose={() => {

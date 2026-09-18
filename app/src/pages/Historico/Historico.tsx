@@ -27,6 +27,7 @@ import {
   aplicarNomeDestinatario,
   PLACEHOLDER_NOME,
 } from "../../services/notificacoes";
+import type { EventoNotificacaoGestao } from "../../services/notificacoes";
 import type { DestinatarioGestao } from "../../services/notificacoes";
 import { resumirOcorrencias } from "../../services/ia";
 import {
@@ -790,6 +791,8 @@ export function Historico() {
   const [gestaoOcorrenciaId, setGestaoOcorrenciaId] = useState<
     string | undefined
   >(undefined);
+  const [gestaoOcorrenciaEvento, setGestaoOcorrenciaEvento] =
+    useState<EventoNotificacaoGestao>("alerta");
 
   const [novaAtualizacaoAberta, setNovaAtualizacaoAberta] = useState(false);
   const [novaDescricaoAtual, setNovaDescricaoAtual] = useState("");
@@ -923,6 +926,14 @@ export function Historico() {
       return;
     }
 
+    // Determina o evento a partir do tipo da ocorrência, para reusar a mesma regra de
+    // habilitação por tipo de mensagem na busca de destinatários "frescos".
+    const evento: EventoNotificacaoGestao = oc.suspenderCliente
+      ? "suspenso"
+      : oc.alerta
+        ? "alerta"
+        : "conclusao";
+
     // Filtra só os que falharam (se houver registro) — caso contrário reusa todos
     const falhos = (oc.whatsappDestinatarios ?? []).filter(
       (d) => d.status === "falhou",
@@ -930,7 +941,7 @@ export function Historico() {
     const alvos: { nome: string; telefone: string }[] =
       falhos.length > 0
         ? falhos.map((d) => ({ nome: d.nome, telefone: d.telefone }))
-        : await obterDestinatariosGestao(empresaObjeto).then(
+        : await obterDestinatariosGestao(empresaObjeto, evento).then(
             ({ destinatarios }) => destinatarios,
           );
 
@@ -941,9 +952,9 @@ export function Historico() {
 
     // Reconstrói a mensagem com base no tipo da ocorrência
     let mensagem: string;
-    if (oc.suspenderCliente) {
+    if (evento === "suspenso") {
       mensagem = montarMensagemSuspensaoGestao(empresaObjeto, oc.id);
-    } else if (oc.alerta) {
+    } else if (evento === "alerta") {
       mensagem = montarMensagemAlertaGestao(empresaObjeto, oc.id);
     } else {
       mensagem = montarMensagemConclusaoEsteiraGestao(empresaObjeto, oc.id);
@@ -953,6 +964,7 @@ export function Historico() {
     setGestaoAvisos([]);
     setGestaoMensagem(mensagem);
     setGestaoOcorrenciaId(oc.id);
+    setGestaoOcorrenciaEvento(evento);
     setGestaoConfirmModalOpen(true);
   }
 
@@ -1748,7 +1760,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         (e) => normalizar(e.nomeEmpresa) === normalizar(form.empresa),
       );
       if (empresaObjetoAlerta) {
-        obterDestinatariosGestao(empresaObjetoAlerta)
+        obterDestinatariosGestao(empresaObjetoAlerta, "alerta")
           .then(async ({ destinatarios, avisos }) => {
             if (destinatarios.length === 0) {
               // Nenhum destinatário de gestão encontrado — registra a falha na
@@ -1776,6 +1788,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               montarMensagemAlertaGestao(empresaObjetoAlerta, savedId),
             );
             setGestaoOcorrenciaId(savedId);
+            setGestaoOcorrenciaEvento("alerta");
             setGestaoConfirmModalOpen(true);
           })
           .catch((err) =>
@@ -1871,7 +1884,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         await salvarEmpresas(empresaSuspensa);
 
         // Notifica Supervisor + CS Responsável sobre a suspensão originada pela ocorrência
-        obterDestinatariosGestao(empresaSuspensa)
+        obterDestinatariosGestao(empresaSuspensa, "suspenso")
           .then(async ({ destinatarios, avisos }) => {
             if (destinatarios.length === 0) {
               // Nenhum destinatário de gestão encontrado — registra a falha na
@@ -1899,6 +1912,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               montarMensagemSuspensaoGestao(empresaSuspensa, savedId),
             );
             setGestaoOcorrenciaId(savedId);
+            setGestaoOcorrenciaEvento("suspenso");
             setGestaoConfirmModalOpen(true);
           })
           .catch((err) =>
@@ -2079,7 +2093,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
           await salvarEmpresas(empresaAtualizadaEsteira);
 
           if (concluiuAgora) {
-            obterDestinatariosGestao(empresaAtualizadaEsteira)
+            obterDestinatariosGestao(empresaAtualizadaEsteira, "conclusao")
               .then(async ({ destinatarios, avisos }) => {
                 if (destinatarios.length === 0) {
                   // Nenhum destinatário de gestão encontrado — registra a falha na
@@ -2110,6 +2124,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   ),
                 );
                 setGestaoOcorrenciaId(savedId);
+                setGestaoOcorrenciaEvento("conclusao");
                 setGestaoConfirmModalOpen(true);
               })
               .catch((err) =>
@@ -5774,7 +5789,13 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
       <GestaoNotificacaoModal
         open={gestaoConfirmModalOpen}
-        titulo="⚠️ Notificar Supervisor e CS Responsável sobre o alerta?"
+        titulo={
+          gestaoOcorrenciaEvento === "suspenso"
+            ? "⏸️ Notificar Supervisor, CS e Comercial sobre a suspensão?"
+            : gestaoOcorrenciaEvento === "conclusao"
+              ? "🎉 Notificar Supervisor, CS e Comercial sobre a conclusão da esteira?"
+              : "⚠️ Notificar Supervisor, CS e Comercial sobre o alerta?"
+        }
         destinatarios={gestaoDestinatarios}
         avisos={gestaoAvisos}
         mensagem={gestaoMensagem}

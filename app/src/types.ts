@@ -119,10 +119,14 @@ export type Empresa = {
   isCancelled?: boolean;
   valorContrato?: number;
   idNumeric?: number;
-  /** Marcação de envio da notificação de WhatsApp de Suspensão, para o perfil master. */
+  /** Marcação de envio da notificação de WhatsApp de Suspensão. */
   whatsappStatusSuspensao?: WhatsappStatus;
   whatsappEnviadoEmSuspensao?: number;
   whatsappDestinatariosSuspensao?: WhatsappDestinatarioEnvio[];
+  /** Marcação de envio da notificação de WhatsApp de Cancelamento. */
+  whatsappStatusCancelamento?: WhatsappStatus;
+  whatsappEnviadoEmCancelamento?: number;
+  whatsappDestinatariosCancelamento?: WhatsappDestinatarioEnvio[];
 };
 
 export type Ocorrencia = {

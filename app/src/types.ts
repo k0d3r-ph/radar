@@ -6,7 +6,6 @@ export type CS = string;
  * {@link calcularPontuacaoScore} em `utils/score.ts`.
  */
 export type ContadorPerdasScore = {
-  facilContato?: number;
   entraComputador?: number;
   compartilhaTela?: number;
   /**

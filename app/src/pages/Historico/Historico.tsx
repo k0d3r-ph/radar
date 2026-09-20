@@ -57,6 +57,14 @@ import {
   MOTIVO_REDUCAO_SCORE_SUPORTE,
   VALOR_REDUCAO_SCORE_SUPORTE,
   DIAS_REDUCAO_SCORE_SUPORTE,
+  MOTIVO_REDUCAO_SCORE_TREINAMENTO,
+  VALOR_REDUCAO_SCORE_TREINAMENTO,
+  DIAS_REDUCAO_SCORE_TREINAMENTO,
+  MOTIVO_REDUCAO_SCORE_GAP_AGENDA,
+  VALOR_REDUCAO_SCORE_GAP_AGENDA,
+  DIAS_REDUCAO_SCORE_GAP_AGENDA,
+  LIMITE_DIAS_GAP_AGENDA,
+  criarAjusteTemporarioScore,
   calcularPontuacaoScore,
   obterAjustesAtivos,
   encontrarOcorrenciaDoAjuste,
@@ -439,7 +447,6 @@ const EMPTY: OcorrenciaForm = {
 };
 
 interface ScoreFormAnswers {
-  facilContato: "Sim" | "Não" | "";
   entraComputador: "Sim" | "Não" | "";
   compartilhaTela: "Sim" | "Não" | "";
   fazPerguntas: "Sim" | "Não" | "";
@@ -451,7 +458,6 @@ interface ScoreFormAnswers {
 }
 
 const INITIAL_SCORE_ANSWERS: ScoreFormAnswers = {
-  facilContato: "",
   entraComputador: "",
   compartilhaTela: "",
   fazPerguntas: "",
@@ -474,12 +480,6 @@ function descreverMudancas(
     return "Não respondido";
   };
 
-  const descreverFacilContato = (val: string) => {
-    if (val === "Sim") return "Contato fácil";
-    if (val === "Não") return "Difícil contato";
-    return "Não respondido";
-  };
-
   const descreverEntraComputador = (val: string) => {
     if (val === "Sim") return "Entra pelo computador";
     if (val === "Não") return "Não entra pelo computador";
@@ -499,8 +499,8 @@ function descreverMudancas(
   };
 
   const descreverReclamante = (val: string) => {
-    if (val === "Sim") return "Cliente é reclamante";
-    if (val === "Não") return "Cliente não é reclamante";
+    if (val === "Sim") return "Cliente reclama do sistema";
+    if (val === "Não") return "Cliente não reclama do sistema";
     return "Não respondido";
   };
 
@@ -510,11 +510,6 @@ function descreverMudancas(
     return "Não respondido";
   };
 
-  if (antigo.facilContato !== novo.facilContato) {
-    mudancas.push(
-      `- Contato com o cliente: de "${descreverFacilContato(antigo.facilContato)}" para "${descreverFacilContato(novo.facilContato)}"`,
-    );
-  }
   if (antigo.entraComputador !== novo.entraComputador) {
     mudancas.push(
       `- Cliente entra pelo computador: de "${descreverEntraComputador(antigo.entraComputador)}" para "${descreverEntraComputador(novo.entraComputador)}"`,
@@ -547,7 +542,7 @@ function descreverMudancas(
   }
   if (antigo.clienteReclamante !== novo.clienteReclamante) {
     mudancas.push(
-      `- Cliente é reclamante: de "${descreverReclamante(antigo.clienteReclamante)}" para "${descreverReclamante(novo.clienteReclamante)}"`,
+      `- Cliente reclama do sistema: de "${descreverReclamante(antigo.clienteReclamante)}" para "${descreverReclamante(novo.clienteReclamante)}"`,
     );
   }
   if (antigo.clienteSumido !== novo.clienteSumido) {
@@ -563,12 +558,6 @@ function descreverRespostas(respostas: ScoreFormAnswers): string[] {
   const descreverSimNao = (val: string) => {
     if (val === "Sim") return "Sim";
     if (val === "Não") return "Não";
-    return "Não respondido";
-  };
-
-  const descreverFacilContato = (val: string) => {
-    if (val === "Sim") return "Contato fácil";
-    if (val === "Não") return "Difícil contato";
     return "Não respondido";
   };
 
@@ -591,8 +580,8 @@ function descreverRespostas(respostas: ScoreFormAnswers): string[] {
   };
 
   const descreverReclamante = (val: string) => {
-    if (val === "Sim") return "Cliente é reclamante";
-    if (val === "Não") return "Cliente não é reclamante";
+    if (val === "Sim") return "Cliente reclama do sistema";
+    if (val === "Não") return "Cliente não reclama do sistema";
     return "Não respondido";
   };
 
@@ -603,14 +592,13 @@ function descreverRespostas(respostas: ScoreFormAnswers): string[] {
   };
 
   return [
-    `- Contato com o cliente: "${descreverFacilContato(respostas.facilContato)}"`,
     `- Cliente entra pelo computador: "${descreverEntraComputador(respostas.entraComputador)}"`,
     `- Cliente compartilha a tela: "${descreverSimNao(respostas.compartilhaTela)}"`,
     `- Cliente faz perguntas: "${descreverSimNao(respostas.fazPerguntas)}"`,
     `- Cliente se recorda de temas anteriores: "${descreverSimNao(respostas.recordaTemas)}"`,
     `- Cliente faltou 2 dias seguidos: "${descreverFaltouDoisDias(respostas.faltouDoisDias)}"`,
     `- Cliente possui estrutura necessária: "${descreverEstrutura(respostas.estruturaNecessaria)}"`,
-    `- Cliente é reclamante: "${descreverReclamante(respostas.clienteReclamante)}"`,
+    `- Cliente reclama do sistema: "${descreverReclamante(respostas.clienteReclamante)}"`,
     `- Cliente sumiu: "${descreverSumico(respostas.clienteSumido)}"`,
   ];
 }
@@ -1800,37 +1788,106 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       }
     }
 
-    // Contato com o Suporte para tirar dúvida reduz temporariamente o score do
-    // cliente (best-effort — não bloqueia o fluxo, e só na criação, para não
-    // reaplicar a redução a cada edição da mesma ocorrência).
+    // Contato com o Suporte ou com o Treinamento para tirar dúvida reduz
+    // temporariamente o score do cliente (best-effort — não bloqueia o fluxo, e
+    // só na criação, para não reaplicar a redução a cada edição da mesma
+    // ocorrência). Isso dá mobilidade real entre Safety e Fast: um cliente que
+    // volta a precisar de ajuda deixa de ficar preso no score alto de antes.
+    if (!editandoId && !empresaInterna && form.tipo === "Dúvida" && empresaObjeto) {
+      const regraPorDepartamento: Record<
+        string,
+        { motivo: string; valor: number; dias: number } | undefined
+      > = {
+        Suporte: {
+          motivo: MOTIVO_REDUCAO_SCORE_SUPORTE,
+          valor: VALOR_REDUCAO_SCORE_SUPORTE,
+          dias: DIAS_REDUCAO_SCORE_SUPORTE,
+        },
+        Treinamento: {
+          motivo: MOTIVO_REDUCAO_SCORE_TREINAMENTO,
+          valor: VALOR_REDUCAO_SCORE_TREINAMENTO,
+          dias: DIAS_REDUCAO_SCORE_TREINAMENTO,
+        },
+      };
+      const regra = regraPorDepartamento[form.departamento];
+      if (regra) {
+        try {
+          const agora = Date.now();
+          const ajustesAtivos = (
+            empresaObjeto.scoreAjustesTemporarios || []
+          ).filter((a) => a.expiraEm > agora);
+          await salvarEmpresas({
+            id: empresaObjeto.id,
+            scoreAjustesTemporarios: [
+              ...ajustesAtivos,
+              criarAjusteTemporarioScore(
+                regra.motivo,
+                regra.valor,
+                regra.dias,
+                savedId,
+              ),
+            ],
+          });
+        } catch (error) {
+          console.error(
+            "Erro ao aplicar redução temporária de score:",
+            error,
+          );
+        }
+      }
+    }
+
+    // Intervalo maior que 5 dias entre a última agenda (Treinamento/Informativa/
+    // Checkpoint) e a penúltima também reduz temporariamente o score — só na
+    // criação, comparando com a agenda mais recente já existente antes desta.
     if (
       !editandoId &&
       !empresaInterna &&
-      form.departamento === "Suporte" &&
-      form.tipo === "Dúvida" &&
-      empresaObjeto
+      empresaObjeto &&
+      (form.tipo === "Treinamento" ||
+        form.tipo === "Informativa" ||
+        form.tipo === "Checkpoint")
     ) {
-      try {
-        const agora = Date.now();
-        const ajustesAtivos = (
-          empresaObjeto.scoreAjustesTemporarios || []
-        ).filter((a) => a.expiraEm > agora);
-        await salvarEmpresas({
-          id: empresaObjeto.id,
-          scoreAjustesTemporarios: [
-            ...ajustesAtivos,
-            {
-              motivo: MOTIVO_REDUCAO_SCORE_SUPORTE,
-              valor: VALOR_REDUCAO_SCORE_SUPORTE,
-              criadoEm: agora,
-              expiraEm:
-                agora + DIAS_REDUCAO_SCORE_SUPORTE * 24 * 60 * 60 * 1000,
-              ocorrenciaId: savedId,
-            },
-          ],
-        });
-      } catch (error) {
-        console.error("Erro ao aplicar redução temporária de score:", error);
+      const agendaAnterior = ocorrencias
+        .filter(
+          (o) =>
+            o.id !== savedId &&
+            normalizar(o.empresa) === normalizar(form.empresa) &&
+            (o.tipo === "Treinamento" ||
+              o.tipo === "Informativa" ||
+              o.tipo === "Checkpoint"),
+        )
+        .sort((a, b) => b.dataOcorrencia - a.dataOcorrencia)[0];
+
+      if (agendaAnterior) {
+        const diffDias =
+          (base.dataOcorrencia - agendaAnterior.dataOcorrencia) /
+          (24 * 60 * 60 * 1000);
+        if (diffDias > LIMITE_DIAS_GAP_AGENDA) {
+          try {
+            const agora = Date.now();
+            const ajustesAtivos = (
+              empresaObjeto.scoreAjustesTemporarios || []
+            ).filter((a) => a.expiraEm > agora);
+            await salvarEmpresas({
+              id: empresaObjeto.id,
+              scoreAjustesTemporarios: [
+                ...ajustesAtivos,
+                criarAjusteTemporarioScore(
+                  MOTIVO_REDUCAO_SCORE_GAP_AGENDA,
+                  VALOR_REDUCAO_SCORE_GAP_AGENDA,
+                  DIAS_REDUCAO_SCORE_GAP_AGENDA,
+                  savedId,
+                ),
+              ],
+            });
+          } catch (error) {
+            console.error(
+              "Erro ao aplicar redução temporária de score (gap de agenda):",
+              error,
+            );
+          }
+        }
       }
     }
 
@@ -4798,49 +4855,6 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               {/* Pergunta 1 */}
               <div className="score-pergunta">
                 <label>
-                  Contato com o cliente é fácil? *{" "}
-                  <span className="score-hint">
-                    (Sim = +0.5 e zera perda / Não: 1ª vez cancela o bônus, a
-                    partir da 2ª = -0.5)
-                  </span>
-                </label>
-                <div className="radio-group-score">
-                  <label>
-                    <input
-                      type="radio"
-                      name="facilContato"
-                      value="Sim"
-                      checked={respostasScore.facilContato === "Sim"}
-                      onChange={() =>
-                        setRespostasScore((prev) => ({
-                          ...prev,
-                          facilContato: "Sim",
-                        }))
-                      }
-                    />
-                    Sim
-                  </label>
-                  <label>
-                    <input
-                      type="radio"
-                      name="facilContato"
-                      value="Não"
-                      checked={respostasScore.facilContato === "Não"}
-                      onChange={() =>
-                        setRespostasScore((prev) => ({
-                          ...prev,
-                          facilContato: "Não",
-                        }))
-                      }
-                    />
-                    Não
-                  </label>
-                </div>
-              </div>
-
-              {/* Pergunta 2 */}
-              <div className="score-pergunta">
-                <label>
                   Cliente entra pelo computador? *{" "}
                   <span className="score-hint">
                     (Sim = +1.0 e zera perda / Não: 1ª vez cancela o bônus, a
@@ -4881,7 +4895,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 </div>
               </div>
 
-              {/* Pergunta 3 */}
+              {/* Pergunta 2 */}
               <div className="score-pergunta">
                 <label>
                   Cliente compartilha a tela? *{" "}
@@ -4924,11 +4938,11 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 </div>
               </div>
 
-              {/* Pergunta 4 */}
+              {/* Pergunta 3 */}
               <div className="score-pergunta">
                 <label>
                   Cliente faz perguntas? *{" "}
-                  <span className="score-hint">(Sim = +1.5 / Não = 0)</span>
+                  <span className="score-hint">(Sim = +2.0 / Não = 0)</span>
                 </label>
                 <div className="radio-group-score">
                   <label>
@@ -4964,7 +4978,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 </div>
               </div>
 
-              {/* Pergunta 5 */}
+              {/* Pergunta 4 */}
               <div className="score-pergunta">
                 <label>
                   Cliente se recorda de temas anteriores? *{" "}
@@ -5061,7 +5075,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 )}
               </div>
 
-              {/* Pergunta 6 */}
+              {/* Pergunta 5 */}
               <div className="score-pergunta">
                 <label>
                   Cliente faltou 2 dias seguidos? *{" "}
@@ -5101,7 +5115,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 </div>
               </div>
 
-              {/* Pergunta 7 */}
+              {/* Pergunta 6 */}
               <div className="score-pergunta">
                 <label>
                   Cliente possui estrutura necessária? *{" "}
@@ -5141,10 +5155,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 </div>
               </div>
 
-              {/* Pergunta 8 */}
+              {/* Pergunta 7 */}
               <div className="score-pergunta">
                 <label>
-                  Cliente é reclamante? *{" "}
+                  Cliente reclama do sistema? *{" "}
                   <span className="score-hint">(Sim = -3.0 / Não = +2.0)</span>
                 </label>
                 <div className="radio-group-score">
@@ -5181,7 +5195,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 </div>
               </div>
 
-              {/* Pergunta 9 */}
+              {/* Pergunta 8 */}
               <div className="score-pergunta">
                 <label>
                   Cliente sumiu? *{" "}
@@ -5318,7 +5332,6 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   className="btn-primary"
                   onClick={() => {
                     const possuiPerguntasNaoRespondidas =
-                      respostasScore.facilContato === "" ||
                       respostasScore.entraComputador === "" ||
                       respostasScore.compartilhaTela === "" ||
                       respostasScore.fazPerguntas === "" ||

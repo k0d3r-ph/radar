@@ -60,7 +60,6 @@ import type { DestinatarioGestao } from "../../services/notificacoes";
 import { GestaoNotificacaoModal } from "../../components/GestaoNotificacaoModal";
 
 interface ScoreFormAnswers {
-  facilContato: "Sim" | "Não" | "";
   entraComputador: "Sim" | "Não" | "";
   compartilhaTela: "Sim" | "Não" | "";
   fazPerguntas: "Sim" | "Não" | "";
@@ -72,7 +71,6 @@ interface ScoreFormAnswers {
 }
 
 const INITIAL_SCORE_ANSWERS: ScoreFormAnswers = {
-  facilContato: "",
   entraComputador: "",
   compartilhaTela: "",
   fazPerguntas: "",
@@ -155,7 +153,6 @@ export default function Home() {
     if (!clienteSelecionado) return;
 
     const possuiPerguntasNaoRespondidas =
-      respostasScoreHome.facilContato === "" ||
       respostasScoreHome.entraComputador === "" ||
       respostasScoreHome.compartilhaTela === "" ||
       respostasScoreHome.fazPerguntas === "" ||
@@ -2951,57 +2948,6 @@ export default function Home() {
               {/* Pergunta 1 */}
               <div className="home-score-pergunta">
                 <label>
-                  Contato com o cliente é fácil? *{" "}
-                  <span className="home-score-hint">
-                    (Sim = +0.5 e zera perda / Não: 1ª vez cancela o bônus, a
-                    partir da 2ª = -0.5)
-                  </span>
-                </label>
-                {!!clienteSelecionado?.scoreContadoresPerda?.facilContato && (
-                  <span className="home-score-hint" style={{ display: "block" }}>
-                    Perda salva (em relação ao bônus do Sim): -
-                    {(
-                      clienteSelecionado.scoreContadoresPerda.facilContato * 0.5
-                    ).toFixed(1)}
-                  </span>
-                )}
-                <div className="home-radio-group-score">
-                  <label>
-                    <input
-                      type="radio"
-                      name="facilContato"
-                      value="Sim"
-                      checked={respostasScoreHome.facilContato === "Sim"}
-                      onChange={() =>
-                        setRespostasScoreHome((prev) => ({
-                          ...prev,
-                          facilContato: "Sim",
-                        }))
-                      }
-                    />
-                    Sim
-                  </label>
-                  <label>
-                    <input
-                      type="radio"
-                      name="facilContato"
-                      value="Não"
-                      checked={respostasScoreHome.facilContato === "Não"}
-                      onChange={() =>
-                        setRespostasScoreHome((prev) => ({
-                          ...prev,
-                          facilContato: "Não",
-                        }))
-                      }
-                    />
-                    Não
-                  </label>
-                </div>
-              </div>
-
-              {/* Pergunta 2 */}
-              <div className="home-score-pergunta">
-                <label>
                   Cliente entra pelo computador? *{" "}
                   <span className="home-score-hint">
                     (Sim = +1.0 e zera perda / Não: 1ª vez cancela o bônus, a
@@ -3050,7 +2996,7 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Pergunta 3 */}
+              {/* Pergunta 2 */}
               <div className="home-score-pergunta">
                 <label>
                   Cliente compartilha a tela? *{" "}
@@ -3101,12 +3047,12 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Pergunta 4 */}
+              {/* Pergunta 3 */}
               <div className="home-score-pergunta">
                 <label>
                   Cliente faz perguntas? *{" "}
                   <span className="home-score-hint">
-                    (Sim = +1.5 / Não = 0)
+                    (Sim = +2.0 / Não = 0)
                   </span>
                 </label>
                 <div className="home-radio-group-score">
@@ -3143,7 +3089,7 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Pergunta 5 */}
+              {/* Pergunta 4 */}
               <div className="home-score-pergunta">
                 <label>
                   Cliente se recorda de temas anteriores? *{" "}
@@ -3238,7 +3184,7 @@ export default function Home() {
                 )}
               </div>
 
-              {/* Pergunta 6 */}
+              {/* Pergunta 5 */}
               <div className="home-score-pergunta">
                 <label>
                   Cliente faltou 2 dias seguidos? *{" "}
@@ -3280,7 +3226,7 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Pergunta 7 */}
+              {/* Pergunta 6 */}
               <div className="home-score-pergunta">
                 <label>
                   Cliente possui estrutura necessária? *{" "}
@@ -3322,10 +3268,10 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Pergunta 8 */}
+              {/* Pergunta 7 */}
               <div className="home-score-pergunta">
                 <label>
-                  Cliente é reclamante? *{" "}
+                  Cliente reclama do sistema? *{" "}
                   <span className="home-score-hint">
                     (Sim = -3.0 / Não = +2.0)
                   </span>
@@ -3364,7 +3310,7 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Pergunta 9 */}
+              {/* Pergunta 8 */}
               <div className="home-score-pergunta">
                 <label>
                   Cliente sumiu? *{" "}

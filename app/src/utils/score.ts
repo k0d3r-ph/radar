@@ -4,7 +4,6 @@ type RespostaSimNao = "Sim" | "Não" | "";
 
 /** Formato do questionário de score usado em Home e Histórico (estruturalmente idêntico nos dois). */
 export interface ScoreFormAnswers {
-  facilContato: RespostaSimNao;
   entraComputador: RespostaSimNao;
   compartilhaTela: RespostaSimNao;
   fazPerguntas: RespostaSimNao;
@@ -23,7 +22,6 @@ export interface ScoreFormAnswers {
  * "Sim" dá o ganho cheio (`ganhoSim`) e zera o contador de perdas.
  */
 const PERGUNTAS_PERDA_ESCALONADA = {
-  facilContato: { ganhoSim: 0.5, valorPorMarcacao: 0.5, maxMarcacoes: 2 },
   entraComputador: { ganhoSim: 1.0, valorPorMarcacao: 1.0, maxMarcacoes: 2 },
   compartilhaTela: { ganhoSim: 1.0, valorPorMarcacao: 1.0, maxMarcacoes: 2 },
 } as const;
@@ -103,7 +101,7 @@ export function calcularPontuacaoScore(
     contadores.recordaTemas = perda;
   }
 
-  if (respostas.fazPerguntas === "Sim") score += 1.5;
+  if (respostas.fazPerguntas === "Sim") score += 2.0;
 
   if (respostas.faltouDoisDias === "Sim") {
     score -= 1.0;
@@ -132,6 +130,44 @@ export const DIAS_REDUCAO_SCORE_SUPORTE = 15;
 export const VALOR_REDUCAO_SCORE_SUPORTE = 1;
 
 export const MOTIVO_REDUCAO_SCORE_SUPORTE = "Contato com o Suporte (dúvida)";
+
+/** Quantos dias uma redução de score por contato com o Treinamento permanece ativa. */
+export const DIAS_REDUCAO_SCORE_TREINAMENTO = 15;
+
+/** Quanto o score cai por contato do cliente com o Treinamento para tirar dúvidas. */
+export const VALOR_REDUCAO_SCORE_TREINAMENTO = 1;
+
+export const MOTIVO_REDUCAO_SCORE_TREINAMENTO =
+  "Contato com o Treinamento (dúvida)";
+
+/** A partir de quantos dias de intervalo entre a última e a penúltima agenda o score é reduzido. */
+export const LIMITE_DIAS_GAP_AGENDA = 5;
+
+/** Quantos dias uma redução de score por intervalo grande entre agendas permanece ativa. */
+export const DIAS_REDUCAO_SCORE_GAP_AGENDA = 15;
+
+/** Quanto o score cai quando o intervalo entre a última e a penúltima agenda ultrapassa {@link LIMITE_DIAS_GAP_AGENDA}. */
+export const VALOR_REDUCAO_SCORE_GAP_AGENDA = 1;
+
+export const MOTIVO_REDUCAO_SCORE_GAP_AGENDA =
+  "Intervalo maior que 5 dias entre agendas";
+
+/** Monta um ajuste temporário de score (ex.: redução por contato de dúvida, ou por gap de agenda). */
+export function criarAjusteTemporarioScore(
+  motivo: string,
+  valor: number,
+  dias: number,
+  ocorrenciaId?: string,
+): NonNullable<Empresa["scoreAjustesTemporarios"]>[number] {
+  const agora = Date.now();
+  return {
+    motivo,
+    valor,
+    criadoEm: agora,
+    expiraEm: agora + dias * 24 * 60 * 60 * 1000,
+    ocorrenciaId,
+  };
+}
 
 /**
  * Score efetivo do cliente: o valor base menos a soma dos ajustes temporários ainda

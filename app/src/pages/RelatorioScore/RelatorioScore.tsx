@@ -15,7 +15,6 @@ import { calcularScoreEfetivo } from "../../utils/score";
 import "./RelatorioScore.css";
 
 interface ScoreFormAnswers {
-  facilContato: "Sim" | "Não" | "";
   entraComputador: "Sim" | "Não" | "";
   compartilhaTela: "Sim" | "Não" | "";
   fazPerguntas: "Sim" | "Não" | "";
@@ -34,14 +33,13 @@ interface ScoreQuestionMeta {
 }
 
 const SCORE_QUESTIONS: ScoreQuestionMeta[] = [
-  { key: "facilContato", label: "Contato com o cliente é fácil?", descSim: "Contato fácil", descNao: "Difícil contato" },
   { key: "entraComputador", label: "Cliente entra pelo computador?", descSim: "Entra pelo computador", descNao: "Não entra pelo computador" },
   { key: "compartilhaTela", label: "Cliente compartilha a tela?", descSim: "Compartilha a tela", descNao: "Não compartilha a tela" },
   { key: "fazPerguntas", label: "Cliente faz perguntas?", descSim: "Faz perguntas", descNao: "Não faz perguntas" },
   { key: "recordaTemas", label: "Cliente se recorda de temas anteriores?", descSim: "Se recorda de temas", descNao: "Não se recorda de temas" },
   { key: "faltouDoisDias", label: "Cliente faltou 2 dias seguidos?", descSim: "Faltou 2 dias seguidos", descNao: "Não faltou 2 dias seguidos" },
   { key: "estruturaNecessaria", label: "Cliente possui estrutura necessária?", descSim: "Possui estrutura necessária", descNao: "Não possui estrutura necessária" },
-  { key: "clienteReclamante", label: "Cliente é reclamante?", descSim: "Cliente é reclamante", descNao: "Cliente não é reclamante" },
+  { key: "clienteReclamante", label: "Cliente reclama do sistema?", descSim: "Cliente reclama do sistema", descNao: "Cliente não reclama do sistema" },
   { key: "clienteSumido", label: "Cliente sumiu?", descSim: "Cliente sumiu", descNao: "Cliente não sumiu" },
 ];
 

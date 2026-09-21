@@ -1924,11 +1924,16 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         ? config?.dentroExpediente
         : config?.foraExpediente;
 
-      const treinadorObj = usuariosList.find(
-        (u) =>
-          formatarNome(u.nome).toLowerCase() ===
-          formatarNome(empresaObjeto.responsavel).toLowerCase(),
-      );
+      // A empresa guarda só o primeiro nome do responsável (ver Gamificacao.tsx),
+      // então a comparação precisa ser pelo primeiro nome do treinador, não pelo
+      // nome completo — senão nunca casa para treinadores com sobrenome.
+      const treinadorObj = usuariosList.find((u) => {
+        const primeiroNomeTreinador = formatarNome(u.nome).split(" ")[0] || "";
+        return (
+          normalizar(primeiroNomeTreinador) ===
+          normalizar(empresaObjeto.responsavel || "")
+        );
+      });
 
       if (pontosPerdidos && treinadorObj) {
         try {

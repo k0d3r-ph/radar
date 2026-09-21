@@ -1942,7 +1942,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
       if (pontosPerdidos && treinadorObj) {
         try {
-          await salvarLancamentoPonto({
+          const descontoPontoId = await salvarLancamentoPonto({
             treinadorId: treinadorObj.uid,
             treinadorNome: formatarNome(treinadorObj.nome) || treinadorObj.email,
             tipoAcao: "desconto_suporte",
@@ -1953,6 +1953,12 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             criadoPorNome: formatarNome(userName) || user?.email || "Sistema",
             ocorrenciaId: savedId,
           });
+          // Vincula o lançamento à ocorrência para poder devolver o ponto ao
+          // treinador se a ocorrência for excluída (ver função `excluir`).
+          await salvarOcorrencia({
+            id: savedId,
+            gamificacaoDescontoPontoId: descontoPontoId,
+          } as Ocorrencia);
         } catch (error) {
           console.error(
             "Erro ao aplicar desconto de gamificação por contato com Suporte:",
@@ -2498,6 +2504,19 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               } catch (error) {
                 console.error(
                   "Erro ao remover ponto da gamificação associado:",
+                  error,
+                );
+              }
+            }
+
+            // Desconto de pontos por contato com o Suporte: excluir a
+            // ocorrência devolve o ponto ao treinador removendo o lançamento.
+            if (oc.gamificacaoDescontoPontoId) {
+              try {
+                await removerLancamentoPonto(oc.gamificacaoDescontoPontoId);
+              } catch (error) {
+                console.error(
+                  "Erro ao remover desconto de gamificação associado:",
                   error,
                 );
               }

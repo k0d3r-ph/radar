@@ -161,6 +161,8 @@ export type Ocorrencia = {
   alertaResolvidoPorId?: string;
   alertaOriginalId?: string;
   gamificacaoPontoId?: string;
+  /** Lançamento de desconto de pontos do treinador por contato de Suporte (ver gamificacaoDeducaoSuporte na Empresa), vinculado a esta ocorrência. */
+  gamificacaoDescontoPontoId?: string;
   treinamentoDataSolicitacao?: string;
   treinamentoTempoAgenda?: string;
   treinamentoSolicitante?: string;

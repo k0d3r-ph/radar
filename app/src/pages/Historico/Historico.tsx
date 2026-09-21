@@ -1919,7 +1919,12 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       } as const;
       const chave = chavePorTipo[form.tipo];
       const config = empresaObjeto.gamificacaoDeducaoSuporte[chave];
-      const dentroDoExpediente = estaDentroDoExpediente(base.dataOcorrencia);
+      // Data da ocorrência é opcional para Dúvida/Problema/Solicitação e fica
+      // 0 quando não preenchida — nesse caso o contato aconteceu agora, então
+      // usamos o momento atual para não cair em 01/01/1970 (sempre "fora do
+      // expediente") e aplicar o valor de desconto errado.
+      const timestampContato = base.dataOcorrencia || Date.now();
+      const dentroDoExpediente = estaDentroDoExpediente(timestampContato);
       const pontosPerdidos = dentroDoExpediente
         ? config?.dentroExpediente
         : config?.foraExpediente;
@@ -1943,7 +1948,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             tipoAcao: "desconto_suporte",
             pontos: -Math.abs(pontosPerdidos),
             descricao: `Contato de ${form.empresa.trim()} com o Suporte (${form.tipo}, ${dentroDoExpediente ? "dentro" : "fora"} do expediente)`,
-            dataLancamento: base.dataOcorrencia,
+            dataLancamento: timestampContato,
             criadoPorId: user?.uid || "",
             criadoPorNome: formatarNome(userName) || user?.email || "Sistema",
             ocorrenciaId: savedId,

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import * as XLSX from "xlsx";
 
 import "./Home.css";
 
@@ -1169,6 +1170,102 @@ export default function Home() {
     mapaComerciais,
   ]);
 
+  const LABEL_FAROL: Record<string, string> = {
+    verde: "Verde",
+    amarelo: "Amarelo",
+    vermelho: "Vermelho",
+    none: "-",
+  };
+
+  function exportarEsteiraExcel(
+    linhas: Record<string, unknown>[],
+    nomeAba: string,
+    prefixoArquivo: string,
+  ) {
+    if (linhas.length === 0) {
+      toast.error("Não há clientes para exportar.");
+      return;
+    }
+
+    const worksheet = XLSX.utils.json_to_sheet(linhas);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, nomeAba);
+    XLSX.writeFile(
+      workbook,
+      `${prefixoArquivo}-${new Date().toISOString().slice(0, 10)}.xlsx`,
+    );
+  }
+
+  function exportarAtivosExcel() {
+    exportarEsteiraExcel(
+      dadosAtivosFiltrados.map((empresa) => ({
+        Status: LABEL_FAROL[empresa.farol] ?? "-",
+        Cliente: empresa.nomeEmpresa,
+        Responsável: formatarNome(empresa.responsavel),
+        Tipo: obterTipoEfetivo(empresa) || "",
+        Produto: empresa.produto || "",
+        Score: (calcularScoreEfetivo(empresa) ?? empresa.score) ?? "",
+        "Data de entrada": formatarData(empresa.dataEntrada),
+        Dias: empresa.dias,
+        Agendamento: empresa.tme !== null ? `${empresa.tme} dias` : "-",
+        "Progresso (%)": empresa.progresso,
+        "Valor Contrato": empresa.valorContrato ?? "",
+      })),
+      "Esteira Atual",
+      "esteira-atual",
+    );
+  }
+
+  function exportarOngoingExcel() {
+    exportarEsteiraExcel(
+      dadosOngoingFiltrados.map((empresa) => ({
+        Cliente: empresa.nomeEmpresa,
+        Contato: nomesContatos(empresa),
+        "CS Responsável": normalizarNomeCS(empresa.csResponsavel) || "-",
+        "Comercial Responsável":
+          normalizarNomeComercial(empresa.comercialResponsavel, mapaComerciais) ||
+          "-",
+        "Valor Contrato": empresa.valorContrato ?? "",
+      })),
+      "Clientes Ongoing",
+      "clientes-ongoing",
+    );
+  }
+
+  function exportarSuspensosExcel() {
+    exportarEsteiraExcel(
+      dadosSuspensosFiltrados.map((empresa) => ({
+        Cliente: empresa.nomeEmpresa,
+        Contato: nomesContatos(empresa),
+        "CS Responsável": normalizarNomeCS(empresa.csResponsavel) || "-",
+        "Comercial Responsável":
+          normalizarNomeComercial(empresa.comercialResponsavel, mapaComerciais) ||
+          "-",
+        Dias: empresa.dias,
+        "Progresso (%)": empresa.progresso,
+        "Valor Contrato": empresa.valorContrato ?? "",
+      })),
+      "Clientes Suspensos",
+      "clientes-suspensos",
+    );
+  }
+
+  function exportarCanceladosExcel() {
+    exportarEsteiraExcel(
+      dadosCanceladosFiltrados.map((empresa) => ({
+        Cliente: empresa.nomeEmpresa,
+        Contato: nomesContatos(empresa),
+        "CS Responsável": normalizarNomeCS(empresa.csResponsavel) || "-",
+        "Comercial Responsável":
+          normalizarNomeComercial(empresa.comercialResponsavel, mapaComerciais) ||
+          "-",
+        "Valor Contrato": empresa.valorContrato ?? "",
+      })),
+      "Clientes Cancelados",
+      "clientes-cancelados",
+    );
+  }
+
   return (
     <div className="monitoramento-page">
       <header>
@@ -1442,9 +1539,23 @@ export default function Home() {
               {dadosAtivosFiltrados.length}
             </span>
           </div>
-          <span className="collapsible-arrow">
-            {tabelaAtivaAberta ? "▼" : "▶"}
-          </span>
+          <div className="collapsible-header-actions">
+            {role === "master" && (
+              <button
+                className="btn-exportar-excel"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  exportarAtivosExcel();
+                }}
+                title="Exportar Esteira Atual para Excel"
+              >
+                📥 Exportar Excel
+              </button>
+            )}
+            <span className="collapsible-arrow">
+              {tabelaAtivaAberta ? "▼" : "▶"}
+            </span>
+          </div>
         </div>
 
         {!loading && tabelaAtivaAberta && (
@@ -1650,9 +1761,23 @@ export default function Home() {
               {dadosOngoingFiltrados.length}
             </span>
           </div>
-          <span className="collapsible-arrow">
-            {tabelaOngoingAberta ? "▼" : "▶"}
-          </span>
+          <div className="collapsible-header-actions">
+            {role === "master" && (
+              <button
+                className="btn-exportar-excel"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  exportarOngoingExcel();
+                }}
+                title="Exportar Clientes Ongoing para Excel"
+              >
+                📥 Exportar Excel
+              </button>
+            )}
+            <span className="collapsible-arrow">
+              {tabelaOngoingAberta ? "▼" : "▶"}
+            </span>
+          </div>
         </div>
 
         {!loading && tabelaOngoingAberta && (
@@ -1780,9 +1905,23 @@ export default function Home() {
               {dadosSuspensosFiltrados.length}
             </span>
           </div>
-          <span className="collapsible-arrow">
-            {tabelaSuspensaAberta ? "▼" : "▶"}
-          </span>
+          <div className="collapsible-header-actions">
+            {role === "master" && (
+              <button
+                className="btn-exportar-excel"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  exportarSuspensosExcel();
+                }}
+                title="Exportar Clientes Suspensos para Excel"
+              >
+                📥 Exportar Excel
+              </button>
+            )}
+            <span className="collapsible-arrow">
+              {tabelaSuspensaAberta ? "▼" : "▶"}
+            </span>
+          </div>
         </div>
 
         {!loading && tabelaSuspensaAberta && (
@@ -1915,9 +2054,23 @@ export default function Home() {
               {dadosCanceladosFiltrados.length}
             </span>
           </div>
-          <span className="collapsible-arrow">
-            {tabelaCanceladosAberta ? "▼" : "▶"}
-          </span>
+          <div className="collapsible-header-actions">
+            {role === "master" && (
+              <button
+                className="btn-exportar-excel"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  exportarCanceladosExcel();
+                }}
+                title="Exportar Clientes Cancelados para Excel"
+              >
+                📥 Exportar Excel
+              </button>
+            )}
+            <span className="collapsible-arrow">
+              {tabelaCanceladosAberta ? "▼" : "▶"}
+            </span>
+          </div>
         </div>
 
         {!loading && tabelaCanceladosAberta && (

@@ -864,6 +864,31 @@
   transition: transform 0.2s ease;
 }
 
+.collapsible-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.btn-exportar-excel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #107c41;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.btn-exportar-excel:hover {
+  background: #0c6534;
+}
+
 .btn-fechar-modal:hover {
   background: rgba(255, 255, 255, 0.08);
   color: white !important;

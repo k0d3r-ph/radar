@@ -116,6 +116,19 @@ export type Empresa = {
   /** Soma dos dias já passados em suspensões anteriores, para excluir do total de dias na esteira ao retornar. */
   diasSuspensoAcumulado?: number;
   isCancelled?: boolean;
+  /**
+   * Configuração (Master-only) de dedução de pontos de gamificação do treinador
+   * responsável (campo {@link Empresa.responsavel}) quando este cliente entra em
+   * contato com o Suporte. Cada tipo de ocorrência tem valores separados para
+   * dentro/fora do expediente (09h-18h); um valor vazio/0 significa que aquele
+   * tipo/período não desconta pontos.
+   */
+  gamificacaoDeducaoSuporte?: {
+    ativo: boolean;
+    duvida?: { dentroExpediente?: number; foraExpediente?: number };
+    problema?: { dentroExpediente?: number; foraExpediente?: number };
+    solicitacao?: { dentroExpediente?: number; foraExpediente?: number };
+  };
   valorContrato?: number;
   idNumeric?: number;
   /** Marcação de envio da notificação de WhatsApp de Suspensão. */
@@ -162,6 +175,8 @@ export type Ocorrencia = {
   /** Marca que esta ocorrência foi a responsável por suspender o cliente temporariamente. */
   suspenderCliente?: boolean;
   temaForaEsteira?: boolean;
+  /** Nota CSAT do contato com o Suporte (opcional, só preenchida quando departamento é "Suporte"). */
+  csatSuporte?: "Bom" | "Ruim";
   whatsappStatus?: WhatsappStatus;
   whatsappEnviadoEm?: number;
   whatsappDestinatarios?: WhatsappDestinatarioEnvio[];
@@ -193,6 +208,7 @@ export type OcorrenciaForm = {
   retornarEsteira?: boolean;
   suspenderCliente?: boolean;
   temaForaEsteira?: boolean;
+  csatSuporte?: "Bom" | "Ruim" | "";
 };
 
 export type Atualizacao = {
@@ -226,7 +242,8 @@ export interface LancamentoPonto {
     | "nova_doc"
     | "att_doc"
     | "ferramenta_aut"
-    | "chamado_falha";
+    | "chamado_falha"
+    | "desconto_suporte";
   pontos: number;
   descricao: string;
   dataLancamento: number;

@@ -94,6 +94,15 @@ const ACOES_DISPONIVEIS = [
   },
 ] as const;
 
+/**
+ * Rótulos de ações lançadas automaticamente pelo sistema (não aparecem no seletor
+ * manual de {@link ACOES_DISPONIVEIS}), usados apenas para exibir um texto amigável
+ * no histórico de lançamentos.
+ */
+const LABELS_TIPO_ACAO_SISTEMA: Partial<Record<string, string>> = {
+  desconto_suporte: "Desconto por contato do cliente com o Suporte",
+};
+
 // Parâmetros do sistema de distribuição de próximos clientes entre treinadores.
 // O peso de um treinamento decai conforme ele envelhece.
 const FAIXAS_PESO_TREINAMENTO = [
@@ -852,7 +861,8 @@ export const Gamificacao: React.FC = () => {
     const map = new Map<string, string>();
     ACOES_DISPONIVEIS.forEach((a) => map.set(a.tipo, a.label));
     entries.forEach((e) => {
-      if (e.tipoAcao && !map.has(e.tipoAcao)) map.set(e.tipoAcao, e.tipoAcao);
+      if (e.tipoAcao && !map.has(e.tipoAcao))
+        map.set(e.tipoAcao, LABELS_TIPO_ACAO_SISTEMA[e.tipoAcao] || e.tipoAcao);
     });
     return Array.from(map.entries()).map(([tipo, label]) => ({ tipo, label }));
   }, [entries]);
@@ -937,7 +947,8 @@ export const Gamificacao: React.FC = () => {
 
         const score = parseFloat((baseScore * (1 + bonus)).toFixed(1));
         const qtdAcoes = trainerEntries.filter((e) => {
-          if (e.tipoAcao === "chamado_falha") return false;
+          if (e.tipoAcao === "chamado_falha" || e.tipoAcao === "desconto_suporte")
+            return false;
           if (e.tipoAcao === "treinamento" && e.treinamentoTema) {
             const themes = e.treinamentoTema
               .split(",")
@@ -2513,7 +2524,8 @@ export const Gamificacao: React.FC = () => {
                                 <span className="action-label-text">
                                   {actionConfig
                                     ? actionConfig.label
-                                    : entry.tipoAcao}
+                                    : LABELS_TIPO_ACAO_SISTEMA[entry.tipoAcao] ||
+                                      entry.tipoAcao}
                                 </span>
                               </td>
                               <td className="desc-cell" title={entry.descricao}>

@@ -312,6 +312,10 @@ export const Usuarios: React.FC = () => {
 
   const handleConfirmarEdicaoRole = async () => {
     if (!editingUser) return;
+    if (editingUserRole === "master" && currentUserRole !== "master") {
+      toast.error("Você não tem permissão para definir um perfil Master.");
+      return;
+    }
     setSavingRole(true);
     try {
       const elegivelNotificacoes = elegivelNotificacoesGestao({
@@ -664,7 +668,9 @@ export const Usuarios: React.FC = () => {
                       </td>
                       <td className="action-col">
                         <div className="action-buttons-wrapper">
-                          {currentUserRole === "master" && (
+                          {(currentUserRole === "master" ||
+                            (currentUserRole === "treinador" &&
+                              u.role !== "master")) && (
                             <button
                               className="btn-edit-user"
                               onClick={() => {
@@ -859,7 +865,9 @@ export const Usuarios: React.FC = () => {
                   <option value="treinador">Treinador</option>
                   <option value="cs">CS</option>
                   <option value="painel">Painel</option>
-                  <option value="master">Master</option>
+                  {currentUserRole === "master" && (
+                    <option value="master">Master</option>
+                  )}
                 </select>
               </div>
             </div>

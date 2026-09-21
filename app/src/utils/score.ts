@@ -198,6 +198,30 @@ export function obterTipoEfetivo(
   return scoreEfetivo >= 6 ? "Fast" : "Safety";
 }
 
+/** Rótulo curto exibido no resumo do score para cada motivo de redução temporária. */
+const LABEL_REDUCAO_POR_MOTIVO: Record<string, string> = {
+  [MOTIVO_REDUCAO_SCORE_SUPORTE]: "contato com Suporte",
+  [MOTIVO_REDUCAO_SCORE_TREINAMENTO]: "contato com Treinamento",
+  [MOTIVO_REDUCAO_SCORE_GAP_AGENDA]: "intervalo entre agendas",
+};
+
+/**
+ * Descreve, em texto curto, os motivos das reduções ativas passadas (ex.: "contato com
+ * Suporte", ou "contato com Suporte e contato com Treinamento" quando há mais de um).
+ * Usado no resumo do score para não fixar sempre "contato com Suporte", já que a
+ * mesma redução pode vir do Treinamento ou de um gap de agenda.
+ */
+export function descreverMotivosReducaoAtiva(
+  ajustes: NonNullable<Empresa["scoreAjustesTemporarios"]>,
+): string {
+  const labels = Array.from(
+    new Set(ajustes.map((a) => LABEL_REDUCAO_POR_MOTIVO[a.motivo] || a.motivo)),
+  );
+  if (labels.length === 0) return "";
+  if (labels.length === 1) return labels[0];
+  return `${labels.slice(0, -1).join(", ")} e ${labels[labels.length - 1]}`;
+}
+
 /** Ajustes temporários de score ainda dentro do prazo (não vencidos), para exibir a composição do resultado. */
 export function obterAjustesAtivos(
   empresa: Pick<Empresa, "scoreAjustesTemporarios">,

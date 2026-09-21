@@ -37,6 +37,7 @@ import {
   obterAjustesAtivos,
   obterTipoEfetivo,
   encontrarOcorrenciaDoAjuste,
+  descreverMotivosReducaoAtiva,
 } from "../../utils/score";
 import { atribuirIdsOcorrencias } from "../../utils/empresaUtils";
 import {
@@ -2891,6 +2892,132 @@ export default function Home() {
               </div>
             </div>
 
+            {role === "master" && (
+              <div className="form-group">
+                <label
+                  className="checkbox-label"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    cursor: "pointer",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={clienteForm.gamificacaoDeducaoSuporte?.ativo ?? false}
+                    onChange={(e) =>
+                      setClienteForm({
+                        ...clienteForm,
+                        gamificacaoDeducaoSuporte: {
+                          ...clienteForm.gamificacaoDeducaoSuporte,
+                          ativo: e.target.checked,
+                        },
+                      })
+                    }
+                  />
+                  Elegível para dedução de pontos do treinador (contato com o
+                  Suporte)
+                </label>
+                <p
+                  style={{
+                    fontSize: "0.8rem",
+                    opacity: 0.7,
+                    margin: "0.35rem 0 0",
+                  }}
+                >
+                  Os pontos são descontados do treinador já definido em
+                  "Responsável"
+                  {clienteForm.responsavel
+                    ? ` (${clienteForm.responsavel})`
+                    : ""}
+                  .
+                </p>
+
+                {clienteForm.gamificacaoDeducaoSuporte?.ativo && (
+                  <div
+                    style={{
+                      marginTop: "0.75rem",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "0.75rem",
+                    }}
+                  >
+                    {(
+                      [
+                        { chave: "duvida", label: "Dúvida" },
+                        { chave: "problema", label: "Problema" },
+                        { chave: "solicitacao", label: "Solicitação" },
+                      ] as const
+                    ).map(({ chave, label }) => (
+                      <div key={chave} className="form-grid-2">
+                        <div className="form-group">
+                          <label>{label} — Dentro do expediente</label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.5"
+                            placeholder="0"
+                            value={
+                              clienteForm.gamificacaoDeducaoSuporte?.[chave]
+                                ?.dentroExpediente ?? ""
+                            }
+                            onChange={(e) =>
+                              setClienteForm({
+                                ...clienteForm,
+                                gamificacaoDeducaoSuporte: {
+                                  ativo: true,
+                                  ...clienteForm.gamificacaoDeducaoSuporte,
+                                  [chave]: {
+                                    ...clienteForm.gamificacaoDeducaoSuporte?.[
+                                      chave
+                                    ],
+                                    dentroExpediente: e.target.value
+                                      ? Number(e.target.value)
+                                      : 0,
+                                  },
+                                },
+                              })
+                            }
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label>{label} — Fora do expediente</label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.5"
+                            placeholder="0"
+                            value={
+                              clienteForm.gamificacaoDeducaoSuporte?.[chave]
+                                ?.foraExpediente ?? ""
+                            }
+                            onChange={(e) =>
+                              setClienteForm({
+                                ...clienteForm,
+                                gamificacaoDeducaoSuporte: {
+                                  ativo: true,
+                                  ...clienteForm.gamificacaoDeducaoSuporte,
+                                  [chave]: {
+                                    ...clienteForm.gamificacaoDeducaoSuporte?.[
+                                      chave
+                                    ],
+                                    foraExpediente: e.target.value
+                                      ? Number(e.target.value)
+                                      : 0,
+                                  },
+                                },
+                              })
+                            }
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div
               style={{ display: "flex", gap: "0.75rem", marginTop: "0.5rem" }}
             >
@@ -3407,12 +3534,13 @@ export default function Home() {
                     respostasScoreHome,
                     clienteSelecionado?.scoreContadoresPerda,
                   );
-                  const deducaoAtiva = clienteSelecionado
-                    ? obterAjustesAtivos(clienteSelecionado).reduce(
-                      (soma, a) => soma + a.valor,
-                      0,
-                    )
-                    : 0;
+                  const ajustesAtivos = clienteSelecionado
+                    ? obterAjustesAtivos(clienteSelecionado)
+                    : [];
+                  const deducaoAtiva = ajustesAtivos.reduce(
+                    (soma, a) => soma + a.valor,
+                    0,
+                  );
                   const totalComDeducao = res.score - deducaoAtiva;
                   return (
                     <span>
@@ -3422,7 +3550,7 @@ export default function Home() {
                         <span className="home-score-deducao-inline">
                           {" "}
                           ({res.score.toFixed(1)} - {deducaoAtiva.toFixed(1)}{" "}
-                          por contato com Suporte)
+                          por {descreverMotivosReducaoAtiva(ajustesAtivos)})
                         </span>
                       )}
                     </span>

@@ -68,7 +68,9 @@ import {
   calcularPontuacaoScore,
   obterAjustesAtivos,
   encontrarOcorrenciaDoAjuste,
+  descreverMotivosReducaoAtiva,
 } from "../../utils/score";
+import { estaDentroDoExpediente } from "../../utils/expediente";
 import {
   atribuirIdsOcorrencias,
   obterInfoTipoOcorrencia,
@@ -444,6 +446,7 @@ const EMPTY: OcorrenciaForm = {
   retornarEsteira: false,
   suspenderCliente: false,
   temaForaEsteira: false,
+  csatSuporte: "",
 };
 
 interface ScoreFormAnswers {
@@ -1282,6 +1285,7 @@ export function Historico() {
       horaCriacao: horaCriacaoFormatada,
       retornarEsteira: o.retornarEsteira ?? false,
       suspenderCliente: o.suspenderCliente ?? false,
+      csatSuporte: o.csatSuporte ?? "",
     });
     setTemaOcorrenciaOngoingText(o.temaOcorrencia?.join(", ") ?? "");
     setBuscaAssunto("");
@@ -1499,6 +1503,10 @@ export function Historico() {
       isRevisao: form.tipo === "Treinamento" ? isRevisao : undefined,
       temaForaEsteira:
         form.tipo === "Treinamento" ? temaForaEsteira : undefined,
+      csatSuporte:
+        form.departamento === "Suporte" && form.csatSuporte
+          ? form.csatSuporte
+          : undefined,
       ...(form.tipo === "Treinamento"
         ? {
             treinamentoDataSolicitacao: form.treinamentoDataSolicitacao,
@@ -1887,6 +1895,59 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               error,
             );
           }
+        }
+      }
+    }
+
+    // Cliente marcado (Master-only, no cadastro) como elegível para dedução de pontos
+    // do treinador responsável quando entra em contato com o Suporte por Dúvida,
+    // Problema ou Solicitação — só na criação, para não reaplicar a cada edição.
+    if (
+      !editandoId &&
+      !empresaInterna &&
+      empresaObjeto?.gamificacaoDeducaoSuporte?.ativo &&
+      empresaObjeto.responsavel &&
+      form.departamento === "Suporte" &&
+      (form.tipo === "Dúvida" ||
+        form.tipo === "Problema" ||
+        form.tipo === "Solicitação")
+    ) {
+      const chavePorTipo = {
+        Dúvida: "duvida",
+        Problema: "problema",
+        Solicitação: "solicitacao",
+      } as const;
+      const chave = chavePorTipo[form.tipo];
+      const config = empresaObjeto.gamificacaoDeducaoSuporte[chave];
+      const dentroDoExpediente = estaDentroDoExpediente(base.dataOcorrencia);
+      const pontosPerdidos = dentroDoExpediente
+        ? config?.dentroExpediente
+        : config?.foraExpediente;
+
+      const treinadorObj = usuariosList.find(
+        (u) =>
+          formatarNome(u.nome).toLowerCase() ===
+          formatarNome(empresaObjeto.responsavel).toLowerCase(),
+      );
+
+      if (pontosPerdidos && treinadorObj) {
+        try {
+          await salvarLancamentoPonto({
+            treinadorId: treinadorObj.uid,
+            treinadorNome: formatarNome(treinadorObj.nome) || treinadorObj.email,
+            tipoAcao: "desconto_suporte",
+            pontos: -Math.abs(pontosPerdidos),
+            descricao: `Contato de ${form.empresa.trim()} com o Suporte (${form.tipo}, ${dentroDoExpediente ? "dentro" : "fora"} do expediente)`,
+            dataLancamento: base.dataOcorrencia,
+            criadoPorId: user?.uid || "",
+            criadoPorNome: formatarNome(userName) || user?.email || "Sistema",
+            ocorrenciaId: savedId,
+          });
+        } catch (error) {
+          console.error(
+            "Erro ao aplicar desconto de gamificação por contato com Suporte:",
+            error,
+          );
         }
       }
     }
@@ -3563,6 +3624,22 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   <strong>{selecionada.departamento}</strong>
                 </div>
 
+                {selecionada.departamento === "Suporte" &&
+                  selecionada.csatSuporte && (
+                    <div>
+                      <span>Nota CSAT</span>
+                      <strong
+                        className={`nota-treinamento-tag ${
+                          selecionada.csatSuporte === "Bom"
+                            ? "nota-treinamento-tag--bom"
+                            : "nota-treinamento-tag--ruim"
+                        }`}
+                      >
+                        {selecionada.csatSuporte}
+                      </strong>
+                    </div>
+                  )}
+
                 <div>
                   <span>Tipo</span>
                   {(() => {
@@ -4321,6 +4398,25 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 ))}
               </select>
             </div>
+
+            {form.departamento === "Suporte" && (
+              <div className="hist-campo">
+                <label>Nota CSAT (Opcional)</label>
+                <select
+                  value={form.csatSuporte ?? ""}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      csatSuporte: e.target.value as "Bom" | "Ruim" | "",
+                    })
+                  }
+                >
+                  <option value="">Não informado</option>
+                  <option value="Bom">Bom</option>
+                  <option value="Ruim">Ruim</option>
+                </select>
+              </div>
+            )}
 
             {form.tipo === "Dúvida" && (
               <div className="hist-campo">
@@ -5289,12 +5385,13 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                     respostasScore,
                     selectedEmpresaObj?.scoreContadoresPerda,
                   );
-                  const deducaoAtiva = selectedEmpresaObj
-                    ? obterAjustesAtivos(selectedEmpresaObj).reduce(
-                        (soma, a) => soma + a.valor,
-                        0,
-                      )
-                    : 0;
+                  const ajustesAtivos = selectedEmpresaObj
+                    ? obterAjustesAtivos(selectedEmpresaObj)
+                    : [];
+                  const deducaoAtiva = ajustesAtivos.reduce(
+                    (soma, a) => soma + a.valor,
+                    0,
+                  );
                   const totalComDeducao = res.score - deducaoAtiva;
                   return (
                     <span>
@@ -5304,7 +5401,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                         <span className="score-deducao-inline">
                           {" "}
                           ({res.score.toFixed(1)} - {deducaoAtiva.toFixed(1)}{" "}
-                          por contato com Suporte)
+                          por {descreverMotivosReducaoAtiva(ajustesAtivos)})
                         </span>
                       )}
                     </span>

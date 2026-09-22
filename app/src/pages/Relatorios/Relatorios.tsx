@@ -131,6 +131,7 @@ export const Relatorios: React.FC = () => {
   });
   const [kpiSelecionado, setKpiSelecionado] = useState<number>(0);
   const [numSemanasGrafico, setNumSemanasGrafico] = useState<number>(8);
+  const [clienteFiltroGrafico, setClienteFiltroGrafico] = useState<string>("");
   const [dataComparacao, setDataComparacao] = useState<string>(() => {
     const today = new Date();
     today.setDate(today.getDate() - 7);
@@ -860,9 +861,12 @@ export const Relatorios: React.FC = () => {
     const problemas = new Array(NUM_SEMANAS).fill(0);
     const solicitacoes = new Array(NUM_SEMANAS).fill(0);
 
+    const clienteFiltro = clienteFiltroGrafico.trim().toLowerCase();
+
     ocorrencias.forEach((o) => {
       if (o.departamento !== "Suporte") return;
       if (nomesClientesCancelados.has((o.empresa || "").trim().toLowerCase())) return;
+      if (clienteFiltro && (o.empresa || "").trim().toLowerCase() !== clienteFiltro) return;
 
       const tipoLower = (o.tipo || "").toLowerCase();
       const eDuvida = tipoLower.includes("duvida") || tipoLower.includes("dúvida");
@@ -880,7 +884,18 @@ export const Relatorios: React.FC = () => {
     });
 
     return { categorias, duvidas, problemas, solicitacoes };
-  }, [ocorrencias, dadosEmpresas, limitesSemana, numSemanasGrafico]);
+  }, [ocorrencias, dadosEmpresas, limitesSemana, numSemanasGrafico, clienteFiltroGrafico]);
+
+  // Lista de clientes com contato de suporte registrado (para o filtro do gráfico)
+  const clientesComContatoSuporte = useMemo(() => {
+    const nomes = new Set<string>();
+    ocorrencias.forEach((o) => {
+      if (o.departamento === "Suporte" && o.empresa) {
+        nomes.add(o.empresa.trim());
+      }
+    });
+    return Array.from(nomes).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [ocorrencias]);
 
   const formatarDiferenca = (atual: number, anterior: number, menorEhMelhor = false) => {
     if (anterior === 0) {
@@ -1345,12 +1360,29 @@ ${riscoChurn.length > 0
                     <option value={26}>Últimas 26 semanas</option>
                     <option value={52}>Últimas 52 semanas</option>
                   </select>
+                  <label htmlFor="cliente-filtro-grafico">Cliente:</label>
+                  <select
+                    id="cliente-filtro-grafico"
+                    value={clienteFiltroGrafico}
+                    onChange={(e) => setClienteFiltroGrafico(e.target.value)}
+                  >
+                    <option value="">Todos os clientes</option>
+                    {clientesComContatoSuporte.map((nome) => (
+                      <option key={nome} value={nome}>
+                        {nome}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               )}
 
               {kpiSelecionado === 2 && (
                 <LineChart
-                  title="Evolução semanal de dúvidas, problemas e solicitações"
+                  title={
+                    clienteFiltroGrafico
+                      ? `Evolução semanal de dúvidas, problemas e solicitações — ${clienteFiltroGrafico}`
+                      : "Evolução semanal de dúvidas, problemas e solicitações"
+                  }
                   categorias={evolucaoSemanalSuporte.categorias}
                   series={[
                     { label: "Dúvidas", color: "#3b82f6", values: evolucaoSemanalSuporte.duvidas },

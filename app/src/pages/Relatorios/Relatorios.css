@@ -63,6 +63,11 @@
   align-items: center;
   gap: 0.6rem;
   margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.line-chart-filtro-semanas select#cliente-filtro-grafico {
+  max-width: 260px;
 }
 
 .line-chart-filtro-semanas label {

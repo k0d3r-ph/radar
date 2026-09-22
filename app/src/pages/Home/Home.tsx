@@ -3374,8 +3374,8 @@ export default function Home() {
                 <label>
                   Cliente se recorda de temas anteriores? *{" "}
                   <span className="home-score-hint">
-                    (Sim = +2.0 sem perda pendente, ou recupera 2.0 na 1ª vez e
-                    3.0 na 2ª / Não: 1ª vez = -2.0, 2ª vez seguida = -3.0)
+                    (Sim = +2.0 e zera perda / Não: 1ª vez cancela o bônus, a
+                    partir da 2ª = -3.0)
                   </span>
                 </label>
                 {!!clienteSelecionado?.scoreContadoresPerda?.recordaTemas && (

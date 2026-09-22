@@ -15,11 +15,11 @@ export interface ScoreFormAnswers {
 }
 
 /**
- * Perguntas cuja perda é escalonada: cada marcação seguida de "Não" (desde o
- * último "Sim") já pune `valorPorMarcacao`, acumulando até o teto de
- * `maxMarcacoes * valorPorMarcacao`. Ou seja, a 1ª marcação de "Não" já custa
- * `valorPorMarcacao`; a 2ª custa mais `valorPorMarcacao`, até o teto. Marcar
- * "Sim" dá o ganho cheio (`ganhoSim`) e zera o contador de perdas.
+ * Perguntas cuja perda é escalonada: a 1ª marcação seguida de "Não" (desde o
+ * último "Sim") só cancela o bônus do "Sim" (contribui 0); a partir da 2ª
+ * marcação seguida já pune `valorPorMarcacao` por marcação, até o teto de
+ * `(maxMarcacoes - 1) * valorPorMarcacao`. Marcar "Sim" dá o ganho cheio
+ * (`ganhoSim`) e zera o contador de perdas.
  */
 const PERGUNTAS_PERDA_ESCALONADA = {
   entraComputador: { ganhoSim: 1.0, valorPorMarcacao: 1.0, maxMarcacoes: 2 },
@@ -40,9 +40,9 @@ const RECORDA_TEMAS_PERDA_MAX =
  * Calcula a contribuição ao score da pergunta "Cliente se recorda de temas anteriores?"
  * e a nova perda acumulada a persistir em {@link ContadorPerdasScore.recordaTemas}.
  *
- * "Não" já pune desde a 1ª marcação seguida: {@link RECORDA_TEMAS_PERDA_NIVEL_1} na 1ª,
- * acumulando até o teto {@link RECORDA_TEMAS_PERDA_MAX} na 2ª. "Sim" dá o ganho cheio
- * {@link RECORDA_TEMAS_GANHO_SIM} e zera o contador de perdas.
+ * "Não" na 1ª marcação seguida só cancela o bônus do "Sim" (contribui 0); a partir da
+ * 2ª marcação seguida já pune de verdade com {@link RECORDA_TEMAS_PERDA_NIVEL_2}. "Sim"
+ * dá o ganho cheio {@link RECORDA_TEMAS_GANHO_SIM} e zera o contador de perdas.
  */
 function calcularRecordaTemas(
   resposta: RespostaSimNao,
@@ -53,9 +53,12 @@ function calcularRecordaTemas(
   }
 
   if (resposta === "Não") {
-    const perda =
-      perdaAnterior <= 0 ? RECORDA_TEMAS_PERDA_NIVEL_1 : RECORDA_TEMAS_PERDA_MAX;
-    return { contribuicao: -perda, perda };
+    if (perdaAnterior <= 0) {
+      // 1ª marcação seguida só cancela o bônus do Sim (contribui 0).
+      return { contribuicao: 0, perda: RECORDA_TEMAS_PERDA_NIVEL_1 };
+    }
+    // A partir da 2ª marcação seguida já pune de verdade.
+    return { contribuicao: -RECORDA_TEMAS_PERDA_NIVEL_2, perda: RECORDA_TEMAS_PERDA_MAX };
   }
 
   return { contribuicao: 0, perda: perdaAnterior };
@@ -84,8 +87,8 @@ export function calcularPontuacaoScore(
       } else if (resposta === "Não") {
         const marcacoes = Math.min((contadoresAnteriores?.[chave] || 0) + 1, config.maxMarcacoes);
         contadores[chave] = marcacoes;
-        // Já pune desde a 1ª marcação, acumulando até o teto de maxMarcacoes.
-        score -= config.valorPorMarcacao * marcacoes;
+        // 1ª marcação só cancela o bônus do Sim (contribui 0); a partir da 2ª já pune de verdade.
+        score -= config.valorPorMarcacao * (marcacoes - 1);
       } else {
         contadores[chave] = contadoresAnteriores?.[chave] || 0;
       }

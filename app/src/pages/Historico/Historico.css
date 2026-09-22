@@ -1677,6 +1677,22 @@ body.light-theme .tema-opcao:hover {
   color: #7f1d1d;
 }
 
+.score-deducao-remover {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-left: 6px;
+  color: #991b1b;
+  font-weight: 700;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.score-deducao-remover:hover {
+  color: #450a0a;
+}
+
 .checkbox-label {
   display: flex;
   align-items: center;

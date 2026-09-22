@@ -126,6 +126,40 @@ export default function Home() {
     setDuvidasTemasHome((prev) => prev.filter((_, i) => i !== index));
   }
 
+  async function removerReducaoAtivaHome(
+    ajuste: NonNullable<Empresa["scoreAjustesTemporarios"]>[number],
+  ) {
+    if (role !== "master" || !clienteSelecionado) return;
+    toast(
+      "Remover apenas esta redução de score? A ocorrência não será excluída.",
+      {
+        action: {
+          label: "Remover",
+          onClick: async () => {
+            try {
+              const empresaAtualizada: Empresa = {
+                ...clienteSelecionado,
+                scoreAjustesTemporarios: (
+                  clienteSelecionado.scoreAjustesTemporarios || []
+                ).filter((a) => a.criadoEm !== ajuste.criadoEm),
+              };
+              await salvarEmpresas(empresaAtualizada);
+              const lista = await listarEmpresas();
+              setEmpresas(lista);
+              setClienteSelecionado(empresaAtualizada);
+              toast.success("Redução de score removida.");
+            } catch (error) {
+              console.error("Erro ao remover redução de score:", error);
+              toast.error("Erro ao remover redução de score.");
+            }
+          },
+        },
+        cancel: { label: "Cancelar", onClick: () => {} },
+        duration: 10000,
+      },
+    );
+  }
+
   async function confirmarScoreNeutroHome() {
     if (!clienteSelecionado) return;
     try {
@@ -3673,6 +3707,16 @@ export default function Home() {
                             </>
                           )}{" "}
                           — {a.motivo}
+                          {role === "master" && (
+                            <button
+                              type="button"
+                              className="home-score-deducao-remover"
+                              onClick={() => removerReducaoAtivaHome(a)}
+                              title="Remover apenas esta redução (mantém a ocorrência)"
+                            >
+                              ×
+                            </button>
+                          )}
                         </li>
                       );
                     })}

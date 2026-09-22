@@ -2457,18 +2457,40 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             const ehMudancaScore = oc.tipo === "Mudança de score";
             const temScore = oc.scoreCalculado !== undefined;
 
-            if (ehMudancaScore || temScore) {
-              const empresaObjeto = empresasList.find(
-                (e) => normalizar(e.nomeEmpresa) === normalizar(oc.empresa),
-              );
-              if (empresaObjeto) {
+            const empresaObjeto = empresasList.find(
+              (e) => normalizar(e.nomeEmpresa) === normalizar(oc.empresa),
+            );
+
+            if ((ehMudancaScore || temScore) && empresaObjeto) {
+              await salvarEmpresas({
+                ...empresaObjeto,
+                score: null as any,
+                scoreAnswers: null as any,
+                tipo: "",
+                updatedAt: Date.now(),
+              });
+            }
+
+            // Redução temporária de score vinculada a esta ocorrência (contato
+            // com Suporte/Treinamento): excluir a ocorrência também retira a redução.
+            if (
+              empresaObjeto?.scoreAjustesTemporarios?.some(
+                (a) => a.ocorrenciaId === id,
+              )
+            ) {
+              try {
                 await salvarEmpresas({
-                  ...empresaObjeto,
-                  score: null as any,
-                  scoreAnswers: null as any,
-                  tipo: "",
-                  updatedAt: Date.now(),
+                  id: empresaObjeto.id,
+                  scoreAjustesTemporarios:
+                    empresaObjeto.scoreAjustesTemporarios.filter(
+                      (a) => a.ocorrenciaId !== id,
+                    ),
                 });
+              } catch (error) {
+                console.error(
+                  "Erro ao remover redução de score associada:",
+                  error,
+                );
               }
             }
 
@@ -2525,6 +2547,35 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
           await removerOcorrencia(id);
           await carregar();
           toast.success("Ocorrência removida.");
+        },
+      },
+      cancel: { label: "Cancelar", onClick: () => {} },
+      duration: 10000,
+    });
+  }
+
+  async function removerReducaoAtiva(
+    empresa: Empresa,
+    ajuste: NonNullable<Empresa["scoreAjustesTemporarios"]>[number],
+  ) {
+    if (role !== "master") return;
+    toast("Remover apenas esta redução de score? A ocorrência não será excluída.", {
+      action: {
+        label: "Remover",
+        onClick: async () => {
+          try {
+            await salvarEmpresas({
+              id: empresa.id,
+              scoreAjustesTemporarios: (
+                empresa.scoreAjustesTemporarios || []
+              ).filter((a) => a.criadoEm !== ajuste.criadoEm),
+            });
+            await carregar();
+            toast.success("Redução de score removida.");
+          } catch (error) {
+            console.error("Erro ao remover redução de score:", error);
+            toast.error("Erro ao remover redução de score.");
+          }
         },
       },
       cancel: { label: "Cancelar", onClick: () => {} },
@@ -5400,6 +5451,18 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                             </>
                           )}{" "}
                           — {a.motivo}
+                          {role === "master" && (
+                            <button
+                              type="button"
+                              className="score-deducao-remover"
+                              onClick={() =>
+                                removerReducaoAtiva(selectedEmpresaObj, a)
+                              }
+                              title="Remover apenas esta redução (mantém a ocorrência)"
+                            >
+                              ×
+                            </button>
+                          )}
                         </li>
                       );
                     })}

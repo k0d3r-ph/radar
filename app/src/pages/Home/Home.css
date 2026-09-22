@@ -1241,6 +1241,22 @@
   color: #fca5a5;
 }
 
+.home-score-deducao-remover {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-left: 6px;
+  color: #f87171;
+  font-weight: 700;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.home-score-deducao-remover:hover {
+  color: #fca5a5;
+}
+
 @media (max-width: 768px) {
   .home-score-modal-card {
     padding: 1.25rem;

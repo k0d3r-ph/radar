@@ -1111,7 +1111,10 @@ export const Gamificacao: React.FC = () => {
   }, [trainers, entries, empresasCompletas]);
 
   const podeDistribuir = role === "treinador" || role === "master";
-  const podeVerIndicadores = role === "master";
+  // Master vê os indicadores de toda a equipe; o treinador vê só os próprios,
+  // e sem poder alterar as metas (definidas centralmente pelo Master).
+  const podeVerIndicadores = role === "master" || role === "treinador";
+  const podeEditarMetas = role === "master";
 
   // As metas só interessam a quem abre o relatório, então a leitura acontece
   // na primeira abertura do modal em vez de no carregamento da página.
@@ -1423,6 +1426,13 @@ export const Gamificacao: React.FC = () => {
     responsavelPorEmpresa,
     empresasAtivasNaEsteira,
   ]);
+
+  // Colunas de treinador exibidas no modal: o Master vê a equipe inteira, o
+  // treinador só a própria coluna.
+  const indicadoresExibidos = useMemo(() => {
+    if (role === "master") return indicadoresPorTreinador;
+    return indicadoresPorTreinador.filter((t) => t.uid === user?.uid);
+  }, [indicadoresPorTreinador, role, user?.uid]);
 
   /**
    * Linha de total da equipe. As médias (CSAT, espera, esteira) são
@@ -2944,7 +2954,7 @@ export const Gamificacao: React.FC = () => {
             </div>
 
             <div className="indicadores-tabela-wrapper">
-              {indicadoresPorTreinador.length === 0 ? (
+              {indicadoresExibidos.length === 0 ? (
                 <p className="indicadores-vazio">
                   Nenhum treinador encontrado.
                 </p>
@@ -2957,7 +2967,7 @@ export const Gamificacao: React.FC = () => {
                   <thead>
                     <tr>
                       <th className="indicadores-col-rotulo">Indicador</th>
-                      {indicadoresPorTreinador.map((t) => (
+                      {indicadoresExibidos.map((t) => (
                         <th key={t.uid}>{t.nome}</th>
                       ))}
                       <th className="indicadores-col-total">Total</th>
@@ -2976,7 +2986,7 @@ export const Gamificacao: React.FC = () => {
                           >
                             {indicador.titulo}
                           </td>
-                          {indicadoresPorTreinador.map((t) => (
+                          {indicadoresExibidos.map((t) => (
                             <td key={t.uid}>
                               {celulasPorTreinador[t.uid][idx]}
                             </td>
@@ -2999,6 +3009,8 @@ export const Gamificacao: React.FC = () => {
                                     e.target.value,
                                   )
                                 }
+                                readOnly={!podeEditarMetas}
+                                disabled={!podeEditarMetas}
                               />
                               {indicador.unidade && (
                                 <span className="indicadores-meta-unidade">
@@ -3037,7 +3049,7 @@ export const Gamificacao: React.FC = () => {
               )}
             </div>
 
-            {indicadoresPorTreinador.length > 0 && (
+            {podeEditarMetas && indicadoresExibidos.length > 0 && (
               <div className="indicadores-modal-footer">
                 <button
                   type="button"

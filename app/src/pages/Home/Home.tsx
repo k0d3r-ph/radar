@@ -57,6 +57,7 @@ import {
   obterDestinatariosGestao,
   montarMensagemSuspensaoGestao,
   montarMensagemCanceladoGestao,
+  montarMensagemRetornoEsteiraGestao,
 } from "../../services/notificacoes";
 import type { DestinatarioGestao } from "../../services/notificacoes";
 import { GestaoNotificacaoModal } from "../../components/GestaoNotificacaoModal";
@@ -334,7 +335,7 @@ export default function Home() {
   const [gestaoMensagem, setGestaoMensagem] = useState("");
   const [gestaoEmpresaId, setGestaoEmpresaId] = useState<string | undefined>(undefined);
   const [gestaoEmpresaEvento, setGestaoEmpresaEvento] = useState<
-    "suspenso" | "cancelado"
+    "suspenso" | "cancelado" | "retorno"
   >("suspenso");
 
   const [tabelaAtivaAberta, setTabelaAtivaAberta] = useState(true);
@@ -516,6 +517,30 @@ export default function Home() {
         .catch((err) =>
           console.error(
             "[notificações] Falha ao montar destinatários de suspensão:",
+            err,
+          ),
+        );
+    }
+
+    // Cliente acabou de sair da suspensão (retornou à esteira): notifica Supervisor + CS + Comercial
+    if (
+      !empresaSalva.isSuspended &&
+      empresaExistente?.isSuspended &&
+      !empresaSalva.isCancelled
+    ) {
+      obterDestinatariosGestao(empresaSalva, "retorno")
+        .then(({ destinatarios, avisos }) => {
+          if (destinatarios.length === 0) return;
+          setGestaoDestinatarios(destinatarios);
+          setGestaoAvisos(avisos);
+          setGestaoMensagem(montarMensagemRetornoEsteiraGestao(empresaSalva));
+          setGestaoEmpresaId(empresaSalva.id);
+          setGestaoEmpresaEvento("retorno");
+          setGestaoConfirmModalOpen(true);
+        })
+        .catch((err) =>
+          console.error(
+            "[notificações] Falha ao montar destinatários de retorno à esteira:",
             err,
           ),
         );
@@ -3781,14 +3806,18 @@ export default function Home() {
         titulo={
           gestaoEmpresaEvento === "cancelado"
             ? "🚫 Notificar Supervisor, CS e Comercial sobre o cancelamento?"
-            : "⏸️ Notificar Supervisor, CS e Comercial sobre a suspensão?"
+            : gestaoEmpresaEvento === "retorno"
+              ? "🔄 Notificar Supervisor, CS e Comercial sobre o retorno à esteira?"
+              : "⏸️ Notificar Supervisor, CS e Comercial sobre a suspensão?"
         }
         destinatarios={gestaoDestinatarios}
         avisos={gestaoAvisos}
         mensagem={gestaoMensagem}
         onChangeMensagem={setGestaoMensagem}
         onResultado={async ({ status, enviadoEm, destinatarios }) => {
-          if (!gestaoEmpresaId) return;
+          // O retorno não tem campo de status próprio na empresa; gravá-lo nos campos
+          // de suspensão apagaria o registro do envio da suspensão.
+          if (!gestaoEmpresaId || gestaoEmpresaEvento === "retorno") return;
           try {
             if (gestaoEmpresaEvento === "cancelado") {
               await salvarEmpresas({

@@ -34,18 +34,27 @@ export interface ResultadoDestinatariosGestao {
   avisos: string[];
 }
 
-/** Os 4 tipos de mensagem de gestão que cada usuário habilita individualmente no seu cadastro. */
+/**
+ * Eventos que disparam mensagem de gestão. Os 4 primeiros têm habilitação própria no
+ * cadastro do usuário; "retorno" (volta à esteira após suspensão) e "alerta_retirado"
+ * encerram uma suspensão e um alerta, então seguem a habilitação do evento que encerram —
+ * quem acompanha a suspensão/o alerta fica sabendo quando o cliente sai dele.
+ */
 export type EventoNotificacaoGestao =
   | "suspenso"
   | "alerta"
   | "cancelado"
-  | "conclusao";
+  | "conclusao"
+  | "retorno"
+  | "alerta_retirado";
 
 const ROTULO_EVENTO: Record<EventoNotificacaoGestao, string> = {
   suspenso: "Suspensão",
   alerta: "Alerta",
   cancelado: "Cancelamento",
   conclusao: "Conclusão",
+  retorno: "Suspensão",
+  alerta_retirado: "Alerta",
 };
 
 const CAMPO_NOTIFICACAO: Record<
@@ -62,6 +71,8 @@ const CAMPO_NOTIFICACAO: Record<
   alerta: "notificarAlerta",
   cancelado: "notificarCancelado",
   conclusao: "notificarConclusao",
+  retorno: "notificarSuspenso",
+  alerta_retirado: "notificarAlerta",
 };
 
 /** Habilitado por padrão: só fica de fora quem desmarcou explicitamente (`false`) o tipo de mensagem. */
@@ -269,4 +280,44 @@ export function montarMensagemCanceladoGestao(
     ? `\n${construirUrlOcorrencia(ocorrenciaId)}`
     : "";
   return `🚫 O cliente *${empresa.nomeEmpresa}* foi *cancelado*!${csLinha}${comercialLinha}${linkLinha}\n\nAcesse o Radar para mais detalhes.`;
+}
+
+/**
+ * @param alertaRetirado - Quando o retorno à esteira também retirou o cliente do alerta,
+ * as duas informações vão numa única mensagem.
+ */
+export function montarMensagemRetornoEsteiraGestao(
+  empresa: Empresa,
+  ocorrenciaId?: string,
+  alertaRetirado = false,
+): string {
+  const alertaLinha = alertaRetirado
+    ? "\n✅ O cliente também foi *retirado do alerta*."
+    : "";
+  const csLinha = empresa.csResponsavel
+    ? `\nCS Responsável: *${empresa.csResponsavel}*`
+    : "";
+  const comercialLinha = empresa.comercialResponsavel
+    ? `\nComercial: *${empresa.comercialResponsavel}*`
+    : "";
+  const linkLinha = ocorrenciaId
+    ? `\n${construirUrlOcorrencia(ocorrenciaId)}`
+    : "";
+  return `🔄 O cliente *${empresa.nomeEmpresa}* *retornou à esteira* após a suspensão!${alertaLinha}${csLinha}${comercialLinha}${linkLinha}\n\nAcesse o Radar para mais detalhes.`;
+}
+
+export function montarMensagemAlertaRetiradoGestao(
+  empresa: Empresa,
+  ocorrenciaId?: string,
+): string {
+  const csLinha = empresa.csResponsavel
+    ? `\nCS Responsável: *${empresa.csResponsavel}*`
+    : "";
+  const comercialLinha = empresa.comercialResponsavel
+    ? `\nComercial: *${empresa.comercialResponsavel}*`
+    : "";
+  const linkLinha = ocorrenciaId
+    ? `\n${construirUrlOcorrencia(ocorrenciaId)}`
+    : "";
+  return `✅ O cliente *${empresa.nomeEmpresa}* foi *retirado do alerta*!${csLinha}${comercialLinha}${linkLinha}\n\nAcesse o Radar para mais detalhes.`;
 }

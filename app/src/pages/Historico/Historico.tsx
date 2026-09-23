@@ -24,6 +24,8 @@ import {
   montarMensagemAlertaGestao,
   montarMensagemConclusaoEsteiraGestao,
   montarMensagemSuspensaoGestao,
+  montarMensagemRetornoEsteiraGestao,
+  montarMensagemAlertaRetiradoGestao,
   aplicarNomeDestinatario,
   PLACEHOLDER_NOME,
 } from "../../services/notificacoes";
@@ -923,7 +925,11 @@ export function Historico() {
       ? "suspenso"
       : oc.alerta
         ? "alerta"
-        : "conclusao";
+        : oc.retornarEsteira
+          ? "retorno"
+          : oc.retirarAlerta
+            ? "alerta_retirado"
+            : "conclusao";
 
     // Filtra só os que falharam (se houver registro) — caso contrário reusa todos
     const falhos = (oc.whatsappDestinatarios ?? []).filter(
@@ -947,6 +953,14 @@ export function Historico() {
       mensagem = montarMensagemSuspensaoGestao(empresaObjeto, oc.id);
     } else if (evento === "alerta") {
       mensagem = montarMensagemAlertaGestao(empresaObjeto, oc.id);
+    } else if (evento === "retorno") {
+      mensagem = montarMensagemRetornoEsteiraGestao(
+        empresaObjeto,
+        oc.id,
+        !!oc.retirarAlerta,
+      );
+    } else if (evento === "alerta_retirado") {
+      mensagem = montarMensagemAlertaRetiradoGestao(empresaObjeto, oc.id);
     } else {
       mensagem = montarMensagemConclusaoEsteiraGestao(empresaObjeto, oc.id);
     }
@@ -2074,6 +2088,65 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
           error,
         );
       }
+    }
+
+    // Retorno à esteira e retirada do alerta: avisa a gestão que o cliente saiu da
+    // suspensão/do alerta. Só dispara quando a ocorrência *passa* a marcar a ação e o
+    // cliente de fato estava suspenso/em alerta — reeditar a mesma ocorrência, ou marcar
+    // a ação num cliente que já não estava nessa situação, não renotifica. Quando as duas
+    // coisas acontecem na mesma ocorrência, vai uma única mensagem.
+    const retornouEsteira =
+      !!form.retornarEsteira &&
+      !ocorrenciaOriginal?.retornarEsteira &&
+      !!empresaObjeto.isSuspended;
+    const alertaRetirado =
+      !!form.retirarAlerta &&
+      !ocorrenciaOriginal?.retirarAlerta &&
+      !!empresaObjeto.alerta;
+    if ((retornouEsteira || alertaRetirado) && !empresaInterna) {
+      const evento: EventoNotificacaoGestao = retornouEsteira
+        ? "retorno"
+        : "alerta_retirado";
+      obterDestinatariosGestao(empresaObjeto, evento)
+        .then(async ({ destinatarios, avisos }) => {
+          if (destinatarios.length === 0) {
+            try {
+              await salvarOcorrencia({
+                id: savedId,
+                whatsappStatus: "sem_destinatario",
+                whatsappEnviadoEm: Date.now(),
+                whatsappDestinatarios: [],
+              } as Ocorrencia);
+              await carregar();
+            } catch (error) {
+              console.error(
+                "Erro ao registrar falha de notificação de gestão (sem destinatários):",
+                error,
+              );
+            }
+            return;
+          }
+          setGestaoDestinatarios(destinatarios);
+          setGestaoAvisos(avisos);
+          setGestaoMensagem(
+            retornouEsteira
+              ? montarMensagemRetornoEsteiraGestao(
+                  empresaObjeto,
+                  savedId,
+                  alertaRetirado,
+                )
+              : montarMensagemAlertaRetiradoGestao(empresaObjeto, savedId),
+          );
+          setGestaoOcorrenciaId(savedId);
+          setGestaoOcorrenciaEvento(evento);
+          setGestaoConfirmModalOpen(true);
+        })
+        .catch((err) =>
+          console.error(
+            "[notificações] Falha ao montar destinatários de retorno/retirada de alerta:",
+            err,
+          ),
+        );
     }
 
     if (pontoId) {
@@ -4033,12 +4106,13 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               )}
 
               {/* Bloco de status WhatsApp — para qualquer ocorrência com envio registrado,
-                  ou que dispare notificação de gestão (alerta/suspensão) mesmo que o
-                  envio nunca tenha sido registrado. retirarAlerta/retornarEsteira ficam
-                  de fora: essas ações não têm fluxo de notificação de gestão associado. */}
+                  ou que dispare notificação de gestão (alerta/suspensão, retirada do
+                  alerta/retorno à esteira) mesmo que o envio nunca tenha sido registrado. */}
               {(selecionada.whatsappStatus ||
                 selecionada.alerta ||
-                selecionada.suspenderCliente) && (
+                selecionada.suspenderCliente ||
+                selecionada.retirarAlerta ||
+                selecionada.retornarEsteira) && (
                 <div
                   style={{
                     marginTop: "16px",
@@ -5996,7 +6070,11 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             ? "⏸️ Notificar Supervisor, CS e Comercial sobre a suspensão?"
             : gestaoOcorrenciaEvento === "conclusao"
               ? "🎉 Notificar Supervisor, CS e Comercial sobre a conclusão da esteira?"
-              : "⚠️ Notificar Supervisor, CS e Comercial sobre o alerta?"
+              : gestaoOcorrenciaEvento === "retorno"
+                ? "🔄 Notificar Supervisor, CS e Comercial sobre o retorno à esteira?"
+                : gestaoOcorrenciaEvento === "alerta_retirado"
+                  ? "✅ Notificar Supervisor, CS e Comercial sobre a retirada do alerta?"
+                  : "⚠️ Notificar Supervisor, CS e Comercial sobre o alerta?"
         }
         destinatarios={gestaoDestinatarios}
         avisos={gestaoAvisos}

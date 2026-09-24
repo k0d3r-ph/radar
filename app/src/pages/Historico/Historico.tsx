@@ -2001,15 +2001,16 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
           );
         }
 
+        // Grava só os campos alterados: `empresaObjeto` é o retrato do início do
+        // salvar() e espalhá-lo desfaria score/reduções gravados mais acima.
         await salvarEmpresas({
-          ...empresaObjeto,
+          id: empresaObjeto.id,
           ...(!!form.alerta !== !!empresaObjeto.alerta || form.retirarAlerta
             ? { alerta: !!form.alerta }
             : {}),
           isSuspended: false,
           dataSuspensao: undefined,
           diasSuspensoAcumulado,
-          updatedAt: Date.now(),
         });
       } catch (error) {
         console.error("Erro ao remover suspensão da empresa:", error);
@@ -2019,17 +2020,19 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         const hoje = new Date();
         const dataSuspensao = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-${String(hoje.getDate()).padStart(2, "0")}`;
 
-        const empresaSuspensa: Empresa = {
-          ...empresaObjeto,
+        const alteracoesSuspensao: Partial<Empresa> = {
           ...(!!form.alerta !== !!empresaObjeto.alerta || form.retirarAlerta
             ? { alerta: !!form.alerta }
             : {}),
           isSuspended: true,
           dataSuspensao,
-          updatedAt: Date.now(),
+        };
+        const empresaSuspensa: Empresa = {
+          ...empresaObjeto,
+          ...alteracoesSuspensao,
         };
 
-        await salvarEmpresas(empresaSuspensa);
+        await salvarEmpresas({ id: empresaObjeto.id, ...alteracoesSuspensao });
 
         // Notifica Supervisor + CS Responsável sobre a suspensão originada pela ocorrência
         obterDestinatariosGestao(empresaSuspensa, "suspenso")
@@ -2078,9 +2081,8 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
     } else if (!!form.alerta !== !!empresaObjeto.alerta || form.retirarAlerta) {
       try {
         await salvarEmpresas({
-          ...empresaObjeto,
+          id: empresaObjeto.id,
           alerta: !!form.alerta,
-          updatedAt: Date.now(),
         });
       } catch (error) {
         console.error(
@@ -2269,24 +2271,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             !empresaObjeto.dataFinalizacao &&
             !empresaObjeto.isOngoing;
 
-          const empresaAtualizadaEsteira: Empresa = {
-            ...empresaObjeto,
-            // Preserva o score/tipo que possa ter sido atualizado mais cedo neste mesmo salvar()
-            ...(calculoScoreResult
-              ? {
-                  score: calculoScoreResult.score,
-                  tipo: calculoScoreResult.tipo,
-                  scoreAnswers: calculoScoreResult.isNeutro
-                    ? null
-                    : respostasScore,
-                  scoreContadoresPerda: calculoScoreResult.isNeutro
-                    ? undefined
-                    : calculoScoreResult.contadores,
-                  duvidasTemasAnteriores: calculoScoreResult.isNeutro
-                    ? empresaObjeto.duvidasTemasAnteriores
-                    : duvidasTemasHistorico,
-                }
-              : {}),
+          // Grava só os campos da esteira. `empresaObjeto` é o retrato do início do
+          // salvar(): espalhá-lo aqui desfaria o que foi gravado mais acima neste
+          // mesmo salvar() — suspensão, alerta, score e reduções temporárias.
+          const alteracoesEsteira: Partial<Empresa> = {
             temaText: novoTemaText,
             dataText: novoDataText,
             currentPhase: Math.max(
@@ -2294,10 +2282,13 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               ultimoIndice,
             ),
             ...(concluiuAgora ? { dataFinalizacao: dataRealizacaoStr } : {}),
-            updatedAt: Date.now(),
+          };
+          const empresaAtualizadaEsteira: Empresa = {
+            ...empresaObjeto,
+            ...alteracoesEsteira,
           };
 
-          await salvarEmpresas(empresaAtualizadaEsteira);
+          await salvarEmpresas({ id: empresaObjeto.id, ...alteracoesEsteira });
 
           if (concluiuAgora) {
             obterDestinatariosGestao(empresaAtualizadaEsteira, "conclusao")

@@ -131,6 +131,13 @@ export const Relatorios: React.FC = () => {
   });
   const [kpiSelecionado, setKpiSelecionado] = useState<number>(0);
   const [numSemanasGrafico, setNumSemanasGrafico] = useState<number>(8);
+  const [numDiasGrafico, setNumDiasGrafico] = useState<number>(30);
+  const [granularidadeGrafico, setGranularidadeGrafico] = useState<"semana" | "dia">("semana");
+  const [tiposVisiveisGrafico, setTiposVisiveisGrafico] = useState({
+    duvidas: true,
+    problemas: true,
+    solicitacoes: true,
+  });
   const [clienteFiltroGrafico, setClienteFiltroGrafico] = useState<string>("");
   const [dataComparacao, setDataComparacao] = useState<string>(() => {
     const today = new Date();
@@ -837,29 +844,43 @@ export const Relatorios: React.FC = () => {
     return contatosSuporteComparacao.reduce((acc, curr) => acc + (curr as any).dentroExpediente.total, 0);
   }, [contatosSuporteComparacao]);
 
-  // Evolução semanal do volume de dúvidas, problemas e solicitações (período configurável)
-  const evolucaoSemanalSuporte = useMemo(() => {
+  // Evolução semanal ou diária do volume de dúvidas, problemas e solicitações (período configurável)
+  const evolucaoSuporte = useMemo(() => {
     if (!limitesSemana) return { categorias: [] as string[], duvidas: [] as number[], problemas: [] as number[], solicitacoes: [] as number[] };
 
-    const NUM_SEMANAS = numSemanasGrafico;
     const nomesClientesCancelados = new Set(
       dadosEmpresas.filter((e) => e.isCancelled).map((e) => e.nomeEmpresa.trim().toLowerCase())
     );
 
-    const semanas: { inicio: Date; fim: Date }[] = [];
-    for (let i = NUM_SEMANAS - 1; i >= 0; i--) {
-      const inicio = new Date(limitesSemana.inicio);
-      inicio.setDate(inicio.getDate() - i * 7);
-      const fim = new Date(inicio);
-      fim.setDate(inicio.getDate() + 6);
-      fim.setHours(23, 59, 59, 999);
-      semanas.push({ inicio, fim });
+    const periodos: { inicio: Date; fim: Date }[] = [];
+    if (granularidadeGrafico === "dia") {
+      // Termina no fim da semana selecionada, sem avançar além de hoje (evita dias futuros zerados)
+      const fimHoje = new Date();
+      fimHoje.setHours(23, 59, 59, 999);
+      const ultimoDia = limitesSemana.fim.getTime() < fimHoje.getTime() ? new Date(limitesSemana.fim) : fimHoje;
+      for (let i = numDiasGrafico - 1; i >= 0; i--) {
+        const inicio = new Date(ultimoDia);
+        inicio.setDate(inicio.getDate() - i);
+        inicio.setHours(0, 0, 0, 0);
+        const fim = new Date(inicio);
+        fim.setHours(23, 59, 59, 999);
+        periodos.push({ inicio, fim });
+      }
+    } else {
+      for (let i = numSemanasGrafico - 1; i >= 0; i--) {
+        const inicio = new Date(limitesSemana.inicio);
+        inicio.setDate(inicio.getDate() - i * 7);
+        const fim = new Date(inicio);
+        fim.setDate(inicio.getDate() + 6);
+        fim.setHours(23, 59, 59, 999);
+        periodos.push({ inicio, fim });
+      }
     }
 
-    const categorias = semanas.map((s) => s.inicio.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }));
-    const duvidas = new Array(NUM_SEMANAS).fill(0);
-    const problemas = new Array(NUM_SEMANAS).fill(0);
-    const solicitacoes = new Array(NUM_SEMANAS).fill(0);
+    const categorias = periodos.map((p) => p.inicio.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }));
+    const duvidas = new Array(periodos.length).fill(0);
+    const problemas = new Array(periodos.length).fill(0);
+    const solicitacoes = new Array(periodos.length).fill(0);
 
     const clienteFiltro = clienteFiltroGrafico.trim().toLowerCase();
 
@@ -875,7 +896,7 @@ export const Relatorios: React.FC = () => {
       if (!eDuvida && !eProblema && !eSolicitacao) return;
 
       const t = o.dataOcorrencia || o.createdAt || 0;
-      const idx = semanas.findIndex((s) => t >= s.inicio.getTime() && t <= s.fim.getTime());
+      const idx = periodos.findIndex((p) => t >= p.inicio.getTime() && t <= p.fim.getTime());
       if (idx === -1) return;
 
       if (eDuvida) duvidas[idx] += 1;
@@ -884,7 +905,24 @@ export const Relatorios: React.FC = () => {
     });
 
     return { categorias, duvidas, problemas, solicitacoes };
-  }, [ocorrencias, dadosEmpresas, limitesSemana, numSemanasGrafico, clienteFiltroGrafico]);
+  }, [ocorrencias, dadosEmpresas, limitesSemana, granularidadeGrafico, numSemanasGrafico, numDiasGrafico, clienteFiltroGrafico]);
+
+  const seriesGraficoSuporte = useMemo(() => {
+    const todas = [
+      { chave: "duvidas" as const, label: "Dúvidas", color: "#3b82f6", values: evolucaoSuporte.duvidas },
+      { chave: "problemas" as const, label: "Problemas", color: "#ef4444", values: evolucaoSuporte.problemas },
+      { chave: "solicitacoes" as const, label: "Solicitações", color: "#10b981", values: evolucaoSuporte.solicitacoes },
+    ];
+    return todas.filter((s) => tiposVisiveisGrafico[s.chave]);
+  }, [evolucaoSuporte, tiposVisiveisGrafico]);
+
+  const tituloGraficoSuporte = useMemo(() => {
+    const nomes = seriesGraficoSuporte.map((s) => s.label.toLowerCase());
+    const listaTipos =
+      nomes.length <= 1 ? nomes.join("") : `${nomes.slice(0, -1).join(", ")} e ${nomes[nomes.length - 1]}`;
+    const base = `Evolução ${granularidadeGrafico === "dia" ? "diária" : "semanal"} de ${listaTipos}`;
+    return clienteFiltroGrafico ? `${base} — ${clienteFiltroGrafico}` : base;
+  }, [seriesGraficoSuporte, granularidadeGrafico, clienteFiltroGrafico]);
 
   // Lista de clientes com contato de suporte registrado (para o filtro do gráfico)
   const clientesComContatoSuporte = useMemo(() => {
@@ -1347,19 +1385,42 @@ ${riscoChurn.length > 0
 
               {kpiSelecionado === 2 && (
                 <div className="line-chart-filtro-semanas">
-                  <label htmlFor="num-semanas-grafico">Período do gráfico:</label>
+                  <label htmlFor="granularidade-grafico">Visualizar por:</label>
                   <select
-                    id="num-semanas-grafico"
-                    value={numSemanasGrafico}
-                    onChange={(e) => setNumSemanasGrafico(Number(e.target.value))}
+                    id="granularidade-grafico"
+                    value={granularidadeGrafico}
+                    onChange={(e) => setGranularidadeGrafico(e.target.value as "semana" | "dia")}
                   >
-                    <option value={4}>Últimas 4 semanas</option>
-                    <option value={8}>Últimas 8 semanas</option>
-                    <option value={12}>Últimas 12 semanas</option>
-                    <option value={16}>Últimas 16 semanas</option>
-                    <option value={26}>Últimas 26 semanas</option>
-                    <option value={52}>Últimas 52 semanas</option>
+                    <option value="semana">Semana</option>
+                    <option value="dia">Dia</option>
                   </select>
+                  <label htmlFor="num-semanas-grafico">Período do gráfico:</label>
+                  {granularidadeGrafico === "semana" ? (
+                    <select
+                      id="num-semanas-grafico"
+                      value={numSemanasGrafico}
+                      onChange={(e) => setNumSemanasGrafico(Number(e.target.value))}
+                    >
+                      <option value={4}>Últimas 4 semanas</option>
+                      <option value={8}>Últimas 8 semanas</option>
+                      <option value={12}>Últimas 12 semanas</option>
+                      <option value={16}>Últimas 16 semanas</option>
+                      <option value={26}>Últimas 26 semanas</option>
+                      <option value={52}>Últimas 52 semanas</option>
+                    </select>
+                  ) : (
+                    <select
+                      id="num-semanas-grafico"
+                      value={numDiasGrafico}
+                      onChange={(e) => setNumDiasGrafico(Number(e.target.value))}
+                    >
+                      <option value={7}>Últimos 7 dias</option>
+                      <option value={14}>Últimos 14 dias</option>
+                      <option value={30}>Últimos 30 dias</option>
+                      <option value={60}>Últimos 60 dias</option>
+                      <option value={90}>Últimos 90 dias</option>
+                    </select>
+                  )}
                   <label htmlFor="cliente-filtro-grafico">Cliente:</label>
                   <select
                     id="cliente-filtro-grafico"
@@ -1373,22 +1434,42 @@ ${riscoChurn.length > 0
                       </option>
                     ))}
                   </select>
+                  <div className="line-chart-filtro-tipos">
+                    {(
+                      [
+                        { chave: "duvidas", label: "Dúvidas", color: "#3b82f6" },
+                        { chave: "problemas", label: "Problemas", color: "#ef4444" },
+                        { chave: "solicitacoes", label: "Solicitações", color: "#10b981" },
+                      ] as const
+                    ).map((tipo) => {
+                      const marcado = tiposVisiveisGrafico[tipo.chave];
+                      // Não deixa desmarcar o último tipo visível (o gráfico ficaria vazio)
+                      const ultimoMarcado =
+                        marcado && Object.values(tiposVisiveisGrafico).filter(Boolean).length === 1;
+                      return (
+                        <label key={tipo.chave} className="line-chart-filtro-tipo">
+                          <input
+                            type="checkbox"
+                            checked={marcado}
+                            disabled={ultimoMarcado}
+                            style={{ accentColor: tipo.color }}
+                            onChange={(e) =>
+                              setTiposVisiveisGrafico((prev) => ({ ...prev, [tipo.chave]: e.target.checked }))
+                            }
+                          />
+                          {tipo.label}
+                        </label>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 
               {kpiSelecionado === 2 && (
                 <LineChart
-                  title={
-                    clienteFiltroGrafico
-                      ? `Evolução semanal de dúvidas, problemas e solicitações — ${clienteFiltroGrafico}`
-                      : "Evolução semanal de dúvidas, problemas e solicitações"
-                  }
-                  categorias={evolucaoSemanalSuporte.categorias}
-                  series={[
-                    { label: "Dúvidas", color: "#3b82f6", values: evolucaoSemanalSuporte.duvidas },
-                    { label: "Problemas", color: "#ef4444", values: evolucaoSemanalSuporte.problemas },
-                    { label: "Solicitações", color: "#10b981", values: evolucaoSemanalSuporte.solicitacoes },
-                  ]}
+                  title={tituloGraficoSuporte}
+                  categorias={evolucaoSuporte.categorias}
+                  series={seriesGraficoSuporte}
                 />
               )}
 

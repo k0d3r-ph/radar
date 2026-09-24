@@ -35,6 +35,10 @@ export const LineChart: React.FC<LineChartProps> = ({ title, categorias, series 
 
   const gridLines = 4;
 
+  // Com muitos pontos (ex.: 90 dias) os rótulos do eixo X se sobrepõem; exibe um a cada
+  // `passoRotulo`, sempre mantendo o mais recente (último) visível.
+  const passoRotulo = Math.max(1, Math.ceil(n / 16));
+
   return (
     <div className="line-chart-card">
       <h3 className="line-chart-title">{title}</h3>
@@ -64,7 +68,7 @@ export const LineChart: React.FC<LineChartProps> = ({ title, categorias, series 
                 );
               })}
 
-              {categorias.map((cat, idx) => (
+              {categorias.map((cat, idx) => (n - 1 - idx) % passoRotulo === 0 && (
                 <text
                   key={cat}
                   x={xFor(idx)}

@@ -93,6 +93,32 @@
   border-color: #3b82f6;
 }
 
+.line-chart-filtro-tipos {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+}
+
+.line-chart-filtro-semanas label.line-chart-filtro-tipo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.line-chart-filtro-tipo input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  cursor: pointer;
+}
+
+.line-chart-filtro-tipo input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+}
+
 .semana-info-badge {
   background: rgba(59, 130, 246, 0.15);
   color: #60a5fa;

@@ -126,6 +126,64 @@
   cursor: not-allowed;
 }
 
+/* Switches das linhas de comparação Total Suporte x Total Treinamento */
+.line-chart-filtro-switches {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.relatorio-switch-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  user-select: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
+.relatorio-switch {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: #0f172a;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s;
+  flex-shrink: 0;
+}
+
+.relatorio-switch--ativo {
+  background: #3b82f6;
+  border-color: #3b82f6;
+}
+
+.relatorio-switch:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.relatorio-switch-bolinha {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: white;
+  transition: transform 0.2s;
+}
+
+.relatorio-switch--ativo .relatorio-switch-bolinha {
+  transform: translateX(18px);
+}
+
 .semana-info-badge {
   background: rgba(59, 130, 246, 0.15);
   color: #60a5fa;

@@ -263,6 +263,11 @@ export default function Home() {
   const [filtroCardAlerta, setFiltroCardAlerta] = useState<"alerta" | "">(
     () => (sessionStorage.getItem("filtroCardAlerta") as any) || "",
   );
+  // Visível apenas para Treinamento e Master: mostra só clientes marcados como
+  // elegíveis para dedução de pontos do treinador por contato com o Suporte.
+  const [filtroElegivelDeducao, setFiltroElegivelDeducao] = useState<boolean>(
+    () => sessionStorage.getItem("filtroElegivelDeducao") === "true",
+  );
   const [ordenacaoContrato, setOrdenacaoContrato] = useState<
     "" | "maior" | "menor"
   >(() => (sessionStorage.getItem("ordenacaoContrato") as any) || "");
@@ -788,6 +793,7 @@ export default function Home() {
     sessionStorage.setItem("filtroCardStatus", filtroCardStatus);
     sessionStorage.setItem("filtroCardTipo", filtroCardTipo);
     sessionStorage.setItem("filtroCardAlerta", filtroCardAlerta);
+    sessionStorage.setItem("filtroElegivelDeducao", String(filtroElegivelDeducao));
     sessionStorage.setItem("ordenacaoContrato", ordenacaoContrato);
     sessionStorage.setItem("ordenacaoScore", ordenacaoScore);
     sessionStorage.setItem("ordenacaoPrincipal", ordenacaoPrincipal);
@@ -801,6 +807,7 @@ export default function Home() {
     filtroCardStatus,
     filtroCardTipo,
     filtroCardAlerta,
+    filtroElegivelDeducao,
     ordenacaoContrato,
     ordenacaoScore,
     ordenacaoPrincipal,
@@ -1018,6 +1025,9 @@ export default function Home() {
         const alertaCardOk =
           !filtroCardAlerta || (filtroCardAlerta === "alerta" && e.alerta);
 
+        const elegivelDeducaoOk =
+          !filtroElegivelDeducao || e.gamificacaoDeducaoSuporte?.ativo === true;
+
         return (
           clienteOk &&
           responsavelOk &&
@@ -1027,7 +1037,8 @@ export default function Home() {
           produtoOk &&
           statusCardOk &&
           tipoCardOk &&
-          alertaCardOk
+          alertaCardOk &&
+          elegivelDeducaoOk
         );
       })
       .sort((a, b) => {
@@ -1061,6 +1072,7 @@ export default function Home() {
     filtroCardStatus,
     filtroCardTipo,
     filtroCardAlerta,
+    filtroElegivelDeducao,
     ordenacaoContrato,
     ordenacaoScore,
     ordenacaoPrincipal,
@@ -1554,6 +1566,26 @@ export default function Home() {
           <option value="menor">Ordenar score: Menor nota</option>
         </select>
 
+        {(role === "treinador" || role === "master") && (
+          <label
+            className="checkbox-label"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              cursor: "pointer",
+            }}
+            title="Mostra apenas clientes marcados como elegíveis para dedução de pontos do treinador por contato com o Suporte."
+          >
+            <input
+              type="checkbox"
+              checked={filtroElegivelDeducao}
+              onChange={(e) => setFiltroElegivelDeducao(e.target.checked)}
+            />
+            Elegíveis a dedução de pontos do treinador
+          </label>
+        )}
+
         {(filtroCliente ||
           filtroResponsavel ||
           filtroCs ||
@@ -1563,6 +1595,7 @@ export default function Home() {
           filtroCardStatus ||
           filtroCardTipo ||
           filtroCardAlerta ||
+          filtroElegivelDeducao ||
           ordenacaoContrato ||
           ordenacaoScore) && (
             <button
@@ -1576,6 +1609,7 @@ export default function Home() {
                 setFiltroCardStatus("");
                 setFiltroCardTipo("");
                 setFiltroCardAlerta("");
+                setFiltroElegivelDeducao(false);
                 setOrdenacaoContrato("");
                 setOrdenacaoScore("");
                 setOrdenacaoPrincipal("");

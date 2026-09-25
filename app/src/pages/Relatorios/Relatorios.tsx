@@ -139,6 +139,9 @@ export const Relatorios: React.FC = () => {
     solicitacoes: true,
   });
   const [clienteFiltroGrafico, setClienteFiltroGrafico] = useState<string>("");
+  // Switch (desativado por padrão): quando ativo, cada tipo (Dúvidas/Problemas/Solicitações)
+  // ganha uma segunda linha com os mesmos totais registrados pelo Treinamento, para comparar.
+  const [compararTreinamento, setCompararTreinamento] = useState<boolean>(false);
   const [dataComparacao, setDataComparacao] = useState<string>(() => {
     const today = new Date();
     today.setDate(today.getDate() - 7);
@@ -846,7 +849,16 @@ export const Relatorios: React.FC = () => {
 
   // Evolução semanal ou diária do volume de dúvidas, problemas e solicitações (período configurável)
   const evolucaoSuporte = useMemo(() => {
-    if (!limitesSemana) return { categorias: [] as string[], duvidas: [] as number[], problemas: [] as number[], solicitacoes: [] as number[] };
+    if (!limitesSemana)
+      return {
+        categorias: [] as string[],
+        duvidasSuporte: [] as number[],
+        duvidasTreinamento: [] as number[],
+        problemasSuporte: [] as number[],
+        problemasTreinamento: [] as number[],
+        solicitacoesSuporte: [] as number[],
+        solicitacoesTreinamento: [] as number[],
+      };
 
     const nomesClientesCancelados = new Set(
       dadosEmpresas.filter((e) => e.isCancelled).map((e) => e.nomeEmpresa.trim().toLowerCase())
@@ -878,14 +890,22 @@ export const Relatorios: React.FC = () => {
     }
 
     const categorias = periodos.map((p) => p.inicio.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }));
-    const duvidas = new Array(periodos.length).fill(0);
-    const problemas = new Array(periodos.length).fill(0);
-    const solicitacoes = new Array(periodos.length).fill(0);
+    // Cada tipo é contado separadamente por departamento, para comparar se os
+    // contatos de dúvidas/problemas/solicitações com o Suporte estão maiores
+    // do que os mesmos tipos registrados pelo Treinamento.
+    const duvidasSuporte = new Array(periodos.length).fill(0);
+    const duvidasTreinamento = new Array(periodos.length).fill(0);
+    const problemasSuporte = new Array(periodos.length).fill(0);
+    const problemasTreinamento = new Array(periodos.length).fill(0);
+    const solicitacoesSuporte = new Array(periodos.length).fill(0);
+    const solicitacoesTreinamento = new Array(periodos.length).fill(0);
 
     const clienteFiltro = clienteFiltroGrafico.trim().toLowerCase();
 
     ocorrencias.forEach((o) => {
-      if (o.departamento !== "Suporte") return;
+      const eSuporte = o.departamento === "Suporte";
+      const eTreinamento = o.departamento === "Treinamento";
+      if (!eSuporte && !eTreinamento) return;
       if (nomesClientesCancelados.has((o.empresa || "").trim().toLowerCase())) return;
       if (clienteFiltro && !(o.empresa || "").trim().toLowerCase().includes(clienteFiltro)) return;
 
@@ -899,36 +919,101 @@ export const Relatorios: React.FC = () => {
       const idx = periodos.findIndex((p) => t >= p.inicio.getTime() && t <= p.fim.getTime());
       if (idx === -1) return;
 
-      if (eDuvida) duvidas[idx] += 1;
-      else if (eProblema) problemas[idx] += 1;
-      else solicitacoes[idx] += 1;
+      if (eDuvida) {
+        if (eSuporte) duvidasSuporte[idx] += 1;
+        else duvidasTreinamento[idx] += 1;
+      } else if (eProblema) {
+        if (eSuporte) problemasSuporte[idx] += 1;
+        else problemasTreinamento[idx] += 1;
+      } else {
+        if (eSuporte) solicitacoesSuporte[idx] += 1;
+        else solicitacoesTreinamento[idx] += 1;
+      }
     });
 
-    return { categorias, duvidas, problemas, solicitacoes };
+    return {
+      categorias,
+      duvidasSuporte,
+      duvidasTreinamento,
+      problemasSuporte,
+      problemasTreinamento,
+      solicitacoesSuporte,
+      solicitacoesTreinamento,
+    };
   }, [ocorrencias, dadosEmpresas, limitesSemana, granularidadeGrafico, numSemanasGrafico, numDiasGrafico, clienteFiltroGrafico]);
 
   const seriesGraficoSuporte = useMemo(() => {
     const todas = [
-      { chave: "duvidas" as const, label: "Dúvidas", color: "#3b82f6", values: evolucaoSuporte.duvidas },
-      { chave: "problemas" as const, label: "Problemas", color: "#ef4444", values: evolucaoSuporte.problemas },
-      { chave: "solicitacoes" as const, label: "Solicitações", color: "#10b981", values: evolucaoSuporte.solicitacoes },
+      {
+        chave: "duvidas" as const,
+        label: "Dúvidas",
+        corSuporte: "#3b82f6",
+        corTreinamento: "#93c5fd",
+        valuesSuporte: evolucaoSuporte.duvidasSuporte,
+        valuesTreinamento: evolucaoSuporte.duvidasTreinamento,
+      },
+      {
+        chave: "problemas" as const,
+        label: "Problemas",
+        corSuporte: "#ef4444",
+        corTreinamento: "#fca5a5",
+        valuesSuporte: evolucaoSuporte.problemasSuporte,
+        valuesTreinamento: evolucaoSuporte.problemasTreinamento,
+      },
+      {
+        chave: "solicitacoes" as const,
+        label: "Solicitações",
+        corSuporte: "#10b981",
+        corTreinamento: "#6ee7b7",
+        valuesSuporte: evolucaoSuporte.solicitacoesSuporte,
+        valuesTreinamento: evolucaoSuporte.solicitacoesTreinamento,
+      },
     ];
-    return todas.filter((s) => tiposVisiveisGrafico[s.chave]);
-  }, [evolucaoSuporte, tiposVisiveisGrafico]);
+
+    const series: { chave: string; label: string; color: string; values: number[] }[] = [];
+    todas
+      .filter((tipo) => tiposVisiveisGrafico[tipo.chave])
+      .forEach((tipo) => {
+        series.push({
+          chave: `${tipo.chave}-suporte`,
+          label: compararTreinamento ? `${tipo.label} (Suporte)` : tipo.label,
+          color: tipo.corSuporte,
+          values: tipo.valuesSuporte,
+        });
+        if (compararTreinamento) {
+          series.push({
+            chave: `${tipo.chave}-treinamento`,
+            label: `${tipo.label} (Treinamento)`,
+            color: tipo.corTreinamento,
+            values: tipo.valuesTreinamento,
+          });
+        }
+      });
+    return series;
+  }, [evolucaoSuporte, tiposVisiveisGrafico, compararTreinamento]);
 
   const tituloGraficoSuporte = useMemo(() => {
-    const nomes = seriesGraficoSuporte.map((s) => s.label.toLowerCase());
+    const nomes = (
+      [
+        { chave: "duvidas" as const, label: "dúvidas" },
+        { chave: "problemas" as const, label: "problemas" },
+        { chave: "solicitacoes" as const, label: "solicitações" },
+      ]
+    )
+      .filter((tipo) => tiposVisiveisGrafico[tipo.chave])
+      .map((tipo) => tipo.label);
     const listaTipos =
       nomes.length <= 1 ? nomes.join("") : `${nomes.slice(0, -1).join(", ")} e ${nomes[nomes.length - 1]}`;
-    const base = `Evolução ${granularidadeGrafico === "dia" ? "diária" : "semanal"} de ${listaTipos}`;
+    const sufixoComparacao = compararTreinamento ? " — Suporte vs. Treinamento" : "";
+    const base = `Evolução ${granularidadeGrafico === "dia" ? "diária" : "semanal"} de ${listaTipos}${sufixoComparacao}`;
     return clienteFiltroGrafico ? `${base} — ${clienteFiltroGrafico}` : base;
-  }, [seriesGraficoSuporte, granularidadeGrafico, clienteFiltroGrafico]);
+  }, [tiposVisiveisGrafico, compararTreinamento, granularidadeGrafico, clienteFiltroGrafico]);
 
-  // Lista de clientes com contato de suporte registrado (para o filtro do gráfico)
+  // Lista de clientes com contato de suporte ou treinamento registrado (para o filtro do gráfico)
   const clientesComContatoSuporte = useMemo(() => {
     const nomes = new Set<string>();
     ocorrencias.forEach((o) => {
-      if (o.departamento === "Suporte" && o.empresa) {
+      if ((o.departamento === "Suporte" || o.departamento === "Treinamento") && o.empresa) {
         nomes.add(o.empresa.trim());
       }
     });
@@ -1473,6 +1558,24 @@ ${riscoChurn.length > 0
                         </label>
                       );
                     })}
+                  </div>
+
+                  <div className="line-chart-filtro-switches">
+                    <label
+                      className="relatorio-switch-label"
+                      title="Quando ativo, cada tipo marcado acima ganha uma segunda linha comparando com os mesmos contatos registrados pelo Treinamento."
+                    >
+                      <span>Comparar com Treinamento</span>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={compararTreinamento}
+                        className={`relatorio-switch ${compararTreinamento ? "relatorio-switch--ativo" : ""}`}
+                        onClick={() => setCompararTreinamento((prev) => !prev)}
+                      >
+                        <span className="relatorio-switch-bolinha" />
+                      </button>
+                    </label>
                   </div>
                 </div>
               )}

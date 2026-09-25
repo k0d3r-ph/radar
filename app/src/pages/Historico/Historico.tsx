@@ -21,11 +21,13 @@ import type { UsuarioDocument } from "../../services/auth";
 import { enviarMensagemWhatsApp } from "../../services/whatsapp";
 import {
   obterDestinatariosGestao,
+  obterDestinatarioCSChamado,
   montarMensagemAlertaGestao,
   montarMensagemConclusaoEsteiraGestao,
   montarMensagemSuspensaoGestao,
   montarMensagemRetornoEsteiraGestao,
   montarMensagemAlertaRetiradoGestao,
+  montarMensagemChamadoAbertoCS,
   aplicarNomeDestinatario,
   PLACEHOLDER_NOME,
 } from "../../services/notificacoes";
@@ -449,6 +451,9 @@ const EMPTY: OcorrenciaForm = {
   suspenderCliente: false,
   temaForaEsteira: false,
   csatSuporte: "",
+  chamadoAberto: false,
+  chamadoDescricao: "",
+  chamadoLink: "",
 };
 
 interface ScoreFormAnswers {
@@ -786,6 +791,17 @@ export function Historico() {
   >(undefined);
   const [gestaoOcorrenciaEvento, setGestaoOcorrenciaEvento] =
     useState<EventoNotificacaoGestao>("alerta");
+
+  // Notificação de Chamado Aberto (tipo Problema) -> apenas CS Responsável, via WhatsApp
+  const [chamadoConfirmModalOpen, setChamadoConfirmModalOpen] = useState(false);
+  const [chamadoDestinatarios, setChamadoDestinatarios] = useState<
+    DestinatarioGestao[]
+  >([]);
+  const [chamadoAvisos, setChamadoAvisos] = useState<string[]>([]);
+  const [chamadoMensagem, setChamadoMensagem] = useState("");
+  const [chamadoOcorrenciaId, setChamadoOcorrenciaId] = useState<
+    string | undefined
+  >(undefined);
 
   const [novaAtualizacaoAberta, setNovaAtualizacaoAberta] = useState(false);
   const [novaDescricaoAtual, setNovaDescricaoAtual] = useState("");
@@ -1224,6 +1240,11 @@ export function Historico() {
         next.temaOcorrencia = [];
         setTemaOcorrenciaOngoingText("");
       }
+      if (campo === "tipo" && f.tipo !== valor && valor !== "Problema") {
+        next.chamadoAberto = false;
+        next.chamadoDescricao = "";
+        next.chamadoLink = "";
+      }
       return next;
     });
   }
@@ -1300,6 +1321,9 @@ export function Historico() {
       retornarEsteira: o.retornarEsteira ?? false,
       suspenderCliente: o.suspenderCliente ?? false,
       csatSuporte: o.csatSuporte ?? "",
+      chamadoAberto: o.chamadoAberto ?? false,
+      chamadoDescricao: o.chamadoDescricao ?? "",
+      chamadoLink: o.chamadoLink ?? "",
     });
     setTemaOcorrenciaOngoingText(o.temaOcorrencia?.join(", ") ?? "");
     setBuscaAssunto("");
@@ -1402,6 +1426,17 @@ export function Historico() {
 
     if (form.tipo === "Dúvida" && (form.temaOcorrencia ?? []).length === 0) {
       toast.error("Selecione ao menos um assunto da dúvida.");
+      return;
+    }
+
+    if (
+      form.tipo === "Problema" &&
+      form.chamadoAberto &&
+      !form.chamadoDescricao?.trim()
+    ) {
+      toast.error(
+        "Descreva qual o problema que está sendo resolvido pelo chamado.",
+      );
       return;
     }
 
@@ -1520,6 +1555,16 @@ export function Historico() {
       csatSuporte:
         form.departamento === "Suporte" && form.csatSuporte
           ? form.csatSuporte
+          : undefined,
+      chamadoAberto:
+        form.tipo === "Problema" ? (form.chamadoAberto ?? false) : undefined,
+      chamadoDescricao:
+        form.tipo === "Problema" && form.chamadoAberto
+          ? form.chamadoDescricao?.trim()
+          : undefined,
+      chamadoLink:
+        form.tipo === "Problema" && form.chamadoAberto
+          ? form.chamadoLink?.trim() || undefined
           : undefined,
       ...(form.tipo === "Treinamento"
         ? {
@@ -1810,12 +1855,67 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       }
     }
 
+    // Chamado aberto (tipo Problema): notifica apenas o CS Responsável — só na
+    // criação, para não reenviar a cada edição da mesma ocorrência.
+    if (
+      !editandoId &&
+      !empresaInterna &&
+      form.tipo === "Problema" &&
+      form.chamadoAberto &&
+      form.chamadoDescricao?.trim() &&
+      empresaObjeto
+    ) {
+      obterDestinatarioCSChamado(empresaObjeto)
+        .then(async ({ destinatarios, avisos }) => {
+          if (destinatarios.length === 0) {
+            try {
+              await salvarOcorrencia({
+                id: savedId,
+                chamadoWhatsappStatus: "sem_destinatario",
+                chamadoWhatsappEnviadoEm: Date.now(),
+                chamadoWhatsappDestinatarios: [],
+              } as Ocorrencia);
+              await carregar();
+            } catch (error) {
+              console.error(
+                "Erro ao registrar falha de notificação de chamado (sem destinatários):",
+                error,
+              );
+            }
+            return;
+          }
+          setChamadoDestinatarios(destinatarios);
+          setChamadoAvisos(avisos);
+          setChamadoMensagem(
+            montarMensagemChamadoAbertoCS(
+              empresaObjeto,
+              form.chamadoDescricao!.trim(),
+              savedId,
+              form.chamadoLink?.trim() || undefined,
+            ),
+          );
+          setChamadoOcorrenciaId(savedId);
+          setChamadoConfirmModalOpen(true);
+        })
+        .catch((err) =>
+          console.error(
+            "[notificações] Falha ao montar destinatário de chamado aberto:",
+            err,
+          ),
+        );
+    }
+
     // Contato com o Suporte ou com o Treinamento para tirar dúvida reduz
     // temporariamente o score do cliente (best-effort — não bloqueia o fluxo, e
     // só na criação, para não reaplicar a redução a cada edição da mesma
     // ocorrência). Isso dá mobilidade real entre Safety e Fast: um cliente que
     // volta a precisar de ajuda deixa de ficar preso no score alto de antes.
-    if (!editandoId && !empresaInterna && form.tipo === "Dúvida" && empresaObjeto) {
+    if (
+      !editandoId &&
+      !empresaInterna &&
+      form.tipo === "Dúvida" &&
+      empresaObjeto
+    ) {
       const regraPorDepartamento: Record<
         string,
         { motivo: string; valor: number; dias: number } | undefined
@@ -1851,10 +1951,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             ],
           });
         } catch (error) {
-          console.error(
-            "Erro ao aplicar redução temporária de score:",
-            error,
-          );
+          console.error("Erro ao aplicar redução temporária de score:", error);
         }
       }
     }
@@ -1958,7 +2055,8 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         try {
           const descontoPontoId = await salvarLancamentoPonto({
             treinadorId: treinadorObj.uid,
-            treinadorNome: formatarNome(treinadorObj.nome) || treinadorObj.email,
+            treinadorNome:
+              formatarNome(treinadorObj.nome) || treinadorObj.email,
             tipoAcao: "desconto_suporte",
             pontos: -Math.abs(pontosPerdidos),
             descricao: `Contato de ${form.empresa.trim()} com o Suporte (${form.tipo}, ${dentroDoExpediente ? "dentro" : "fora"} do expediente)`,
@@ -2623,28 +2721,31 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
     ajuste: NonNullable<Empresa["scoreAjustesTemporarios"]>[number],
   ) {
     if (role !== "master") return;
-    toast("Remover apenas esta redução de score? A ocorrência não será excluída.", {
-      action: {
-        label: "Remover",
-        onClick: async () => {
-          try {
-            await salvarEmpresas({
-              id: empresa.id,
-              scoreAjustesTemporarios: (
-                empresa.scoreAjustesTemporarios || []
-              ).filter((a) => a.criadoEm !== ajuste.criadoEm),
-            });
-            await carregar();
-            toast.success("Redução de score removida.");
-          } catch (error) {
-            console.error("Erro ao remover redução de score:", error);
-            toast.error("Erro ao remover redução de score.");
-          }
+    toast(
+      "Remover apenas esta redução de score? A ocorrência não será excluída.",
+      {
+        action: {
+          label: "Remover",
+          onClick: async () => {
+            try {
+              await salvarEmpresas({
+                id: empresa.id,
+                scoreAjustesTemporarios: (
+                  empresa.scoreAjustesTemporarios || []
+                ).filter((a) => a.criadoEm !== ajuste.criadoEm),
+              });
+              await carregar();
+              toast.success("Redução de score removida.");
+            } catch (error) {
+              console.error("Erro ao remover redução de score:", error);
+              toast.error("Erro ao remover redução de score.");
+            }
+          },
         },
+        cancel: { label: "Cancelar", onClick: () => {} },
+        duration: 10000,
       },
-      cancel: { label: "Cancelar", onClick: () => {} },
-      duration: 10000,
-    });
+    );
   }
 
   const getAllowedTypes = () => {
@@ -3455,6 +3556,16 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                           title="Ocorrência que retornou o cliente à esteira"
                         >
                           ▶️
+                        </span>
+                      )}
+                      {o.chamadoAberto && (
+                        <span
+                          style={{
+                            marginLeft: "6px",
+                          }}
+                          title={`${o.chamadoDescricao || "—"}${o.chamadoLink ? `\nLink: ${o.chamadoLink}` : ""}`}
+                        >
+                          🎫
                         </span>
                       )}
                     </td>
@@ -4602,6 +4713,67 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       </label>
                     ))}
                 </div>
+              </div>
+            )}
+
+            {form.tipo === "Problema" && (
+              <div className="hist-campo">
+                <label
+                  className="checkbox-label"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    cursor: "pointer",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={form.chamadoAberto ?? false}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        chamadoAberto: e.target.checked,
+                        ...(e.target.checked
+                          ? {}
+                          : { chamadoDescricao: "", chamadoLink: "" }),
+                      })
+                    }
+                  />
+                  Foi aberto um chamado para esse problema? 🎫
+                </label>
+
+                {form.chamadoAberto && (
+                  <div
+                    style={{
+                      marginTop: "0.75rem",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "0.75rem",
+                    }}
+                  >
+                    <div>
+                      <label>Qual o problema que está sendo resolvido? *</label>
+                      <textarea
+                        rows={3}
+                        value={form.chamadoDescricao ?? ""}
+                        onChange={(e) =>
+                          set("chamadoDescricao", e.target.value)
+                        }
+                        placeholder="Descreva o problema relacionado ao chamado..."
+                      />
+                    </div>
+                    <div>
+                      <label>Link relacionado ao chamado (opcional)</label>
+                      <input
+                        type="text"
+                        value={form.chamadoLink ?? ""}
+                        onChange={(e) => set("chamadoLink", e.target.value)}
+                        placeholder="https://..."
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -6094,6 +6266,39 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
           setGestaoDestinatarios([]);
           setGestaoMensagem("");
           setGestaoOcorrenciaId(undefined);
+        }}
+      />
+
+      <GestaoNotificacaoModal
+        open={chamadoConfirmModalOpen}
+        titulo="🎫 Notificar CS sobre o chamado aberto?"
+        destinatarios={chamadoDestinatarios}
+        avisos={chamadoAvisos}
+        mensagem={chamadoMensagem}
+        onChangeMensagem={setChamadoMensagem}
+        onResultado={async ({ status, enviadoEm, destinatarios }) => {
+          if (!chamadoOcorrenciaId) return;
+          try {
+            await salvarOcorrencia({
+              id: chamadoOcorrenciaId,
+              chamadoWhatsappStatus: status,
+              chamadoWhatsappEnviadoEm: enviadoEm,
+              chamadoWhatsappDestinatarios: destinatarios,
+            } as Ocorrencia);
+            await carregar();
+          } catch (error) {
+            console.error(
+              "Erro ao registrar status de envio da notificação de chamado:",
+              error,
+            );
+            throw error;
+          }
+        }}
+        onClose={() => {
+          setChamadoConfirmModalOpen(false);
+          setChamadoDestinatarios([]);
+          setChamadoMensagem("");
+          setChamadoOcorrenciaId(undefined);
         }}
       />
     </div>

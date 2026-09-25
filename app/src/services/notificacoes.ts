@@ -201,6 +201,65 @@ export async function obterDestinatariosGestao(
   return { destinatarios, avisos };
 }
 
+/**
+ * Monta a lista de destinatários (WhatsApp) para a notificação de chamado aberto —
+ * diferente de {@link obterDestinatariosGestao}, aqui a mensagem vai apenas para o CS
+ * Responsável do cliente (nunca Supervisor/Master/Comercial).
+ */
+export async function obterDestinatarioCSChamado(
+  empresaObjeto: Empresa,
+): Promise<ResultadoDestinatariosGestao> {
+  const usuarios = await listarUsuarios();
+  const avisos: string[] = [];
+
+  const csNome = empresaObjeto.csResponsavel;
+  if (!csNome) {
+    avisos.push("Este cliente não tem CS Responsável definido no cadastro.");
+    return { destinatarios: [], avisos };
+  }
+
+  const csResponsavel = usuarios.find(
+    (u) =>
+      ehCS(u) &&
+      (compararCS(u.nome, csNome) || normalizarTexto(u.nome) === normalizarTexto(csNome)),
+  );
+
+  if (!csResponsavel) {
+    avisos.push(
+      `O CS Responsável "${csNome}" não tem usuário com cargo Analista e nome equivalente, então não será notificado.`,
+    );
+    return { destinatarios: [], avisos };
+  }
+
+  const telefone = csResponsavel.telefone
+    ? normalizarTelefoneWhatsApp(csResponsavel.telefone)
+    : "";
+  if (!telefone) {
+    avisos.push(
+      `O CS Responsável "${csNome}" está sem telefone válido cadastrado, então não será notificado.`,
+    );
+    return { destinatarios: [], avisos };
+  }
+
+  return {
+    destinatarios: [{ nome: csResponsavel.nome || csResponsavel.email, telefone }],
+    avisos,
+  };
+}
+
+export function montarMensagemChamadoAbertoCS(
+  empresa: Empresa,
+  descricaoChamado: string,
+  ocorrenciaId?: string,
+  link?: string,
+): string {
+  const linkChamadoLinha = link ? `\nLink: ${link}` : "";
+  const linkOcorrenciaLinha = ocorrenciaId
+    ? `\n${construirUrlOcorrencia(ocorrenciaId)}`
+    : "";
+  return `🎫 Foi aberto um *chamado* para o cliente *${empresa.nomeEmpresa}*!\n\nProblema: ${descricaoChamado}${linkChamadoLinha}${linkOcorrenciaLinha}\n\nAcesse o Radar para mais detalhes.`;
+}
+
 /** Marcador substituído pelo nome de cada destinatário no momento do disparo. */
 export const PLACEHOLDER_NOME = "{nome}";
 

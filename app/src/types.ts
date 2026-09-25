@@ -179,6 +179,16 @@ export type Ocorrencia = {
   temaForaEsteira?: boolean;
   /** Nota CSAT do contato com o Suporte (opcional, só preenchida quando departamento é "Suporte"). */
   csatSuporte?: "Bom" | "Ruim";
+  /** Marca que, a partir desta ocorrência do tipo Problema, foi aberto um chamado para resolução. */
+  chamadoAberto?: boolean;
+  /** Descrição do problema que está sendo resolvido pelo chamado (preenchida quando chamadoAberto é true). */
+  chamadoDescricao?: string;
+  /** Link opcional relacionado ao chamado (ex.: ticket, board, sistema externo). */
+  chamadoLink?: string;
+  /** Status do envio da notificação de chamado aberto ao CS Responsável (ver chamadoAberto). */
+  chamadoWhatsappStatus?: WhatsappStatus;
+  chamadoWhatsappEnviadoEm?: number;
+  chamadoWhatsappDestinatarios?: WhatsappDestinatarioEnvio[];
   whatsappStatus?: WhatsappStatus;
   whatsappEnviadoEm?: number;
   whatsappDestinatarios?: WhatsappDestinatarioEnvio[];
@@ -211,6 +221,9 @@ export type OcorrenciaForm = {
   suspenderCliente?: boolean;
   temaForaEsteira?: boolean;
   csatSuporte?: "Bom" | "Ruim" | "";
+  chamadoAberto?: boolean;
+  chamadoDescricao?: string;
+  chamadoLink?: string;
 };
 
 export type Atualizacao = {

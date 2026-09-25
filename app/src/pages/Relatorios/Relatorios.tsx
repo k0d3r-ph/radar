@@ -887,7 +887,7 @@ export const Relatorios: React.FC = () => {
     ocorrencias.forEach((o) => {
       if (o.departamento !== "Suporte") return;
       if (nomesClientesCancelados.has((o.empresa || "").trim().toLowerCase())) return;
-      if (clienteFiltro && (o.empresa || "").trim().toLowerCase() !== clienteFiltro) return;
+      if (clienteFiltro && !(o.empresa || "").trim().toLowerCase().includes(clienteFiltro)) return;
 
       const tipoLower = (o.tipo || "").toLowerCase();
       const eDuvida = tipoLower.includes("duvida") || tipoLower.includes("dúvida");
@@ -1170,6 +1170,17 @@ ${riscoChurn.length > 0
   };
   const selectedKpi = kpis[kpiSelecionado];
 
+  // Filtra a lista do KPI selecionado pelo mesmo filtro de cliente usado no gráfico
+  // de evolução de dúvidas/problemas/solicitações (kpiSelecionado === 2).
+  const listaTabelaFiltrada = useMemo(() => {
+    if (kpiSelecionado !== 2) return selectedKpi.lista;
+    const termo = clienteFiltroGrafico.trim().toLowerCase();
+    if (!termo) return selectedKpi.lista;
+    return selectedKpi.lista.filter((e) =>
+      e.nomeEmpresa.trim().toLowerCase().includes(termo)
+    );
+  }, [selectedKpi, kpiSelecionado, clienteFiltroGrafico]);
+
   return (
     <div className="relatorios-page">
       <div className="relatorios-glow"></div>
@@ -1422,18 +1433,19 @@ ${riscoChurn.length > 0
                     </select>
                   )}
                   <label htmlFor="cliente-filtro-grafico">Cliente:</label>
-                  <select
+                  <input
                     id="cliente-filtro-grafico"
+                    type="text"
+                    list="clientes-filtro-grafico-lista"
+                    placeholder="Pesquisar cliente..."
                     value={clienteFiltroGrafico}
                     onChange={(e) => setClienteFiltroGrafico(e.target.value)}
-                  >
-                    <option value="">Todos os clientes</option>
+                  />
+                  <datalist id="clientes-filtro-grafico-lista">
                     {clientesComContatoSuporte.map((nome) => (
-                      <option key={nome} value={nome}>
-                        {nome}
-                      </option>
+                      <option key={nome} value={nome} />
                     ))}
-                  </select>
+                  </datalist>
                   <div className="line-chart-filtro-tipos">
                     {(
                       [
@@ -1580,7 +1592,7 @@ ${riscoChurn.length > 0
                 )}
 
                 <div className="relatorios-table-wrapper">
-                  {selectedKpi.lista.length > 0 ? (
+                  {listaTabelaFiltrada.length > 0 ? (
                     <table className="relatorios-table">
                       <thead>
                         {kpiSelecionado === 2 ? (
@@ -1605,7 +1617,7 @@ ${riscoChurn.length > 0
                         )}
                       </thead>
                       <tbody>
-                        {selectedKpi.lista.map((e) => (
+                        {listaTabelaFiltrada.map((e) => (
                           <tr key={e.id}>
                             <td style={{ fontWeight: 600 }}>
                               <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
@@ -1816,7 +1828,11 @@ ${riscoChurn.length > 0
                   ) : (
                     <div className="relatorio-empty">
                       <span className="relatorio-empty-icon">📁</span>
-                      <p>Nenhum cliente atende aos critérios deste indicador nesta semana.</p>
+                      <p>
+                        {kpiSelecionado === 2 && clienteFiltroGrafico.trim()
+                          ? "Nenhum cliente encontrado para essa busca."
+                          : "Nenhum cliente atende aos critérios deste indicador nesta semana."}
+                      </p>
                     </div>
                   )}
                 </div>

@@ -61,6 +61,13 @@ import {
 } from "../../services/notificacoes";
 import type { DestinatarioGestao } from "../../services/notificacoes";
 import { GestaoNotificacaoModal } from "../../components/GestaoNotificacaoModal";
+import { ColumnSelector } from "../../components/ColumnSelector";
+import {
+  useColumnPreferences,
+  iniciarRedimensionamentoColuna,
+  reordenarColunaPorArraste,
+  type ColumnDef,
+} from "../../hooks/useColumnPreferences";
 
 interface ScoreFormAnswers {
   entraComputador: "Sim" | "Não" | "";
@@ -905,6 +912,8 @@ export default function Home() {
       });
   }, [empresas, historico]);
 
+  type LinhaEsteira = (typeof dados)[number];
+
   const dadosAtivos = useMemo(() => {
     return dados.filter(
       (e) => !e.isOngoing && !e.isSuspended && !e.isCancelled,
@@ -1269,19 +1278,7 @@ export default function Home() {
 
   function exportarAtivosExcel() {
     exportarEsteiraExcel(
-      dadosAtivosFiltrados.map((empresa) => ({
-        Status: LABEL_FAROL[empresa.farol] ?? "-",
-        Cliente: empresa.nomeEmpresa,
-        Responsável: formatarNome(empresa.responsavel),
-        Tipo: obterTipoEfetivo(empresa) || "",
-        Produto: empresa.produto || "",
-        Score: (calcularScoreEfetivo(empresa) ?? empresa.score) ?? "",
-        "Data de entrada": formatarData(empresa.dataEntrada),
-        Dias: empresa.dias,
-        Agendamento: empresa.tme !== null ? `${empresa.tme} dias` : "-",
-        "Progresso (%)": empresa.progresso,
-        "Valor Contrato": empresa.valorContrato ?? "",
-      })),
+      exportarColunasVisiveis(dadosAtivosFiltrados, colunasAtivasPrefs.colunasVisiveis),
       "Esteira Atual",
       "esteira-atual",
     );
@@ -1289,15 +1286,7 @@ export default function Home() {
 
   function exportarOngoingExcel() {
     exportarEsteiraExcel(
-      dadosOngoingFiltrados.map((empresa) => ({
-        Cliente: empresa.nomeEmpresa,
-        Contato: nomesContatos(empresa),
-        "CS Responsável": normalizarNomeCS(empresa.csResponsavel) || "-",
-        "Comercial Responsável":
-          normalizarNomeComercial(empresa.comercialResponsavel, mapaComerciais) ||
-          "-",
-        "Valor Contrato": empresa.valorContrato ?? "",
-      })),
+      exportarColunasVisiveis(dadosOngoingFiltrados, colunasOngoingPrefs.colunasVisiveis),
       "Clientes Ongoing",
       "clientes-ongoing",
     );
@@ -1305,17 +1294,7 @@ export default function Home() {
 
   function exportarSuspensosExcel() {
     exportarEsteiraExcel(
-      dadosSuspensosFiltrados.map((empresa) => ({
-        Cliente: empresa.nomeEmpresa,
-        Contato: nomesContatos(empresa),
-        "CS Responsável": normalizarNomeCS(empresa.csResponsavel) || "-",
-        "Comercial Responsável":
-          normalizarNomeComercial(empresa.comercialResponsavel, mapaComerciais) ||
-          "-",
-        Dias: empresa.dias,
-        "Progresso (%)": empresa.progresso,
-        "Valor Contrato": empresa.valorContrato ?? "",
-      })),
+      exportarColunasVisiveis(dadosSuspensosFiltrados, colunasSuspensosPrefs.colunasVisiveis),
       "Clientes Suspensos",
       "clientes-suspensos",
     );
@@ -1323,18 +1302,370 @@ export default function Home() {
 
   function exportarCanceladosExcel() {
     exportarEsteiraExcel(
-      dadosCanceladosFiltrados.map((empresa) => ({
-        Cliente: empresa.nomeEmpresa,
-        Contato: nomesContatos(empresa),
-        "CS Responsável": normalizarNomeCS(empresa.csResponsavel) || "-",
-        "Comercial Responsável":
-          normalizarNomeComercial(empresa.comercialResponsavel, mapaComerciais) ||
-          "-",
-        "Valor Contrato": empresa.valorContrato ?? "",
-      })),
+      exportarColunasVisiveis(dadosCanceladosFiltrados, colunasCanceladosPrefs.colunasVisiveis),
       "Clientes Cancelados",
       "clientes-cancelados",
     );
+  }
+
+  function renderClienteComAlerta(empresa: LinhaEsteira) {
+    return (
+      <>
+        {empresa.nomeEmpresa}
+        {empresa.alerta && (
+          <span
+            onClick={(e) => {
+              e.stopPropagation();
+              if (empresa.ocorrenciaAlertaId) {
+                navigate(
+                  `/historico?empresa=${encodeURIComponent(empresa.nomeEmpresa)}&ocorrencia=${empresa.ocorrenciaAlertaId}`,
+                );
+              } else {
+                navigate(
+                  `/historico?empresa=${encodeURIComponent(empresa.nomeEmpresa)}`,
+                );
+              }
+            }}
+            style={{
+              color: "#dc2626",
+              fontWeight: "bold",
+              marginLeft: "8px",
+              fontSize: "0.85rem",
+              textDecoration: "underline",
+              cursor: "pointer",
+            }}
+            title="Ver ocorrência de alerta"
+          >
+            [Alerta]
+          </span>
+        )}
+      </>
+    );
+  }
+
+  function renderValorContrato(empresa: LinhaEsteira) {
+    return empresa.valorContrato !== undefined && empresa.valorContrato !== null
+      ? new Intl.NumberFormat("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+      }).format(empresa.valorContrato)
+      : "—";
+  }
+
+  function renderContato(empresa: LinhaEsteira) {
+    return nomesContatos(empresa);
+  }
+
+  function renderCsResponsavel(empresa: LinhaEsteira) {
+    return normalizarNomeCS(empresa.csResponsavel) || "-";
+  }
+
+  function renderComercialResponsavel(empresa: LinhaEsteira) {
+    return normalizarNomeComercial(empresa.comercialResponsavel, mapaComerciais) || "-";
+  }
+
+  const colunasEsteiraAtual: ColumnDef<LinhaEsteira>[] = [
+    {
+      key: "status",
+      label: "Status",
+      defaultWidth: 70,
+      locked: true,
+      render: (empresa) => <StatusFarol status={empresa.farol} />,
+      exportValue: (empresa) => LABEL_FAROL[empresa.farol] ?? "-",
+    },
+    {
+      key: "cliente",
+      label: "Cliente",
+      defaultWidth: 220,
+      locked: true,
+      render: renderClienteComAlerta,
+      exportValue: (empresa) => empresa.nomeEmpresa,
+    },
+    {
+      key: "responsavel",
+      label: "Responsável",
+      defaultWidth: 150,
+      render: (empresa) => formatarNome(empresa.responsavel),
+      exportValue: (empresa) => formatarNome(empresa.responsavel),
+    },
+    {
+      key: "tipo",
+      label: "Tipo",
+      defaultWidth: 100,
+      render: (empresa) =>
+        obterTipoEfetivo(empresa) ? (
+          <span
+            style={{
+              padding: "2px 10px",
+              borderRadius: "999px",
+              fontSize: "0.8rem",
+              fontWeight: 600,
+              background: obterTipoEfetivo(empresa) === "Fast" ? "#16a34a" : "#dc2626",
+              color: "white",
+            }}
+          >
+            {obterTipoEfetivo(empresa)}
+          </span>
+        ) : null,
+      exportValue: (empresa) => obterTipoEfetivo(empresa) || "",
+    },
+    {
+      key: "produto",
+      label: "Produto",
+      defaultWidth: 100,
+      render: (empresa) =>
+        empresa.produto ? (
+          <span
+            style={{
+              padding: "2px 10px",
+              borderRadius: "999px",
+              fontSize: "0.8rem",
+              fontWeight: 600,
+              background: CORES_PRODUTO[empresa.produto] || "#64748b",
+              color: "white",
+            }}
+          >
+            {empresa.produto}
+          </span>
+        ) : (
+          "—"
+        ),
+      exportValue: (empresa) => empresa.produto || "",
+    },
+    {
+      key: "score",
+      label: "Score",
+      defaultWidth: 90,
+      render: (empresa) =>
+        empresa.score !== undefined && empresa.score !== null ? (
+          <span
+            style={{
+              fontWeight: 600,
+              color: obterTipoEfetivo(empresa) === "Fast" ? "#16a34a" : "#dc2626",
+            }}
+            title={
+              (calcularScoreEfetivo(empresa) ?? empresa.score) !== empresa.score
+                ? "Score reduzido temporariamente por contato recente com o Suporte"
+                : undefined
+            }
+          >
+            {(calcularScoreEfetivo(empresa) ?? empresa.score).toFixed(1)}
+          </span>
+        ) : (
+          "—"
+        ),
+      exportValue: (empresa) => (calcularScoreEfetivo(empresa) ?? empresa.score) ?? "",
+    },
+    {
+      key: "dataEntrada",
+      label: "Data de entrada",
+      defaultWidth: 140,
+      render: (empresa) => formatarData(empresa.dataEntrada),
+      exportValue: (empresa) => formatarData(empresa.dataEntrada),
+    },
+    {
+      key: "dias",
+      label: "Dias",
+      defaultWidth: 70,
+      render: (empresa) => empresa.dias,
+      exportValue: (empresa) => empresa.dias,
+    },
+    {
+      key: "agendamento",
+      label: "Agendamento",
+      defaultWidth: 120,
+      render: (empresa) => (empresa.tme !== null ? `${empresa.tme} dias` : "-"),
+      exportValue: (empresa) => (empresa.tme !== null ? `${empresa.tme} dias` : "-"),
+    },
+    {
+      key: "progresso",
+      label: "Progresso",
+      defaultWidth: 170,
+      className: "td-progresso",
+      render: (empresa) => <ProgressBar value={empresa.progresso} />,
+      exportLabel: "Progresso (%)",
+      exportValue: (empresa) => empresa.progresso,
+    },
+    {
+      key: "valorContrato",
+      label: "Valor Contrato",
+      defaultWidth: 150,
+      align: "right",
+      render: renderValorContrato,
+      exportValue: (empresa) => empresa.valorContrato ?? "",
+    },
+  ];
+
+  const colunasOngoing: ColumnDef<LinhaEsteira>[] = [
+    {
+      key: "cliente",
+      label: "Cliente",
+      defaultWidth: 220,
+      locked: true,
+      render: renderClienteComAlerta,
+      exportValue: (empresa) => empresa.nomeEmpresa,
+    },
+    {
+      key: "contato",
+      label: "Contato",
+      defaultWidth: 200,
+      render: renderContato,
+      exportValue: renderContato,
+    },
+    {
+      key: "cs",
+      label: "CS Responsável",
+      defaultWidth: 160,
+      render: renderCsResponsavel,
+      exportValue: renderCsResponsavel,
+    },
+    {
+      key: "comercial",
+      label: "Comercial Responsável",
+      defaultWidth: 180,
+      render: renderComercialResponsavel,
+      exportValue: renderComercialResponsavel,
+    },
+    {
+      key: "valorContrato",
+      label: "Valor Contrato",
+      defaultWidth: 150,
+      align: "right",
+      render: renderValorContrato,
+      exportValue: (empresa) => empresa.valorContrato ?? "",
+    },
+  ];
+
+  const colunasSuspensos: ColumnDef<LinhaEsteira>[] = [
+    {
+      key: "cliente",
+      label: "Cliente",
+      defaultWidth: 200,
+      locked: true,
+      render: renderClienteComAlerta,
+      exportValue: (empresa) => empresa.nomeEmpresa,
+    },
+    {
+      key: "contato",
+      label: "Contato",
+      defaultWidth: 180,
+      render: renderContato,
+      exportValue: renderContato,
+    },
+    {
+      key: "cs",
+      label: "CS Responsável",
+      defaultWidth: 150,
+      render: renderCsResponsavel,
+      exportValue: renderCsResponsavel,
+    },
+    {
+      key: "comercial",
+      label: "Comercial Responsável",
+      defaultWidth: 170,
+      render: renderComercialResponsavel,
+      exportValue: renderComercialResponsavel,
+    },
+    {
+      key: "dias",
+      label: "Dias",
+      defaultWidth: 70,
+      render: (empresa) => empresa.dias,
+      exportValue: (empresa) => empresa.dias,
+    },
+    {
+      key: "progresso",
+      label: "Progresso",
+      defaultWidth: 170,
+      className: "td-progresso",
+      render: (empresa) => <ProgressBar value={empresa.progresso} />,
+      exportLabel: "Progresso (%)",
+      exportValue: (empresa) => empresa.progresso,
+    },
+    {
+      key: "valorContrato",
+      label: "Valor Contrato",
+      defaultWidth: 150,
+      align: "right",
+      render: renderValorContrato,
+      exportValue: (empresa) => empresa.valorContrato ?? "",
+    },
+  ];
+
+  const colunasCancelados: ColumnDef<LinhaEsteira>[] = [
+    {
+      key: "cliente",
+      label: "Cliente",
+      defaultWidth: 220,
+      locked: true,
+      render: (empresa) => empresa.nomeEmpresa,
+      exportValue: (empresa) => empresa.nomeEmpresa,
+    },
+    {
+      key: "contato",
+      label: "Contato",
+      defaultWidth: 200,
+      render: renderContato,
+      exportValue: renderContato,
+    },
+    {
+      key: "cs",
+      label: "CS Responsável",
+      defaultWidth: 160,
+      render: renderCsResponsavel,
+      exportValue: renderCsResponsavel,
+    },
+    {
+      key: "comercial",
+      label: "Comercial Responsável",
+      defaultWidth: 180,
+      render: renderComercialResponsavel,
+      exportValue: renderComercialResponsavel,
+    },
+    {
+      key: "valorContrato",
+      label: "Valor Contrato",
+      defaultWidth: 150,
+      align: "right",
+      render: renderValorContrato,
+      exportValue: (empresa) => empresa.valorContrato ?? "",
+    },
+  ];
+
+  const colunasAtivasPrefs = useColumnPreferences(
+    "radar:colunas:esteira-atual",
+    colunasEsteiraAtual,
+  );
+  const colunasOngoingPrefs = useColumnPreferences(
+    "radar:colunas:ongoing",
+    colunasOngoing,
+  );
+  const colunasSuspensosPrefs = useColumnPreferences(
+    "radar:colunas:suspensos",
+    colunasSuspensos,
+  );
+  const colunasCanceladosPrefs = useColumnPreferences(
+    "radar:colunas:cancelados",
+    colunasCancelados,
+  );
+
+  const [colunaArrastadaAtivos, setColunaArrastadaAtivos] = useState<string | null>(null);
+  const [colunaArrastadaOngoing, setColunaArrastadaOngoing] = useState<string | null>(null);
+  const [colunaArrastadaSuspensos, setColunaArrastadaSuspensos] = useState<string | null>(null);
+  const [colunaArrastadaCancelados, setColunaArrastadaCancelados] = useState<string | null>(null);
+
+  function exportarColunasVisiveis(
+    linhas: LinhaEsteira[],
+    colunas: ColumnDef<LinhaEsteira>[],
+  ) {
+    return linhas.map((empresa) => {
+      const linha: Record<string, unknown> = {};
+      colunas.forEach((col) => {
+        if (!col.exportValue) return;
+        linha[col.exportLabel || col.label] = col.exportValue(empresa);
+      });
+      return linha;
+    });
   }
 
   return (
@@ -1633,6 +1964,16 @@ export default function Home() {
             </span>
           </div>
           <div className="collapsible-header-actions">
+            <div onClick={(e) => e.stopPropagation()}>
+              <ColumnSelector
+                columns={colunasEsteiraAtual}
+                order={colunasAtivasPrefs.order}
+                hidden={colunasAtivasPrefs.hidden}
+                onChangeOrder={colunasAtivasPrefs.setOrder}
+                onChangeHidden={colunasAtivasPrefs.setHidden}
+                onRestaurarPadrao={colunasAtivasPrefs.restaurarPadrao}
+              />
+            </div>
             {role === "master" && (
               <button
                 className="btn-exportar-excel"
@@ -1655,31 +1996,62 @@ export default function Home() {
           <div className="table-wrapper">
             <table>
               <colgroup>
-                <col style={{ width: "1.5%" }} />
-                <col style={{ width: "5%" }} />
-                <col style={{ width: "5%" }} />
-                <col style={{ width: "5%" }} />
-                <col style={{ width: "5%" }} />
-                <col style={{ width: "5%" }} />
-                <col style={{ width: "5%" }} />
-                <col style={{ width: "5%" }} />
-                <col style={{ width: "5%" }} />
-                <col style={{ width: "5%" }} />
-                <col style={{ width: "5%" }} />
+                {colunasAtivasPrefs.colunasVisiveis.map((col) => (
+                  <col
+                    key={col.key}
+                    style={{
+                      width: `${colunasAtivasPrefs.widths[col.key] ?? col.defaultWidth}px`,
+                    }}
+                  />
+                ))}
               </colgroup>
               <thead>
                 <tr>
-                  <th>Status</th>
-                  <th>Cliente</th>
-                  <th>Responsável</th>
-                  <th>Tipo</th>
-                  <th>Produto</th>
-                  <th>Score</th>
-                  <th>Data de entrada</th>
-                  <th>Dias</th>
-                  <th>Agendamento</th>
-                  <th className="td-progresso">Progresso</th>
-                  <th style={{ textAlign: "right" }}>Valor Contrato</th>
+                  {colunasAtivasPrefs.colunasVisiveis.map((col) => (
+                    <th
+                      key={col.key}
+                      className={`${col.className || ""} ${colunaArrastadaAtivos === col.key ? "th-arrastando" : ""}`.trim()}
+                      style={col.align === "right" ? { textAlign: "right" } : undefined}
+                      draggable
+                      onDragStart={() => setColunaArrastadaAtivos(col.key)}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={() => {
+                        if (colunaArrastadaAtivos) {
+                          colunasAtivasPrefs.setOrder(
+                            reordenarColunaPorArraste(
+                              colunasAtivasPrefs.order,
+                              colunaArrastadaAtivos,
+                              col.key,
+                            ),
+                          );
+                        }
+                        setColunaArrastadaAtivos(null);
+                      }}
+                      onDragEnd={() => setColunaArrastadaAtivos(null)}
+                      title="Arraste para reordenar a coluna"
+                    >
+                      <span className="col-drag-handle" aria-hidden="true">
+                        ⠿
+                      </span>
+                      {col.label}
+                      <span
+                        className="col-resize-handle"
+                        draggable
+                        onDragStart={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }}
+                        onMouseDown={(e) =>
+                          iniciarRedimensionamentoColuna(
+                            e,
+                            col.key,
+                            colunasAtivasPrefs.widths[col.key] ?? col.defaultWidth,
+                            colunasAtivasPrefs.alterarLargura,
+                          )
+                        }
+                      />
+                    </th>
+                  ))}
                 </tr>
               </thead>
 
@@ -1690,128 +2062,25 @@ export default function Home() {
                     className="linha-cliente"
                     onClick={() => abrirCliente(empresa)}
                   >
-                    <td>
-                      <StatusFarol status={empresa.farol} />
-                    </td>
-
-                    <td>
-                      {empresa.nomeEmpresa}
-                      {empresa.alerta && (
-                        <span
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (empresa.ocorrenciaAlertaId) {
-                              navigate(
-                                `/historico?empresa=${encodeURIComponent(empresa.nomeEmpresa)}&ocorrencia=${empresa.ocorrenciaAlertaId}`,
-                              );
-                            } else {
-                              navigate(
-                                `/historico?empresa=${encodeURIComponent(empresa.nomeEmpresa)}`,
-                              );
-                            }
-                          }}
-                          style={{
-                            color: "#dc2626",
-                            fontWeight: "bold",
-                            marginLeft: "8px",
-                            fontSize: "0.85rem",
-                            textDecoration: "underline",
-                            cursor: "pointer",
-                          }}
-                          title="Ver ocorrência de alerta"
-                        >
-                          [Alerta]
-                        </span>
-                      )}
-                    </td>
-
-                    <td>{formatarNome(empresa.responsavel)}</td>
-
-                    <td>
-                      {obterTipoEfetivo(empresa) && (
-                        <span
-                          style={{
-                            padding: "2px 10px",
-                            borderRadius: "999px",
-                            fontSize: "0.8rem",
-                            fontWeight: 600,
-                            background:
-                              obterTipoEfetivo(empresa) === "Fast" ? "#16a34a" : "#dc2626",
-                            color: "white",
-                          }}
-                        >
-                          {obterTipoEfetivo(empresa)}
-                        </span>
-                      )}
-                    </td>
-
-                    <td>
-                      {empresa.produto ? (
-                        <span
-                          style={{
-                            padding: "2px 10px",
-                            borderRadius: "999px",
-                            fontSize: "0.8rem",
-                            fontWeight: 600,
-                            background:
-                              CORES_PRODUTO[empresa.produto] || "#64748b",
-                            color: "white",
-                          }}
-                        >
-                          {empresa.produto}
-                        </span>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-
-                    <td>
-                      {empresa.score !== undefined && empresa.score !== null ? (
-                        <span
-                          style={{
-                            fontWeight: 600,
-                            color:
-                              obterTipoEfetivo(empresa) === "Fast" ? "#16a34a" : "#dc2626",
-                          }}
-                          title={
-                            (calcularScoreEfetivo(empresa) ?? empresa.score) !== empresa.score
-                              ? "Score reduzido temporariamente por contato recente com o Suporte"
-                              : undefined
-                          }
-                        >
-                          {(calcularScoreEfetivo(empresa) ?? empresa.score).toFixed(1)}
-                        </span>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-
-                    <td>{formatarData(empresa.dataEntrada)}</td>
-
-                    <td>{empresa.dias}</td>
-
-                    <td>
-                      {empresa.tme !== null ? `${empresa.tme} dias` : "-"}
-                    </td>
-
-                    <td className="td-progresso">
-                      <ProgressBar value={empresa.progresso} />
-                    </td>
-                    <td style={{ textAlign: "right", fontWeight: 600 }}>
-                      {empresa.valorContrato !== undefined &&
-                        empresa.valorContrato !== null
-                        ? new Intl.NumberFormat("pt-BR", {
-                          style: "currency",
-                          currency: "BRL",
-                        }).format(empresa.valorContrato)
-                        : "—"}
-                    </td>
+                    {colunasAtivasPrefs.colunasVisiveis.map((col) => (
+                      <td
+                        key={col.key}
+                        className={col.className}
+                        style={
+                          col.align === "right"
+                            ? { textAlign: "right", fontWeight: 600 }
+                            : undefined
+                        }
+                      >
+                        {col.render(empresa)}
+                      </td>
+                    ))}
                   </tr>
                 ))}
                 {dadosAtivosFiltrados.length === 0 && (
                   <tr>
                     <td
-                      colSpan={11}
+                      colSpan={colunasAtivasPrefs.colunasVisiveis.length}
                       style={{
                         textAlign: "center",
                         color: "#64748b",
@@ -1855,6 +2124,16 @@ export default function Home() {
             </span>
           </div>
           <div className="collapsible-header-actions">
+            <div onClick={(e) => e.stopPropagation()}>
+              <ColumnSelector
+                columns={colunasOngoing}
+                order={colunasOngoingPrefs.order}
+                hidden={colunasOngoingPrefs.hidden}
+                onChangeOrder={colunasOngoingPrefs.setOrder}
+                onChangeHidden={colunasOngoingPrefs.setHidden}
+                onRestaurarPadrao={colunasOngoingPrefs.restaurarPadrao}
+              />
+            </div>
             {role === "master" && (
               <button
                 className="btn-exportar-excel"
@@ -1877,19 +2156,62 @@ export default function Home() {
           <div className="table-wrapper">
             <table>
               <colgroup>
-                <col style={{ width: "5%" }} />
-                <col style={{ width: "5%" }} />
-                <col style={{ width: "5%" }} />
-                <col style={{ width: "5%" }} />
-                <col style={{ width: "5%" }} />
+                {colunasOngoingPrefs.colunasVisiveis.map((col) => (
+                  <col
+                    key={col.key}
+                    style={{
+                      width: `${colunasOngoingPrefs.widths[col.key] ?? col.defaultWidth}px`,
+                    }}
+                  />
+                ))}
               </colgroup>
               <thead>
                 <tr>
-                  <th>Cliente</th>
-                  <th>Contato</th>
-                  <th>CS Responsável</th>
-                  <th>Comercial Responsável</th>
-                  <th style={{ textAlign: "right" }}>Valor Contrato</th>
+                  {colunasOngoingPrefs.colunasVisiveis.map((col) => (
+                    <th
+                      key={col.key}
+                      className={`${col.className || ""} ${colunaArrastadaOngoing === col.key ? "th-arrastando" : ""}`.trim()}
+                      style={col.align === "right" ? { textAlign: "right" } : undefined}
+                      draggable
+                      onDragStart={() => setColunaArrastadaOngoing(col.key)}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={() => {
+                        if (colunaArrastadaOngoing) {
+                          colunasOngoingPrefs.setOrder(
+                            reordenarColunaPorArraste(
+                              colunasOngoingPrefs.order,
+                              colunaArrastadaOngoing,
+                              col.key,
+                            ),
+                          );
+                        }
+                        setColunaArrastadaOngoing(null);
+                      }}
+                      onDragEnd={() => setColunaArrastadaOngoing(null)}
+                      title="Arraste para reordenar a coluna"
+                    >
+                      <span className="col-drag-handle" aria-hidden="true">
+                        ⠿
+                      </span>
+                      {col.label}
+                      <span
+                        className="col-resize-handle"
+                        draggable
+                        onDragStart={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }}
+                        onMouseDown={(e) =>
+                          iniciarRedimensionamentoColuna(
+                            e,
+                            col.key,
+                            colunasOngoingPrefs.widths[col.key] ?? col.defaultWidth,
+                            colunasOngoingPrefs.alterarLargura,
+                          )
+                        }
+                      />
+                    </th>
+                  ))}
                 </tr>
               </thead>
 
@@ -1900,62 +2222,25 @@ export default function Home() {
                     className="linha-cliente"
                     onClick={() => abrirCliente(empresa)}
                   >
-                    <td>
-                      {empresa.nomeEmpresa}
-                      {empresa.alerta && (
-                        <span
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (empresa.ocorrenciaAlertaId) {
-                              navigate(
-                                `/historico?empresa=${encodeURIComponent(empresa.nomeEmpresa)}&ocorrencia=${empresa.ocorrenciaAlertaId}`,
-                              );
-                            } else {
-                              navigate(
-                                `/historico?empresa=${encodeURIComponent(empresa.nomeEmpresa)}`,
-                              );
-                            }
-                          }}
-                          style={{
-                            color: "#dc2626",
-                            fontWeight: "bold",
-                            marginLeft: "8px",
-                            fontSize: "0.85rem",
-                            textDecoration: "underline",
-                            cursor: "pointer",
-                          }}
-                          title="Ver ocorrência de alerta"
-                        >
-                          [Alerta]
-                        </span>
-                      )}
-                    </td>
-
-                    <td>{nomesContatos(empresa)}</td>
-
-                    <td>{normalizarNomeCS(empresa.csResponsavel) || "-"}</td>
-
-                    <td>
-                      {normalizarNomeComercial(
-                        empresa.comercialResponsavel,
-                        mapaComerciais,
-                      ) || "-"}
-                    </td>
-                    <td style={{ textAlign: "right", fontWeight: 600 }}>
-                      {empresa.valorContrato !== undefined &&
-                        empresa.valorContrato !== null
-                        ? new Intl.NumberFormat("pt-BR", {
-                          style: "currency",
-                          currency: "BRL",
-                        }).format(empresa.valorContrato)
-                        : "—"}
-                    </td>
+                    {colunasOngoingPrefs.colunasVisiveis.map((col) => (
+                      <td
+                        key={col.key}
+                        className={col.className}
+                        style={
+                          col.align === "right"
+                            ? { textAlign: "right", fontWeight: 600 }
+                            : undefined
+                        }
+                      >
+                        {col.render(empresa)}
+                      </td>
+                    ))}
                   </tr>
                 ))}
                 {dadosOngoingFiltrados.length === 0 && (
                   <tr>
                     <td
-                      colSpan={5}
+                      colSpan={colunasOngoingPrefs.colunasVisiveis.length}
                       style={{
                         textAlign: "center",
                         color: "#64748b",
@@ -1999,6 +2284,16 @@ export default function Home() {
             </span>
           </div>
           <div className="collapsible-header-actions">
+            <div onClick={(e) => e.stopPropagation()}>
+              <ColumnSelector
+                columns={colunasSuspensos}
+                order={colunasSuspensosPrefs.order}
+                hidden={colunasSuspensosPrefs.hidden}
+                onChangeOrder={colunasSuspensosPrefs.setOrder}
+                onChangeHidden={colunasSuspensosPrefs.setHidden}
+                onRestaurarPadrao={colunasSuspensosPrefs.restaurarPadrao}
+              />
+            </div>
             {role === "master" && (
               <button
                 className="btn-exportar-excel"
@@ -2021,23 +2316,62 @@ export default function Home() {
           <div className="table-wrapper">
             <table>
               <colgroup>
-                <col style={{ width: "5%" }} />
-                <col style={{ width: "5%" }} />
-                <col style={{ width: "5%" }} />
-                <col style={{ width: "5%" }} />
-                <col style={{ width: "5%" }} />
-                <col style={{ width: "5%" }} />
-                <col style={{ width: "5%" }} />
+                {colunasSuspensosPrefs.colunasVisiveis.map((col) => (
+                  <col
+                    key={col.key}
+                    style={{
+                      width: `${colunasSuspensosPrefs.widths[col.key] ?? col.defaultWidth}px`,
+                    }}
+                  />
+                ))}
               </colgroup>
               <thead>
                 <tr>
-                  <th>Cliente</th>
-                  <th>Contato</th>
-                  <th>CS Responsável</th>
-                  <th>Comercial Responsável</th>
-                  <th>Dias</th>
-                  <th className="td-progresso">Progresso</th>
-                  <th style={{ textAlign: "right" }}>Valor Contrato</th>
+                  {colunasSuspensosPrefs.colunasVisiveis.map((col) => (
+                    <th
+                      key={col.key}
+                      className={`${col.className || ""} ${colunaArrastadaSuspensos === col.key ? "th-arrastando" : ""}`.trim()}
+                      style={col.align === "right" ? { textAlign: "right" } : undefined}
+                      draggable
+                      onDragStart={() => setColunaArrastadaSuspensos(col.key)}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={() => {
+                        if (colunaArrastadaSuspensos) {
+                          colunasSuspensosPrefs.setOrder(
+                            reordenarColunaPorArraste(
+                              colunasSuspensosPrefs.order,
+                              colunaArrastadaSuspensos,
+                              col.key,
+                            ),
+                          );
+                        }
+                        setColunaArrastadaSuspensos(null);
+                      }}
+                      onDragEnd={() => setColunaArrastadaSuspensos(null)}
+                      title="Arraste para reordenar a coluna"
+                    >
+                      <span className="col-drag-handle" aria-hidden="true">
+                        ⠿
+                      </span>
+                      {col.label}
+                      <span
+                        className="col-resize-handle"
+                        draggable
+                        onDragStart={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }}
+                        onMouseDown={(e) =>
+                          iniciarRedimensionamentoColuna(
+                            e,
+                            col.key,
+                            colunasSuspensosPrefs.widths[col.key] ?? col.defaultWidth,
+                            colunasSuspensosPrefs.alterarLargura,
+                          )
+                        }
+                      />
+                    </th>
+                  ))}
                 </tr>
               </thead>
 
@@ -2048,66 +2382,25 @@ export default function Home() {
                     className="linha-cliente"
                     onClick={() => abrirCliente(empresa)}
                   >
-                    <td>
-                      {empresa.nomeEmpresa}
-                      {empresa.alerta && (
-                        <span
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (empresa.ocorrenciaAlertaId) {
-                              navigate(
-                                `/historico?empresa=${encodeURIComponent(empresa.nomeEmpresa)}&ocorrencia=${empresa.ocorrenciaAlertaId}`,
-                              );
-                            } else {
-                              navigate(
-                                `/historico?empresa=${encodeURIComponent(empresa.nomeEmpresa)}`,
-                              );
-                            }
-                          }}
-                          style={{
-                            color: "#dc2626",
-                            fontWeight: "bold",
-                            marginLeft: "8px",
-                            fontSize: "0.85rem",
-                            textDecoration: "underline",
-                            cursor: "pointer",
-                          }}
-                          title="Ver ocorrência de alerta"
-                        >
-                          [Alerta]
-                        </span>
-                      )}
-                    </td>
-
-                    <td>{nomesContatos(empresa)}</td>
-
-                    <td>{normalizarNomeCS(empresa.csResponsavel) || "-"}</td>
-
-                    <td>
-                      {normalizarNomeComercial(
-                        empresa.comercialResponsavel,
-                        mapaComerciais,
-                      ) || "-"}
-                    </td>
-                    <td>{empresa.dias}</td>
-                    <td className="td-progresso">
-                      <ProgressBar value={empresa.progresso} />
-                    </td>
-                    <td style={{ textAlign: "right", fontWeight: 600 }}>
-                      {empresa.valorContrato !== undefined &&
-                        empresa.valorContrato !== null
-                        ? new Intl.NumberFormat("pt-BR", {
-                          style: "currency",
-                          currency: "BRL",
-                        }).format(empresa.valorContrato)
-                        : "—"}
-                    </td>
+                    {colunasSuspensosPrefs.colunasVisiveis.map((col) => (
+                      <td
+                        key={col.key}
+                        className={col.className}
+                        style={
+                          col.align === "right"
+                            ? { textAlign: "right", fontWeight: 600 }
+                            : undefined
+                        }
+                      >
+                        {col.render(empresa)}
+                      </td>
+                    ))}
                   </tr>
                 ))}
                 {dadosSuspensosFiltrados.length === 0 && (
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={colunasSuspensosPrefs.colunasVisiveis.length}
                       style={{
                         textAlign: "center",
                         color: "#64748b",
@@ -2148,6 +2441,16 @@ export default function Home() {
             </span>
           </div>
           <div className="collapsible-header-actions">
+            <div onClick={(e) => e.stopPropagation()}>
+              <ColumnSelector
+                columns={colunasCancelados}
+                order={colunasCanceladosPrefs.order}
+                hidden={colunasCanceladosPrefs.hidden}
+                onChangeOrder={colunasCanceladosPrefs.setOrder}
+                onChangeHidden={colunasCanceladosPrefs.setHidden}
+                onRestaurarPadrao={colunasCanceladosPrefs.restaurarPadrao}
+              />
+            </div>
             {role === "master" && (
               <button
                 className="btn-exportar-excel"
@@ -2170,19 +2473,62 @@ export default function Home() {
           <div className="table-wrapper">
             <table>
               <colgroup>
-                <col style={{ width: "5%" }} />
-                <col style={{ width: "5%" }} />
-                <col style={{ width: "5%" }} />
-                <col style={{ width: "5%" }} />
-                <col style={{ width: "5%" }} />
+                {colunasCanceladosPrefs.colunasVisiveis.map((col) => (
+                  <col
+                    key={col.key}
+                    style={{
+                      width: `${colunasCanceladosPrefs.widths[col.key] ?? col.defaultWidth}px`,
+                    }}
+                  />
+                ))}
               </colgroup>
               <thead>
                 <tr>
-                  <th>Cliente</th>
-                  <th>Contato</th>
-                  <th>CS Responsável</th>
-                  <th>Comercial Responsável</th>
-                  <th style={{ textAlign: "right" }}>Valor Contrato</th>
+                  {colunasCanceladosPrefs.colunasVisiveis.map((col) => (
+                    <th
+                      key={col.key}
+                      className={`${col.className || ""} ${colunaArrastadaCancelados === col.key ? "th-arrastando" : ""}`.trim()}
+                      style={col.align === "right" ? { textAlign: "right" } : undefined}
+                      draggable
+                      onDragStart={() => setColunaArrastadaCancelados(col.key)}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={() => {
+                        if (colunaArrastadaCancelados) {
+                          colunasCanceladosPrefs.setOrder(
+                            reordenarColunaPorArraste(
+                              colunasCanceladosPrefs.order,
+                              colunaArrastadaCancelados,
+                              col.key,
+                            ),
+                          );
+                        }
+                        setColunaArrastadaCancelados(null);
+                      }}
+                      onDragEnd={() => setColunaArrastadaCancelados(null)}
+                      title="Arraste para reordenar a coluna"
+                    >
+                      <span className="col-drag-handle" aria-hidden="true">
+                        ⠿
+                      </span>
+                      {col.label}
+                      <span
+                        className="col-resize-handle"
+                        draggable
+                        onDragStart={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }}
+                        onMouseDown={(e) =>
+                          iniciarRedimensionamentoColuna(
+                            e,
+                            col.key,
+                            colunasCanceladosPrefs.widths[col.key] ?? col.defaultWidth,
+                            colunasCanceladosPrefs.alterarLargura,
+                          )
+                        }
+                      />
+                    </th>
+                  ))}
                 </tr>
               </thead>
 
@@ -2193,33 +2539,25 @@ export default function Home() {
                     className="linha-cliente"
                     onClick={() => abrirCliente(empresa)}
                   >
-                    <td>{empresa.nomeEmpresa}</td>
-
-                    <td>{nomesContatos(empresa)}</td>
-
-                    <td>{normalizarNomeCS(empresa.csResponsavel) || "-"}</td>
-
-                    <td>
-                      {normalizarNomeComercial(
-                        empresa.comercialResponsavel,
-                        mapaComerciais,
-                      ) || "-"}
-                    </td>
-                    <td style={{ textAlign: "right", fontWeight: 600 }}>
-                      {empresa.valorContrato !== undefined &&
-                        empresa.valorContrato !== null
-                        ? new Intl.NumberFormat("pt-BR", {
-                          style: "currency",
-                          currency: "BRL",
-                        }).format(empresa.valorContrato)
-                        : "—"}
-                    </td>
+                    {colunasCanceladosPrefs.colunasVisiveis.map((col) => (
+                      <td
+                        key={col.key}
+                        className={col.className}
+                        style={
+                          col.align === "right"
+                            ? { textAlign: "right", fontWeight: 600 }
+                            : undefined
+                        }
+                      >
+                        {col.render(empresa)}
+                      </td>
+                    ))}
                   </tr>
                 ))}
                 {dadosCanceladosFiltrados.length === 0 && (
                   <tr>
                     <td
-                      colSpan={5}
+                      colSpan={colunasCanceladosPrefs.colunasVisiveis.length}
                       style={{
                         textAlign: "center",
                         color: "#64748b",

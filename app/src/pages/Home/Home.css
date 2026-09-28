@@ -23,8 +23,29 @@
 .table-wrapper {
   background: rgba(15, 23, 42, 0.7);
   border-radius: 16px;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
   border: 1px solid rgba(255, 255, 255, 0.08);
+
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
+}
+
+.table-wrapper::-webkit-scrollbar {
+  height: 6px;
+}
+
+.table-wrapper::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.4);
+  border-radius: 999px;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(148, 163, 184, 0.7);
 }
 
 .monitoramento-page table {
@@ -39,12 +60,60 @@
 }
 
 .monitoramento-page th {
-  padding: 1rem;
+  position: relative;
+  padding: 1rem 1.25rem 1rem 1.75rem;
   text-align: left;
   font-size: 0.9rem;
   font-weight: 700;
   color: #cbd5e1;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: grab;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+
+.monitoramento-page th:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.monitoramento-page th:active {
+  cursor: grabbing;
+}
+
+.monitoramento-page th.th-arrastando {
+  opacity: 0.35;
+  background: rgba(96, 165, 250, 0.12);
+}
+
+.col-drag-handle {
+  position: absolute;
+  left: 0.35rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #64748b;
+  font-size: 0.95rem;
+  line-height: 1;
+  user-select: none;
+  transition: color 0.15s ease;
+}
+
+.monitoramento-page th:hover .col-drag-handle {
+  color: #94a3b8;
+}
+
+.col-resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 8px;
+  height: 100%;
+  cursor: col-resize;
+  user-select: none;
+  touch-action: none;
+}
+
+.col-resize-handle:hover,
+.col-resize-handle:active {
+  background: rgba(96, 165, 250, 0.35);
 }
 
 .monitoramento-page th,

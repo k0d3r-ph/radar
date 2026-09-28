@@ -17,6 +17,7 @@ import {
 } from "../../services/notificacoes";
 import type { DestinatarioGestao } from "../../services/notificacoes";
 import { GestaoNotificacaoModal } from "../../components/GestaoNotificacaoModal";
+import { buscarIdCentralPorNome } from "../../services/centrais";
 
 function normalizarNome(nome: string) {
   return nome
@@ -90,6 +91,8 @@ function Esteira() {
   const [templatesAbertos, setTemplatesAbertos] = useState(false);
 
   const [nomeEmpresa, setNomeEmpresa] = useState("");
+  const [idCentral, setIdCentral] = useState("");
+  const [buscandoIdCentral, setBuscandoIdCentral] = useState(false);
   const [temaText, setTemaText] = useState(``);
   const [dataText, setDataText] = useState(``);
   const [currentPhase, setCurrentPhase] = useState(0);
@@ -121,6 +124,8 @@ function Esteira() {
         setEmpresaId(String(empresa.id));
 
         setNomeEmpresa(empresa.nomeEmpresa);
+
+        setIdCentral(empresa.idCentral || "");
 
         setTemaText(empresa.temaText);
 
@@ -279,6 +284,7 @@ function Esteira() {
 
               if (!empresa) {
                 setNomeEmpresa("");
+                setIdCentral("");
                 setTemaText("");
                 setDataText("");
                 setTemaGol("");
@@ -286,6 +292,7 @@ function Esteira() {
               }
 
               setNomeEmpresa(empresa.nomeEmpresa);
+              setIdCentral(empresa.idCentral || "");
               setTemaText(empresa.temaText);
               setDataText(empresa.dataText);
               setCurrentPhase(empresa.currentPhase || 0);
@@ -323,8 +330,42 @@ function Esteira() {
           <input
             value={nomeEmpresa}
             onChange={(e) => setNomeEmpresa(e.target.value)}
+            onBlur={async () => {
+              // Busca automática do idCentral pelo nome (planilha do CS). Só
+              // preenche sozinho quando o campo ainda está vazio — se alguém já
+              // digitou/corrigiu o ID manualmente, não sobrescreve.
+              if (!isTreinador || !nomeEmpresa.trim() || idCentral.trim()) return;
+
+              setBuscandoIdCentral(true);
+              try {
+                const encontrado = await buscarIdCentralPorNome(nomeEmpresa);
+                if (encontrado) {
+                  setIdCentral(encontrado);
+                } else {
+                  toast.warning(
+                    "Não encontrei essa central na planilha do CS. Preencha o ID Central manualmente.",
+                  );
+                }
+              } finally {
+                setBuscandoIdCentral(false);
+              }
+            }}
             placeholder="Digite o nome da empresa"
             disabled={!isTreinador}
+          />
+        </div>
+
+        <div className="control-row">
+          <label>ID Central (SSX)</label>
+          <input
+            value={idCentral}
+            onChange={(e) => setIdCentral(e.target.value)}
+            placeholder={
+              buscandoIdCentral
+                ? "Buscando na planilha do CS..."
+                : "Preenchido automaticamente pelo nome da empresa"
+            }
+            disabled={!isTreinador || buscandoIdCentral}
           />
         </div>
 
@@ -356,6 +397,7 @@ function Esteira() {
           {isTreinador && (
             <button
               className="btn-primary"
+              disabled={buscandoIdCentral}
               onClick={async () => {
                 if (!nomeEmpresa.trim()) {
                   toast.error("Digite o nome da empresa.");
@@ -371,6 +413,29 @@ function Esteira() {
                 if (nomeDuplicado) {
                   toast.error("Já existe uma empresa com este nome.");
                   return;
+                }
+
+                // Garante a busca do idCentral mesmo que o clique em "Salvar" tenha
+                // vindo rápido demais, antes do onBlur do nome terminar de buscar —
+                // sem isso o salvamento corria em paralelo com a busca assíncrona e
+                // às vezes gravava o cliente sem o idCentral mesmo quando a
+                // planilha tinha o dado.
+                let idCentralFinal = idCentral.trim();
+                if (!idCentralFinal && nomeEmpresa.trim()) {
+                  setBuscandoIdCentral(true);
+                  try {
+                    idCentralFinal =
+                      (await buscarIdCentralPorNome(nomeEmpresa)) || "";
+                    if (!idCentralFinal) {
+                      toast.warning(
+                        "Não encontrei essa central na planilha do CS. Preencha o ID Central manualmente.",
+                      );
+                    } else {
+                      setIdCentral(idCentralFinal);
+                    }
+                  } finally {
+                    setBuscandoIdCentral(false);
+                  }
                 }
 
                 const empresaExistente = empresas.find(
@@ -391,6 +456,7 @@ function Esteira() {
                 const novoId = await salvarEmpresas({
                   ...(empresaId ? { id: empresaId } : {}),
                   nomeEmpresa,
+                  idCentral: idCentralFinal || undefined,
                   temaText,
                   dataText,
                   currentPhase,
@@ -455,7 +521,7 @@ function Esteira() {
                 setTemaGol("");
               }}
             >
-              Salvar empresa
+              {buscandoIdCentral ? "Buscando ID Central..." : "Salvar empresa"}
             </button>
           )}
 

@@ -131,6 +131,13 @@ export type Empresa = {
   };
   valorContrato?: number;
   idNumeric?: number;
+  /**
+   * ID da central de rastreamento no sistema SSX, vinculado a partir da planilha de
+   * controle do CS pelo nome da central (ver `services/centrais.ts`). Preenchido
+   * automaticamente ao cadastrar/editar o cliente na Esteira, mas pode ser
+   * corrigido manualmente quando o casamento automático não encontra a central.
+   */
+  idCentral?: string;
   /** Marcação de envio da notificação de WhatsApp de Suspensão. */
   whatsappStatusSuspensao?: WhatsappStatus;
   whatsappEnviadoEmSuspensao?: number;

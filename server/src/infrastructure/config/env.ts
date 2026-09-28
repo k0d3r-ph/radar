@@ -11,6 +11,8 @@ dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 export const config = {
   port: parseInt(process.env.PORT || '5000', 10),
   corsOrigin: process.env.CORS_ORIGIN || '*',
-  geminiApiKey: process.env.GEMINI_API_KEY || ''
+  geminiApiKey: process.env.GEMINI_API_KEY || '',
+  /** URL do CSV publicado (Arquivo → Compartilhar → Publicar na web) da aba de controle do CS. */
+  planilhaCentraisCsvUrl: process.env.PLANILHA_CENTRAIS_CSV_URL || ''
 };
 

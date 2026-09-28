@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { WhatsAppController } from '../../adapters/controllers/WhatsAppController.js';
 import { IaController } from '../../adapters/controllers/IaController.js';
+import { CentraisController } from '../../adapters/controllers/CentraisController.js';
 import { WhatsAppWebClient } from '../whatsapp/WhatsAppWebClient.js';
 import { config } from '../config/env.js';
 import { adminAuth, adminDb, isFirebaseInitialized } from '../firebase/firebaseAdmin.js';
@@ -136,6 +137,10 @@ export function createExpressApp(
   // Rotas HTTP — IA
   const iaController = new IaController();
   app.post('/api/ia/resumir', (req, res) => iaController.resumir(req, res));
+
+  // Rotas HTTP — Centrais (vínculo idCentral/SSX via planilha do CS)
+  const centraisController = new CentraisController();
+  app.get('/api/centrais/id-central', (req, res) => centraisController.buscarIdCentral(req, res));
 
 
   // Rota de depuração do Puppeteer

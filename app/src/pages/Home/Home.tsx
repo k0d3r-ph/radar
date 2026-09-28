@@ -62,6 +62,7 @@ import {
 import type { DestinatarioGestao } from "../../services/notificacoes";
 import { GestaoNotificacaoModal } from "../../components/GestaoNotificacaoModal";
 import { ColumnSelector } from "../../components/ColumnSelector";
+import { buscarIdCentralPorNome } from "../../services/centrais";
 import {
   useColumnPreferences,
   iniciarRedimensionamentoColuna,
@@ -331,6 +332,7 @@ export default function Home() {
   };
 
   const [clienteForm, setClienteForm] = useState<Empresa>(EMPTY_CLIENTE);
+  const [buscandoIdCentral, setBuscandoIdCentral] = useState(false);
 
   const [modalClienteAberto, setModalClienteAberto] = useState(false);
   const [confirmarExclusaoAberto, setConfirmarExclusaoAberto] = useState(false);
@@ -422,6 +424,26 @@ export default function Home() {
       return;
     }
 
+    // Garante a busca do idCentral mesmo que o usuário tenha clicado em "Salvar"
+    // rápido demais, antes do onBlur do nome da empresa terminar de buscar — sem
+    // isso o salvamento corria em paralelo com a busca assíncrona e às vezes
+    // gravava o cliente sem o idCentral mesmo quando a planilha tinha o dado.
+    let idCentralFinal = clienteForm.idCentral?.trim() || "";
+    if (!idCentralFinal && clienteForm.nomeEmpresa.trim()) {
+      setBuscandoIdCentral(true);
+      try {
+        idCentralFinal =
+          (await buscarIdCentralPorNome(clienteForm.nomeEmpresa)) || "";
+        if (!idCentralFinal) {
+          toast.warning(
+            "Não encontrei essa central na planilha do CS. Preencha o ID Central manualmente.",
+          );
+        }
+      } finally {
+        setBuscandoIdCentral(false);
+      }
+    }
+
     const comercialFormatted = clienteForm.comercialResponsavel
       ? formatarNome(clienteForm.comercialResponsavel)
       : "";
@@ -499,6 +521,7 @@ export default function Home() {
     const empresaSalva: Empresa = {
       ...clienteForm,
       nomeEmpresa: nomeFinal,
+      idCentral: idCentralFinal || undefined,
       idNumeric: idNumericToSave,
       comercialResponsavel: comercialFormatted,
       id: editandoClienteId || undefined,
@@ -2632,6 +2655,12 @@ export default function Home() {
                 </span>
               </div>
               <div className="info-item">
+                <span className="info-label">ID Central (SSX)</span>
+                <span className="info-value">
+                  {clienteSelecionado.idCentral || "-"}
+                </span>
+              </div>
+              <div className="info-item">
                 <span className="info-label">CS Responsável</span>
                 <span className="info-value">
                   {normalizarNomeCS(clienteSelecionado.csResponsavel) || "-"}
@@ -3052,6 +3081,52 @@ export default function Home() {
                     nomeEmpresa: e.target.value,
                   })
                 }
+                onBlur={async () => {
+                  // Busca automática do idCentral pelo nome (planilha do CS). Só
+                  // preenche sozinho quando o campo ainda está vazio — se alguém já
+                  // digitou/corrigiu o ID manualmente, não sobrescreve.
+                  if (!clienteForm.nomeEmpresa.trim() || clienteForm.idCentral?.trim()) {
+                    return;
+                  }
+
+                  setBuscandoIdCentral(true);
+                  try {
+                    const encontrado = await buscarIdCentralPorNome(
+                      clienteForm.nomeEmpresa,
+                    );
+                    if (encontrado) {
+                      setClienteForm((atual) => ({
+                        ...atual,
+                        idCentral: encontrado,
+                      }));
+                    } else {
+                      toast.warning(
+                        "Não encontrei essa central na planilha do CS. Preencha o ID Central manualmente.",
+                      );
+                    }
+                  } finally {
+                    setBuscandoIdCentral(false);
+                  }
+                }}
+              />
+            </div>
+
+            <div className="form-group">
+              <label>ID Central (SSX)</label>
+              <input
+                value={clienteForm.idCentral || ""}
+                onChange={(e) =>
+                  setClienteForm({
+                    ...clienteForm,
+                    idCentral: e.target.value,
+                  })
+                }
+                placeholder={
+                  buscandoIdCentral
+                    ? "Buscando na planilha do CS..."
+                    : "Preenchido automaticamente pelo nome da empresa"
+                }
+                disabled={buscandoIdCentral}
               />
             </div>
 
@@ -3627,9 +3702,10 @@ export default function Home() {
               <button
                 className="btn-primary"
                 onClick={salvarCliente}
+                disabled={buscandoIdCentral}
                 style={{ flex: 1, marginTop: 0 }}
               >
-                Salvar cliente
+                {buscandoIdCentral ? "Buscando ID Central..." : "Salvar cliente"}
               </button>
             </div>
           </div>

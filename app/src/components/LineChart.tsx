@@ -136,7 +136,13 @@ export const LineChart: React.FC<LineChartProps> = ({ title, categorias, series 
             {hover !== null && (
               <div
                 className="line-chart-tooltip"
-                style={{ left: `${(xFor(hover) / WIDTH) * 100}%` }}
+                style={{
+                  left: `${(xFor(hover) / WIDTH) * 100}%`,
+                  // Perto das bordas, ancora o tooltip para dentro do gráfico em vez de centralizar
+                  transform: `translate(${
+                    xFor(hover) / WIDTH > 0.7 ? "-100%" : xFor(hover) / WIDTH < 0.3 ? "0" : "-50%"
+                  }, -100%)`,
+                }}
               >
                 <strong>{categorias[hover]}</strong>
                 {series.map((s) => (

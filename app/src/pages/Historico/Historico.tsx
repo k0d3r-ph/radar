@@ -834,6 +834,7 @@ export function Historico() {
   const [temaOcorrenciaOngoingText, setTemaOcorrenciaOngoingText] =
     useState("");
   const [isRevisao, setIsRevisao] = useState(false);
+  const [temasRevisados, setTemasRevisados] = useState<string[]>([]);
   const [temaForaEsteira, setTemaForaEsteira] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 50;
@@ -1230,6 +1231,8 @@ export function Historico() {
       const next = { ...f, [campo]: valor };
       if (campo === "empresa") {
         next.temaOcorrencia = [];
+        setTemasRevisados([]);
+        setIsRevisao(false);
         setTemaOcorrenciaOngoingText("");
       }
       if (
@@ -1238,6 +1241,8 @@ export function Historico() {
         (f.tipo === "Treinamento" || f.tipo === "Dúvida")
       ) {
         next.temaOcorrencia = [];
+        setTemasRevisados([]);
+        setIsRevisao(false);
         setTemaOcorrenciaOngoingText("");
       }
       if (campo === "tipo" && f.tipo !== valor && valor !== "Problema") {
@@ -1268,6 +1273,7 @@ export function Historico() {
     setNovaDuvidaTemaHistorico("");
     setPainelAberto(true);
     setIsRevisao(false);
+    setTemasRevisados([]);
     setTemaForaEsteira(false);
   }
 
@@ -1303,7 +1309,9 @@ export function Historico() {
       departamento: o.departamento ?? "",
       dataOcorrencia: dataFormatada,
       horaOcorrencia: hora,
-      temaOcorrencia: o.temaOcorrencia ?? [],
+      temaOcorrencia: (o.temaOcorrencia ?? []).map((tema) =>
+        o.tipo === "Treinamento" ? tema.replace(/^Revisão de /, "") : tema,
+      ),
       alerta: o.alerta ?? false,
       retirarAlerta: o.retirarAlerta ?? false,
       alertaResolvidoPorId: o.alertaResolvidoPorId || "",
@@ -1325,7 +1333,9 @@ export function Historico() {
       chamadoDescricao: o.chamadoDescricao ?? "",
       chamadoLink: o.chamadoLink ?? "",
     });
-    setTemaOcorrenciaOngoingText(o.temaOcorrencia?.join(", ") ?? "");
+    setTemaOcorrenciaOngoingText((o.temaOcorrencia ?? []).map((tema) =>
+      o.tipo === "Treinamento" ? tema.replace(/^Revisão de /, "") : tema,
+    ).join(", "));
     setBuscaAssunto("");
     setEditandoId(o.id ?? null);
     setCalculoScoreResult(null);
@@ -1334,10 +1344,16 @@ export function Historico() {
     setNovaDuvidaTemaHistorico("");
     setPainelAberto(true);
     setIsRevisao(o.isRevisao ?? false);
+    setTemasRevisados(o.tipo === "Treinamento"
+      ? (o.temaOcorrencia ?? [])
+          .filter((tema) => tema.startsWith("Revisão de "))
+          .map((tema) => tema.replace(/^Revisão de /, ""))
+      : []);
     setTemaForaEsteira(o.temaForaEsteira ?? false);
   }
 
   function cancelar() {
+    setTemasRevisados([]);
     setPainelAberto(false);
     setForm({ ...EMPTY });
     setTemaOcorrenciaOngoingText("");
@@ -1497,14 +1513,14 @@ export function Historico() {
       dataRealizacaoStr = `${year}-${month}-${day}`;
     }
 
-    // Quando for revisão, os temas recebem prefixo "Revisão de" (exceto Ausente/Cancelado)
+    // Marca individualmente os temas revisados, inclusive nas agendas mistas.
     const temaOcorrenciaFinal =
-      form.tipo === "Treinamento" && isRevisao
+      form.tipo === "Treinamento"
         ? (form.temaOcorrencia ?? []).map((t) =>
             t.trim().toLowerCase() === "ausente" ||
             t.trim().toLowerCase() === "cancelado"
               ? t
-              : `Revisão de ${t}`,
+              : isRevisao || temasRevisados.includes(t) ? `Revisão de ${t}` : t,
           )
         : (form.temaOcorrencia ?? []);
 
@@ -1549,7 +1565,10 @@ export function Historico() {
           : respostasScore
         : ocorrenciaOriginal?.scoreAnswers,
       temaOcorrencia: temaOcorrenciaFinal,
-      isRevisao: form.tipo === "Treinamento" ? isRevisao : undefined,
+      isRevisao: form.tipo === "Treinamento"
+        ? isRevisao || (temaOcorrenciaFinal.length > 0 &&
+            temaOcorrenciaFinal.every((tema) => tema.startsWith("Revisão de ")))
+        : undefined,
       temaForaEsteira:
         form.tipo === "Treinamento" ? temaForaEsteira : undefined,
       csatSuporte:
@@ -2296,7 +2315,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       }
     }
 
-    // Avança a esteira automaticamente quando o treinamento tem temas válidos e não é uma revisão
+    // Avança a esteira apenas pelos temas novos, excluindo os revisados.
     if (
       form.tipo === "Treinamento" &&
       !isRevisao &&
@@ -2308,7 +2327,8 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       const temasValidos = (form.temaOcorrencia ?? []).filter(
         (t) =>
           t.trim().toLowerCase() !== "ausente" &&
-          t.trim().toLowerCase() !== "cancelado",
+          t.trim().toLowerCase() !== "cancelado" &&
+          !temasRevisados.includes(t),
       );
 
       if (temasValidos.length > 0) {
@@ -2446,7 +2466,8 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         ? (form.temaOcorrencia ?? []).filter(
             (t) =>
               t.trim().toLowerCase() !== "ausente" &&
-              t.trim().toLowerCase() !== "cancelado",
+              t.trim().toLowerCase() !== "cancelado" &&
+              !temasRevisados.includes(t),
           )
         : [];
 
@@ -4834,14 +4855,16 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                     <input
                       type="checkbox"
                       checked={isRevisao}
-                      onChange={(e) => setIsRevisao(e.target.checked)}
+                      onChange={(e) => {
+                        setIsRevisao(e.target.checked);
+                      }}
                       style={{ cursor: "pointer" }}
                     />
-                    <span>📝 Treinamento de revisão</span>
+                    <span>📝 Todos os temas são revisão</span>
                     <small style={{ color: "#94a3b8", fontWeight: 400 }}>
                       {isRevisao
                         ? '(não avança a esteira — tags: "Revisão de...")'
-                        : "(marque se for revisão de temas anteriores)"}
+                        : "(para revisão parcial, selecione os temas abaixo)"}
                     </small>
                   </label>
                 )}
@@ -4876,6 +4899,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                         const checked = e.target.checked;
                         setTemaForaEsteira(checked);
                         if (checked) {
+                          setTemasRevisados([]);
                           setTemaOcorrenciaOngoingText(
                             (form.temaOcorrencia ?? []).join(", "),
                           );
@@ -4920,6 +4944,12 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       );
                       const temaGolEmpresa =
                         empresaSelecionada?.temaGol?.trim();
+                      const datasAplicacao = (empresaSelecionada?.dataText ?? "").split("\n");
+                      const temasAplicados = new Set(
+                        (empresaSelecionada?.temaText ?? "").split("\n")
+                          .filter((_, index) => datasAplicacao[index]?.trim())
+                          .map((tema) => normalizar(tema)),
+                      );
                       const opcoes = [
                         "Ausente",
                         "Cancelado",
@@ -4940,6 +4970,14 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                             }
                             onChange={(e) => {
                               const atual = form.temaOcorrencia ?? [];
+                              if (!e.target.checked) {
+                                setTemasRevisados((temas) => temas.filter((t) => t !== tema));
+                              } else if (
+                                !["ausente", "cancelado"].includes(tema.trim().toLowerCase()) &&
+                                temasAplicados.has(normalizar(tema))
+                              ) {
+                                setTemasRevisados((temas) => [...new Set([...temas, tema])]);
+                              }
                               const novoTema = e.target.checked
                                 ? [...atual, tema]
                                 : atual.filter((t) => t !== tema);
@@ -4951,6 +4989,11 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                             }}
                           />
                           {tema}
+                          {form.temaOcorrencia?.includes(tema) &&
+                            (isRevisao || temasRevisados.includes(tema)) &&
+                            !["ausente", "cancelado"].includes(tema.trim().toLowerCase()) && (
+                              <small style={{ padding: "2px 6px", borderRadius: "4px", background: "rgba(99, 102, 241, 0.15)", fontWeight: 600 }}>Revisão</small>
+                            )}
                           {temaGolEmpresa && tema.trim() === temaGolEmpresa && (
                             <span
                               className="tema-gol-badge"
@@ -4966,6 +5009,32 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 )}
               </div>
             )}
+
+            {form.tipo === "Treinamento" && !isSelectedEmpresaOngoing &&
+              !temaForaEsteira && !isRevisao && (form.temaOcorrencia ?? []).some(
+                (tema) => !["ausente", "cancelado"].includes(tema.trim().toLowerCase()),
+              ) && (
+                <div className="hist-campo">
+                  <label>Quais temas foram revisados?</label>
+                  <div className="temas-lista">
+                    {(form.temaOcorrencia ?? []).filter(
+                      (tema) => !["ausente", "cancelado"].includes(tema.trim().toLowerCase()),
+                    ).map((tema) => (
+                      <label key={tema} className="tema-opcao">
+                        <input
+                          type="checkbox"
+                          checked={temasRevisados.includes(tema)}
+                          onChange={(e) => setTemasRevisados((atual) =>
+                            e.target.checked ? [...atual, tema] : atual.filter((t) => t !== tema),
+                          )}
+                        />
+                        Revisão de {tema}
+                      </label>
+                    ))}
+                  </div>
+                  <small>Temas com data de aplicação entram automaticamente como revisão. Apenas os temas não marcados como revisão avançam a esteira.</small>
+                </div>
+              )}
 
             {form.tipo === "Treinamento" && (
               <>

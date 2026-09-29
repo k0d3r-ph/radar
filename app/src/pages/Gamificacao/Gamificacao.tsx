@@ -978,6 +978,7 @@ export const Gamificacao: React.FC = () => {
       .sort(
         (a, b) =>
           b.score - a.score ||
+          b.taxaResposta - a.taxaResposta ||
           a.qtdFalhas - b.qtdFalhas ||
           a.nome.localeCompare(b.nome),
       );

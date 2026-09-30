@@ -58,6 +58,12 @@ import { BarChart } from "../../components/BarChart";
 import { useAuth } from "../../context/AuthContext";
 import { formatarNome } from "../../utils/formatarNome";
 import {
+  isTemaTreinamento,
+  lerTemasTreinamento,
+  normalizarTemasTreinamento,
+  prepararTemasTreinamento,
+} from "../../utils/temasTreinamento";
+import {
   MOTIVO_REDUCAO_SCORE_SUPORTE,
   VALOR_REDUCAO_SCORE_SUPORTE,
   DIAS_REDUCAO_SCORE_SUPORTE,
@@ -1278,6 +1284,8 @@ export function Historico() {
   }
 
   function abrirEdicao(o: Ocorrencia) {
+    const treinamento = lerTemasTreinamento(o.temaOcorrencia ?? [], o.isRevisao);
+    const temas = o.tipo === "Treinamento" ? treinamento.temas : o.temaOcorrencia ?? [];
     let dataFormatada = "";
     let hora = "";
 
@@ -1309,9 +1317,7 @@ export function Historico() {
       departamento: o.departamento ?? "",
       dataOcorrencia: dataFormatada,
       horaOcorrencia: hora,
-      temaOcorrencia: (o.temaOcorrencia ?? []).map((tema) =>
-        o.tipo === "Treinamento" ? tema.replace(/^Revisão de /, "") : tema,
-      ),
+      temaOcorrencia: temas,
       alerta: o.alerta ?? false,
       retirarAlerta: o.retirarAlerta ?? false,
       alertaResolvidoPorId: o.alertaResolvidoPorId || "",
@@ -1333,9 +1339,7 @@ export function Historico() {
       chamadoDescricao: o.chamadoDescricao ?? "",
       chamadoLink: o.chamadoLink ?? "",
     });
-    setTemaOcorrenciaOngoingText((o.temaOcorrencia ?? []).map((tema) =>
-      o.tipo === "Treinamento" ? tema.replace(/^Revisão de /, "") : tema,
-    ).join(", "));
+    setTemaOcorrenciaOngoingText(temas.join(", "));
     setBuscaAssunto("");
     setEditandoId(o.id ?? null);
     setCalculoScoreResult(null);
@@ -1343,12 +1347,8 @@ export function Historico() {
     setDuvidasTemasHistorico([]);
     setNovaDuvidaTemaHistorico("");
     setPainelAberto(true);
-    setIsRevisao(o.isRevisao ?? false);
-    setTemasRevisados(o.tipo === "Treinamento"
-      ? (o.temaOcorrencia ?? [])
-          .filter((tema) => tema.startsWith("Revisão de "))
-          .map((tema) => tema.replace(/^Revisão de /, ""))
-      : []);
+    setIsRevisao(o.tipo === "Treinamento" && treinamento.isRevisao);
+    setTemasRevisados(o.tipo === "Treinamento" ? treinamento.temasRevisados : []);
     setTemaForaEsteira(o.temaForaEsteira ?? false);
   }
 
@@ -1514,14 +1514,12 @@ export function Historico() {
     }
 
     // Marca individualmente os temas revisados, inclusive nas agendas mistas.
+    const treinamento = prepararTemasTreinamento(
+      form.temaOcorrencia ?? [], temasRevisados, isRevisao,
+    );
     const temaOcorrenciaFinal =
       form.tipo === "Treinamento"
-        ? (form.temaOcorrencia ?? []).map((t) =>
-            t.trim().toLowerCase() === "ausente" ||
-            t.trim().toLowerCase() === "cancelado"
-              ? t
-              : isRevisao || temasRevisados.includes(t) ? `Revisão de ${t}` : t,
-          )
+        ? treinamento.temaOcorrencia
         : (form.temaOcorrencia ?? []);
 
     let finalCreatedAt: number | undefined = undefined;
@@ -1566,8 +1564,7 @@ export function Historico() {
         : ocorrenciaOriginal?.scoreAnswers,
       temaOcorrencia: temaOcorrenciaFinal,
       isRevisao: form.tipo === "Treinamento"
-        ? isRevisao || (temaOcorrenciaFinal.length > 0 &&
-            temaOcorrenciaFinal.every((tema) => tema.startsWith("Revisão de ")))
+        ? treinamento.isRevisao
         : undefined,
       temaForaEsteira:
         form.tipo === "Treinamento" ? temaForaEsteira : undefined,
@@ -2318,18 +2315,13 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
     // Avança a esteira apenas pelos temas novos, excluindo os revisados.
     if (
       form.tipo === "Treinamento" &&
-      !isRevisao &&
+      treinamento.temasNovos.length > 0 &&
       !isSelectedEmpresaOngoing &&
       !temaForaEsteira &&
       !empresaInterna &&
       empresaObjeto
     ) {
-      const temasValidos = (form.temaOcorrencia ?? []).filter(
-        (t) =>
-          t.trim().toLowerCase() !== "ausente" &&
-          t.trim().toLowerCase() !== "cancelado" &&
-          !temasRevisados.includes(t),
-      );
+      const temasValidos = treinamento.temasNovos;
 
       if (temasValidos.length > 0) {
         const normTema = (s: string) =>
@@ -2457,24 +2449,11 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
     // Fluxo de Disparo do WhatsApp — só oferece o envio ao criar a ocorrência.
     // Em edições (ex.: apenas corrigir data/hora), não repete a oferta para não
     // sobrescrever o status de envio já registrado na criação original.
-    const temasValidos =
-      !editandoId &&
-      form.tipo === "Treinamento" &&
-      !isRevisao &&
-      empresaObjeto &&
-      !empresaInterna
-        ? (form.temaOcorrencia ?? []).filter(
-            (t) =>
-              t.trim().toLowerCase() !== "ausente" &&
-              t.trim().toLowerCase() !== "cancelado" &&
-              !temasRevisados.includes(t),
-          )
-        : [];
+    const temasValidos = treinamento.temasNovos;
 
     if (
       !editandoId &&
       form.tipo === "Treinamento" &&
-      !isRevisao &&
       !temaForaEsteira &&
       empresaObjeto &&
       !empresaObjeto.isOngoing &&
@@ -4857,6 +4836,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       checked={isRevisao}
                       onChange={(e) => {
                         setIsRevisao(e.target.checked);
+                        // Desmarcar a revisão total também limpa as marcações
+                        // individuais recuperadas ao abrir uma ocorrência.
+                        if (!e.target.checked) setTemasRevisados([]);
                       }}
                       style={{ cursor: "pointer" }}
                     />
@@ -4924,12 +4906,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       setTemaOcorrenciaOngoingText(val);
                       setForm((f) => ({
                         ...f,
-                        temaOcorrencia: val
-                          ? val
-                              .split(",")
-                              .map((t) => t.trim())
-                              .filter(Boolean)
-                          : [],
+                        temaOcorrencia: normalizarTemasTreinamento(val.split(",")),
                       }));
                     }}
                     placeholder="Digite os temas separados por vírgula..."
@@ -4950,7 +4927,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                           .filter((_, index) => datasAplicacao[index]?.trim())
                           .map((tema) => normalizar(tema)),
                       );
-                      const opcoes = [
+                      const opcoes = normalizarTemasTreinamento([
                         "Ausente",
                         "Cancelado",
                         ...(empresaSelecionada?.temaText
@@ -4959,7 +4936,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                               .split(/\s{2,}|\n/)
                               .filter(Boolean)
                           : []),
-                      ];
+                        // Mantém editáveis temas antigos que saíram da esteira.
+                        ...(form.temaOcorrencia ?? []),
+                      ]);
 
                       return opcoes.map((tema) => (
                         <label key={tema} className="tema-opcao">
@@ -4979,7 +4958,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                                 setTemasRevisados((temas) => [...new Set([...temas, tema])]);
                               }
                               const novoTema = e.target.checked
-                                ? [...atual, tema]
+                                ? normalizarTemasTreinamento([...atual, tema])
                                 : atual.filter((t) => t !== tema);
                               setForm({
                                 ...form,
@@ -5011,7 +4990,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             )}
 
             {form.tipo === "Treinamento" && !isSelectedEmpresaOngoing &&
-              !temaForaEsteira && !isRevisao && (form.temaOcorrencia ?? []).some(
+              !temaForaEsteira && (form.temaOcorrencia ?? []).some(
                 (tema) => !["ausente", "cancelado"].includes(tema.trim().toLowerCase()),
               ) && (
                 <div className="hist-campo">
@@ -5023,10 +5002,16 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       <label key={tema} className="tema-opcao">
                         <input
                           type="checkbox"
-                          checked={temasRevisados.includes(tema)}
-                          onChange={(e) => setTemasRevisados((atual) =>
-                            e.target.checked ? [...atual, tema] : atual.filter((t) => t !== tema),
-                          )}
+                          checked={isRevisao || temasRevisados.includes(tema)}
+                          onChange={(e) => {
+                            const atual = isRevisao
+                              ? (form.temaOcorrencia ?? []).filter(isTemaTreinamento)
+                              : temasRevisados;
+                            setIsRevisao(false);
+                            setTemasRevisados(e.target.checked
+                              ? normalizarTemasTreinamento([...atual, tema])
+                              : atual.filter((t) => t !== tema));
+                          }}
                         />
                         Revisão de {tema}
                       </label>

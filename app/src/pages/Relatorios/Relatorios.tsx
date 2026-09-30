@@ -37,6 +37,7 @@ import {
 } from "../../utils/monitoramento";
 import type { Empresa, Ocorrencia } from "../../types";
 import { formatarNome } from "../../utils/formatarNome";
+import { estaDentroDoExpediente } from "../../utils/expediente";
 import { obterInfoTipoOcorrencia } from "../../utils/empresaUtils";
 import "./Relatorios.css";
 import { RelatorioScore } from "../RelatorioScore/RelatorioScore";
@@ -139,6 +140,7 @@ export const Relatorios: React.FC = () => {
     solicitacoes: true,
   });
   const [clienteFiltroGrafico, setClienteFiltroGrafico] = useState<string>("");
+  const [expedienteFiltroGrafico, setExpedienteFiltroGrafico] = useState<"ambos" | "dentro" | "fora">("ambos");
   // Switch (desativado por padrão): quando ativo, cada tipo (Dúvidas/Problemas/Solicitações)
   // ganha uma segunda linha com os mesmos totais registrados pelo Treinamento, para comparar.
   const [compararTreinamento, setCompararTreinamento] = useState<boolean>(false);
@@ -916,6 +918,10 @@ export const Relatorios: React.FC = () => {
       if (!eDuvida && !eProblema && !eSolicitacao) return;
 
       const t = o.dataOcorrencia || o.createdAt || 0;
+      if (
+        expedienteFiltroGrafico !== "ambos" &&
+        estaDentroDoExpediente(t) !== (expedienteFiltroGrafico === "dentro")
+      ) return;
       const idx = periodos.findIndex((p) => t >= p.inicio.getTime() && t <= p.fim.getTime());
       if (idx === -1) return;
 
@@ -940,7 +946,7 @@ export const Relatorios: React.FC = () => {
       solicitacoesSuporte,
       solicitacoesTreinamento,
     };
-  }, [ocorrencias, dadosEmpresas, limitesSemana, granularidadeGrafico, numSemanasGrafico, numDiasGrafico, clienteFiltroGrafico]);
+  }, [ocorrencias, dadosEmpresas, limitesSemana, granularidadeGrafico, numSemanasGrafico, numDiasGrafico, clienteFiltroGrafico, expedienteFiltroGrafico]);
 
   const seriesGraficoSuporte = useMemo(() => {
     const todas = [
@@ -1005,9 +1011,12 @@ export const Relatorios: React.FC = () => {
     const listaTipos =
       nomes.length <= 1 ? nomes.join("") : `${nomes.slice(0, -1).join(", ")} e ${nomes[nomes.length - 1]}`;
     const sufixoComparacao = compararTreinamento ? " — Suporte vs. Treinamento" : "";
-    const base = `Evolução ${granularidadeGrafico === "dia" ? "diária" : "semanal"} de ${listaTipos}${sufixoComparacao}`;
+    const sufixoExpediente = expedienteFiltroGrafico === "ambos"
+      ? ""
+      : expedienteFiltroGrafico === "dentro" ? " — Dentro do expediente" : " — Fora do expediente";
+    const base = `Evolução ${granularidadeGrafico === "dia" ? "diária" : "semanal"} de ${listaTipos}${sufixoComparacao}${sufixoExpediente}`;
     return clienteFiltroGrafico ? `${base} — ${clienteFiltroGrafico}` : base;
-  }, [tiposVisiveisGrafico, compararTreinamento, granularidadeGrafico, clienteFiltroGrafico]);
+  }, [tiposVisiveisGrafico, compararTreinamento, granularidadeGrafico, clienteFiltroGrafico, expedienteFiltroGrafico]);
 
   // Lista de clientes com contato de suporte ou treinamento registrado (para o filtro do gráfico)
   const clientesComContatoSuporte = useMemo(() => {
@@ -1517,6 +1526,17 @@ ${riscoChurn.length > 0
                       <option value={90}>Últimos 90 dias</option>
                     </select>
                   )}
+                  <label htmlFor="expediente-filtro-grafico">Expediente:</label>
+                  <select
+                    id="expediente-filtro-grafico"
+                    value={expedienteFiltroGrafico}
+                    onChange={(e) => setExpedienteFiltroGrafico(e.target.value as "ambos" | "dentro" | "fora")}
+                    title="Expediente: segunda a sexta, das 09h às 18h"
+                  >
+                    <option value="ambos">Ambos</option>
+                    <option value="dentro">Dentro do expediente</option>
+                    <option value="fora">Fora do expediente</option>
+                  </select>
                   <label htmlFor="cliente-filtro-grafico">Cliente:</label>
                   <input
                     id="cliente-filtro-grafico"

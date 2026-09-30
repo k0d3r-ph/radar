@@ -49,7 +49,8 @@ import {
 import {
   analisarTelefoneWhatsApp,
   formatarTelefoneExibicao,
-  normalizarTelefoneWhatsApp,
+  normalizarContatoCliente,
+  obterTelefonesContato,
 } from "../../utils/telefone";
 import { listarUsuarios } from "../../services/auth";
 import { toast } from "sonner";
@@ -412,7 +413,7 @@ export default function Home() {
         ? [{ nome: empresa.contato || "", telefone: empresa.telefone || "" }]
         : empresa.contatos || [];
 
-    setClienteForm({ ...empresa, contatos: contatosMigrados });
+    setClienteForm({ ...empresa, contatos: contatosMigrados.map(normalizarContatoCliente) });
 
     setEditandoClienteId(empresa.id || null);
 
@@ -473,15 +474,17 @@ export default function Home() {
 
     const antigoNome = empresaExistente?.nomeEmpresa || null;
 
-    // Grava o telefone já normalizado (com DDI 55), para que o dado salvo seja
-    // idêntico ao que será usado no disparo. Números inválidos são mantidos como
-    // digitados, preservando o que o usuário escreveu para posterior correção.
+    const contatoInvalido = (clienteForm.contatos || []).find((c) =>
+      obterTelefonesContato(c).some((telefone) => !analisarTelefoneWhatsApp(telefone).valido),
+    );
+    if (contatoInvalido) {
+      toast.error(`Corrija os telefones de ${contatoInvalido.nome || "contato sem nome"} antes de salvar.`);
+      return;
+    }
+
     const contatosValidos = (clienteForm.contatos || [])
-      .filter((c) => c.nome.trim() || c.telefone.trim())
-      .map((c) => ({
-        ...c,
-        telefone: normalizarTelefoneWhatsApp(c.telefone) || c.telefone.trim(),
-      }));
+      .filter((c) => c.nome.trim() || obterTelefonesContato(c).length > 0)
+      .map(normalizarContatoCliente);
 
     const emailsValidos = (clienteForm.emails || [])
       .map((e) => e.trim())
@@ -2709,7 +2712,7 @@ export default function Home() {
                     return contatos
                       .map(
                         (c) =>
-                          `${c.nome || "-"}${c.telefone ? ` (${c.telefone})` : ""}`,
+                          `${c.nome || "-"}${obterTelefonesContato(c).length ? ` (${obterTelefonesContato(c).join(", ")})` : ""}`,
                       )
                       .join(" | ");
                   })()}
@@ -3222,10 +3225,15 @@ export default function Home() {
 
               <div className="contatos-lista">
                 {(clienteForm.contatos || []).map((c, idx) => {
-                  const telefonePreenchido = c.telefone.trim().length > 0;
-                  const { valido, erro } = telefonePreenchido
-                    ? analisarTelefoneWhatsApp(c.telefone)
-                    : { valido: false, erro: "" };
+                  const telefones = c.telefones?.length ? c.telefones : [c.telefone || ""];
+                  const atualizarTelefones = (numeros: string[]) => {
+                    setClienteForm((atual) => ({
+                      ...atual,
+                      contatos: (atual.contatos || []).map((contato, i) => i === idx
+                        ? { ...contato, telefone: numeros[0] || "", telefones: numeros }
+                        : contato),
+                    }));
+                  };
 
                   return (
                     <div key={idx} className="contato-item">
@@ -3249,31 +3257,43 @@ export default function Home() {
                       </div>
 
                       <div className="contato-campo">
-                        <label>Telefone</label>
-                        <input
-                          placeholder="Ex: (11) 99999-9999"
-                          value={c.telefone}
-                          onChange={(e) => {
-                            const novaLista = [...(clienteForm.contatos || [])];
-                            novaLista[idx] = {
-                              ...novaLista[idx],
-                              telefone: e.target.value,
-                            };
-                            setClienteForm({
-                              ...clienteForm,
-                              contatos: novaLista,
-                            });
-                          }}
-                        />
-                        <span
-                          className={`contato-feedback ${telefonePreenchido ? (valido ? "valido" : "invalido") : ""}`}
-                        >
-                          {telefonePreenchido
-                            ? valido
-                              ? `Será enviado para ${formatarTelefoneExibicao(c.telefone)}`
-                              : erro
-                            : ""}
-                        </span>
+                        {telefones.map((telefone, numeroIdx) => {
+                          const preenchido = telefone.trim().length > 0;
+                          const { valido, erro } = analisarTelefoneWhatsApp(telefone);
+                          const inputId = `contato-${idx}-telefone-${numeroIdx}`;
+                          return (
+                            <div key={numeroIdx} className="contato-campo">
+                              <label htmlFor={inputId}>Telefone {numeroIdx + 1}</label>
+                              <div className="contato-telefone-linha">
+                                <input
+                                  id={inputId}
+                                  type="tel"
+                                  placeholder="Ex: (11) 99999-9999"
+                                  value={telefone}
+                                  aria-invalid={preenchido && !valido}
+                                  onChange={(e) => atualizarTelefones(telefones.map((numero, i) =>
+                                    i === numeroIdx ? e.target.value : numero,
+                                  ))}
+                                />
+                                {telefones.length > 1 && (
+                                  <button type="button" className="contato-remover"
+                                    aria-label={`Remover telefone ${numeroIdx + 1} de ${c.nome || "contato"}`}
+                                    onClick={() => atualizarTelefones(telefones.filter((_, i) => i !== numeroIdx))}>
+                                    ×
+                                  </button>
+                                )}
+                              </div>
+                              <span className={`contato-feedback ${preenchido ? (valido ? "valido" : "invalido") : ""}`}>
+                                {preenchido ? valido ? `Será enviado para ${formatarTelefoneExibicao(telefone)}` : erro : ""}
+                              </span>
+                            </div>
+                          );
+                        })}
+                        <button type="button" className="btn-add-contato"
+                          onClick={() => atualizarTelefones([...telefones, ""])}>
+                          + Adicionar número
+                        </button>
+                        <span className="contato-feedback">Você poderá escolher quais números receberão a mensagem na confirmação do envio.</span>
                       </div>
 
                       <button

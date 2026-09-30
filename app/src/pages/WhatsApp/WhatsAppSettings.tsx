@@ -21,7 +21,7 @@ import {
   type WhatsAppSessionState
 } from "../../services/whatsapp";
 import { listarEmpresas, salvarEmpresas } from "../../services/empresas";
-import { normalizarTelefoneWhatsApp } from "../../utils/telefone";
+import { normalizarTelefoneWhatsApp, normalizarContatoCliente } from "../../utils/telefone";
 import { generateEsteiraImage } from "../../utils/generateEsteiraImage";
 import type { Empresa } from "../../types";
 import "./WhatsAppSettings.css";
@@ -145,14 +145,11 @@ export const WhatsAppSettings: React.FC = () => {
 
           // A lista de contatos é a fonte usada no disparo da esteira, então
           // precisa ser padronizada junto com o telefone principal.
-          const contatosPadrao = (emp.contatos || []).map((c) => ({
-            ...c,
-            telefone: normalizarTelefoneWhatsApp(c.telefone) || c.telefone,
-          }));
+          const contatosPadrao = (emp.contatos || []).map(normalizarContatoCliente);
 
           const telefoneMudou = emp.telefone !== telPadrao;
           const contatosMudaram = contatosPadrao.some(
-            (c, i) => c.telefone !== (emp.contatos || [])[i]?.telefone
+            (c, i) => JSON.stringify(c) !== JSON.stringify((emp.contatos || [])[i])
           );
 
           if (telefoneMudou || contatosMudaram) {

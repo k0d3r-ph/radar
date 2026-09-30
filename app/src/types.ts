@@ -19,7 +19,9 @@ export type ContadorPerdasScore = {
 
 export type ContatoCliente = {
   nome: string;
+  /** Primeiro número, mantido para compatibilidade com cadastros antigos. */
   telefone: string;
+  telefones?: string[];
 };
 
 export type WhatsappStatus =

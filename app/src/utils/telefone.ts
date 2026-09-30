@@ -8,7 +8,38 @@
  * esteira) deve usar estas funções, para que a regra não divirja entre telas.
  */
 
+import type { ContatoCliente, Empresa } from "../types";
+
 const DDI_BRASIL = "55";
+
+/** Recupera também números separados no antigo campo único, sem concatená-los. */
+export function obterTelefonesContato(contato: ContatoCliente): string[] {
+  const entradas = contato.telefones ?? [contato.telefone];
+  return entradas.flatMap((telefone) =>
+    telefone.split(/[,;|/\n\r]+|\s+e\s+/i).map((numero) => numero.trim()),
+  ).filter(Boolean);
+}
+
+export function normalizarContatoCliente(contato: ContatoCliente): ContatoCliente {
+  const telefones = [...new Set(obterTelefonesContato(contato).map((telefone) =>
+    normalizarTelefoneWhatsApp(telefone) || telefone,
+  ))];
+  return { ...contato, nome: contato.nome.trim(), telefone: telefones[0] || "", telefones };
+}
+
+/** Um destinatário por número, inclusive no reenvio, sem duplicar mensagens. */
+export function obterDestinatariosCliente(empresa: Pick<Empresa, "contatos" | "contato" | "telefone">) {
+  const contatos = empresa.contatos?.length
+    ? empresa.contatos
+    : [{ nome: empresa.contato || "", telefone: empresa.telefone || "" }];
+  const vistos = new Set<string>();
+  return contatos.flatMap((contato) => obterTelefonesContato(contato).flatMap((numero) => {
+    const telefone = normalizarTelefoneWhatsApp(numero);
+    if (!telefone || vistos.has(telefone)) return [];
+    vistos.add(telefone);
+    return [{ nome: contato.nome.trim() || "Cliente", telefone }];
+  }));
+}
 
 export type ResultadoTelefone = {
   /** Número pronto para o WhatsApp, apenas dígitos e com DDI (ex: 5511999999999). */
@@ -26,6 +57,10 @@ export type ResultadoTelefone = {
 export function analisarTelefoneWhatsApp(telefone?: string | null): ResultadoTelefone {
   if (!telefone || !telefone.trim()) {
     return { normalizado: "", valido: false, erro: "Telefone não informado." };
+  }
+
+  if (!/^[+\d\s().-]+$/.test(telefone)) {
+    return { normalizado: "", valido: false, erro: "Informe um número por campo. Use Adicionar número para incluir outro telefone." };
   }
 
   let digitos = telefone.replace(/\D/g, "");

@@ -247,36 +247,40 @@ export class WhatsAppWebClient implements IWhatsAppService {
     }
 
     try {
-      // Limpa e formata o telefone
-      let cleanNumber = to.replace(/\D/g, '');
+      // Cada chamada deve conter apenas um número, nunca uma lista concatenada.
+      if (!/^[+\d\s().-]+$/.test(to)) {
+        throw new Error('Informe apenas um telefone por envio, com DDD.');
+      }
+      let cleanNumber = to.replace(/\D/g, '').replace(/^0+/, '');
       if (cleanNumber.length === 10 || cleanNumber.length === 11) {
-        // Assume Brasil e adiciona DDI 55
         cleanNumber = '55' + cleanNumber;
       }
-      
-      let chatId = `${cleanNumber}@c.us`;
-      
-      // Tenta obter o ID correto registrado no WhatsApp (evita o erro "No LID for user").
-      // Timeout de 10s: em VMs com poucos recursos o getNumberId pode demorar muito;
-      // se exceder, usa o chatId padrão e tenta enviar mesmo assim.
-      try {
-        const resolveTimeout = new Promise<null>((resolve) =>
-          setTimeout(() => resolve(null), 10000)
-        );
-        const resolvedId = await Promise.race([
-          this.client.getNumberId(cleanNumber),
-          resolveTimeout,
-        ]);
-        if (resolvedId && resolvedId._serialized) {
-          chatId = resolvedId._serialized;
-          console.log(`Telefone resolvido via getNumberId: ${chatId}`);
-        } else {
-          console.log(`Número não encontrado/registrado via getNumberId: ${cleanNumber}. Tentando enviar para o chatId padrão.`);
-        }
-      } catch (err) {
-        console.warn(`Erro ao resolver getNumberId para ${cleanNumber}:`, err);
+      if (!/^55\d{10,11}$/.test(cleanNumber)) {
+        throw new Error('Número de WhatsApp inválido. Informe DDD e número.');
       }
-      
+
+      // Não inventa um chatId quando o número não existe ou a consulta falha.
+      // Usa o identificador retornado pelo WhatsApp, inclusive se ele normalizar
+      // a representação do telefone cadastrado.
+      let resolveTimer: ReturnType<typeof setTimeout> | undefined;
+      let resolvedId;
+      try {
+        resolvedId = await Promise.race([
+          this.client.getNumberId(cleanNumber),
+          new Promise<never>((_, reject) => {
+            resolveTimer = setTimeout(() => reject(new Error(
+              'Tempo limite ao verificar o número no WhatsApp. Tente novamente.',
+            )), 10000);
+          }),
+        ]);
+      } finally {
+        clearTimeout(resolveTimer);
+      }
+      if (!resolvedId?._serialized) {
+        throw new Error(`O número ${cleanNumber} não está cadastrado no WhatsApp. Confira o DDD e o número.`);
+      }
+      const chatId = resolvedId._serialized;
+
       console.log(`Enviando mensagem para: ${chatId}`);
 
       if (imageBase64) {
@@ -292,10 +296,12 @@ export class WhatsAppWebClient implements IWhatsAppService {
         }
 
         const media = new MessageMedia(mimeType, base64Data, filename || 'esteira.png');
-        await this.client.sendMessage(chatId, media, { caption: message });
+        const sent = await this.client.sendMessage(chatId, media, { caption: message });
+        if (!sent) throw new Error('O WhatsApp não confirmou o envio da imagem.');
         console.log('Mensagem com imagem enviada com sucesso!');
       } else {
-        await this.client.sendMessage(chatId, message);
+        const sent = await this.client.sendMessage(chatId, message);
+        if (!sent) throw new Error('O WhatsApp não confirmou o envio da mensagem.');
         console.log('Mensagem de texto enviada com sucesso!');
       }
 

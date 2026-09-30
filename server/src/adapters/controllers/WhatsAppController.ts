@@ -13,7 +13,7 @@ export class WhatsAppController {
   async send(req: Request, res: Response): Promise<void> {
     const { to, message, imageBase64, filename } = req.body;
 
-    if (!to || !message) {
+    if (typeof to !== 'string' || !to.trim() || typeof message !== 'string' || !message.trim()) {
       res.status(400).json({ success: false, error: 'Parâmetros "to" e "message" são obrigatórios.' });
       return;
     }
@@ -32,17 +32,18 @@ export class WhatsAppController {
       return;
     }
 
-    // Responde imediatamente — o envio pelo Puppeteer acontece em background.
-    // Isso evita que o frontend fique bloqueado aguardando o WhatsApp Web
-    // (getNumberId + sendMessage podem levar 10–30 s em VMs com poucos recursos).
-    res.status(202).json({ success: true, message: 'Envio iniciado.' });
-
-    this.sendMediaMessageUseCase
-      .execute({ to, message, imageBase64, filename })
-      .then(() => console.log(`[WhatsApp] Mensagem enviada com sucesso para ${to}.`))
-      .catch((err: any) =>
-        console.error(`[WhatsApp] Falha ao enviar mensagem para ${to}:`, err?.message || err)
-      );
+    // Só confirma após o WhatsApp Web concluir o envio. Aceitar a requisição
+    // não confirma envio nem entrega no aparelho do destinatário.
+    try {
+      const enviado = await this.sendMediaMessageUseCase.execute({ to, message, imageBase64, filename });
+      if (!enviado) throw new Error('O WhatsApp não confirmou o envio da mensagem.');
+      res.status(200).json({ success: true, message: 'Mensagem enviada.' });
+    } catch (error: unknown) {
+      res.status(502).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Falha ao enviar mensagem pelo WhatsApp.',
+      });
+    }
   }
 
   async status(req: Request, res: Response): Promise<void> {

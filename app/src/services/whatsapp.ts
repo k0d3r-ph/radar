@@ -7,7 +7,7 @@ export interface WhatsAppSessionState {
   };
 }
 
-const WHATSAPP_API_URL = import.meta.env.VITE_WHATSAPP_API_URL || 'http://localhost:5000';
+const WHATSAPP_API_URL = import.meta.env?.VITE_WHATSAPP_API_URL || 'http://localhost:5000';
 
 export async function obterStatusWhatsApp(): Promise<WhatsAppSessionState> {
   const response = await fetch(`${WHATSAPP_API_URL}/api/whatsapp/status`);
@@ -36,10 +36,8 @@ export interface EnviarMensagemWhatsAppParams {
 
 export async function enviarMensagemWhatsApp(params: EnviarMensagemWhatsAppParams): Promise<void> {
   const controller = new AbortController();
-  // Timeout de segurança: se o servidor não responder em 8s, aborta.
-  // (O backend agora responde imediatamente com 202, então na prática isso
-  //  só é acionado se a VM estiver fora do ar ou com rede travada.)
-  const timeoutId = setTimeout(() => controller.abort(), 8000);
+  // Inclui a resolução do número e o envio de mídia pelo WhatsApp Web.
+  const timeoutId = setTimeout(() => controller.abort(), 90000);
 
   try {
     const response = await fetch(`${WHATSAPP_API_URL}/api/whatsapp/send`, {
@@ -51,19 +49,20 @@ export async function enviarMensagemWhatsApp(params: EnviarMensagemWhatsAppParam
       signal: controller.signal,
     });
 
-    clearTimeout(timeoutId);
-
-    // 200 (legado) ou 202 Accepted (fire-and-forget) são ambos sucesso
-    if (response.status !== 200 && response.status !== 202) {
-      const data = await response.json().catch(() => ({}));
-      throw new Error((data as any).error || `Erro HTTP ${response.status}`);
+    const data = await response.json().catch(() => ({}));
+    if (response.status === 202) {
+      throw new Error('O servidor iniciou o envio, mas não confirmou o resultado. Verifique a conversa antes de reenviar e atualize o servidor WhatsApp.');
     }
-  } catch (err: any) {
-    clearTimeout(timeoutId);
-    if (err.name === 'AbortError') {
-      throw new Error('Tempo limite atingido ao contatar o servidor WhatsApp. Verifique se a VM está online.');
+    if (response.status !== 200 || data.success !== true) {
+      throw new Error(data.error || `Envio não confirmado (HTTP ${response.status}).`);
+    }
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error('O servidor não confirmou o envio no tempo limite. Verifique a conversa antes de reenviar, pois a mensagem ainda pode ser enviada.');
     }
     throw err;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 

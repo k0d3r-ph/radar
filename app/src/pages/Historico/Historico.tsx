@@ -13,7 +13,7 @@ import {
   isEmpresaInterna,
 } from "../../services/empresas";
 import {
-  normalizarTelefoneWhatsApp,
+  obterDestinatariosCliente,
   formatarTelefoneExibicao,
 } from "../../utils/telefone";
 import { listarUsuarios } from "../../services/auth";
@@ -777,6 +777,7 @@ export function Historico() {
   const [pendingWhatsAppMessage, setPendingWhatsAppMessage] = useState<{
     ocorrenciaId: string;
     destinatarios: { nome: string; telefone: string }[];
+    telefonesSelecionados: string[];
     empresaNome: string;
     temas: string[];
     dataStr: string;
@@ -785,6 +786,9 @@ export function Historico() {
   const [editedWhatsAppText, setEditedWhatsAppText] = useState("");
   const [sendConveyorImage, setSendConveyorImage] = useState(true);
   const [sendingWhatsApp, setSendingWhatsApp] = useState(false);
+  const destinatariosWhatsAppSelecionados = pendingWhatsAppMessage?.destinatarios.filter(
+    (d) => pendingWhatsAppMessage.telefonesSelecionados.includes(d.telefone),
+  ) ?? [];
 
   // Notificação de Gestão (Alerta -> Supervisor + CS Responsável) via WhatsApp
   const [gestaoConfirmModalOpen, setGestaoConfirmModalOpen] = useState(false);
@@ -1036,24 +1040,7 @@ export function Historico() {
     } else {
       // Ocorrência sem envio registrado (ex: usuário escolheu "Não enviar" na hora) —
       // busca os contatos do cliente novamente, do mesmo jeito que no envio original.
-      const contatosBase =
-        empresaObjeto.contatos && empresaObjeto.contatos.length > 0
-          ? empresaObjeto.contatos
-          : empresaObjeto.telefone || empresaObjeto.contato
-            ? [
-                {
-                  nome: empresaObjeto.contato || "",
-                  telefone: empresaObjeto.telefone || "",
-                },
-              ]
-            : [];
-
-      alvos = contatosBase
-        .map((c) => ({
-          nome: c.nome || "Cliente",
-          telefone: normalizarTelefoneWhatsApp(c.telefone),
-        }))
-        .filter((c): c is { nome: string; telefone: string } => !!c.telefone);
+      alvos = obterDestinatariosCliente(empresaObjeto);
     }
 
     if (alvos.length === 0) {
@@ -1083,7 +1070,12 @@ export function Historico() {
 
     setPendingWhatsAppMessage({
       ocorrenciaId: oc.id!,
-      destinatarios: alvos,
+      // Oferece também os demais números cadastrados, mesmo se o envio
+      // anterior tiver sido feito apenas para parte deles.
+      destinatarios: [...new Map(
+        [...alvos, ...obterDestinatariosCliente(empresaObjeto)].map((d) => [d.telefone, d]),
+      ).values()],
+      telefonesSelecionados: alvos.map((d) => d.telefone),
       empresaNome: empresaObjeto.nomeEmpresa,
       temas,
       dataStr: dataCompleta,
@@ -2467,24 +2459,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
     const temasValidos = treinamento.temaOcorrencia.filter(isTemaTreinamento);
 
     if (!editandoId && podeNotificarTreinamento(base)) {
-      const contatosBase =
-        empresaObjeto.contatos && empresaObjeto.contatos.length > 0
-          ? empresaObjeto.contatos
-          : empresaObjeto.telefone || empresaObjeto.contato
-            ? [
-                {
-                  nome: empresaObjeto.contato || "",
-                  telefone: empresaObjeto.telefone || "",
-                },
-              ]
-            : [];
-
-      const destinatarios = contatosBase
-        .map((c) => ({
-          nome: c.nome || "Cliente",
-          telefone: normalizarTelefoneWhatsApp(c.telefone),
-        }))
-        .filter((c) => c.telefone);
+      const destinatarios = obterDestinatariosCliente(empresaObjeto);
 
       if (destinatarios.length === 0) {
         toast.warning(
@@ -2596,6 +2571,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         setPendingWhatsAppMessage({
           ocorrenciaId: savedId,
           destinatarios,
+          telefonesSelecionados: destinatarios.map((d) => d.telefone),
           empresaNome: empresaObjeto.nomeEmpresa,
           temas: temasValidos,
           dataStr: dataCompleta,
@@ -5955,32 +5931,53 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 atualizado do progresso de onboarding dele?
               </p>
 
-              <div style={{ marginBottom: "16px" }}>
-                <label
-                  style={{
-                    display: "block",
-                    fontSize: "0.8rem",
-                    fontWeight: "600",
-                    marginBottom: "6px",
-                    color: "var(--text-color, #ffffff)",
-                  }}
-                >
-                  Destinatários (WhatsApp do cliente)
+              <fieldset className="whatsapp-destinatarios" disabled={sendingWhatsApp}>
+                <legend>Para quais números deseja enviar?</legend>
+                <label className="whatsapp-destinatario-opcao">
+                  <input
+                    type="checkbox"
+                    checked={destinatariosWhatsAppSelecionados.length === pendingWhatsAppMessage.destinatarios.length}
+                    onChange={(e) => {
+                      const selecionarTodos = e.target.checked;
+                      setPendingWhatsAppMessage((atual) => atual && ({
+                        ...atual,
+                        telefonesSelecionados: selecionarTodos ? atual.destinatarios.map((d) => d.telefone) : [],
+                      }));
+                    }}
+                  />
+                  <strong>Selecionar todos</strong>
                 </label>
-                <div
-                  style={{
-                    fontSize: "0.85rem",
-                    color: "var(--text-muted, #94a3b8)",
-                  }}
-                >
-                  {pendingWhatsAppMessage.destinatarios
-                    .map(
-                      (d) =>
-                        `${d.nome} (${formatarTelefoneExibicao(d.telefone) || d.telefone})`,
-                    )
-                    .join(", ")}
+                <div className="whatsapp-destinatarios-lista">
+                  {pendingWhatsAppMessage.destinatarios.map((d) => (
+                    <label key={d.telefone} className="whatsapp-destinatario-opcao">
+                      <input
+                        type="checkbox"
+                        checked={pendingWhatsAppMessage.telefonesSelecionados.includes(d.telefone)}
+                        onChange={(e) => {
+                          const selecionado = e.target.checked;
+                          setPendingWhatsAppMessage((atual) => atual && ({
+                            ...atual,
+                            telefonesSelecionados: selecionado
+                              ? [...new Set([...atual.telefonesSelecionados, d.telefone])]
+                              : atual.telefonesSelecionados.filter((telefone) => telefone !== d.telefone),
+                          }));
+                        }}
+                      />
+                      <span>
+                        <strong>{d.nome}</strong>
+                        <span className="whatsapp-destinatario-numero">
+                          {formatarTelefoneExibicao(d.telefone) || d.telefone}
+                        </span>
+                      </span>
+                    </label>
+                  ))}
                 </div>
-              </div>
+                <p aria-live="polite" className="whatsapp-destinatarios-resumo">
+                  {destinatariosWhatsAppSelecionados.length === 0
+                    ? "Selecione pelo menos um número para enviar."
+                    : `${destinatariosWhatsAppSelecionados.length} de ${pendingWhatsAppMessage.destinatarios.length} número(s) selecionado(s). Apenas os selecionados receberão a mensagem.`}
+                </p>
+              </fieldset>
 
               <div style={{ marginBottom: "16px" }}>
                 <label
@@ -5997,6 +5994,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 <textarea
                   rows={6}
                   value={editedWhatsAppText}
+                  disabled={sendingWhatsApp}
                   onChange={(e) => setEditedWhatsAppText(e.target.value)}
                   className="whatsapp-textarea"
                   style={{
@@ -6033,7 +6031,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 </p>
               </div>
 
-              {pendingWhatsAppMessage.destinatarios.length > 1 &&
+              {destinatariosWhatsAppSelecionados.length > 0 &&
                 editedWhatsAppText.toLowerCase().includes(PLACEHOLDER_NOME) && (
                   <div style={{ marginBottom: "16px" }}>
                     <label
@@ -6045,8 +6043,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                         color: "var(--text-color, #ffffff)",
                       }}
                     >
-                      Preview — serão enviadas{" "}
-                      {pendingWhatsAppMessage.destinatarios.length} mensagens
+                      Prévia — {destinatariosWhatsAppSelecionados.length} mensagem(ns)
                     </label>
                     <div
                       style={{
@@ -6055,7 +6052,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                         gap: "8px",
                       }}
                     >
-                      {pendingWhatsAppMessage.destinatarios.map((d, idx) => (
+                      {destinatariosWhatsAppSelecionados.map((d, idx) => (
                         <div
                           key={`${d.telefone}-${idx}`}
                           style={{
@@ -6076,7 +6073,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                               marginBottom: "4px",
                             }}
                           >
-                            {d.nome}
+                            {d.nome} · {formatarTelefoneExibicao(d.telefone) || d.telefone}
                           </div>
                           <div
                             style={{
@@ -6117,6 +6114,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   <input
                     type="checkbox"
                     checked={sendConveyorImage}
+                    disabled={sendingWhatsApp}
                     onChange={(e) => setSendConveyorImage(e.target.checked)}
                     className="whatsapp-checkbox"
                   />
@@ -6170,9 +6168,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               <button
                 type="button"
                 className="btn-primary"
-                disabled={sendingWhatsApp}
+                disabled={sendingWhatsApp || destinatariosWhatsAppSelecionados.length === 0}
                 style={{ display: "flex", alignItems: "center", gap: "6px" }}
                 onClick={async () => {
+                  if (sendingWhatsApp || destinatariosWhatsAppSelecionados.length === 0) return;
                   setSendingWhatsApp(true);
                   try {
                     let imageBase64: string | undefined = undefined;
@@ -6187,7 +6186,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
                     toast.info("Disparando mensagem para o WhatsApp...");
                     const resultados = await Promise.allSettled(
-                      pendingWhatsAppMessage.destinatarios.map((d) =>
+                      destinatariosWhatsAppSelecionados.map((d) =>
                         enviarMensagemWhatsApp({
                           to: d.telefone,
                           message: aplicarNomeDestinatario(
@@ -6201,7 +6200,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                     );
 
                     const whatsappDestinatarios =
-                      pendingWhatsAppMessage.destinatarios.map((d, idx) => {
+                      destinatariosWhatsAppSelecionados.map((d, idx) => {
                         const r = resultados[idx];
                         return r.status === "fulfilled"
                           ? {
@@ -6281,7 +6280,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   }
                 }}
               >
-                {sendingWhatsApp ? "Enviando..." : "Sim, enviar"}
+                {sendingWhatsApp ? "Enviando..." : `Enviar para ${destinatariosWhatsAppSelecionados.length} número(s)`}
               </button>
             </div>
           </div>

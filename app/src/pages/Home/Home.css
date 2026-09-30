@@ -689,6 +689,22 @@
   min-width: 0;
 }
 
+.contato-telefone-linha {
+  display: flex;
+  align-items: start;
+  gap: 0.4rem;
+}
+
+.contato-telefone-linha input {
+  min-width: 0;
+  flex: 1;
+}
+
+.cliente-modal .contato-telefone-linha .contato-remover {
+  margin-top: 0;
+  width: 2.75rem;
+}
+
 /* Altura fixa para que os inputs das duas colunas comecem na mesma linha
    e o botão de remover possa ser deslocado pelo mesmo valor. */
 .contato-campo label {

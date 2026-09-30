@@ -59,6 +59,7 @@ import { useAuth } from "../../context/AuthContext";
 import { formatarNome } from "../../utils/formatarNome";
 import {
   isTemaTreinamento,
+  isTreinamentoRealizado,
   lerTemasTreinamento,
   normalizarTemasTreinamento,
   prepararTemasTreinamento,
@@ -996,6 +997,14 @@ export function Historico() {
     setGestaoConfirmModalOpen(true);
   }
 
+  function podeNotificarTreinamento(oc: Ocorrencia) {
+    const empresa = empresasList.find(
+      (e) => normalizar(e.nomeEmpresa) === normalizar(oc.empresa),
+    );
+    return isTreinamentoRealizado(oc) && !oc.temaForaEsteira &&
+      !!empresa && !empresa.isOngoing && !isEmpresaInterna(empresa);
+  }
+
   /**
    * Abre o whatsappConfirmModalOpen para retentar o envio da notificação de Esteira
    * (Treinamento) para o cliente.
@@ -1410,6 +1419,10 @@ export function Historico() {
     );
 
     if (form.tipo === "Treinamento") {
+      if (normalizarTemasTreinamento(form.temaOcorrencia ?? []).length === 0) {
+        toast.error("Selecione ao menos um tema de treinamento.");
+        return;
+      }
       if (!form.treinamentoDataSolicitacao) {
         toast.error("Preencha a data de solicitação.");
         return;
@@ -2449,17 +2462,11 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
     // Fluxo de Disparo do WhatsApp — só oferece o envio ao criar a ocorrência.
     // Em edições (ex.: apenas corrigir data/hora), não repete a oferta para não
     // sobrescrever o status de envio já registrado na criação original.
-    const temasValidos = treinamento.temasNovos;
+    // A notificação inclui todos os temas realizados; apenas os novos avançam
+    // a esteira. Usa a mesma regra do botão de envio nos detalhes da ocorrência.
+    const temasValidos = treinamento.temaOcorrencia.filter(isTemaTreinamento);
 
-    if (
-      !editandoId &&
-      form.tipo === "Treinamento" &&
-      !temaForaEsteira &&
-      empresaObjeto &&
-      !empresaObjeto.isOngoing &&
-      !empresaInterna &&
-      temasValidos.length > 0
-    ) {
+    if (!editandoId && podeNotificarTreinamento(base)) {
       const contatosBase =
         empresaObjeto.contatos && empresaObjeto.contatos.length > 0
           ? empresaObjeto.contatos
@@ -2533,7 +2540,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
           dataStr = `${d}/${m}`;
         }
 
-        const temasValidosNorm = temasValidos.map(normTema);
+        const temasValidosNorm = treinamento.temasNovos.map(normTema);
         const indicesEnsinados: number[] = [];
         linhasTema.forEach((tema, idx) => {
           if (temasValidosNorm.includes(normTema(tema))) {
@@ -4209,12 +4216,13 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
               {/* Bloco de status WhatsApp — para qualquer ocorrência com envio registrado,
                   ou que dispare notificação de gestão (alerta/suspensão, retirada do
-                  alerta/retorno à esteira) mesmo que o envio nunca tenha sido registrado. */}
+                  alerta/retorno à esteira) ou treinamento realizado, mesmo sem envio registrado. */}
               {(selecionada.whatsappStatus ||
                 selecionada.alerta ||
                 selecionada.suspenderCliente ||
                 selecionada.retirarAlerta ||
-                selecionada.retornarEsteira) && (
+                selecionada.retornarEsteira ||
+                podeNotificarTreinamento(selecionada)) && (
                 <div
                   style={{
                     marginTop: "16px",
@@ -4806,7 +4814,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
             {form.tipo === "Treinamento" && (
               <div className="hist-campo">
-                <label>Temas abordados</label>
+                <label>Temas abordados (obrigatório)</label>
 
                 {/* Toggle de revisão */}
                 {!isSelectedEmpresaOngoing && !temaForaEsteira && (

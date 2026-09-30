@@ -14,6 +14,16 @@ export function isTemaTreinamento(tema: string): boolean {
   );
 }
 
+/** Revisões também são treinamentos realizados, mesmo sem avançar a esteira. */
+export function isTreinamentoRealizado(ocorrencia: {
+  tipo: string;
+  temaOcorrencia?: string[];
+}): boolean {
+  const temas = normalizarTemasTreinamento(ocorrencia.temaOcorrencia ?? []);
+  return ocorrencia.tipo === "Treinamento" &&
+    temas.length > 0 && temas.every(isTemaTreinamento);
+}
+
 /** Recupera também registros antigos com prefixos repetidos e tags duplicadas. */
 export function lerTemasTreinamento(temas: string[], revisaoLegada = false) {
   const selecionados = normalizarTemasTreinamento(temas);

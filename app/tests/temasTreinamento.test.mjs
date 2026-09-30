@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  isTreinamentoRealizado,
   lerTemasTreinamento,
   prepararTemasTreinamento,
 } from "../src/utils/temasTreinamento.ts";
@@ -41,19 +42,22 @@ test("remover um tema não o recupera a partir das revisões antigas", () => {
   assert.deepEqual(salvo.temaOcorrencia, [`Revisão de ${cadastro}`]);
 });
 
-test("revisão parcial oferece temas novos para avanço e envio da esteira", () => {
+test("revisão parcial avança apenas temas novos e permite notificar o treinamento completo", () => {
   const salvo = prepararTemasTreinamento([cadastro, operacional], [cadastro]);
   assert.deepEqual(salvo.temasNovos, [operacional]);
   assert.equal(salvo.isRevisao, false);
+  assert.equal(isTreinamentoRealizado({ tipo: "Treinamento", ...salvo }), true);
+  assert.deepEqual(salvo.temaOcorrencia, [`Revisão de ${cadastro}`, operacional]);
 });
 
-test("revisão total individual ou geral não fornece temas para avanço/envio", () => {
+test("revisão total permite notificar sem fornecer temas para avanço", () => {
   for (const salvo of [
     prepararTemasTreinamento([cadastro, operacional], [cadastro, operacional]),
     prepararTemasTreinamento([cadastro, operacional], [], true),
   ]) {
     assert.deepEqual(salvo.temasNovos, []);
     assert.equal(salvo.isRevisao, true);
+    assert.equal(isTreinamentoRealizado({ tipo: "Treinamento", ...salvo }), true);
   }
 });
 
@@ -86,7 +90,24 @@ test("ausência, cancelamento e seleção vazia não disparam avanço/envio", ()
     assert.deepEqual(salvo.temasNovos, []);
     assert.equal(salvo.isRevisao, false);
     assert.ok(salvo.temaOcorrencia.every(t => !t.startsWith("Revisão de ")));
+    assert.equal(isTreinamentoRealizado({ tipo: "Treinamento", ...salvo }), false);
   }
+});
+
+test("treinamento realizado permite primeiro envio mesmo sem status de WhatsApp", () => {
+  for (const temaOcorrencia of [[operacional], [`Revisão de ${operacional}`]]) {
+    assert.equal(isTreinamentoRealizado({ tipo: "Treinamento", temaOcorrencia }), true);
+  }
+});
+
+test("cancelamento e ausência impedem notificar como realizado mesmo com temas selecionados", () => {
+  for (const status of ["Ausente", " Cancelado ", "AUSENTE"]) {
+    assert.equal(isTreinamentoRealizado({
+      tipo: "Treinamento", temaOcorrencia: [operacional, status],
+    }), false);
+  }
+  assert.equal(isTreinamentoRealizado({ tipo: "Treinamento" }), false);
+  assert.equal(isTreinamentoRealizado({ tipo: "Dúvida", temaOcorrencia: [operacional] }), false);
 });
 
 test("revisões removidas ou repetidas não alteram a classificação dos temas novos", () => {

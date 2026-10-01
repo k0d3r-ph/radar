@@ -85,6 +85,7 @@ test('envio de imagem preserva legenda e usa ID resolvido', async () => {
     assert.equal(media.mimetype, 'image/png');
     assert.equal(media.data, 'YWJj');
     assert.equal(options.caption, 'Olá Márcio');
+    assert.equal(options.waitUntilMsgSent, true);
     return { id: 'message-id' };
   });
   assert.equal(await service.sendMessage('558681020204', 'Olá Márcio', 'data:image/png;base64,YWJj'), true);
@@ -93,4 +94,23 @@ test('envio de imagem preserva legenda e usa ID resolvido', async () => {
 test('retorno vazio do envio não vira sucesso', async () => {
   const service = client(async () => ({ _serialized: 'resolvido@c.us' }), async () => undefined);
   await assert.rejects(service.sendMessage('558681020204', 'Teste'), /não confirmou/);
+});
+
+test('falha ao concluir envio de mídia chega à API sem confirmar sucesso', async () => {
+  let falhar;
+  const service = client(async () => ({ _serialized: 'resolvido@c.us' }), async (_id, _media, options) => {
+    assert.equal(options.waitUntilMsgSent, true);
+    return new Promise((_resolve, reject) => { falhar = reject; });
+  });
+  const res = response();
+  const envio = controller(() => service.sendMessage(
+    request.body.to, request.body.message, 'data:image/png;base64,YWJj',
+  )).send(request, res);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(res.code, undefined);
+  falhar(new Error('Falha no upload da imagem'));
+  await envio;
+  assert.equal(res.code, 502);
+  assert.equal(res.body.success, false);
+  assert.equal(res.body.error, 'Falha no upload da imagem');
 });

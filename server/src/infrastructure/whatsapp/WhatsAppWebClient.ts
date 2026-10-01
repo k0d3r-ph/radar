@@ -296,11 +296,14 @@ export class WhatsAppWebClient implements IWhatsAppService {
         }
 
         const media = new MessageMedia(mimeType, base64Data, filename || 'esteira.png');
-        const sent = await this.client.sendMessage(chatId, media, { caption: message });
+        const sent = await this.client.sendMessage(chatId, media, {
+          caption: message,
+          waitUntilMsgSent: true,
+        });
         if (!sent) throw new Error('O WhatsApp não confirmou o envio da imagem.');
         console.log('Mensagem com imagem enviada com sucesso!');
       } else {
-        const sent = await this.client.sendMessage(chatId, message);
+        const sent = await this.client.sendMessage(chatId, message, { waitUntilMsgSent: true });
         if (!sent) throw new Error('O WhatsApp não confirmou o envio da mensagem.');
         console.log('Mensagem de texto enviada com sucesso!');
       }

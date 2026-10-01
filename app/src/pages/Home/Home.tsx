@@ -27,6 +27,7 @@ import {
   calcularTME,
   calcularTotalFases,
   obterUltimoTreinamento,
+  obterProximoCheckpoint,
 } from "../../utils/monitoramento";
 import type { Empresa, Ocorrencia } from "../../types";
 import { useAuth } from "../../context/AuthContext";
@@ -290,6 +291,34 @@ export default function Home() {
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
 
   const [historico, setHistorico] = useState<Ocorrencia[]>([]);
+  const [agora, setAgora] = useState(Date.now);
+
+  // Recalcula no horário do próximo checkpoint, inclusive com a Home aberta.
+  // Ao retornar à aba, atualiza também se o navegador suspendeu o temporizador.
+  useEffect(() => {
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const atualizarRelogio = () => {
+      clearTimeout(timeout);
+      const instante = Date.now();
+      setAgora(instante);
+      const proximoCheckpoint = obterProximoCheckpoint(historico, instante);
+      if (proximoCheckpoint) {
+        timeout = setTimeout(
+          atualizarRelogio,
+          Math.min(proximoCheckpoint.dataOcorrencia - instante, 2_147_483_647),
+        );
+      }
+    };
+
+    atualizarRelogio();
+    window.addEventListener("focus", atualizarRelogio);
+    document.addEventListener("visibilitychange", atualizarRelogio);
+    return () => {
+      clearTimeout(timeout);
+      window.removeEventListener("focus", atualizarRelogio);
+      document.removeEventListener("visibilitychange", atualizarRelogio);
+    };
+  }, [historico]);
 
   const historicoComIds = useMemo(
     () => atribuirIdsOcorrencias(historico, empresas),
@@ -850,6 +879,10 @@ export default function Home() {
     return empresas
       .filter((empresa) => !isEmpresaInterna(empresa))
       .map((empresa) => {
+        const historicoEmpresa = historico.filter(
+          (o) => o.empresa.trim().toLowerCase() === empresa.nomeEmpresa.trim().toLowerCase(),
+        );
+        const checkpointAtivo = obterProximoCheckpoint(historicoEmpresa, agora);
         const ultimoTreinamento = obterUltimoTreinamento(
           historico,
           empresa.nomeEmpresa,
@@ -871,11 +904,8 @@ export default function Home() {
         // Ordena por `createdAt` (momento em que foi registrada) e não por `dataOcorrencia`
         // (data agendada), pois a data agendada do alerta original pode ser futura e fazer
         // com que ele apareça como mais recente do que a resolução.
-        const ocsAlertaEmpresa = historico.filter(
-          (o) =>
-            o.empresa.trim().toLowerCase() ===
-            empresa.nomeEmpresa.trim().toLowerCase() &&
-            (o.alerta === true || o.retirarAlerta === true),
+        const ocsAlertaEmpresa = historicoEmpresa.filter(
+          (o) => o.alerta === true || o.retirarAlerta === true,
         );
 
         // Última ocorrência de alerta (por createdAt)
@@ -915,6 +945,8 @@ export default function Home() {
           alerta: temAlerta,
           dataFinalizacao: empresa.dataFinalizacao,
           dataFollowUpFinal: empresa.dataFollowUpFinal,
+          dataCheckpoint: checkpointAtivo?.dataOcorrencia,
+          agora,
         });
 
         return {
@@ -936,7 +968,7 @@ export default function Home() {
           ),
         };
       });
-  }, [empresas, historico]);
+  }, [empresas, historico, agora]);
 
   type LinhaEsteira = (typeof dados)[number];
 
@@ -1091,8 +1123,8 @@ export default function Home() {
         if (prim !== 0) return prim;
         if (sec !== 0) return sec;
 
-        const ordem = { vermelho: 0, amarelo: 1, verde: 2, none: 3 };
-        const farolDiff = (ordem[a.farol] ?? 3) - (ordem[b.farol] ?? 3);
+        const ordem = { vermelho: 0, amarelo: 1, laranja: 2, verde: 3, none: 4 };
+        const farolDiff = (ordem[a.farol] ?? 4) - (ordem[b.farol] ?? 4);
         if (farolDiff !== 0) return farolDiff;
         return a.nomeEmpresa.localeCompare(b.nomeEmpresa, "pt-BR");
       });
@@ -1279,6 +1311,7 @@ export default function Home() {
   const LABEL_FAROL: Record<string, string> = {
     verde: "Verde",
     amarelo: "Amarelo",
+    laranja: "Laranja (Checkpoint ativo)",
     vermelho: "Vermelho",
     none: "-",
   };

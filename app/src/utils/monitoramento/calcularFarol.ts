@@ -1,4 +1,4 @@
-export type StatusFarolType = "verde" | "amarelo" | "vermelho" | "none";
+export type StatusFarolType = "verde" | "amarelo" | "laranja" | "vermelho" | "none";
 
 export function calcularFarol({
   progresso,
@@ -6,13 +6,21 @@ export function calcularFarol({
   alerta,
   dataFinalizacao,
   dataFollowUpFinal,
+  dataCheckpoint,
+  agora = Date.now(),
 }: {
   progresso: number;
   tme: number | null;
   alerta?: boolean;
   dataFinalizacao?: string;
   dataFollowUpFinal?: string;
+  dataCheckpoint?: number;
+  agora?: number;
 }): StatusFarolType {
+  if (dataCheckpoint !== undefined && Number.isFinite(dataCheckpoint) && dataCheckpoint > agora) {
+    return "laranja";
+  }
+
   if (dataFollowUpFinal && dataFollowUpFinal.trim() !== "") {
     return "verde";
   }

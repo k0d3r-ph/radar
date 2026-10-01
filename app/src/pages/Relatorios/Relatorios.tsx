@@ -36,6 +36,7 @@ import {
   obterUltimoTreinamento,
 } from "../../utils/monitoramento";
 import type { Empresa, Ocorrencia } from "../../types";
+import type { StatusFarolType } from "../../utils/monitoramento";
 import { formatarNome } from "../../utils/formatarNome";
 import { estaDentroDoExpediente } from "../../utils/expediente";
 import { obterInfoTipoOcorrencia } from "../../utils/empresaUtils";
@@ -54,7 +55,7 @@ type DecorredEmpresa = Empresa & {
   alerta: boolean;
   tme: number | null;
   progresso: number;
-  farol: "vermelho" | "amarelo" | "verde" | "none";
+  farol: StatusFarolType;
   dias: number;
 };
 

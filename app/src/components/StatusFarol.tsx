@@ -8,5 +8,7 @@ type Props = {
 export default function StatusFarol({ status }: Props) {
   if (status === "none") return null;
 
-  return <div className={`farol farol-${status}`} />;
+  const descricao = status === "laranja" ? "Laranja — checkpoint ativo" : `Status ${status}`;
+
+  return <div className={`farol farol-${status}`} role="img" aria-label={descricao} title={descricao} />;
 }

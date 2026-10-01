@@ -1,3 +1,6 @@
+import { pendenciaAtiva } from '../pendencias.ts';
+import type { PendenciaCliente } from '../pendencias.ts';
+
 export type StatusFarolType = "verde" | "amarelo" | "laranja" | "vermelho" | "none";
 
 export function calcularFarol({
@@ -6,7 +9,7 @@ export function calcularFarol({
   alerta,
   dataFinalizacao,
   dataFollowUpFinal,
-  dataCheckpoint,
+  pendencia,
   agora = Date.now(),
 }: {
   progresso: number;
@@ -14,10 +17,10 @@ export function calcularFarol({
   alerta?: boolean;
   dataFinalizacao?: string;
   dataFollowUpFinal?: string;
-  dataCheckpoint?: number;
+  pendencia?: PendenciaCliente;
   agora?: number;
 }): StatusFarolType {
-  if (dataCheckpoint !== undefined && Number.isFinite(dataCheckpoint) && dataCheckpoint > agora) {
+  if (pendenciaAtiva(pendencia, agora)) {
     return "laranja";
   }
 

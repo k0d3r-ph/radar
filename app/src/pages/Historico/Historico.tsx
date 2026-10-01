@@ -6,6 +6,7 @@ import {
   salvarOcorrencia,
   listarOcorrencias,
   removerOcorrencia,
+  definirOcorrenciaFavorita,
 } from "../../services/ocorrencias";
 import {
   listarEmpresas,
@@ -53,6 +54,7 @@ import type {
   ContadorPerdasScore,
 } from "../../types";
 import "./Historico.css";
+import "./Favoritos.css";
 import { DoughnutChart } from "../../components/DoughnutChart";
 import { BarChart } from "../../components/BarChart";
 import { useAuth } from "../../context/AuthContext";
@@ -832,6 +834,8 @@ export function Historico() {
   const [filtroTipo, setFiltroTipo] = useState(
     () => searchParams.get("tipo") || "",
   );
+  const [filtroFavoritas, setFiltroFavoritas] = useState(false);
+  const [salvandoFavorita, setSalvandoFavorita] = useState(false);
   const [filtroDepto, setFiltroDepto] = useState(() => searchParams.get("depto") || "");
   const [dataInicio, setDataInicio] = useState(
     () => searchParams.get("dataInicio") || "",
@@ -851,6 +855,23 @@ export function Historico() {
   const [temaForaEsteira, setTemaForaEsteira] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 50;
+  const podeFavoritar = role === "treinador" || role === "master";
+
+  async function alternarFavorita() {
+    if (!selecionada?.id || !podeFavoritar || salvandoFavorita) return;
+    const id = selecionada.id;
+    const favorita = !selecionada.favorita;
+    setSalvandoFavorita(true);
+    try {
+      const dados = await definirOcorrenciaFavorita(id, favorita);
+      setOcorrencias(lista => lista.map(o => o.id === id ? { ...o, ...dados } : o));
+      setSelecionada(atual => atual?.id === id ? { ...atual, ...dados } : atual);
+      toast.success(favorita ? "Ocorrência marcada com estrela." : "Estrela removida.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível alterar a estrela.");
+    } finally { setSalvandoFavorita(false); }
+  }
+
 
   useEffect(() => {
     const tipo = searchParams.get("tipo") || "";
@@ -899,6 +920,7 @@ export function Historico() {
     dataFim,
     empresaFiltro,
     expedienteFiltro,
+    filtroFavoritas,
   ]);
 
   useEffect(() => {
@@ -2924,7 +2946,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       }
 
       return (
-        bateBusca && empresaOk && tipoOk && deptoOk && dataOk && expedienteOk
+        bateBusca && empresaOk && tipoOk && deptoOk && dataOk && expedienteOk && (!filtroFavoritas || o.favorita === true)
       );
     });
   };
@@ -2944,6 +2966,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
     dataFim,
     empresaFiltro,
     expedienteFiltro,
+    filtroFavoritas,
     ordenacaoData,
   ]);
 
@@ -2957,6 +2980,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       dataFim,
       empresaFiltro,
       expedienteFiltro,
+      filtroFavoritas,
     ],
   );
   const filtradasSemDepto = useMemo(
@@ -2969,6 +2993,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       dataFim,
       empresaFiltro,
       expedienteFiltro,
+      filtroFavoritas,
     ],
   );
 
@@ -3368,6 +3393,12 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             onChange={(e) => setBusca(e.target.value)}
           />
 
+          <label className="hist-filtro-favoritas">
+            <input type="checkbox" checked={filtroFavoritas} onChange={e => setFiltroFavoritas(e.target.checked)} />
+            <Star size={16} fill="#eab308" color="#eab308" />
+            Somente com estrela
+          </label>
+
           <select
             className="hist-select-filtro"
             value={filtroTipo}
@@ -3496,6 +3527,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   >
                     <td>
                       {o.empresa}
+                      {o.favorita && <Star className="hist-estrela-indicador" size={15} fill="#eab308" color="#eab308" aria-label="Ocorrência com estrela" />}
                       {o.alerta &&
                         (o.alertaResolvidoPorId ? (
                           <span
@@ -3712,6 +3744,19 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 <div
                   style={{ display: "flex", alignItems: "center", gap: "6px" }}
                 >
+                  {podeFavoritar ? (
+                    <button
+                      type="button"
+                      className={`hist-estrela-btn ${selecionada.favorita ? "hist-estrela-btn--ativa" : ""}`}
+                      aria-pressed={selecionada.favorita === true}
+                      aria-label={selecionada.favorita ? "Remover estrela" : "Marcar ocorrência com estrela"}
+                      title={selecionada.favorita ? "Remover estrela" : `Marcar com estrela (${ocorrencias.filter(o => o.favorita && normalizar(o.empresa) === normalizar(selecionada.empresa)).length}/3 para este cliente)`}
+                      disabled={salvandoFavorita}
+                      onClick={alternarFavorita}
+                    >
+                      <Star size={20} fill={selecionada.favorita ? "currentColor" : "none"} />
+                    </button>
+                  ) : selecionada.favorita && <Star size={20} fill="#eab308" color="#eab308" aria-label="Ocorrência com estrela" />}
                   <button
                     className="hist-detail-compartilhar"
                     title="Copiar link direto para esta ocorrência"

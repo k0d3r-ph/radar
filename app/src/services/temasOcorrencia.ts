@@ -12,7 +12,7 @@ import { db } from "./firebase";
 
 const COLLECTION_TEMAS = "temasOcorrencia";
 
-export type CategoriaTema = "duvida" | "solicitacao" | "tipo";
+export type CategoriaTema = "duvida" | "solicitacao" | "tipo" | "pendencia";
 
 // Nomes originais dos tipos de ocorrência do sistema (Informativa, Comercial
 // etc.), usados apenas para semear a coleção "temasOcorrencia" (categoria
@@ -30,7 +30,6 @@ export const TIPOS_PADRAO_SISTEMA = [
   "Financeira",
   "Comercial",
   "Treinamento",
-  "Checkpoint",
   "Mudança de score",
   "Problema",
   "Dúvida",
@@ -107,11 +106,13 @@ const cachePorCategoria: Record<CategoriaTema, TemaOcorrencia[] | null> = {
   duvida: null,
   solicitacao: null,
   tipo: null,
+  pendencia: null,
 };
 const lastFetchPorCategoria: Record<CategoriaTema, number> = {
   duvida: 0,
   solicitacao: 0,
   tipo: 0,
+  pendencia: 0,
 };
 const CACHE_TTL = 30000; // 30 segundos
 
@@ -138,6 +139,8 @@ function gerarIdTema(categoria: CategoriaTema, nome: string): string {
 const SEED_TIPO = TIPOS_PADRAO_SISTEMA;
 
 async function semearCategoria(categoria: CategoriaTema): Promise<void> {
+  // Os tipos de pendência são definidos pelos masters na tela Tabulações.
+  if (categoria === 'pendencia') return;
   const seed =
     categoria === "duvida"
       ? SEED_DUVIDA
@@ -227,7 +230,8 @@ export async function listarTemas(
   });
 
   const idsRemovidos = await removerDuplicados(brutos);
-  const lista = brutos.filter((t) => !idsRemovidos.has(t.id));
+  // Checkpoints antigos continuam no histórico, mas deixam de ser uma opção para novos registros.
+  const lista = brutos.filter((t) => !idsRemovidos.has(t.id) && !(categoria === 'tipo' && t.nome.trim().toLowerCase() === 'checkpoint'));
   lista.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
 
   cachePorCategoria[categoria] = lista;
@@ -241,6 +245,9 @@ export async function criarTema(
 ): Promise<void> {
   const nomeLimpo = nome.trim();
   if (!nomeLimpo) return;
+  if (categoria === 'tipo' && nomeLimpo.toLowerCase() === 'checkpoint') {
+    throw new Error('Checkpoint foi substituído pelas pendências no cadastro do cliente.');
+  }
 
   const existentes = await listarTemas(categoria);
   const jaExiste = existentes.some(
@@ -271,6 +278,9 @@ export async function editarTema(
 ): Promise<void> {
   const nomeLimpo = novoNome.trim();
   if (!nomeLimpo) return;
+  if (categoria === 'tipo' && nomeLimpo.toLowerCase() === 'checkpoint') {
+    throw new Error('Checkpoint foi substituído pelas pendências no cadastro do cliente.');
+  }
 
   const existentes = await listarTemas(categoria);
   const conflito = existentes.some(

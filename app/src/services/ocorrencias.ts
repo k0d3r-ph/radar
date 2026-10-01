@@ -2,7 +2,7 @@ import {
   collection,
   addDoc,
   deleteDoc,
-  updateDoc,
+  runTransaction,
   doc,
   getDocs,
   query,
@@ -10,7 +10,7 @@ import {
   limit,
 } from "firebase/firestore";
 
-import { db } from "./firebase";
+import { auth, db } from "./firebase";
 import type { Ocorrencia } from "../types";
 import { sincronizarColecao } from "./sincronizacaoIncremental";
 
@@ -37,16 +37,27 @@ function removerUndefined<T>(valor: T): T {
 }
 
 export async function salvarOcorrencia(ocorrencia: Ocorrencia) {
-  const { horaOcorrencia, id, ...dados } = ocorrencia as any;
+  // A estrela é alterada somente pelo endpoint que valida perfil e limite por cliente.
+  const { horaOcorrencia, id, favorita, favoritadaPor, favoritadaEm, favoritaEmpresaId, ...dados } = ocorrencia as any;
 
   const dadosLimpos = removerUndefined(dados);
 
   if (id) {
     const ref = doc(db, COLLECTION, id);
     const updatedAt = Date.now();
-    await updateDoc(ref, {
-      ...dadosLimpos,
-      updatedAt,
+    await runTransaction(db, async transaction => {
+      const atual = await transaction.get(ref);
+      const normalizarEmpresa = (nome: string) => nome.trim().toLowerCase().replace(/&amp;/g, '&').replace(/\s+/g, ' ');
+      if (atual.data()?.favorita && dadosLimpos.empresa
+        && normalizarEmpresa(atual.data()!.empresa) !== normalizarEmpresa(dadosLimpos.empresa)) {
+        const empresaId = atual.data()!.favoritaEmpresaId;
+        const cliente = empresaId ? await transaction.get(doc(db, 'empresas', empresaId)) : undefined;
+        // Renomear o cadastro é permitido. Transferir a estrela entre clientes exigiria nova validação do limite.
+        if (!cliente?.exists() || normalizarEmpresa(cliente.data().nomeEmpresa) !== normalizarEmpresa(dadosLimpos.empresa)) {
+          throw new Error('Remova a estrela antes de transferir a ocorrência para outro cliente.');
+        }
+      }
+      transaction.update(ref, { ...dadosLimpos, updatedAt });
     });
 
     // Atualização Otimista do Cache
@@ -119,4 +130,19 @@ export async function removerOcorrencia(id: string) {
   if (cachedOcorrencias) {
     cachedOcorrencias = cachedOcorrencias.filter((o) => o.id !== id);
   }
+}
+
+export async function definirOcorrenciaFavorita(id: string, favorita: boolean) {
+  if (!auth.currentUser) throw new Error('Entre no Radar para alterar as estrelas.');
+  const token = await auth.currentUser.getIdToken();
+  const apiUrl = import.meta.env.VITE_WHATSAPP_API_URL || 'http://localhost:5000';
+  const response = await fetch(`${apiUrl}/api/ocorrencias/${encodeURIComponent(id)}/favorito`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ favorita }),
+  });
+  const dados = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(dados.error || 'Não foi possível alterar a estrela.');
+  if (cachedOcorrencias) cachedOcorrencias = cachedOcorrencias.map(o => o.id === id ? { ...o, ...dados } : o);
+  return dados as Pick<Ocorrencia, 'favorita' | 'favoritaEmpresaId' | 'favoritadaPor' | 'favoritadaEm' | 'updatedAt'>;
 }

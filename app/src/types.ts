@@ -50,6 +50,13 @@ export type Empresa = {
   dataEntrada: string;
 
   alerta?: boolean;
+  pendencia?: {
+    ativa: boolean;
+    tipoId: string;
+    tipoNome: string;
+    /** Data inclusiva (YYYY-MM-DD) no horário de Brasília; vazio significa sem vencimento. */
+    venceEm?: string;
+  };
 
   temaText: string;
 
@@ -157,6 +164,10 @@ export type Ocorrencia = {
   descricao: string;
   departamento: string;
   responsavel: string;
+  favorita?: boolean;
+  favoritadaPor?: string;
+  favoritadaEm?: number | null;
+  favoritaEmpresaId?: string;
   origem?: 'ssx-desk';
   ssxDesk?: {
     conversationId: string;

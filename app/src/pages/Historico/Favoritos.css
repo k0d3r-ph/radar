@@ -1,0 +1,20 @@
+.hist-filtro-favoritas {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.hist-estrela-indicador { margin-left: 6px; vertical-align: middle; }
+.hist-estrela-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px;
+  border: 1px solid #64748b;
+  border-radius: 6px;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+}
+.hist-estrela-btn--ativa, .hist-estrela-btn:hover { color: #eab308; border-color: #eab308; }
+.hist-estrela-btn:disabled { opacity: 0.5; cursor: wait; }

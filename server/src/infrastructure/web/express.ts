@@ -3,6 +3,7 @@ import cors from 'cors';
 import { WhatsAppController } from '../../adapters/controllers/WhatsAppController.js';
 import { IaController } from '../../adapters/controllers/IaController.js';
 import { CentraisController } from '../../adapters/controllers/CentraisController.js';
+import { OcorrenciasController } from '../../adapters/controllers/OcorrenciasController.js';
 import { WhatsAppWebClient } from '../whatsapp/WhatsAppWebClient.js';
 import { config } from '../config/env.js';
 import { adminAuth, adminDb, isFirebaseInitialized } from '../firebase/firebaseAdmin.js';
@@ -28,13 +29,15 @@ export function createExpressApp(
         callback(null, false);
       }
     },
-    methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     credentials: true
   }));
 
   // Aumenta o limite para aceitar imagens grandes em base64 da esteira
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ limit: '50mb', extended: true }));
+  const ocorrenciasController = new OcorrenciasController(adminDb, adminAuth);
+  app.patch('/api/ocorrencias/:id/favorito', (req, res) => ocorrenciasController.definirFavorita(req, res));
 
   // Rotas HTTP — WhatsApp
   app.get('/api/whatsapp/status', (req, res) => controller.status(req, res));

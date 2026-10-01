@@ -120,7 +120,7 @@ function AppRoutes() {
               to="/tipos-ocorrencia"
               className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
             >
-              Tipos de Ocorrência
+              Tabulações
             </NavLink>
           )}
           <NavLink

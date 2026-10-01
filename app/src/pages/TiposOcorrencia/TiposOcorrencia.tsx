@@ -28,6 +28,12 @@ const CATEGORIAS: {
   placeholder: string;
 }[] = [
   {
+    chave: "pendencia",
+    titulo: "Tipos de Pendência",
+    icone: <AlertTriangle size={18} />,
+    placeholder: "Pesquisar ou criar novo tipo de pendência...",
+  },
+  {
     chave: "tipo",
     titulo: "Tipos de Ocorrência",
     icone: <Tag size={18} />,
@@ -58,11 +64,13 @@ export const TiposOcorrencia: React.FC = () => {
     duvida: [],
     solicitacao: [],
     tipo: [],
+    pendencia: [],
   });
   const [novoNome, setNovoNome] = useState<Record<CategoriaTema, string>>({
     duvida: "",
     solicitacao: "",
     tipo: "",
+    pendencia: "",
   });
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState<CategoriaTema | null>(null);
@@ -75,12 +83,13 @@ export const TiposOcorrencia: React.FC = () => {
   const carregarTudo = async (forceRefresh = false) => {
     setCarregando(true);
     try {
-      const [tipo, duvida, solicitacao] = await Promise.all([
+      const [tipo, duvida, solicitacao, pendencia] = await Promise.all([
         listarTemas("tipo", forceRefresh),
         listarTemas("duvida", forceRefresh),
         listarTemas("solicitacao", forceRefresh),
+        listarTemas("pendencia", forceRefresh),
       ]);
-      setTemas({ tipo, duvida, solicitacao });
+      setTemas({ tipo, duvida, solicitacao, pendencia });
     } catch (error) {
       console.error("Erro ao carregar tipos de dúvida/solicitação:", error);
       toast.error("Não foi possível carregar a lista de assuntos.");
@@ -163,11 +172,10 @@ export const TiposOcorrencia: React.FC = () => {
   return (
     <div className="tipos-ocorrencia-page">
       <header className="tipos-ocorrencia-header">
-        <h1>Tipos de Ocorrência</h1>
+        <h1>Tabulações</h1>
         <p>
-          Crie, renomeie e exclua os tipos de ocorrência, além dos assuntos de
-          Dúvida e Solicitação usados no Histórico. Tipos novos entram sempre
-          com a mesma tag cinza usada por "Informativa".
+          Gerencie os tipos de pendências dos clientes, os tipos de ocorrência
+          e os assuntos de Dúvida e Solicitação usados no Histórico.
         </p>
       </header>
 

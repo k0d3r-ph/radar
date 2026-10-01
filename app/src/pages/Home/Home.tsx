@@ -27,7 +27,6 @@ import {
   calcularTME,
   calcularTotalFases,
   obterUltimoTreinamento,
-  obterProximoCheckpoint,
 } from "../../utils/monitoramento";
 import type { Empresa, Ocorrencia } from "../../types";
 import { useAuth } from "../../context/AuthContext";
@@ -65,6 +64,10 @@ import type { DestinatarioGestao } from "../../services/notificacoes";
 import { GestaoNotificacaoModal } from "../../components/GestaoNotificacaoModal";
 import { ColumnSelector } from "../../components/ColumnSelector";
 import { buscarIdCentralPorNome } from "../../services/centrais";
+import { listarTemas } from "../../services/temasOcorrencia";
+import type { TemaOcorrencia } from "../../services/temasOcorrencia";
+import { usePendenciasClock } from "../../hooks/usePendenciasClock";
+import { vencimentoPendencia } from "../../utils/pendencias";
 import {
   useColumnPreferences,
   iniciarRedimensionamentoColuna,
@@ -291,34 +294,7 @@ export default function Home() {
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
 
   const [historico, setHistorico] = useState<Ocorrencia[]>([]);
-  const [agora, setAgora] = useState(Date.now);
-
-  // Recalcula no horário do próximo checkpoint, inclusive com a Home aberta.
-  // Ao retornar à aba, atualiza também se o navegador suspendeu o temporizador.
-  useEffect(() => {
-    let timeout: ReturnType<typeof setTimeout> | undefined;
-    const atualizarRelogio = () => {
-      clearTimeout(timeout);
-      const instante = Date.now();
-      setAgora(instante);
-      const proximoCheckpoint = obterProximoCheckpoint(historico, instante);
-      if (proximoCheckpoint) {
-        timeout = setTimeout(
-          atualizarRelogio,
-          Math.min(proximoCheckpoint.dataOcorrencia - instante, 2_147_483_647),
-        );
-      }
-    };
-
-    atualizarRelogio();
-    window.addEventListener("focus", atualizarRelogio);
-    document.addEventListener("visibilitychange", atualizarRelogio);
-    return () => {
-      clearTimeout(timeout);
-      window.removeEventListener("focus", atualizarRelogio);
-      document.removeEventListener("visibilitychange", atualizarRelogio);
-    };
-  }, [historico]);
+  const agora = usePendenciasClock(empresas);
 
   const historicoComIds = useMemo(
     () => atribuirIdsOcorrencias(historico, empresas),
@@ -365,6 +341,16 @@ export default function Home() {
   const [buscandoIdCentral, setBuscandoIdCentral] = useState(false);
 
   const [modalClienteAberto, setModalClienteAberto] = useState(false);
+  const [tiposPendencia, setTiposPendencia] = useState<TemaOcorrencia[]>([]);
+  const [carregandoPendencias, setCarregandoPendencias] = useState(true);
+  useEffect(() => {
+    let ativo = true;
+    setCarregandoPendencias(true);
+    listarTemas("pendencia").then(lista => { if (ativo) setTiposPendencia(lista); })
+      .catch(() => { if (ativo) toast.error("Não foi possível carregar os tipos de pendência."); })
+      .finally(() => { if (ativo) setCarregandoPendencias(false); });
+    return () => { ativo = false; };
+  }, [modalClienteAberto]);
   const [confirmarExclusaoAberto, setConfirmarExclusaoAberto] = useState(false);
 
   const [editandoClienteId, setEditandoClienteId] = useState<string | null>(
@@ -452,6 +438,17 @@ export default function Home() {
   async function salvarCliente() {
     if (!clienteForm.nomeEmpresa.trim()) {
       return;
+    }
+
+    if (clienteForm.pendencia?.ativa) {
+      if (!clienteForm.pendencia.tipoId || !clienteForm.pendencia.tipoNome.trim()) {
+        toast.error("Selecione um tipo de pendência.");
+        return;
+      }
+      if (clienteForm.pendencia.venceEm && !Number.isFinite(vencimentoPendencia(clienteForm.pendencia.venceEm))) {
+        toast.error("Informe uma data de vencimento válida.");
+        return;
+      }
     }
 
     // Garante a busca do idCentral mesmo que o usuário tenha clicado em "Salvar"
@@ -880,9 +877,8 @@ export default function Home() {
       .filter((empresa) => !isEmpresaInterna(empresa))
       .map((empresa) => {
         const historicoEmpresa = historico.filter(
-          (o) => o.empresa.trim().toLowerCase() === empresa.nomeEmpresa.trim().toLowerCase(),
+          o => o.empresa.trim().toLowerCase() === empresa.nomeEmpresa.trim().toLowerCase(),
         );
-        const checkpointAtivo = obterProximoCheckpoint(historicoEmpresa, agora);
         const ultimoTreinamento = obterUltimoTreinamento(
           historico,
           empresa.nomeEmpresa,
@@ -945,7 +941,7 @@ export default function Home() {
           alerta: temAlerta,
           dataFinalizacao: empresa.dataFinalizacao,
           dataFollowUpFinal: empresa.dataFollowUpFinal,
-          dataCheckpoint: checkpointAtivo?.dataOcorrencia,
+          pendencia: empresa.pendencia,
           agora,
         });
 
@@ -1311,7 +1307,7 @@ export default function Home() {
   const LABEL_FAROL: Record<string, string> = {
     verde: "Verde",
     amarelo: "Amarelo",
-    laranja: "Laranja (Checkpoint ativo)",
+    laranja: "Laranja (Pendência)",
     vermelho: "Vermelho",
     none: "-",
   };
@@ -1429,7 +1425,7 @@ export default function Home() {
       label: "Status",
       defaultWidth: 70,
       locked: true,
-      render: (empresa) => <StatusFarol status={empresa.farol} />,
+      render: (empresa) => <StatusFarol status={empresa.farol} pendencia={tiposPendencia.find(t => t.id === empresa.pendencia?.tipoId)?.nome || empresa.pendencia?.tipoNome} />,
       exportValue: (empresa) => LABEL_FAROL[empresa.farol] ?? "-",
     },
     {
@@ -3442,6 +3438,62 @@ export default function Home() {
               >
                 + Adicionar e-mail
               </button>
+            </div>
+
+            <div className="cliente-pendencias">
+              <div className="form-grid-2">
+                <div className="form-group">
+                  <label className="pendencia-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={clienteForm.pendencia?.ativa ?? false}
+                      onChange={e => setClienteForm({ ...clienteForm, pendencia: {
+                        tipoId: clienteForm.pendencia?.tipoId || "",
+                        tipoNome: clienteForm.pendencia?.tipoNome || "",
+                        venceEm: clienteForm.pendencia?.venceEm || "",
+                        ativa: e.target.checked,
+                      } })}
+                    />
+                    Cliente possui pendências
+                  </label>
+                </div>
+                <div className="form-group">
+                  <label htmlFor="cliente-tipo-pendencia">Tipo de pendência</label>
+                  <select
+                    id="cliente-tipo-pendencia"
+                    disabled={!clienteForm.pendencia?.ativa || carregandoPendencias}
+                    value={clienteForm.pendencia?.tipoId || ""}
+                    onChange={e => {
+                      const tipo = tiposPendencia.find(t => t.id === e.target.value);
+                      setClienteForm({ ...clienteForm, pendencia: {
+                        ...clienteForm.pendencia!, tipoId: tipo?.id || "", tipoNome: tipo?.nome || "",
+                      } });
+                    }}
+                  >
+                    <option value="">{carregandoPendencias ? "Carregando..." : "Selecione a pendência"}</option>
+                    {clienteForm.pendencia?.tipoId && !tiposPendencia.some(t => t.id === clienteForm.pendencia?.tipoId) && (
+                      <option value={clienteForm.pendencia.tipoId}>{clienteForm.pendencia.tipoNome} (tipo removido)</option>
+                    )}
+                    {tiposPendencia.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
+                  </select>
+                </div>
+              </div>
+              {clienteForm.pendencia?.ativa && (
+                <div className="form-group">
+                  <label htmlFor="cliente-pendencia-vencimento">Vencimento da pendência (opcional)</label>
+                  <input
+                    id="cliente-pendencia-vencimento"
+                    type="date"
+                    value={clienteForm.pendencia.venceEm || ""}
+                    onChange={e => setClienteForm({ ...clienteForm, pendencia: {
+                      ...clienteForm.pendencia!, venceEm: e.target.value,
+                    } })}
+                  />
+                  <small>Válida até o fim da data escolhida, no horário de Brasília. Sem data, permanece até desmarcar.</small>
+                  {!tiposPendencia.length && !carregandoPendencias && <small>Cadastre os tipos de pendência na seção Tabulações.</small>}
+                  {clienteForm.pendencia.venceEm && (vencimentoPendencia(clienteForm.pendencia.venceEm) || Infinity) <= agora && <small>Pendência vencida: o semáforo já segue as regras tradicionais.</small>}
+                </div>
+              )}
             </div>
 
             <div className="form-grid-2">

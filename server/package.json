@@ -10,7 +10,8 @@
     "start": "node dist/infrastructure/web/index.js",
     "vincular-id-central": "tsx scripts/vincularIdCentral.ts",
     "sincronizar-ssx-desk": "tsx scripts/sincronizarSsxDesk.ts",
-    "test:ssx-desk": "npm run build && node --test tests/ssxDesk.test.mjs"
+    "test:ssx-desk": "npm run build && node --test tests/ssxDesk.test.mjs",
+    "test:favoritos": "npm run build && node --test tests/favoritos.test.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.13.0",

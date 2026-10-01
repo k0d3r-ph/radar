@@ -47,6 +47,7 @@ import { RelatorioJornadaCliente } from "../RelatorioJornadaCliente/RelatorioJor
 import { RelatorioAging } from "../RelatorioAging/RelatorioAging";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { usePendenciasClock } from "../../hooks/usePendenciasClock";
 
 // Carência aplicada antes de considerar um cliente "sem próximo passo definido"
 // após o horário de um agendamento (mesma regra usada na Jornada do Cliente).
@@ -123,6 +124,7 @@ export const Relatorios: React.FC = () => {
     }
   }, [role, activeTab]);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const agoraPendencias = usePendenciasClock(empresas);
   const [ocorrencias, setOcorrencias] = useState<Ocorrencia[]>([]);
   const [loading, setLoading] = useState(true);
   const [dataReferencia, setDataReferencia] = useState(() => {
@@ -299,6 +301,8 @@ export const Relatorios: React.FC = () => {
         alerta: temAlerta,
         dataFinalizacao: empresa.dataFinalizacao,
         dataFollowUpFinal: empresa.dataFollowUpFinal,
+        pendencia: empresa.pendencia,
+        agora: agoraPendencias,
       });
 
       let ocorrenciaAlertaId = (empresa as any).ocorrenciaAlertaId;
@@ -325,7 +329,7 @@ export const Relatorios: React.FC = () => {
         ),
       };
     });
-  }, [empresas, ocorrencias]);
+  }, [empresas, ocorrencias, agoraPendencias]);
 
   // Auxiliar para converter "yyyy-mm-dd" em Date
   const parseDataLocal = (dataStr: string): Date | null => {

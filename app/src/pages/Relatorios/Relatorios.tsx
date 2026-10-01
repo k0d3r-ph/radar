@@ -40,6 +40,7 @@ import type { StatusFarolType } from "../../utils/monitoramento";
 import { formatarNome } from "../../utils/formatarNome";
 import { estaDentroDoExpediente } from "../../utils/expediente";
 import { obterInfoTipoOcorrencia } from "../../utils/empresaUtils";
+import { obterCategoriaContatoSuporte } from "../../utils/contatosSuporte";
 import "./Relatorios.css";
 import { RelatorioScore } from "../RelatorioScore/RelatorioScore";
 import { RelatorioJornadaCliente } from "../RelatorioJornadaCliente/RelatorioJornadaCliente";
@@ -139,6 +140,7 @@ export const Relatorios: React.FC = () => {
     duvidas: true,
     problemas: true,
     solicitacoes: true,
+    semClassificacao: true,
   });
   const [clienteFiltroGrafico, setClienteFiltroGrafico] = useState<string>("");
   const [expedienteFiltroGrafico, setExpedienteFiltroGrafico] = useState<"ambos" | "dentro" | "fora">("ambos");
@@ -363,20 +365,16 @@ export const Relatorios: React.FC = () => {
     const statsMap = new Map<
       string,
       {
-        dentro: { duvidas: number; problemas: number; solicitacoes: number; total: number };
-        fora: { duvidas: number; problemas: number; solicitacoes: number; total: number };
+        dentro: { duvidas: number; problemas: number; solicitacoes: number; semClassificacao: number; total: number };
+        fora: { duvidas: number; problemas: number; solicitacoes: number; semClassificacao: number; total: number };
         total: number;
       }
     >();
 
     ocorrencias.forEach((o) => {
       if (o.departamento === "Suporte") {
-        const tipoLower = (o.tipo || "").toLowerCase();
-        const eDuvida = tipoLower.includes("duvida") || tipoLower.includes("dúvida");
-        const eProblema = tipoLower.includes("problema");
-        const eSolicitacao = tipoLower.includes("solicita");
-
-        if (eDuvida || eProblema || eSolicitacao) {
+        const categoria = obterCategoriaContatoSuporte(o);
+        if (categoria) {
           const t = o.dataOcorrencia || o.createdAt || 0;
           if (t >= inicio.getTime() && t <= fim.getTime()) {
             const dateObj = new Date(t);
@@ -387,15 +385,13 @@ export const Relatorios: React.FC = () => {
 
             const key = o.empresa.trim().toLowerCase();
             const stats = statsMap.get(key) || {
-              dentro: { duvidas: 0, problemas: 0, solicitacoes: 0, total: 0 },
-              fora: { duvidas: 0, problemas: 0, solicitacoes: 0, total: 0 },
+              dentro: { duvidas: 0, problemas: 0, solicitacoes: 0, semClassificacao: 0, total: 0 },
+              fora: { duvidas: 0, problemas: 0, solicitacoes: 0, semClassificacao: 0, total: 0 },
               total: 0,
             };
 
             const alvo = isFora ? stats.fora : stats.dentro;
-            if (eDuvida) alvo.duvidas += 1;
-            else if (eProblema) alvo.problemas += 1;
-            else alvo.solicitacoes += 1;
+            alvo[categoria] += 1;
             alvo.total += 1;
             stats.total += 1;
             statsMap.set(key, stats);
@@ -711,20 +707,16 @@ export const Relatorios: React.FC = () => {
     const statsMap = new Map<
       string,
       {
-        dentro: { duvidas: number; problemas: number; solicitacoes: number; total: number };
-        fora: { duvidas: number; problemas: number; solicitacoes: number; total: number };
+        dentro: { duvidas: number; problemas: number; solicitacoes: number; semClassificacao: number; total: number };
+        fora: { duvidas: number; problemas: number; solicitacoes: number; semClassificacao: number; total: number };
         total: number;
       }
     >();
 
     ocorrencias.forEach((o) => {
       if (o.departamento === "Suporte") {
-        const tipoLower = (o.tipo || "").toLowerCase();
-        const eDuvida = tipoLower.includes("duvida") || tipoLower.includes("dúvida");
-        const eProblema = tipoLower.includes("problema");
-        const eSolicitacao = tipoLower.includes("solicita");
-
-        if (eDuvida || eProblema || eSolicitacao) {
+        const categoria = obterCategoriaContatoSuporte(o);
+        if (categoria) {
           const t = o.dataOcorrencia || o.createdAt || 0;
           if (t >= inicio.getTime() && t <= fim.getTime()) {
             const dateObj = new Date(t);
@@ -735,15 +727,13 @@ export const Relatorios: React.FC = () => {
 
             const key = o.empresa.trim().toLowerCase();
             const stats = statsMap.get(key) || {
-              dentro: { duvidas: 0, problemas: 0, solicitacoes: 0, total: 0 },
-              fora: { duvidas: 0, problemas: 0, solicitacoes: 0, total: 0 },
+              dentro: { duvidas: 0, problemas: 0, solicitacoes: 0, semClassificacao: 0, total: 0 },
+              fora: { duvidas: 0, problemas: 0, solicitacoes: 0, semClassificacao: 0, total: 0 },
               total: 0,
             };
 
             const alvo = isFora ? stats.fora : stats.dentro;
-            if (eDuvida) alvo.duvidas += 1;
-            else if (eProblema) alvo.problemas += 1;
-            else alvo.solicitacoes += 1;
+            alvo[categoria] += 1;
             alvo.total += 1;
             stats.total += 1;
             statsMap.set(key, stats);
@@ -861,6 +851,8 @@ export const Relatorios: React.FC = () => {
         problemasTreinamento: [] as number[],
         solicitacoesSuporte: [] as number[],
         solicitacoesTreinamento: [] as number[],
+        semClassificacaoSuporte: [] as number[],
+        semClassificacaoTreinamento: [] as number[],
       };
 
     const nomesClientesCancelados = new Set(
@@ -902,6 +894,8 @@ export const Relatorios: React.FC = () => {
     const problemasTreinamento = new Array(periodos.length).fill(0);
     const solicitacoesSuporte = new Array(periodos.length).fill(0);
     const solicitacoesTreinamento = new Array(periodos.length).fill(0);
+    const semClassificacaoSuporte = new Array(periodos.length).fill(0);
+    const semClassificacaoTreinamento = new Array(periodos.length).fill(0);
 
     const clienteFiltro = clienteFiltroGrafico.trim().toLowerCase();
 
@@ -912,11 +906,8 @@ export const Relatorios: React.FC = () => {
       if (nomesClientesCancelados.has((o.empresa || "").trim().toLowerCase())) return;
       if (clienteFiltro && !(o.empresa || "").trim().toLowerCase().includes(clienteFiltro)) return;
 
-      const tipoLower = (o.tipo || "").toLowerCase();
-      const eDuvida = tipoLower.includes("duvida") || tipoLower.includes("dúvida");
-      const eProblema = tipoLower.includes("problema");
-      const eSolicitacao = tipoLower.includes("solicita");
-      if (!eDuvida && !eProblema && !eSolicitacao) return;
+      const categoria = obterCategoriaContatoSuporte(o);
+      if (!categoria) return;
 
       const t = o.dataOcorrencia || o.createdAt || 0;
       if (
@@ -926,15 +917,18 @@ export const Relatorios: React.FC = () => {
       const idx = periodos.findIndex((p) => t >= p.inicio.getTime() && t <= p.fim.getTime());
       if (idx === -1) return;
 
-      if (eDuvida) {
+      if (categoria === "duvidas") {
         if (eSuporte) duvidasSuporte[idx] += 1;
         else duvidasTreinamento[idx] += 1;
-      } else if (eProblema) {
+      } else if (categoria === "problemas") {
         if (eSuporte) problemasSuporte[idx] += 1;
         else problemasTreinamento[idx] += 1;
-      } else {
+      } else if (categoria === "solicitacoes") {
         if (eSuporte) solicitacoesSuporte[idx] += 1;
         else solicitacoesTreinamento[idx] += 1;
+      } else {
+        if (eSuporte) semClassificacaoSuporte[idx] += 1;
+        else semClassificacaoTreinamento[idx] += 1;
       }
     });
 
@@ -946,6 +940,8 @@ export const Relatorios: React.FC = () => {
       problemasTreinamento,
       solicitacoesSuporte,
       solicitacoesTreinamento,
+      semClassificacaoSuporte,
+      semClassificacaoTreinamento,
     };
   }, [ocorrencias, dadosEmpresas, limitesSemana, granularidadeGrafico, numSemanasGrafico, numDiasGrafico, clienteFiltroGrafico, expedienteFiltroGrafico]);
 
@@ -974,6 +970,14 @@ export const Relatorios: React.FC = () => {
         corTreinamento: "#6ee7b7",
         valuesSuporte: evolucaoSuporte.solicitacoesSuporte,
         valuesTreinamento: evolucaoSuporte.solicitacoesTreinamento,
+      },
+      {
+        chave: "semClassificacao" as const,
+        label: "Sem classificação",
+        corSuporte: "#94a3b8",
+        corTreinamento: "#cbd5e1",
+        valuesSuporte: evolucaoSuporte.semClassificacaoSuporte,
+        valuesTreinamento: evolucaoSuporte.semClassificacaoTreinamento,
       },
     ];
 
@@ -1005,6 +1009,7 @@ export const Relatorios: React.FC = () => {
         { chave: "duvidas" as const, label: "dúvidas" },
         { chave: "problemas" as const, label: "problemas" },
         { chave: "solicitacoes" as const, label: "solicitações" },
+        { chave: "semClassificacao" as const, label: "contatos sem classificação" },
       ]
     )
       .filter((tipo) => tiposVisiveisGrafico[tipo.chave])
@@ -1208,7 +1213,7 @@ ${contatosSuporte.length > 0
         ? contatosSuporte
           .map(
             (e) =>
-              ` - ${e.nomeEmpresa}\n   Treinador: ${formatarNome(e.responsavel) || "-"}\n   CS: ${formatarNome(e.csResponsavel) || "-"}\n   Dentro do Expediente: ${(e as any).dentroExpediente.total} (Dúvidas: ${(e as any).dentroExpediente.duvidas}, Problemas: ${(e as any).dentroExpediente.problemas}, Solicitações: ${(e as any).dentroExpediente.solicitacoes})\n   Fora do Expediente: ${(e as any).foraExpediente.total} (Dúvidas: ${(e as any).foraExpediente.duvidas}, Problemas: ${(e as any).foraExpediente.problemas}, Solicitações: ${(e as any).foraExpediente.solicitacoes})\n   Total de Contatos: ${(e as any).totalContatos}\n   Valor do Contrato: ${e.valorContrato !== undefined ? `R$ ${e.valorContrato.toFixed(2)}` : "—"}\n`
+              ` - ${e.nomeEmpresa}\n   Treinador: ${formatarNome(e.responsavel) || "-"}\n   CS: ${formatarNome(e.csResponsavel) || "-"}\n   Dentro do Expediente: ${(e as any).dentroExpediente.total} (Dúvidas: ${(e as any).dentroExpediente.duvidas}, Problemas: ${(e as any).dentroExpediente.problemas}, Solicitações: ${(e as any).dentroExpediente.solicitacoes}, Sem classificação: ${(e as any).dentroExpediente.semClassificacao})\n   Fora do Expediente: ${(e as any).foraExpediente.total} (Dúvidas: ${(e as any).foraExpediente.duvidas}, Problemas: ${(e as any).foraExpediente.problemas}, Solicitações: ${(e as any).foraExpediente.solicitacoes}, Sem classificação: ${(e as any).foraExpediente.semClassificacao})\n   Total de Contatos: ${(e as any).totalContatos}\n   Valor do Contrato: ${e.valorContrato !== undefined ? `R$ ${e.valorContrato.toFixed(2)}` : "—"}\n`
           )
           .join("\n")
         : " - Nenhum atendimento de suporte registrado nesta semana.\n"
@@ -1558,6 +1563,7 @@ ${riscoChurn.length > 0
                         { chave: "duvidas", label: "Dúvidas", color: "#3b82f6" },
                         { chave: "problemas", label: "Problemas", color: "#ef4444" },
                         { chave: "solicitacoes", label: "Solicitações", color: "#10b981" },
+                        { chave: "semClassificacao", label: "Sem classificação", color: "#94a3b8" },
                       ] as const
                     ).map((tipo) => {
                       const marcado = tiposVisiveisGrafico[tipo.chave];
@@ -1787,7 +1793,16 @@ ${riscoChurn.length > 0
                                     <span style={{ fontWeight: 700, fontSize: "0.95rem" }}>
                                       {(e as any).dentroExpediente.total}
                                     </span>
-                                    <div style={{ display: "flex", gap: "6px", fontSize: "0.75rem", color: "#a1a1aa" }}>
+                                    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", fontSize: "0.75rem", color: "#a1a1aa" }}>
+                                      {(e as any).dentroExpediente.semClassificacao > 0 && (
+                                        <button
+                                          className="btn-secondary btn-small"
+                                          title="Revisar contatos sem classificação"
+                                          onClick={() => navigate(`/historico?empresa=${encodeURIComponent(e.nomeEmpresa)}&tipo=__sem_classificacao__&depto=Suporte&dataInicio=${dataInicioSemanaStr}&dataFim=${dataFimSemanaStr}&expediente=dentro`)}
+                                        >
+                                          Sem classificação: {(e as any).dentroExpediente.semClassificacao}
+                                        </button>
+                                      )}
                                       <span style={{ display: "inline-flex", alignItems: "center", gap: "3px" }}>
                                         D: {(e as any).dentroExpediente.duvidas}
                                         {(e as any).dentroExpediente.duvidas > 0 && (
@@ -1859,7 +1874,16 @@ ${riscoChurn.length > 0
                                     <span style={{ fontWeight: 700, fontSize: "0.95rem" }}>
                                       {(e as any).foraExpediente.total}
                                     </span>
-                                    <div style={{ display: "flex", gap: "6px", fontSize: "0.75rem", color: "#a1a1aa" }}>
+                                    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", fontSize: "0.75rem", color: "#a1a1aa" }}>
+                                      {(e as any).foraExpediente.semClassificacao > 0 && (
+                                        <button
+                                          className="btn-secondary btn-small"
+                                          title="Revisar contatos sem classificação"
+                                          onClick={() => navigate(`/historico?empresa=${encodeURIComponent(e.nomeEmpresa)}&tipo=__sem_classificacao__&depto=Suporte&dataInicio=${dataInicioSemanaStr}&dataFim=${dataFimSemanaStr}&expediente=fora`)}
+                                        >
+                                          Sem classificação: {(e as any).foraExpediente.semClassificacao}
+                                        </button>
+                                      )}
                                       <span style={{ display: "inline-flex", alignItems: "center", gap: "3px" }}>
                                         D: {(e as any).foraExpediente.duvidas}
                                         {(e as any).foraExpediente.duvidas > 0 && (
@@ -2105,7 +2129,7 @@ ${riscoChurn.length > 0
                 </strong>
               </div>
 
-              {ocorrenciaSelecionada.createdAt && ocorrenciaSelecionada.dataOcorrencia > 0 && ocorrenciaSelecionada.tipo !== "Problema" && ocorrenciaSelecionada.tipo !== "Dúvida" && (
+              {ocorrenciaSelecionada.createdAt && ocorrenciaSelecionada.dataOcorrencia > 0 && ocorrenciaSelecionada.tipo !== "Problema" && ocorrenciaSelecionada.tipo !== "Dúvida" && ocorrenciaSelecionada.departamento !== "Suporte" && (
                 <div>
                   <span>
                     {ocorrenciaSelecionada.tipo === "Informativa" || ocorrenciaSelecionada.tipo === "Treinamento"

@@ -103,6 +103,7 @@ const TIPOS_PADRAO = TIPOS_PADRAO_SISTEMA;
 /** Valores especiais do filtro "Tipo", que não correspondem a um `tipo` de ocorrência
  * e sim ao status de alerta/suspensão sincronizado na empresa a partir da ocorrência. */
 const FILTRO_ALERTAS = "__alertas__";
+const FILTRO_SEM_CLASSIFICACAO = "__sem_classificacao__";
 const FILTRO_SUSPENSOES = "__suspensoes__";
 const FILTRO_TREINAMENTO_CAN = "__treinamento_can__";
 const FILTRO_TREINAMENTO_AUS = "__treinamento_aus__";
@@ -825,12 +826,13 @@ export function Historico() {
   const [selecionada, setSelecionada] = useState<Ocorrencia | null>(null);
   const [form, setForm] = useState({ ...EMPTY });
   const [editandoId, setEditandoId] = useState<string | null>(null);
+  const editandoImportadaSsx = !!editandoId && ocorrencias.some(o => o.id === editandoId && o.origem === "ssx-desk");
   const [busca, setBusca] = useState("");
   const [buscaAssunto, setBuscaAssunto] = useState("");
   const [filtroTipo, setFiltroTipo] = useState(
     () => searchParams.get("tipo") || "",
   );
-  const [filtroDepto, setFiltroDepto] = useState("");
+  const [filtroDepto, setFiltroDepto] = useState(() => searchParams.get("depto") || "");
   const [dataInicio, setDataInicio] = useState(
     () => searchParams.get("dataInicio") || "",
   );
@@ -855,6 +857,7 @@ export function Historico() {
     const start = searchParams.get("dataInicio") || "";
     const end = searchParams.get("dataFim") || "";
     setFiltroTipo(tipo);
+    setFiltroDepto(searchParams.get("depto") || "");
     setDataInicio(start);
     setDataFim(end);
   }, [searchParams]);
@@ -1380,7 +1383,7 @@ export function Historico() {
 
     if (
       !form.empresa.trim() ||
-      !form.tipo ||
+      (!form.tipo && !editandoImportadaSsx) ||
       !form.departamento ||
       !form.descricao.trim()
     ) {
@@ -2732,6 +2735,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
   }
 
   const getAllowedTypes = () => {
+    if (editandoImportadaSsx) return tipos.filter(t => ["Problema", "Dúvida", "Solicitação"].includes(t));
     const base = (() => {
       if (role === "master") {
         return [
@@ -2787,6 +2791,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
   };
 
   const getAllowedDepartments = () => {
+    if (editandoImportadaSsx) return ["Suporte"];
     if (role === "master") {
       return DEPARTAMENTO;
     }
@@ -2851,7 +2856,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       let tipoOk = ignoreTipo || !filtroTipo;
 
       if (!tipoOk) {
-        if (filtroTipo === FILTRO_ALERTAS) {
+        if (filtroTipo === FILTRO_SEM_CLASSIFICACAO) {
+          tipoOk = !o.tipo;
+        } else if (filtroTipo === FILTRO_ALERTAS) {
           tipoOk = !!o.alerta;
         } else if (filtroTipo === FILTRO_SUSPENSOES) {
           tipoOk = !!o.suspenderCliente;
@@ -2985,7 +2992,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
     });
 
     return Object.entries(counts).map(([label, value]) => ({
-      label,
+      label: label || "Sem classificação",
       value,
       color: TIPO_CORES[label] || "#6b7280",
     }));
@@ -3224,9 +3231,12 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   title="Ocorrências por Tipo"
                   data={tipoChartData}
                   onItemClick={(tipo) =>
-                    setFiltroTipo((prev) => (prev === tipo ? "" : tipo))
+                    setFiltroTipo((prev) => {
+                      const filtro = tipo === "Sem classificação" ? FILTRO_SEM_CLASSIFICACAO : tipo;
+                      return prev === filtro ? "" : filtro;
+                    })
                   }
-                  selectedLabel={filtroTipo}
+                  selectedLabel={filtroTipo === FILTRO_SEM_CLASSIFICACAO ? "Sem classificação" : filtroTipo}
                 />
                 <DoughnutChart
                   title="Ocorrências por Departamento"
@@ -3364,6 +3374,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             onChange={(e) => setFiltroTipo(e.target.value)}
           >
             <option value="">Todos os tipos</option>
+            <option value={FILTRO_SEM_CLASSIFICACAO}>Sem classificação</option>
             <option value={FILTRO_ALERTAS}>Alertas 🔥</option>
             <option value={FILTRO_SUSPENSOES}>Suspensões ⏸️</option>
             {tipos
@@ -3917,7 +3928,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 {selecionada.createdAt &&
                   selecionada.dataOcorrencia > 0 &&
                   selecionada.tipo !== "Problema" &&
-                  selecionada.tipo !== "Dúvida" && (
+                  selecionada.tipo !== "Dúvida" && selecionada.departamento !== "Suporte" && (
                     <div>
                       <span>
                         {selecionada.tipo === "Informativa" ||
@@ -4416,6 +4427,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
                 {(role === "treinador" ||
                   role === "master" ||
+                  (role === "suporte" && selecionada.origem === "ssx-desk") ||
                   (selecionada.responsavel &&
                     selecionada.responsavel.toLowerCase() ===
                       userName.toLowerCase())) && (
@@ -4488,14 +4500,14 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               </datalist>
             </div>
 
-            {(isTreinador ||
+            {(isTreinador || form.departamento === "Suporte" ||
               form.tipo === "Problema" ||
               form.tipo === "Dúvida") && (
               <div className="hist-campo hist-campo-row">
                 <div>
                   <label>
                     {(() => {
-                      if (form.tipo === "Problema" || form.tipo === "Dúvida") {
+                      if (form.departamento === "Suporte" || form.tipo === "Problema" || form.tipo === "Dúvida") {
                         return "Data da ocorrência (não obrigatório)";
                       }
                       if (
@@ -4569,12 +4581,12 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             )}
 
             <div className="hist-campo hist-campo-row">
-              <label>Tipo de ocorrência *</label>
+              <label>Tipo de ocorrência {editandoImportadaSsx ? "(opcional)" : "*"}</label>
               <select
                 value={form.tipo}
                 onChange={(e) => set("tipo", e.target.value)}
               >
-                <option value="">Selecione...</option>
+                <option value="">{editandoImportadaSsx ? "Sem classificação" : "Selecione..."}</option>
                 {getAllowedTypes().map((t) => (
                   <option key={t} value={t}>
                     {t}

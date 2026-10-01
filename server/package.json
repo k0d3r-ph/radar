@@ -8,7 +8,9 @@
     "dev": "tsx watch src/infrastructure/web/index.ts",
     "build": "tsc",
     "start": "node dist/infrastructure/web/index.js",
-    "vincular-id-central": "tsx scripts/vincularIdCentral.ts"
+    "vincular-id-central": "tsx scripts/vincularIdCentral.ts",
+    "sincronizar-ssx-desk": "tsx scripts/sincronizarSsxDesk.ts",
+    "test:ssx-desk": "npm run build && node --test tests/ssxDesk.test.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.13.0",

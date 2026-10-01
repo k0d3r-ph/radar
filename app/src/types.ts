@@ -157,6 +157,19 @@ export type Ocorrencia = {
   descricao: string;
   departamento: string;
   responsavel: string;
+  origem?: 'ssx-desk';
+  ssxDesk?: {
+    conversationId: string;
+    sessionId: string;
+    companyId: string;
+    empresaId: string;
+    customerName: string;
+    startedAt: string;
+    finishedAt: string;
+    summaryGeneratedAt: string | null;
+    tags: string[];
+    importedAt: number;
+  };
   createdAt?: number;
   dataOcorrencia: number;
   updatedAt?: number;

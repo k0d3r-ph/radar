@@ -9,9 +9,14 @@ test("só confirma envio após resposta positiva do servidor", async (t) => {
   await enviarMensagemWhatsApp(params);
 });
 
-test("aceite antecipado 202 não é tratado como envio concluído", async (t) => {
+test("mantém compatibilidade com o aceite positivo 202 do backend antigo", async (t) => {
   t.mock.method(globalThis, "fetch", async () => Response.json({ success: true }, { status: 202 }));
-  await assert.rejects(enviarMensagemWhatsApp(params), /não confirmou o resultado/);
+  await enviarMensagemWhatsApp(params);
+});
+
+test("aceite 202 sem sucesso explícito continua falhando", async (t) => {
+  t.mock.method(globalThis, "fetch", async () => Response.json({ success: false }, { status: 202 }));
+  await assert.rejects(enviarMensagemWhatsApp(params), /Envio não confirmado/);
 });
 
 test("erro do WhatsApp chega à tela e ao histórico", async (t) => {

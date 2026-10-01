@@ -50,10 +50,10 @@ export async function enviarMensagemWhatsApp(params: EnviarMensagemWhatsAppParam
     });
 
     const data = await response.json().catch(() => ({}));
-    if (response.status === 202) {
-      throw new Error('O servidor iniciou o envio, mas não confirmou o resultado. Verifique a conversa antes de reenviar e atualize o servidor WhatsApp.');
-    }
-    if (response.status !== 200 || data.success !== true) {
+    // Compatibilidade com o backend anterior enquanto a VM é atualizada.
+    // O 202 confirma apenas o aceite, mantendo o comportamento anterior do site.
+    // O backend novo responde 200 somente após concluir o envio.
+    if (![200, 202].includes(response.status) || data.success !== true) {
       throw new Error(data.error || `Envio não confirmado (HTTP ${response.status}).`);
     }
   } catch (err: unknown) {

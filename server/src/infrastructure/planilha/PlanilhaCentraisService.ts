@@ -107,10 +107,13 @@ function acharIndiceColuna(cabecalhos: string[], candidatosExatos: string[]): nu
   return -1;
 }
 
-function extrairCentrais(csv: string): LinhaCentral[] {
+export function extrairCentrais(csv: string): LinhaCentral[] {
   const semBom = csv.charCodeAt(0) === 0xfeff ? csv.slice(1) : csv;
+  if (/^\s*(?:<!doctype\s+html|<html\b|<head\b|<body\b|<script\b)/i.test(semBom)) {
+    throw new Error('O Google retornou uma página HTML em vez do CSV. Confira a URL de exportação e o acesso à planilha sem login.');
+  }
   const linhas = parsearCsv(semBom);
-  if (linhas.length < 2) return [];
+  if (!linhas.length) throw new Error('A planilha de centrais retornou um CSV vazio.');
 
   const cabecalhos = linhas[0];
 
@@ -121,11 +124,7 @@ function extrairCentrais(csv: string): LinhaCentral[] {
   const idxId = acharIndiceColuna(cabecalhos, ['id central', 'idcentral', 'id da central']);
 
   if (idxId === -1 || idxNome === -1) {
-    console.error(
-      '[PlanilhaCentrais] Não encontrei as colunas de nome do cliente e/ou "Id central" no cabeçalho:',
-      cabecalhos,
-    );
-    return [];
+    throw new Error('O CSV não contém as colunas de cliente e/ou Id central. Confira se o gid aponta para a aba Controle de Implantação.');
   }
 
   const linhasCentrais: LinhaCentral[] = [];
@@ -137,6 +136,33 @@ function extrairCentrais(csv: string): LinhaCentral[] {
     linhasCentrais.push({ nomeCentral, idCentral });
   }
   return linhasCentrais;
+}
+
+export function urlExportacaoPlanilha(valor: string): string {
+  const url = new URL(valor.trim());
+  // Links de compartilhamento abrem a interface HTML, não os dados da aba.
+  const planilha = url.hostname === 'docs.google.com'
+    && url.pathname.match(/^\/spreadsheets\/d\/([^/]+)\/(?:edit|view|preview)\/?$/);
+  if (planilha) {
+    const gid = url.searchParams.get('gid') || new URLSearchParams(url.hash.slice(1)).get('gid') || '0';
+    url.pathname = `/spreadsheets/d/${planilha[1]}/export`;
+    url.search = '';
+    url.hash = '';
+    url.searchParams.set('format', 'csv');
+    url.searchParams.set('gid', gid);
+  }
+  return url.toString();
+}
+
+export async function baixarCentrais(url: string, fetchCsv: typeof fetch = fetch): Promise<LinhaCentral[]> {
+  const resposta = await fetchCsv(urlExportacaoPlanilha(url), { signal: AbortSignal.timeout(30_000) });
+  if (!resposta.ok) {
+    throw new Error(`Falha ao baixar a planilha de centrais (HTTP ${resposta.status}). Confira a URL e o acesso sem login.`);
+  }
+  if (resposta.headers.get('content-type')?.toLowerCase().includes('text/html')) {
+    throw new Error('O Google retornou uma página HTML em vez do CSV. Confira a URL de exportação e o acesso à planilha sem login.');
+  }
+  return extrairCentrais(await resposta.text());
 }
 
 async function buscarLinhasDaPlanilha(forceRefresh = false): Promise<LinhaCentral[]> {
@@ -151,13 +177,7 @@ async function buscarLinhasDaPlanilha(forceRefresh = false): Promise<LinhaCentra
     );
   }
 
-  const resposta = await fetch(config.planilhaCentraisCsvUrl);
-  if (!resposta.ok) {
-    throw new Error(`Falha ao baixar a planilha de centrais (HTTP ${resposta.status}).`);
-  }
-
-  const csv = await resposta.text();
-  const linhas = extrairCentrais(csv);
+  const linhas = await baixarCentrais(config.planilhaCentraisCsvUrl);
   cache = { linhas, buscadoEm: agora };
   return linhas;
 }

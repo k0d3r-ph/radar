@@ -63,13 +63,26 @@ test('sem Central aceita nome exato normalizado; rejeita IDs conflitantes e nome
 
 test('somente treinamento ativo, conversa encerrada e iniciada desde a entrada no Radar', () => {
   assert.equal(conversaElegivel(conversa, empresa), true);
+  assert.equal(conversaElegivel(conversa, { ...empresa, dataFinalizacao: '2026-07-03' }), true);
   for (const changes of [{ isOngoing: true }, { isCancelled: true }, { isSuspended: true },
-    { dataFinalizacao: '2026-10-01' }, { nomeEmpresa: 'Systemsat' }, { dataEntrada: '2026-10-02' }, { dataEntrada: '' }]) {
+    { nomeEmpresa: 'Systemsat' }, { dataEntrada: '2026-10-02' }, { dataEntrada: '' }]) {
     assert.equal(conversaElegivel(conversa, { ...empresa, ...changes }), false);
   }
   assert.equal(conversaElegivel({ ...conversa, company: { ...conversa.company, isInTraining: false } }, empresa), false);
   assert.equal(conversaElegivel({ ...conversa, finishedAt: '' }, empresa), false);
   assert.equal(conversaElegivel({ ...conversa, finishedAt: '2026-09-30T12:00:00Z' }, empresa), false);
+});
+
+test('sincroniza clientes com finalização preenchida, exceto ongoing, suspensos e cancelados', async () => {
+  for (const status of [{}, { isOngoing: true }, { isSuspended: true }, { isCancelled: true }]) {
+    const db = database();
+    db.docs.set('empresas/radar-1', { ...empresa, dataFinalizacao: '2026-07-03', ...status });
+    const service = new SsxDeskSyncService(db, 'teste', async () => [conversa]);
+    const bloqueada = Object.keys(status).length > 0;
+    assert.equal((await service.sincronizar()).criadas, bloqueada ? 0 : 1);
+    assert.equal(db.docs.has(`ocorrencias/${idOcorrencia(conversa.id)}`), !bloqueada);
+    assert.equal((await service.sincronizar()).criadas, 0);
+  }
 });
 
 test('ocorrência conserva instante do atendimento, resumo, origem e tipo opcional', () => {

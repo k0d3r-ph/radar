@@ -6,12 +6,13 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/infrastructure/web/index.ts",
-    "build": "tsc",
+    "build": "node scripts/patchWhatsAppMedia.mjs && tsc",
     "start": "node dist/infrastructure/web/index.js",
     "vincular-id-central": "tsx scripts/vincularIdCentral.ts",
     "sincronizar-ssx-desk": "tsx scripts/sincronizarSsxDesk.ts",
     "test:ssx-desk": "npm run build && node --test tests/ssxDesk.test.mjs",
-    "test:favoritos": "npm run build && node --test tests/favoritos.test.mjs"
+    "test:favoritos": "npm run build && node --test tests/favoritos.test.mjs",
+    "test:whatsapp-media": "npm run build && node --test tests/whatsappMedia.test.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.13.0",

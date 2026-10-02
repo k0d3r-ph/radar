@@ -17,7 +17,7 @@ npm run sincronizar-ssx-desk -- --dry-run
 
 Para executar uma importação imediatamente, use `npm run sincronizar-ssx-desk`. Para validar o código, use `npm run test:ssx-desk`.
 
-Cada conversa gera uma ocorrência do departamento **Suporte**, com tipo vazio (exibido como **Sem classificação**), resumo da IA e data/hora de início do atendimento. O nome do contato, o encerramento e as tags originais ficam nos metadados `ssxDesk`. No Histórico, o usuário pode editar o texto e classificar a ocorrência depois. A sincronização nunca altera a classificação manual nem dispara WhatsApp.
+Cada conversa gera uma ocorrência do departamento **Suporte**, com tipo **Dúvida**, **Solicitação** ou **Problema** conforme a tag da conversa, resumo da IA e data/hora de início do atendimento. A comparação ignora acentos, caixa e espaços nas extremidades. Sem tag reconhecida ou com tipos conflitantes, fica **Sem classificação**. O nome do contato, o encerramento e as tags originais ficam nos metadados `ssxDesk`. No Histórico, o usuário seleciona o assunto da dúvida na lista do Radar; os assuntos não são preenchidos pelas tags do Desk. Ocorrências antigas com tipo vazio são preenchidas na próxima sincronização quando houver uma tag de tipo reconhecida. A sincronização nunca altera uma classificação já preenchida nem dispara WhatsApp.
 
 Somente empresas marcadas como `isInTraining: true` no SSX Desk são consideradas. O cliente precisa existir no Radar e estar em treinamento ativo: sem ongoing, cancelamento, suspensão ou data de finalização. A conversa deve estar encerrada e ter começado desde a data de entrada do cliente no Radar. A primeira execução também considera o histórico disponível nesse período.
 

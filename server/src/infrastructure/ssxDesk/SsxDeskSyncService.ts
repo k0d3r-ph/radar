@@ -1,7 +1,7 @@
 import type { Firestore } from 'firebase-admin/firestore';
 import {
   conversaElegivel, criarOcorrencia, idOcorrencia, listarConversas, resolverEmpresa,
-  RESUMO_PENDENTE, type RadarEmpresa, type TrainingConversation,
+  RESUMO_PENDENTE, tipoDaConversa, type RadarEmpresa, type TrainingConversation,
 } from './trainingConversations.js';
 
 export class SsxDeskSyncService {
@@ -9,7 +9,7 @@ export class SsxDeskSyncService {
   private empresas = new Map<string, RadarEmpresa>();
   private empresasLidasEm = 0;
   private empresasCargaCompletaEm = 0;
-  private importacoes: Map<string, { empresaId: string; descricaoImportada: string }> | undefined;
+  private importacoes: Map<string, { empresaId: string; descricaoImportada: string; tipoProcessado?: string }> | undefined;
 
   constructor(
     private readonly db: Firestore,
@@ -25,7 +25,7 @@ export class SsxDeskSyncService {
       const empresas = await this.carregarEmpresas();
       if (!this.importacoes) {
         const registros = await this.db.collection('ssxDeskImportacoes').get();
-        this.importacoes = new Map(registros.docs.map(d => [d.id, d.data() as { empresaId: string; descricaoImportada: string }]));
+        this.importacoes = new Map(registros.docs.map(d => [d.id, d.data() as { empresaId: string; descricaoImportada: string; tipoProcessado?: string }]));
       }
       const companies = conversas.map(c => c.company);
       const stats = { consultadas: conversas.length, criadas: 0, atualizadas: 0, existentes: 0, ignoradas: 0,
@@ -36,7 +36,9 @@ export class SsxDeskSyncService {
         if (!conversa.company.isInTraining) { stats.ignoradas++; continue; }
         const id = idOcorrencia(conversa.id);
         const importada = this.importacoes.get(id);
-        if (importada && (!conversa.summary?.trim() || conversa.summary.trim() === importada.descricaoImportada)) {
+        const tipo = tipoDaConversa(conversa);
+        if (importada && importada.tipoProcessado === tipo
+          && (!conversa.summary?.trim() || conversa.summary.trim() === importada.descricaoImportada)) {
           stats.existentes++;
           continue;
         }
@@ -60,7 +62,7 @@ export class SsxDeskSyncService {
           empresa: empresa.nomeEmpresa, startedAt: conversa.startedAt, conversationId: conversa.id,
         });
         if (!dryRun && resultado !== 'ignoradas') this.importacoes.set(id, {
-          empresaId: empresa.id, descricaoImportada: conversa.summary?.trim() || RESUMO_PENDENTE,
+          empresaId: empresa.id, descricaoImportada: conversa.summary?.trim() || RESUMO_PENDENTE, tipoProcessado: tipo,
         });
       }
       if (!dryRun) await this.db.doc('integracoes/ssxDesk').set({
@@ -97,13 +99,21 @@ export class SsxDeskSyncService {
         if (!ocorrencia.exists) return 'existentes' as const;
         const anterior = registro.data()!;
         const novaDescricao = conversa.summary?.trim();
-        if (!novaDescricao || novaDescricao === anterior.descricaoImportada) return 'existentes' as const;
+        const tipo = tipoDaConversa(conversa);
+        const resumoMudou = !!novaDescricao && novaDescricao !== anterior.descricaoImportada;
+        if (!resumoMudou && anterior.tipoProcessado === tipo) return 'existentes' as const;
         // Resumo assíncrono/reprocessado: atualizar só se a descrição não foi editada pelo usuário.
         if (!dryRun) {
-          if (ocorrencia.data()!.descricao === anterior.descricaoImportada) {
-            tx.update(ref, { descricao: novaDescricao, 'ssxDesk.summaryGeneratedAt': conversa.summaryGeneratedAt, updatedAt: agora });
+          const dados = ocorrencia.data()!;
+          const ajustes: Record<string, unknown> = {};
+          if (resumoMudou && dados.descricao === anterior.descricaoImportada) {
+            ajustes.descricao = novaDescricao;
+            ajustes['ssxDesk.summaryGeneratedAt'] = conversa.summaryGeneratedAt;
           }
-          tx.update(controle, { descricaoImportada: novaDescricao, updatedAt: agora });
+          // Preencher apenas tipos pendentes, preservando a classificação manual.
+          if (!dados.tipo && tipo) ajustes.tipo = tipo;
+          if (Object.keys(ajustes).length) tx.update(ref, { ...ajustes, updatedAt: agora });
+          tx.update(controle, { ...(resumoMudou ? { descricaoImportada: novaDescricao } : {}), tipoProcessado: tipo, updatedAt: agora });
         }
         return 'atualizadas' as const;
       }
@@ -115,7 +125,7 @@ export class SsxDeskSyncService {
       const nova = criarOcorrencia(conversa, atual, agora);
       if (!dryRun) {
         tx.create(ref, nova);
-        tx.create(controle, { conversationId: conversa.id, ocorrenciaId: id, empresaId: atual.id, descricaoImportada: nova.descricao, importedAt: agora });
+        tx.create(controle, { conversationId: conversa.id, ocorrenciaId: id, empresaId: atual.id, descricaoImportada: nova.descricao, tipoProcessado: nova.tipo, importedAt: agora });
       }
       return 'criadas' as const;
     });

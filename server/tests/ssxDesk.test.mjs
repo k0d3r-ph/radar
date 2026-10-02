@@ -14,6 +14,36 @@ const conversa = {
   tags: [{ id: 'tag-1', label: 'Dúvida' }],
 };
 
+test('tipos do Desk são normalizados sem inferir assuntos ou escolher conflitos', () => {
+  for (const [label, tipo] of [[' DÚVIDA ', 'Dúvida'], ['solicitacao', 'Solicitação'], ['Problema', 'Problema']]) {
+    const nova = criarOcorrencia({ ...conversa, tags: [{ id: 't', label }] }, empresa, 123);
+    assert.equal(nova.tipo, tipo);
+    assert.deepEqual(nova.temaOcorrencia, []);
+  }
+  for (const labels of [[], ['Outro'], ['Dúvida', 'Problema']]) {
+    assert.equal(criarOcorrencia({ ...conversa, tags: labels.map(label => ({ id: label, label })) }, empresa, 123).tipo, '');
+  }
+});
+
+test('importações antigas recebem tipo sem alterar assunto ou classificação manual', async () => {
+  for (const tipoAnterior of ['', 'Solicitação']) {
+    const db = database();
+    await new SsxDeskSyncService(db, 'teste', async () => [conversa]).sincronizar();
+    const id = idOcorrencia(conversa.id);
+    const oc = db.docs.get(`ocorrencias/${id}`);
+    oc.tipo = tipoAnterior;
+    oc.temaOcorrencia = ['Assunto manual'];
+    delete db.docs.get(`ssxDeskImportacoes/${id}`).tipoProcessado;
+    const service = new SsxDeskSyncService(db, 'teste', async () => [conversa]);
+    await service.sincronizar(true);
+    assert.equal(oc.tipo, tipoAnterior);
+    assert.equal((await service.sincronizar()).atualizadas, 1);
+    assert.equal(oc.tipo, tipoAnterior || 'Dúvida');
+    assert.deepEqual(oc.temaOcorrencia, ['Assunto manual']);
+    assert.equal((await service.sincronizar()).atualizadas, 0);
+  }
+});
+
 test('vínculo único por Central; ID compartilhado exige nome exato e único', () => {
   assert.equal(resolverEmpresa(conversa.company, [empresa], [conversa.company]), empresa);
   const outroDesk = { ...conversa.company, id: 'desk-2', name: 'Outra empresa' };
@@ -45,7 +75,8 @@ test('somente treinamento ativo, conversa encerrada e iniciada desde a entrada n
 test('ocorrência conserva instante do atendimento, resumo, origem e tipo opcional', () => {
   const nova = criarOcorrencia(conversa, empresa, 123);
   assert.equal(nova.dataOcorrencia, Date.parse(conversa.startedAt));
-  assert.equal(nova.tipo, '');
+  assert.equal(nova.tipo, 'Dúvida');
+  assert.deepEqual(nova.temaOcorrencia, []);
   assert.equal(nova.departamento, 'Suporte');
   assert.equal(nova.descricao, conversa.summary);
   assert.equal(nova.ssxDesk.finishedAt, conversa.finishedAt);

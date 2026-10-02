@@ -72,10 +72,17 @@ export function idOcorrencia(conversaId: string): string {
   return `ssxdesk_${createHash('sha256').update(conversaId).digest('hex')}`;
 }
 
+export function tipoDaConversa(conversa: TrainingConversation): string {
+  const tipos = new Map([['duvida', 'Dúvida'], ['solicitacao', 'Solicitação'], ['problema', 'Problema']]);
+  const encontrados = new Set(conversa.tags.map(t => tipos.get(normalizarNome(t.label))).filter(Boolean));
+  // Não escolher arbitrariamente quando o Desk informa tipos conflitantes.
+  return encontrados.size === 1 ? [...encontrados][0]! : '';
+}
+
 export function criarOcorrencia(conversa: TrainingConversation, empresa: RadarEmpresa, agora: number) {
   return {
     empresa: empresa.nomeEmpresa,
-    tipo: '',
+    tipo: tipoDaConversa(conversa),
     departamento: 'Suporte',
     responsavel: 'SSX Desk',
     descricao: conversa.summary?.trim() || RESUMO_PENDENTE,

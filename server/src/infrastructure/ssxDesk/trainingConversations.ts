@@ -11,6 +11,7 @@ export interface TrainingConversation {
   summary: string | null;
   summaryGeneratedAt: string | null;
   tags: { id: string; label: string }[];
+  conversationIds?: string[];
 }
 
 export interface RadarEmpresa {
@@ -79,6 +80,34 @@ export function tipoDaConversa(conversa: TrainingConversation): string {
   return encontrados.size === 1 ? [...encontrados][0]! : '';
 }
 
+export function chaveSessao(c: TrainingConversation): string {
+  return JSON.stringify([c.company.id, c.sessionId]);
+}
+
+export function agruparConversas(conversas: TrainingConversation[], anteriores: Map<string, string> = new Map()) {
+  const grupos = new Map<string, TrainingConversation[]>();
+  for (const c of conversas) {
+    const chave = chaveSessao(c);
+    grupos.set(chave, [...(grupos.get(chave) || []), c]);
+  }
+  return [...grupos.entries()].map(([chave, grupo]) => {
+    const ordenadas = [...grupo].sort((a, b) => a.id.localeCompare(b.id));
+    const principal = ordenadas.find(c => c.id === anteriores.get(chave)) || ordenadas[0];
+    const resumo = [...ordenadas].filter(c => c.summary?.trim()).sort((a, b) =>
+      (Date.parse(b.summaryGeneratedAt || '') || 0) - (Date.parse(a.summaryGeneratedAt || '') || 0))[0];
+    return {
+      ...principal,
+      id: anteriores.get(chave) || principal.id,
+      startedAt: [...grupo].sort((a, b) => Date.parse(a.startedAt) - Date.parse(b.startedAt))[0].startedAt,
+      finishedAt: [...grupo].sort((a, b) => Date.parse(b.finishedAt) - Date.parse(a.finishedAt))[0].finishedAt,
+      summary: resumo?.summary || null,
+      summaryGeneratedAt: resumo?.summaryGeneratedAt || null,
+      tags: [...new Map(grupo.flatMap(c => c.tags).map(t => [normalizarNome(t.label), t])).values()],
+      conversationIds: ordenadas.map(c => c.id),
+    };
+  });
+}
+
 export function criarOcorrencia(conversa: TrainingConversation, empresa: RadarEmpresa, agora: number) {
   return {
     empresa: empresa.nomeEmpresa,
@@ -94,6 +123,7 @@ export function criarOcorrencia(conversa: TrainingConversation, empresa: RadarEm
     origem: 'ssx-desk',
     ssxDesk: {
       conversationId: conversa.id,
+      conversationIds: conversa.conversationIds || [conversa.id],
       sessionId: conversa.sessionId,
       companyId: conversa.company.id,
       empresaId: empresa.id,

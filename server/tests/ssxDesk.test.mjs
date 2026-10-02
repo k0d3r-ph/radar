@@ -14,6 +14,64 @@ const conversa = {
   tags: [{ id: 'tag-1', label: 'Dúvida' }],
 };
 
+test('três conversas de uma sessão criam uma ocorrência e combinam tags e resumo recente', async () => {
+  const db = database();
+  const conversas = [conversa, { ...conversa, id: 'c-2', summary: 'Resumo recente', summaryGeneratedAt: '2026-10-01T14:00:00Z', tags: [] }, { ...conversa, id: 'c-3', tags: [] }];
+  const service = new SsxDeskSyncService(db, 'teste', async () => conversas);
+  const stats = await service.sincronizar();
+  assert.equal(stats.criadas, 1);
+  assert.equal(stats.agrupadas, 2);
+  const docs = [...db.docs.entries()].filter(([k]) => k.startsWith('ocorrencias/'));
+  assert.equal(docs.length, 1);
+  assert.equal(docs[0][1].descricao, 'Resumo recente');
+  assert.equal(docs[0][1].tipo, 'Dúvida');
+  assert.equal(docs[0][1].ssxDesk.conversationIds.length, 3);
+  assert.equal((await service.sincronizar()).criadas, 0);
+});
+
+test('sessão mantém ocorrência antiga editada mesmo quando API troca o conversationId', async () => {
+  const db = database();
+  await new SsxDeskSyncService(db, 'teste', async () => [conversa]).sincronizar();
+  const id = idOcorrencia(conversa.id);
+  const oc = db.docs.get(`ocorrencias/${id}`);
+  oc.descricao = 'Texto manual';
+  oc.tipo = 'Problema';
+  const alterada = { ...conversa, id: 'outro-id', summary: 'Novo resumo' };
+  const service = new SsxDeskSyncService(db, 'teste', async () => [alterada]);
+  assert.equal((await service.sincronizar()).criadas, 0);
+  assert.equal(oc.descricao, 'Texto manual');
+  assert.equal(oc.tipo, 'Problema');
+  db.docs.delete(`ocorrencias/${id}`);
+  assert.equal((await new SsxDeskSyncService(db, 'teste', async () => [alterada]).sincronizar()).criadas, 0);
+});
+
+test('instâncias com conversationIds distintos disputam a mesma sessão sem duplicar', async () => {
+  const db = database();
+  const resultados = await Promise.all([
+    new SsxDeskSyncService(db, 'teste', async () => [conversa]).sincronizar(),
+    new SsxDeskSyncService(db, 'teste', async () => [{ ...conversa, id: 'outro-id' }]).sincronizar(),
+  ]);
+  assert.equal(resultados.reduce((n, r) => n + r.criadas, 0), 1);
+  assert.equal([...db.docs.keys()].filter(k => k.startsWith('ocorrencias/')).length, 1);
+});
+
+test('três duplicatas legadas são preservadas e a sessão reutiliza a primeira sem criar uma quarta', async () => {
+  const db = database();
+  const grupo = [conversa, { ...conversa, id: 'c-2' }, { ...conversa, id: 'c-3' }];
+  for (const [index, c] of grupo.entries()) {
+    const id = idOcorrencia(c.id);
+    const oc = criarOcorrencia(c, empresa, index + 1);
+    db.docs.set(`ocorrencias/${id}`, oc);
+    db.docs.set(`ssxDeskImportacoes/${id}`, { conversationId: c.id, ocorrenciaId: id, empresaId: empresa.id, descricaoImportada: oc.descricao });
+  }
+  db.docs.get(`ocorrencias/${idOcorrencia(conversa.id)}`).descricao = 'Edição preservada';
+  const service = new SsxDeskSyncService(db, 'teste', async () => [...grupo].reverse());
+  assert.equal((await service.sincronizar()).criadas, 0);
+  assert.equal([...db.docs.keys()].filter(k => k.startsWith('ocorrencias/')).length, 3);
+  assert.equal(db.docs.get(`ocorrencias/${idOcorrencia(conversa.id)}`).descricao, 'Edição preservada');
+  assert.equal([...db.docs.entries()].find(([k]) => k.startsWith('ssxDeskSessoes/'))[1].ocorrenciaId, idOcorrencia(conversa.id));
+});
+
 test('tipos do Desk são normalizados sem inferir assuntos ou escolher conflitos', () => {
   for (const [label, tipo] of [[' DÚVIDA ', 'Dúvida'], ['solicitacao', 'Solicitação'], ['Problema', 'Problema']]) {
     const nova = criarOcorrencia({ ...conversa, tags: [{ id: 't', label }] }, empresa, 123);

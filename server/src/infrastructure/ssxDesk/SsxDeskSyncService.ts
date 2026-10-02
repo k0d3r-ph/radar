@@ -1,6 +1,6 @@
 import type { Firestore } from 'firebase-admin/firestore';
 import {
-  conversaElegivel, criarOcorrencia, idOcorrencia, listarConversas, resolverEmpresa,
+  agruparConversas, chaveSessao, conversaElegivel, criarOcorrencia, idOcorrencia, listarConversas, resolverEmpresa,
   RESUMO_PENDENTE, tipoDaConversa, type RadarEmpresa, type TrainingConversation,
 } from './trainingConversations.js';
 
@@ -10,6 +10,8 @@ export class SsxDeskSyncService {
   private empresasLidasEm = 0;
   private empresasCargaCompletaEm = 0;
   private importacoes: Map<string, { empresaId: string; descricaoImportada: string; tipoProcessado?: string }> | undefined;
+  private sessoes = new Map<string, string>();
+  private sessoesRegistradas = new Set<string>();
 
   constructor(
     private readonly db: Firestore,
@@ -21,14 +23,37 @@ export class SsxDeskSyncService {
     if (this.executando) return undefined;
     this.executando = true;
     try {
-      const conversas = await this.consultar(this.apiKey);
+      const recebidas = await this.consultar(this.apiKey);
       const empresas = await this.carregarEmpresas();
       if (!this.importacoes) {
         const registros = await this.db.collection('ssxDeskImportacoes').get();
         this.importacoes = new Map(registros.docs.map(d => [d.id, d.data() as { empresaId: string; descricaoImportada: string; tipoProcessado?: string }]));
+        // Localizar a primeira ocorrência da sessão antes de criar novos registros.
+        // Duplicatas legadas permanecem intactas para preservar edições e referências.
+        const antigas = await this.db.collection('ocorrencias').where('origem', '==', 'ssx-desk').get();
+        const ordenadas = antigas.docs.map(d => d.data()).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+        for (const o of ordenadas) {
+          const s = o.ssxDesk;
+          if (!s?.companyId || !s.sessionId || !s.conversationId) continue;
+          const chave = JSON.stringify([s.companyId, s.sessionId]);
+          if (!this.sessoes.has(chave)) this.sessoes.set(chave, s.conversationId);
+        }
+        const sessoes = await this.db.collection('ssxDeskSessoes').get();
+        for (const d of sessoes.docs) {
+          const s = d.data();
+          const chave = JSON.stringify([s.companyId, s.sessionId]);
+          this.sessoesRegistradas.add(chave);
+          const controle = registros.docs.find(r => r.id === s.ocorrenciaId)?.data();
+          if (controle?.conversationId) this.sessoes.set(chave, controle.conversationId);
+        }
       }
-      const companies = conversas.map(c => c.company);
-      const stats = { consultadas: conversas.length, criadas: 0, atualizadas: 0, existentes: 0, ignoradas: 0,
+      // Controles também preservam exclusões: não recriar sessões excluídas.
+      for (const c of recebidas) {
+        if (this.importacoes.has(idOcorrencia(c.id)) && !this.sessoes.has(chaveSessao(c))) this.sessoes.set(chaveSessao(c), c.id);
+      }
+      const conversas = agruparConversas(recebidas, this.sessoes);
+      const companies = recebidas.map(c => c.company);
+      const stats = { consultadas: recebidas.length, sessoes: conversas.length, agrupadas: recebidas.length - conversas.length, criadas: 0, atualizadas: 0, existentes: 0, ignoradas: 0,
         foraTreinamentoOuPeriodo: 0, semVinculo: [] as string[],
         ...(dryRun ? { previstas: [] as { empresa: string; startedAt: string; conversationId: string }[] } : {}),
       };
@@ -37,7 +62,7 @@ export class SsxDeskSyncService {
         const id = idOcorrencia(conversa.id);
         const importada = this.importacoes.get(id);
         const tipo = tipoDaConversa(conversa);
-        if (importada && importada.tipoProcessado === tipo
+        if (importada && this.sessoesRegistradas.has(chaveSessao(conversa)) && importada.tipoProcessado === tipo
           && (!conversa.summary?.trim() || conversa.summary.trim() === importada.descricaoImportada)) {
           stats.existentes++;
           continue;
@@ -61,9 +86,13 @@ export class SsxDeskSyncService {
         if (resultado === 'criadas' && stats.previstas) stats.previstas.push({
           empresa: empresa.nomeEmpresa, startedAt: conversa.startedAt, conversationId: conversa.id,
         });
-        if (!dryRun && resultado !== 'ignoradas') this.importacoes.set(id, {
+        if (!dryRun && resultado !== 'ignoradas') {
+          this.sessoes.set(chaveSessao(conversa), conversa.id);
+          this.sessoesRegistradas.add(chaveSessao(conversa));
+          this.importacoes.set(id, {
           empresaId: empresa.id, descricaoImportada: conversa.summary?.trim() || RESUMO_PENDENTE, tipoProcessado: tipo,
-        });
+          });
+        }
       }
       if (!dryRun) await this.db.doc('integracoes/ssxDesk').set({
         lastSuccessAt: Date.now(), lastError: null, ...stats,
@@ -87,15 +116,19 @@ export class SsxDeskSyncService {
 
   private async importar(conversa: TrainingConversation, empresa: RadarEmpresa, dryRun: boolean) {
     const id = idOcorrencia(conversa.id);
-    const ref = this.db.doc(`ocorrencias/${id}`);
+    const sessao = this.db.doc(`ssxDeskSessoes/${idOcorrencia(chaveSessao(conversa))}`);
     // Registro separado preserva a decisão de excluir uma ocorrência no Radar.
-    const controle = this.db.doc(`ssxDeskImportacoes/${id}`);
     return this.db.runTransaction(async tx => {
+      const vinculo = await tx.get(sessao);
+      const destino = vinculo.exists ? vinculo.data()!.ocorrenciaId as string : id;
+      const ref = this.db.doc(`ocorrencias/${destino}`);
+      const controle = this.db.doc(`ssxDeskImportacoes/${destino}`);
       const [registro, ocorrencia, empresaAtual] = await Promise.all([
         tx.get(controle), tx.get(ref), tx.get(this.db.doc(`empresas/${empresa.id}`)),
       ]);
       const agora = Date.now();
       if (registro.exists) {
+        if (!vinculo.exists && !dryRun) tx.create(sessao, { ocorrenciaId: destino, companyId: conversa.company.id, sessionId: conversa.sessionId });
         if (!ocorrencia.exists) return 'existentes' as const;
         const anterior = registro.data()!;
         const novaDescricao = conversa.summary?.trim();
@@ -125,7 +158,8 @@ export class SsxDeskSyncService {
       const nova = criarOcorrencia(conversa, atual, agora);
       if (!dryRun) {
         tx.create(ref, nova);
-        tx.create(controle, { conversationId: conversa.id, ocorrenciaId: id, empresaId: atual.id, descricaoImportada: nova.descricao, tipoProcessado: nova.tipo, importedAt: agora });
+        tx.create(controle, { conversationId: conversa.id, ocorrenciaId: destino, empresaId: atual.id, descricaoImportada: nova.descricao, tipoProcessado: nova.tipo, importedAt: agora });
+        if (!vinculo.exists) tx.create(sessao, { ocorrenciaId: destino, companyId: conversa.company.id, sessionId: conversa.sessionId });
       }
       return 'criadas' as const;
     });

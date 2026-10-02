@@ -7,12 +7,16 @@ import { pathToFileURL } from 'node:url';
 // A versão fixada no lockfile ainda espalha o __x_id da mídia sobre o Msg.
 export function patchWhatsAppMedia(source) {
   const marker = '// Radar: preservar o MsgKey ao enviar mídia.';
-  if (source.includes(marker)) return source;
+  let patched = source;
   const anchor = "        // Bot's won't reply if canonicalUrl is set (linking)";
   if (source.split(anchor).length !== 2 || !source.includes('...mediaOptions,')) {
     throw new Error('whatsapp-web.js mudou: revise a correção de mídia antes de publicar.');
   }
-  return source.replace(anchor, `        ${marker}\n        delete message.__x_id;\n\n${anchor}`);
+  if (!patched.includes(marker)) patched = patched.replace(anchor, `        ${marker}\n        delete message.__x_id;\n\n${anchor}`);
+  // WhatsApp Web também representa MsgKey como $1. Consultar _serialized
+  // vazio perde a confirmação mesmo depois de addAndSendMsgToChat concluir.
+  patched = patched.replaceAll('.Msg.get(newMsgKey._serialized);', '.Msg.get(newMsgKey._serialized || newMsgKey.$1);');
+  return patched;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {

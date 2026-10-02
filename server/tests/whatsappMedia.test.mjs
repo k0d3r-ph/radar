@@ -15,11 +15,11 @@ test('patch é idempotente e rejeita uma biblioteca incompatível', () => {
 });
 
 // Executa a função real injetada pela biblioteca; simula apenas os módulos do WhatsApp.
-async function enviar(source, media, lid) {
+async function enviar(source, media, lid, formatoAlternativo = false) {
   let enviada;
   class MsgKey {
     static async newId() { return 'nova-mensagem'; }
-    constructor(fields) { Object.assign(this, fields); this._serialized = 'msg-id'; }
+    constructor(fields) { Object.assign(this, fields); if (formatoAlternativo) this.$1 = 'msg-id'; else this._serialized = 'msg-id'; }
   }
   const modules = {
     WAWebChatGetters: { getIsNewsletter: () => false, getIsBroadcast: () => false },
@@ -34,7 +34,7 @@ async function enviar(source, media, lid) {
       enviada = message;
       return [Promise.resolve(), Promise.resolve()];
     } },
-    WAWebCollections: { Msg: { get: () => enviada } },
+    WAWebCollections: { Msg: { get: id => id === 'msg-id' ? enviada : undefined } },
   };
   const window = { WWebJS: { processMediaData: async () => media }, require: name => {
     assert.ok(modules[name], `Módulo inesperado: ${name}`);
@@ -68,4 +68,13 @@ test('envio de texto continua com identificador válido', async () => {
   const sent = await enviar(patchWhatsAppMedia(source), null, true);
   assert.equal(sent.id.id, 'nova-mensagem');
   assert.equal(sent.body, 'Mensagem');
+});
+
+test('imagem enviada retorna confirmação com MsgKey no formato $1', async () => {
+  const semFallback = source.replaceAll('newMsgKey._serialized || newMsgKey.$1', 'newMsgKey._serialized');
+  const media = { preview: 'preview', toJSON: () => ({ type: 'image' }) };
+  assert.equal(await enviar(semFallback, media, true, true), undefined);
+  const sent = await enviar(patchWhatsAppMedia(semFallback), media, true, true);
+  assert.equal(sent.id.$1, 'msg-id');
+  assert.equal(sent.caption, 'Legenda');
 });

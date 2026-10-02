@@ -40,6 +40,7 @@ import {
   TIPOS_PADRAO_SISTEMA,
 } from "../../services/temasOcorrencia";
 import { generateEsteiraImage } from "../../utils/generateEsteiraImage";
+import { obterDataRealizacaoTreinamento } from "../../utils/dataTreinamento";
 import { GestaoNotificacaoModal } from "../../components/GestaoNotificacaoModal";
 
 import {
@@ -1076,14 +1077,8 @@ export function Historico() {
     }
 
     const temas = oc.temaOcorrencia ?? [];
-    let dataCompleta = new Date(oc.dataOcorrencia).toLocaleDateString("pt-BR");
-    if (oc.treinamentoDataSolicitacao) {
-      // Se houver, mantemos a lógica simplificada
-      const partes = oc.treinamentoDataSolicitacao.split("-");
-      if (partes.length === 3) {
-        dataCompleta = `${partes[2]}/${partes[1]}/${partes[0]}`;
-      }
-    }
+    const [year, month, day] = obterDataRealizacaoTreinamento(oc).split("-");
+    const dataCompleta = `${day}/${month}/${year}`;
 
     const temasParaMensagem = temas.filter(
       (t) =>
@@ -1519,7 +1514,6 @@ export function Historico() {
 
     const novaDescricao = form.descricao.trim();
 
-    let dataRealizacaoStr = "";
     // Dado antigo (modelo de nota 1 a 5): preservado como está no registro
     // original quando em edição, já que o formulário não permite mais editá-lo.
     const computedMedia: number | null =
@@ -1529,19 +1523,6 @@ export function Historico() {
     const validResultados = (form.treinamentoResultados ?? []).filter(
       (r): r is "Bom" | "Ruim" => r === "Bom" || r === "Ruim",
     );
-
-    if (form.tipo === "Treinamento") {
-      let d: Date;
-      if (editandoId && ocorrenciaOriginal?.createdAt) {
-        d = new Date(ocorrenciaOriginal.createdAt);
-      } else {
-        d = new Date();
-      }
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, "0");
-      const day = String(d.getDate()).padStart(2, "0");
-      dataRealizacaoStr = `${year}-${month}-${day}`;
-    }
 
     // Marca individualmente os temas revisados, inclusive nas agendas mistas.
     const treinamento = prepararTemasTreinamento(
@@ -1573,6 +1554,10 @@ export function Historico() {
     } else if (ocorrenciaOriginal?.createdAt) {
       finalCreatedAt = ocorrenciaOriginal.createdAt;
     }
+
+    const dataRealizacaoStr = form.tipo === "Treinamento"
+      ? obterDataRealizacaoTreinamento({ createdAt: finalCreatedAt })
+      : "";
 
     const base: Ocorrencia = {
       ...form,

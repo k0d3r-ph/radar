@@ -170,11 +170,15 @@ export class SsxDeskSyncService {
             const emp = { ...empresaAtual.data(), id: empresaAtual.id } as RadarEmpresa;
             if (tipo === 'Dúvida') {
               const ajustesAtivos = (emp.scoreAjustesTemporarios || []).filter((a) => a.expiraEm > agora);
+              // `updatedAt` precisa ser gravado aqui: a sincronização incremental do app
+              // (ver sincronizacaoIncremental.ts) só busca de novo documentos cujo
+              // `updatedAt` avançou — sem isso, o navegador nunca vê esta redução de score.
               tx.update(this.db.doc(`empresas/${emp.id}`), {
                 scoreAjustesTemporarios: [
                   ...ajustesAtivos,
                   criarAjusteTemporarioScore(MOTIVO_REDUCAO_SCORE_SUPORTE, VALOR_REDUCAO_SCORE_SUPORTE, DIAS_REDUCAO_SCORE_SUPORTE, destino, timestampContato),
                 ],
+                updatedAt: agora,
               });
             }
             const deducao = pontosDeducaoTreinador(emp.gamificacaoDeducaoSuporte, tipo, timestampContato);
@@ -252,7 +256,10 @@ export class SsxDeskSyncService {
         if (!vinculo.exists) tx.create(sessao, { ocorrenciaId: destino, companyId: conversa.company.id, sessionId: conversa.sessionId });
         if (ajusteScore) {
           const ajustesAtivos = (atual.scoreAjustesTemporarios || []).filter((a) => a.expiraEm > agora);
-          tx.update(this.db.doc(`empresas/${atual.id}`), { scoreAjustesTemporarios: [...ajustesAtivos, ajusteScore] });
+          // `updatedAt` precisa ser gravado aqui: a sincronização incremental do app
+          // (ver sincronizacaoIncremental.ts) só busca de novo documentos cujo
+          // `updatedAt` avançou — sem isso, o navegador nunca vê esta redução de score.
+          tx.update(this.db.doc(`empresas/${atual.id}`), { scoreAjustesTemporarios: [...ajustesAtivos, ajusteScore], updatedAt: agora });
         }
         if (lancamentoRef && lancamentoPonto) tx.create(lancamentoRef, lancamentoPonto);
       }

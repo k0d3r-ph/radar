@@ -23,6 +23,21 @@ export interface RadarEmpresa {
   isOngoing?: boolean;
   isCancelled?: boolean;
   isSuspended?: boolean;
+  /** Primeiro nome do treinador responsável (ver Gamificacao.tsx), usado na dedução de pontos por contato de Suporte. */
+  responsavel?: string;
+  scoreAjustesTemporarios?: {
+    motivo: string;
+    valor: number;
+    criadoEm: number;
+    expiraEm: number;
+    ocorrenciaId?: string;
+  }[];
+  gamificacaoDeducaoSuporte?: {
+    ativo: boolean;
+    duvida?: { dentroExpediente?: number; foraExpediente?: number };
+    problema?: { dentroExpediente?: number; foraExpediente?: number };
+    solicitacao?: { dentroExpediente?: number; foraExpediente?: number };
+  };
 }
 
 export const RESUMO_PENDENTE = 'Atendimento encerrado no SSX Desk. Resumo aguardando processamento.';

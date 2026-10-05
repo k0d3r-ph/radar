@@ -3,6 +3,10 @@ import {
   agruparConversas, chaveSessao, conversaElegivel, criarOcorrencia, idOcorrencia, listarConversas, resolverEmpresa,
   RESUMO_PENDENTE, tipoDaConversa, type RadarEmpresa, type TrainingConversation,
 } from './trainingConversations.js';
+import {
+  criarAjusteTemporarioScore, encontrarTreinadorPorResponsavel, pontosDeducaoTreinador,
+  DIAS_REDUCAO_SCORE_SUPORTE, MOTIVO_REDUCAO_SCORE_SUPORTE, VALOR_REDUCAO_SCORE_SUPORTE,
+} from './gamificacaoDesconto.js';
 
 export class SsxDeskSyncService {
   private executando = false;
@@ -25,6 +29,7 @@ export class SsxDeskSyncService {
     try {
       const recebidas = await this.consultar(this.apiKey);
       const empresas = await this.carregarEmpresas();
+      const usuarios = await this.carregarUsuarios();
       if (!this.importacoes) {
         const registros = await this.db.collection('ssxDeskImportacoes').get();
         this.importacoes = new Map(registros.docs.map(d => [d.id, d.data() as { empresaId: string; descricaoImportada: string; tipoProcessado?: string }]));
@@ -81,7 +86,7 @@ export class SsxDeskSyncService {
           stats.foraTreinamentoOuPeriodo++;
           continue;
         }
-        const resultado = await this.importar(conversa, empresa, dryRun);
+        const resultado = await this.importar(conversa, empresa, dryRun, usuarios);
         stats[resultado]++;
         if (resultado === 'criadas' && stats.previstas) stats.previstas.push({
           empresa: empresa.nomeEmpresa, startedAt: conversa.startedAt, conversationId: conversa.id,
@@ -114,7 +119,15 @@ export class SsxDeskSyncService {
     return [...this.empresas.values()];
   }
 
-  private async importar(conversa: TrainingConversation, empresa: RadarEmpresa, dryRun: boolean) {
+  private async carregarUsuarios() {
+    const snapshot = await this.db.collection('usuarios').get();
+    return snapshot.docs.map((d) => ({ uid: d.id, nome: (d.data().nome as string) || '' }));
+  }
+
+  private async importar(
+    conversa: TrainingConversation, empresa: RadarEmpresa, dryRun: boolean,
+    usuarios: { uid: string; nome: string }[],
+  ) {
     const id = idOcorrencia(conversa.id);
     const sessao = this.db.doc(`ssxDeskSessoes/${idOcorrencia(chaveSessao(conversa))}`);
     // Registro separado preserva a decisão de excluir uma ocorrência no Radar.
@@ -144,9 +157,47 @@ export class SsxDeskSyncService {
             ajustes['ssxDesk.summaryGeneratedAt'] = conversa.summaryGeneratedAt;
           }
           // Preencher apenas tipos pendentes, preservando a classificação manual.
-          if (!dados.tipo && tipo) ajustes.tipo = tipo;
+          const tipoRecemPreenchido = !dados.tipo && !!tipo;
+          if (tipoRecemPreenchido) ajustes.tipo = tipo;
           if (Object.keys(ajustes).length) tx.update(ref, { ...ajustes, updatedAt: agora });
           tx.update(controle, { ...(resumoMudou ? { descricaoImportada: novaDescricao } : {}), tipoProcessado: tipo, updatedAt: agora });
+
+          // O Desk só manda as tags (e portanto o tipo) depois da criação inicial —
+          // o desconto de Suporte/Dúvida precisa rodar aqui também, senão contatos
+          // sem tag no momento da importação nunca levam desconto nenhum.
+          if (tipoRecemPreenchido && dados.departamento === 'Suporte' && !dados.gamificacaoDescontoPontoId && empresaAtual.exists) {
+            const timestampContato = dados.dataOcorrencia || agora;
+            const emp = { ...empresaAtual.data(), id: empresaAtual.id } as RadarEmpresa;
+            if (tipo === 'Dúvida') {
+              const ajustesAtivos = (emp.scoreAjustesTemporarios || []).filter((a) => a.expiraEm > agora);
+              tx.update(this.db.doc(`empresas/${emp.id}`), {
+                scoreAjustesTemporarios: [
+                  ...ajustesAtivos,
+                  criarAjusteTemporarioScore(MOTIVO_REDUCAO_SCORE_SUPORTE, VALOR_REDUCAO_SCORE_SUPORTE, DIAS_REDUCAO_SCORE_SUPORTE, destino, timestampContato),
+                ],
+              });
+            }
+            const deducao = pontosDeducaoTreinador(emp.gamificacaoDeducaoSuporte, tipo, timestampContato);
+            if (deducao && emp.responsavel) {
+              const treinador = encontrarTreinadorPorResponsavel(emp.responsavel, usuarios);
+              if (treinador) {
+                const lancamentoRef = this.db.collection('gamificacao_pontos').doc();
+                tx.update(ref, { gamificacaoDescontoPontoId: lancamentoRef.id });
+                tx.create(lancamentoRef, {
+                  treinadorId: treinador.uid,
+                  treinadorNome: treinador.nome,
+                  tipoAcao: 'desconto_suporte',
+                  pontos: -Math.abs(deducao.pontos),
+                  descricao: `Contato de ${emp.nomeEmpresa} com o Suporte (${tipo}, ${deducao.dentroDoExpediente ? 'dentro' : 'fora'} do expediente)`,
+                  dataLancamento: timestampContato,
+                  criadoPorId: '',
+                  criadoPorNome: 'SSX Desk (sincronização automática)',
+                  ocorrenciaId: destino,
+                  updatedAt: agora,
+                });
+              }
+            }
+          }
         }
         return 'atualizadas' as const;
       }
@@ -156,10 +207,54 @@ export class SsxDeskSyncService {
       if (atual.nomeEmpresa !== empresa.nomeEmpresa || atual.idCentral !== empresa.idCentral
         || !conversaElegivel(conversa, atual)) return 'ignoradas' as const;
       const nova = criarOcorrencia(conversa, atual, agora);
+
+      // Contato de Suporte/Dúvida reduz temporariamente o score do cliente — mesma
+      // regra de app/src/utils/score.ts, aplicada aqui porque esta ocorrência nunca
+      // passa pelo formulário manual de Historico.tsx que normalmente dispara isso.
+      let ajusteScore: ReturnType<typeof criarAjusteTemporarioScore> | undefined;
+      if (nova.tipo === 'Dúvida') {
+        ajusteScore = criarAjusteTemporarioScore(
+          MOTIVO_REDUCAO_SCORE_SUPORTE, VALOR_REDUCAO_SCORE_SUPORTE, DIAS_REDUCAO_SCORE_SUPORTE,
+          destino, nova.dataOcorrencia,
+        );
+      }
+
+      // Cliente marcado (Master-only) como elegível para dedução de pontos do
+      // treinador responsável por contato de Suporte — mesma regra do bloco
+      // "gamificacaoDeducaoSuporte" de Historico.tsx.
+      let descontoPontoId: string | undefined;
+      let lancamentoRef: FirebaseFirestore.DocumentReference | undefined;
+      let lancamentoPonto: Record<string, unknown> | undefined;
+      const deducao = pontosDeducaoTreinador(atual.gamificacaoDeducaoSuporte, nova.tipo, nova.dataOcorrencia);
+      if (deducao && atual.responsavel) {
+        const treinador = encontrarTreinadorPorResponsavel(atual.responsavel, usuarios);
+        if (treinador) {
+          lancamentoRef = this.db.collection('gamificacao_pontos').doc();
+          descontoPontoId = lancamentoRef.id;
+          lancamentoPonto = {
+            treinadorId: treinador.uid,
+            treinadorNome: treinador.nome,
+            tipoAcao: 'desconto_suporte',
+            pontos: -Math.abs(deducao.pontos),
+            descricao: `Contato de ${atual.nomeEmpresa} com o Suporte (${nova.tipo}, ${deducao.dentroDoExpediente ? 'dentro' : 'fora'} do expediente)`,
+            dataLancamento: nova.dataOcorrencia,
+            criadoPorId: '',
+            criadoPorNome: 'SSX Desk (sincronização automática)',
+            ocorrenciaId: destino,
+            updatedAt: agora,
+          };
+        }
+      }
+
       if (!dryRun) {
-        tx.create(ref, nova);
+        tx.create(ref, { ...nova, ...(descontoPontoId ? { gamificacaoDescontoPontoId: descontoPontoId } : {}) });
         tx.create(controle, { conversationId: conversa.id, ocorrenciaId: destino, empresaId: atual.id, descricaoImportada: nova.descricao, tipoProcessado: nova.tipo, importedAt: agora });
         if (!vinculo.exists) tx.create(sessao, { ocorrenciaId: destino, companyId: conversa.company.id, sessionId: conversa.sessionId });
+        if (ajusteScore) {
+          const ajustesAtivos = (atual.scoreAjustesTemporarios || []).filter((a) => a.expiraEm > agora);
+          tx.update(this.db.doc(`empresas/${atual.id}`), { scoreAjustesTemporarios: [...ajustesAtivos, ajusteScore] });
+        }
+        if (lancamentoRef && lancamentoPonto) tx.create(lancamentoRef, lancamentoPonto);
       }
       return 'criadas' as const;
     });

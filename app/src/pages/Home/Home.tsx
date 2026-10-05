@@ -344,6 +344,7 @@ export default function Home() {
     dataFollowUpFinal: "",
     contatos: [],
     emails: [],
+    exibirAvisosSuporte: true,
   };
 
   const [clienteForm, setClienteForm] = useState<Empresa>(EMPTY_CLIENTE);
@@ -451,6 +452,7 @@ export default function Home() {
 
     setClienteForm({
       ...empresa,
+      exibirAvisosSuporte: empresa.exibirAvisosSuporte ?? true,
       contatos: contatosMigrados.map(normalizarContatoCliente),
     });
 
@@ -1047,7 +1049,9 @@ export default function Home() {
   const avisosSuporte = useMemo(() => {
     const limite = agora - DIAS_AVISO_SUPORTE_TREINAMENTO * 24 * 60 * 60 * 1000;
     const empresasAtivasPorNome = new Map(
-      dadosAtivos.map((e) => [e.nomeEmpresa.trim().toLowerCase(), e]),
+      dadosAtivos
+        .filter((e) => e.exibirAvisosSuporte !== false)
+        .map((e) => [e.nomeEmpresa.trim().toLowerCase(), e]),
     );
     return historico
       .filter(
@@ -4115,6 +4119,26 @@ export default function Home() {
                   }
                 />
               </div>
+            </div>
+
+            <div className="form-group">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={clienteForm.exibirAvisosSuporte ?? true}
+                  onChange={(e) =>
+                    setClienteForm({
+                      ...clienteForm,
+                      exibirAvisosSuporte: e.target.checked,
+                    })
+                  }
+                />
+                Exibir avisos de contato com o Suporte na Home
+              </label>
+              <small>
+                Desmarque para ocultar este cliente em “Clientes em treinamento
+                que contataram o Suporte”.
+              </small>
             </div>
 
             <div className="form-group">

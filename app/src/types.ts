@@ -125,6 +125,8 @@ export type Empresa = {
   /** Soma dos dias já passados em suspensões anteriores, para excluir do total de dias na esteira ao retornar. */
   diasSuspensoAcumulado?: number;
   isCancelled?: boolean;
+  /** Exibe avisos de contato com o Suporte na Home. Ausente equivale a true. */
+  exibirAvisosSuporte?: boolean;
   /**
    * Configuração (Master-only) de dedução de pontos de gamificação do treinador
    * responsável (campo {@link Empresa.responsavel}) quando este cliente entra em

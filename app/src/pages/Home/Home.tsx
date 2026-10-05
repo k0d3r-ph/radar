@@ -51,6 +51,7 @@ import {
   formatarTelefoneExibicao,
   normalizarContatoCliente,
   obterTelefonesContato,
+  obterDestinatariosCliente,
 } from "../../utils/telefone";
 import { listarUsuarios } from "../../services/auth";
 import { toast } from "sonner";
@@ -106,7 +107,7 @@ const CORES_PRODUTO: Record<string, string> = {
 
 export default function Home() {
   const navigate = useNavigate();
-  const { role } = useAuth();
+  const { role, user } = useAuth();
 
   const [clienteSelecionado, setClienteSelecionado] = useState<Empresa | null>(
     null,
@@ -842,6 +843,21 @@ export default function Home() {
     carregarDados();
   }, []);
 
+  // A Home carrega o histórico só uma vez, no mount — sem isto, o painel de
+  // avisos de Suporte (e o badge de Alerta) só refletiriam uma ocorrência nova
+  // depois de um F5. `listarOcorrencias` já usa sincronização incremental (só
+  // lê do servidor o que mudou), então repetir a chamada aqui é barato.
+  useEffect(() => {
+    const intervalo = setInterval(() => {
+      listarOcorrencias()
+        .then(setHistorico)
+        .catch((err) =>
+          console.error("Erro ao atualizar histórico em segundo plano:", err),
+        );
+    }, 180000); // 3 minutos
+    return () => clearInterval(intervalo);
+  }, []);
+
   useEffect(() => {
     sessionStorage.setItem("filtroCliente", filtroCliente);
     sessionStorage.setItem("filtroResponsavel", filtroResponsavel);
@@ -973,6 +989,68 @@ export default function Home() {
       (e) => !e.isOngoing && !e.isSuspended && !e.isCancelled,
     );
   }, [dados]);
+
+  // Janela de exibição do aviso: depois de alguns dias sem ninguém marcar como
+  // contatado, o aviso some por conta própria — segue sendo pendência, mas não
+  // vale mais a pena empilhar na Home um follow-up que já perdeu a urgência.
+  const DIAS_AVISO_SUPORTE_TREINAMENTO = 3;
+
+  /**
+   * Contatos de Suporte ainda não acompanhados pelo Treinamento, para clientes
+   * que estão na esteira ativa (ver pedido do supervisor: ao concluir um
+   * atendimento de Suporte com cliente em treinamento, o Treinamento precisa
+   * saber para sondar se a dúvida foi sanada).
+   */
+  const avisosSuporte = useMemo(() => {
+    const limite = agora - DIAS_AVISO_SUPORTE_TREINAMENTO * 24 * 60 * 60 * 1000;
+    const empresasAtivasPorNome = new Map(
+      dadosAtivos.map((e) => [e.nomeEmpresa.trim().toLowerCase(), e]),
+    );
+    return historico
+      .filter(
+        (o) =>
+          o.departamento === "Suporte" &&
+          !o.avisoTreinamentoResolvidoPorId &&
+          o.dataOcorrencia >= limite,
+      )
+      .map((o) => {
+        const empresa = empresasAtivasPorNome.get(o.empresa.trim().toLowerCase());
+        return empresa ? { ocorrencia: o, empresa } : null;
+      })
+      .filter((item): item is { ocorrencia: Ocorrencia; empresa: LinhaEsteira } => !!item)
+      .sort((a, b) => b.ocorrencia.dataOcorrencia - a.ocorrencia.dataOcorrencia);
+  }, [historico, dadosAtivos, agora]);
+
+  const [avisosSuporteAbertos, setAvisosSuporteAbertos] = useState(false);
+
+  async function marcarAvisoSuporteContatado(ocorrenciaId?: string) {
+    if (!ocorrenciaId) return;
+    const resolvidoPorId = user?.uid || "";
+    const resolvidoEm = Date.now();
+    try {
+      await salvarOcorrencia({
+        id: ocorrenciaId,
+        avisoTreinamentoResolvidoPorId: resolvidoPorId,
+        avisoTreinamentoResolvidoEm: resolvidoEm,
+      } as Ocorrencia);
+      // Atualiza o estado local: o memo de avisosSuporte é derivado de `historico`,
+      // então sem isso o item só sairia da lista num próximo carregamento da página.
+      setHistorico((prev) =>
+        prev.map((o) =>
+          o.id === ocorrenciaId
+            ? {
+                ...o,
+                avisoTreinamentoResolvidoPorId: resolvidoPorId,
+                avisoTreinamentoResolvidoEm: resolvidoEm,
+              }
+            : o,
+        ),
+      );
+    } catch (error) {
+      console.error("Erro ao marcar aviso de Suporte como contatado:", error);
+      toast.error("Não foi possível marcar o aviso como contatado.");
+    }
+  }
 
   const dadosOngoing = useMemo(() => {
     return dados.filter(
@@ -1842,6 +1920,72 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {(role === "treinador" || role === "master") &&
+        avisosSuporte.length > 0 && (
+          <div className="avisos-suporte-painel">
+            <button
+              type="button"
+              className="avisos-suporte-titulo"
+              onClick={() => setAvisosSuporteAbertos((prev) => !prev)}
+              aria-expanded={avisosSuporteAbertos}
+            >
+              <span
+                className={`avisos-suporte-seta ${avisosSuporteAbertos ? "aberta" : ""}`}
+              >
+                ▸
+              </span>
+              Clientes em treinamento que contataram o Suporte (
+              {avisosSuporte.length})
+            </button>
+            {avisosSuporteAbertos && (
+            <ul className="avisos-suporte-lista">
+              {avisosSuporte.map(({ ocorrencia, empresa }) => {
+                const destinatario = obterDestinatariosCliente(empresa)[0];
+                return (
+                  <li key={ocorrencia.id} className="aviso-suporte-item">
+                    <div className="aviso-suporte-info">
+                      <strong>{empresa.nomeEmpresa}</strong>
+                      {destinatario && (
+                        <span className="aviso-suporte-contato">
+                          {" "}
+                          — {destinatario.nome} (
+                          {formatarTelefoneExibicao(destinatario.telefone)})
+                        </span>
+                      )}
+                      <p className="aviso-suporte-motivo">
+                        {ocorrencia.descricao}
+                      </p>
+                    </div>
+                    <div className="aviso-suporte-acoes">
+                      <button
+                        type="button"
+                        className="aviso-suporte-link"
+                        onClick={() =>
+                          navigate(
+                            `/historico?empresa=${encodeURIComponent(empresa.nomeEmpresa)}&ocorrencia=${ocorrencia.id}`,
+                          )
+                        }
+                      >
+                        Ver ocorrência
+                      </button>
+                      <button
+                        type="button"
+                        className="aviso-suporte-resolver"
+                        onClick={() =>
+                          marcarAvisoSuporteContatado(ocorrencia.id)
+                        }
+                      >
+                        Marcar como contatado
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+            )}
+          </div>
+        )}
 
       <div className="home-filtros">
         <input

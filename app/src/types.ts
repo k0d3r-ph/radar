@@ -196,6 +196,13 @@ export type Ocorrencia = {
   gamificacaoPontoId?: string;
   /** Lançamento de desconto de pontos do treinador por contato de Suporte (ver gamificacaoDeducaoSuporte na Empresa), vinculado a esta ocorrência. */
   gamificacaoDescontoPontoId?: string;
+  /**
+   * Uid de quem marcou como feito o aviso de "cliente em treinamento contatou o
+   * Suporte" exibido na Home (ver painel de avisos em Home.tsx). Ausente enquanto
+   * o aviso está pendente.
+   */
+  avisoTreinamentoResolvidoPorId?: string;
+  avisoTreinamentoResolvidoEm?: number;
   treinamentoDataSolicitacao?: string;
   treinamentoTempoAgenda?: string;
   treinamentoSolicitante?: string;

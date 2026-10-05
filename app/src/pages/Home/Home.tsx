@@ -1041,7 +1041,7 @@ export default function Home() {
   const DIAS_AVISO_SUPORTE_TREINAMENTO = 3;
 
   /**
-   * Contatos de Suporte ainda não acompanhados pelo Treinamento, para clientes
+   * Dúvidas de Suporte ainda não acompanhadas pelo Treinamento, para clientes
    * que estão na esteira ativa (ver pedido do supervisor: ao concluir um
    * atendimento de Suporte com cliente em treinamento, o Treinamento precisa
    * saber para sondar se a dúvida foi sanada).
@@ -1057,6 +1057,7 @@ export default function Home() {
       .filter(
         (o) =>
           o.departamento === "Suporte" &&
+          o.tipo === "Dúvida" &&
           !o.avisoTreinamentoResolvidoPorId &&
           o.dataOcorrencia >= limite,
       )

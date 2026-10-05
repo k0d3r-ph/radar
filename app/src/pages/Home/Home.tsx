@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 
@@ -282,6 +282,13 @@ export default function Home() {
   const [filtroElegivelDeducao, setFiltroElegivelDeducao] = useState<boolean>(
     () => sessionStorage.getItem("filtroElegivelDeducao") === "true",
   );
+  // Mostra só clientes com data de follow up final preenchida (ver Empresa.dataFollowUpFinal).
+  const [filtroComFollowUpFinal, setFiltroComFollowUpFinal] = useState<boolean>(
+    () => sessionStorage.getItem("filtroComFollowUpFinal") === "true",
+  );
+  const [modalFiltrosAberto, setModalFiltrosAberto] = useState(false);
+  const botaoFiltrosRef = useRef<HTMLButtonElement>(null);
+  const modalFiltrosRef = useRef<HTMLDivElement>(null);
   const [ordenacaoContrato, setOrdenacaoContrato] = useState<
     "" | "maior" | "menor"
   >(() => (sessionStorage.getItem("ordenacaoContrato") as any) || "");
@@ -308,13 +315,14 @@ export default function Home() {
 
   const [comerciaisUsuarios, setComerciaisUsuarios] = useState<string[]>([]);
 
-  const { lista: listaComercial, mapaCanonical: mapaComerciais } = useMemo(() => {
-    const todosBrutos = [
-      ...comerciaisUsuarios,
-      ...empresas.map((e) => e.comercialResponsavel).filter(Boolean),
-    ];
-    return consolidarListaComerciais(todosBrutos);
-  }, [comerciaisUsuarios, empresas]);
+  const { lista: listaComercial, mapaCanonical: mapaComerciais } =
+    useMemo(() => {
+      const todosBrutos = [
+        ...comerciaisUsuarios,
+        ...empresas.map((e) => e.comercialResponsavel).filter(Boolean),
+      ];
+      return consolidarListaComerciais(todosBrutos);
+    }, [comerciaisUsuarios, empresas]);
 
   const [loading, setLoading] = useState(true);
 
@@ -347,10 +355,20 @@ export default function Home() {
   useEffect(() => {
     let ativo = true;
     setCarregandoPendencias(true);
-    listarTemas("pendencia").then(lista => { if (ativo) setTiposPendencia(lista); })
-      .catch(() => { if (ativo) toast.error("Não foi possível carregar os tipos de pendência."); })
-      .finally(() => { if (ativo) setCarregandoPendencias(false); });
-    return () => { ativo = false; };
+    listarTemas("pendencia")
+      .then((lista) => {
+        if (ativo) setTiposPendencia(lista);
+      })
+      .catch(() => {
+        if (ativo)
+          toast.error("Não foi possível carregar os tipos de pendência.");
+      })
+      .finally(() => {
+        if (ativo) setCarregandoPendencias(false);
+      });
+    return () => {
+      ativo = false;
+    };
   }, [modalClienteAberto]);
   const [confirmarExclusaoAberto, setConfirmarExclusaoAberto] = useState(false);
 
@@ -364,7 +382,9 @@ export default function Home() {
   >([]);
   const [gestaoAvisos, setGestaoAvisos] = useState<string[]>([]);
   const [gestaoMensagem, setGestaoMensagem] = useState("");
-  const [gestaoEmpresaId, setGestaoEmpresaId] = useState<string | undefined>(undefined);
+  const [gestaoEmpresaId, setGestaoEmpresaId] = useState<string | undefined>(
+    undefined,
+  );
   const [gestaoEmpresaEvento, setGestaoEmpresaEvento] = useState<
     "suspenso" | "cancelado" | "retorno"
   >("suspenso");
@@ -429,7 +449,10 @@ export default function Home() {
         ? [{ nome: empresa.contato || "", telefone: empresa.telefone || "" }]
         : empresa.contatos || [];
 
-    setClienteForm({ ...empresa, contatos: contatosMigrados.map(normalizarContatoCliente) });
+    setClienteForm({
+      ...empresa,
+      contatos: contatosMigrados.map(normalizarContatoCliente),
+    });
 
     setEditandoClienteId(empresa.id || null);
 
@@ -442,11 +465,17 @@ export default function Home() {
     }
 
     if (clienteForm.pendencia?.ativa) {
-      if (!clienteForm.pendencia.tipoId || !clienteForm.pendencia.tipoNome.trim()) {
+      if (
+        !clienteForm.pendencia.tipoId ||
+        !clienteForm.pendencia.tipoNome.trim()
+      ) {
         toast.error("Selecione um tipo de pendência.");
         return;
       }
-      if (clienteForm.pendencia.venceEm && !Number.isFinite(vencimentoPendencia(clienteForm.pendencia.venceEm))) {
+      if (
+        clienteForm.pendencia.venceEm &&
+        !Number.isFinite(vencimentoPendencia(clienteForm.pendencia.venceEm))
+      ) {
         toast.error("Informe uma data de vencimento válida.");
         return;
       }
@@ -502,10 +531,14 @@ export default function Home() {
     const antigoNome = empresaExistente?.nomeEmpresa || null;
 
     const contatoInvalido = (clienteForm.contatos || []).find((c) =>
-      obterTelefonesContato(c).some((telefone) => !analisarTelefoneWhatsApp(telefone).valido),
+      obterTelefonesContato(c).some(
+        (telefone) => !analisarTelefoneWhatsApp(telefone).valido,
+      ),
     );
     if (contatoInvalido) {
-      toast.error(`Corrija os telefones de ${contatoInvalido.nome || "contato sem nome"} antes de salvar.`);
+      toast.error(
+        `Corrija os telefones de ${contatoInvalido.nome || "contato sem nome"} antes de salvar.`,
+      );
       return;
     }
 
@@ -868,7 +901,14 @@ export default function Home() {
     sessionStorage.setItem("filtroCardStatus", filtroCardStatus);
     sessionStorage.setItem("filtroCardTipo", filtroCardTipo);
     sessionStorage.setItem("filtroCardAlerta", filtroCardAlerta);
-    sessionStorage.setItem("filtroElegivelDeducao", String(filtroElegivelDeducao));
+    sessionStorage.setItem(
+      "filtroElegivelDeducao",
+      String(filtroElegivelDeducao),
+    );
+    sessionStorage.setItem(
+      "filtroComFollowUpFinal",
+      String(filtroComFollowUpFinal),
+    );
     sessionStorage.setItem("ordenacaoContrato", ordenacaoContrato);
     sessionStorage.setItem("ordenacaoScore", ordenacaoScore);
     sessionStorage.setItem("ordenacaoPrincipal", ordenacaoPrincipal);
@@ -883,6 +923,7 @@ export default function Home() {
     filtroCardTipo,
     filtroCardAlerta,
     filtroElegivelDeducao,
+    filtroComFollowUpFinal,
     ordenacaoContrato,
     ordenacaoScore,
     ordenacaoPrincipal,
@@ -893,7 +934,9 @@ export default function Home() {
       .filter((empresa) => !isEmpresaInterna(empresa))
       .map((empresa) => {
         const historicoEmpresa = historico.filter(
-          o => o.empresa.trim().toLowerCase() === empresa.nomeEmpresa.trim().toLowerCase(),
+          (o) =>
+            o.empresa.trim().toLowerCase() ===
+            empresa.nomeEmpresa.trim().toLowerCase(),
         );
         const ultimoTreinamento = obterUltimoTreinamento(
           historico,
@@ -1014,11 +1057,18 @@ export default function Home() {
           o.dataOcorrencia >= limite,
       )
       .map((o) => {
-        const empresa = empresasAtivasPorNome.get(o.empresa.trim().toLowerCase());
+        const empresa = empresasAtivasPorNome.get(
+          o.empresa.trim().toLowerCase(),
+        );
         return empresa ? { ocorrencia: o, empresa } : null;
       })
-      .filter((item): item is { ocorrencia: Ocorrencia; empresa: LinhaEsteira } => !!item)
-      .sort((a, b) => b.ocorrencia.dataOcorrencia - a.ocorrencia.dataOcorrencia);
+      .filter(
+        (item): item is { ocorrencia: Ocorrencia; empresa: LinhaEsteira } =>
+          !!item,
+      )
+      .sort(
+        (a, b) => b.ocorrencia.dataOcorrencia - a.ocorrencia.dataOcorrencia,
+      );
   }, [historico, dadosAtivos, agora]);
 
   const [avisosSuporteAbertos, setAvisosSuporteAbertos] = useState(false);
@@ -1072,8 +1122,12 @@ export default function Home() {
     const emAndamento = dadosAtivos.filter(
       (e) => e.progresso > 0 && e.progresso < 100,
     ).length;
-    const safety = dadosAtivos.filter((e) => obterTipoEfetivo(e) === "Safety").length;
-    const fast = dadosAtivos.filter((e) => obterTipoEfetivo(e) === "Fast").length;
+    const safety = dadosAtivos.filter(
+      (e) => obterTipoEfetivo(e) === "Safety",
+    ).length;
+    const fast = dadosAtivos.filter(
+      (e) => obterTipoEfetivo(e) === "Fast",
+    ).length;
     const alerta = dadosAtivos.filter((e) => e.alerta).length;
     return { total, concluidos, emAndamento, safety, fast, alerta };
   }, [dadosAtivos]);
@@ -1089,6 +1143,42 @@ export default function Home() {
   const handleAlertaCardClick = () => {
     setFiltroCardAlerta((prev) => (prev === "alerta" ? "" : "alerta"));
   };
+
+  // Quantidade de filtros ativos dentro do modal "Filtros", para o selo no botão
+  // que abre o modal — sem isso o usuário não saberia que há um filtro escondido
+  // sem precisar abrir o modal pra checar.
+  const filtrosAtivosCount = [
+    filtroResponsavel,
+    filtroCs,
+    filtroComercial,
+    filtroProgresso,
+    filtroProduto,
+    filtroCardStatus,
+    filtroCardTipo,
+    filtroCardAlerta,
+    ordenacaoContrato,
+    ordenacaoScore,
+    filtroElegivelDeducao,
+    filtroComFollowUpFinal,
+  ].filter(Boolean).length;
+
+  // Esc fecha o modal, clique fora fecha, e o foco volta pro botão "Filtros" ao
+  // fechar — mesmo contrato dos outros modais do app (ver CLAUDE.md do usuário).
+  useEffect(() => {
+    if (!modalFiltrosAberto) return;
+
+    modalFiltrosRef.current?.focus();
+
+    function handleEsc(e: KeyboardEvent) {
+      if (e.key === "Escape") setModalFiltrosAberto(false);
+    }
+
+    document.addEventListener("keydown", handleEsc);
+    return () => {
+      document.removeEventListener("keydown", handleEsc);
+      botaoFiltrosRef.current?.focus();
+    };
+  }, [modalFiltrosAberto]);
 
   const compararScore = (a: any, b: any) => {
     if (ordenacaoScore === "maior") {
@@ -1169,6 +1259,10 @@ export default function Home() {
         const elegivelDeducaoOk =
           !filtroElegivelDeducao || e.gamificacaoDeducaoSuporte?.ativo === true;
 
+        const comFollowUpFinalOk =
+          !filtroComFollowUpFinal ||
+          (!!e.dataFollowUpFinal && e.dataFollowUpFinal.trim() !== "");
+
         return (
           clienteOk &&
           responsavelOk &&
@@ -1179,7 +1273,8 @@ export default function Home() {
           statusCardOk &&
           tipoCardOk &&
           alertaCardOk &&
-          elegivelDeducaoOk
+          elegivelDeducaoOk &&
+          comFollowUpFinalOk
         );
       })
       .sort((a, b) => {
@@ -1197,7 +1292,13 @@ export default function Home() {
         if (prim !== 0) return prim;
         if (sec !== 0) return sec;
 
-        const ordem = { vermelho: 0, amarelo: 1, laranja: 2, verde: 3, none: 4 };
+        const ordem = {
+          vermelho: 0,
+          amarelo: 1,
+          laranja: 2,
+          verde: 3,
+          none: 4,
+        };
         const farolDiff = (ordem[a.farol] ?? 4) - (ordem[b.farol] ?? 4);
         if (farolDiff !== 0) return farolDiff;
         return a.nomeEmpresa.localeCompare(b.nomeEmpresa, "pt-BR");
@@ -1214,6 +1315,7 @@ export default function Home() {
     filtroCardTipo,
     filtroCardAlerta,
     filtroElegivelDeducao,
+    filtroComFollowUpFinal,
     ordenacaoContrato,
     ordenacaoScore,
     ordenacaoPrincipal,
@@ -1411,7 +1513,10 @@ export default function Home() {
 
   function exportarAtivosExcel() {
     exportarEsteiraExcel(
-      exportarColunasVisiveis(dadosAtivosFiltrados, colunasAtivasPrefs.colunasVisiveis),
+      exportarColunasVisiveis(
+        dadosAtivosFiltrados,
+        colunasAtivasPrefs.colunasVisiveis,
+      ),
       "Esteira Atual",
       "esteira-atual",
     );
@@ -1419,7 +1524,10 @@ export default function Home() {
 
   function exportarOngoingExcel() {
     exportarEsteiraExcel(
-      exportarColunasVisiveis(dadosOngoingFiltrados, colunasOngoingPrefs.colunasVisiveis),
+      exportarColunasVisiveis(
+        dadosOngoingFiltrados,
+        colunasOngoingPrefs.colunasVisiveis,
+      ),
       "Clientes Ongoing",
       "clientes-ongoing",
     );
@@ -1427,7 +1535,10 @@ export default function Home() {
 
   function exportarSuspensosExcel() {
     exportarEsteiraExcel(
-      exportarColunasVisiveis(dadosSuspensosFiltrados, colunasSuspensosPrefs.colunasVisiveis),
+      exportarColunasVisiveis(
+        dadosSuspensosFiltrados,
+        colunasSuspensosPrefs.colunasVisiveis,
+      ),
       "Clientes Suspensos",
       "clientes-suspensos",
     );
@@ -1435,7 +1546,10 @@ export default function Home() {
 
   function exportarCanceladosExcel() {
     exportarEsteiraExcel(
-      exportarColunasVisiveis(dadosCanceladosFiltrados, colunasCanceladosPrefs.colunasVisiveis),
+      exportarColunasVisiveis(
+        dadosCanceladosFiltrados,
+        colunasCanceladosPrefs.colunasVisiveis,
+      ),
       "Clientes Cancelados",
       "clientes-cancelados",
     );
@@ -1479,9 +1593,9 @@ export default function Home() {
   function renderValorContrato(empresa: LinhaEsteira) {
     return empresa.valorContrato !== undefined && empresa.valorContrato !== null
       ? new Intl.NumberFormat("pt-BR", {
-        style: "currency",
-        currency: "BRL",
-      }).format(empresa.valorContrato)
+          style: "currency",
+          currency: "BRL",
+        }).format(empresa.valorContrato)
       : "—";
   }
 
@@ -1494,7 +1608,10 @@ export default function Home() {
   }
 
   function renderComercialResponsavel(empresa: LinhaEsteira) {
-    return normalizarNomeComercial(empresa.comercialResponsavel, mapaComerciais) || "-";
+    return (
+      normalizarNomeComercial(empresa.comercialResponsavel, mapaComerciais) ||
+      "-"
+    );
   }
 
   const colunasEsteiraAtual: ColumnDef<LinhaEsteira>[] = [
@@ -1503,7 +1620,15 @@ export default function Home() {
       label: "Status",
       defaultWidth: 70,
       locked: true,
-      render: (empresa) => <StatusFarol status={empresa.farol} pendencia={tiposPendencia.find(t => t.id === empresa.pendencia?.tipoId)?.nome || empresa.pendencia?.tipoNome} />,
+      render: (empresa) => (
+        <StatusFarol
+          status={empresa.farol}
+          pendencia={
+            tiposPendencia.find((t) => t.id === empresa.pendencia?.tipoId)
+              ?.nome || empresa.pendencia?.tipoNome
+          }
+        />
+      ),
       exportValue: (empresa) => LABEL_FAROL[empresa.farol] ?? "-",
     },
     {
@@ -1533,7 +1658,8 @@ export default function Home() {
               borderRadius: "999px",
               fontSize: "0.8rem",
               fontWeight: 600,
-              background: obterTipoEfetivo(empresa) === "Fast" ? "#16a34a" : "#dc2626",
+              background:
+                obterTipoEfetivo(empresa) === "Fast" ? "#16a34a" : "#dc2626",
               color: "white",
             }}
           >
@@ -1574,7 +1700,8 @@ export default function Home() {
           <span
             style={{
               fontWeight: 600,
-              color: obterTipoEfetivo(empresa) === "Fast" ? "#16a34a" : "#dc2626",
+              color:
+                obterTipoEfetivo(empresa) === "Fast" ? "#16a34a" : "#dc2626",
             }}
             title={
               (calcularScoreEfetivo(empresa) ?? empresa.score) !== empresa.score
@@ -1587,7 +1714,8 @@ export default function Home() {
         ) : (
           "—"
         ),
-      exportValue: (empresa) => (calcularScoreEfetivo(empresa) ?? empresa.score) ?? "",
+      exportValue: (empresa) =>
+        calcularScoreEfetivo(empresa) ?? empresa.score ?? "",
     },
     {
       key: "dataEntrada",
@@ -1608,7 +1736,8 @@ export default function Home() {
       label: "Agendamento",
       defaultWidth: 120,
       render: (empresa) => (empresa.tme !== null ? `${empresa.tme} dias` : "-"),
-      exportValue: (empresa) => (empresa.tme !== null ? `${empresa.tme} dias` : "-"),
+      exportValue: (empresa) =>
+        empresa.tme !== null ? `${empresa.tme} dias` : "-",
     },
     {
       key: "progresso",
@@ -1782,10 +1911,18 @@ export default function Home() {
     colunasCancelados,
   );
 
-  const [colunaArrastadaAtivos, setColunaArrastadaAtivos] = useState<string | null>(null);
-  const [colunaArrastadaOngoing, setColunaArrastadaOngoing] = useState<string | null>(null);
-  const [colunaArrastadaSuspensos, setColunaArrastadaSuspensos] = useState<string | null>(null);
-  const [colunaArrastadaCancelados, setColunaArrastadaCancelados] = useState<string | null>(null);
+  const [colunaArrastadaAtivos, setColunaArrastadaAtivos] = useState<
+    string | null
+  >(null);
+  const [colunaArrastadaOngoing, setColunaArrastadaOngoing] = useState<
+    string | null
+  >(null);
+  const [colunaArrastadaSuspensos, setColunaArrastadaSuspensos] = useState<
+    string | null
+  >(null);
+  const [colunaArrastadaCancelados, setColunaArrastadaCancelados] = useState<
+    string | null
+  >(null);
 
   function exportarColunasVisiveis(
     linhas: LinhaEsteira[],
@@ -1939,50 +2076,50 @@ export default function Home() {
               {avisosSuporte.length})
             </button>
             {avisosSuporteAbertos && (
-            <ul className="avisos-suporte-lista">
-              {avisosSuporte.map(({ ocorrencia, empresa }) => {
-                const destinatario = obterDestinatariosCliente(empresa)[0];
-                return (
-                  <li key={ocorrencia.id} className="aviso-suporte-item">
-                    <div className="aviso-suporte-info">
-                      <strong>{empresa.nomeEmpresa}</strong>
-                      {destinatario && (
-                        <span className="aviso-suporte-contato">
-                          {" "}
-                          — {destinatario.nome} (
-                          {formatarTelefoneExibicao(destinatario.telefone)})
-                        </span>
-                      )}
-                      <p className="aviso-suporte-motivo">
-                        {ocorrencia.descricao}
-                      </p>
-                    </div>
-                    <div className="aviso-suporte-acoes">
-                      <button
-                        type="button"
-                        className="aviso-suporte-link"
-                        onClick={() =>
-                          navigate(
-                            `/historico?empresa=${encodeURIComponent(empresa.nomeEmpresa)}&ocorrencia=${ocorrencia.id}`,
-                          )
-                        }
-                      >
-                        Ver ocorrência
-                      </button>
-                      <button
-                        type="button"
-                        className="aviso-suporte-resolver"
-                        onClick={() =>
-                          marcarAvisoSuporteContatado(ocorrencia.id)
-                        }
-                      >
-                        Marcar como contatado
-                      </button>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+              <ul className="avisos-suporte-lista">
+                {avisosSuporte.map(({ ocorrencia, empresa }) => {
+                  const destinatario = obterDestinatariosCliente(empresa)[0];
+                  return (
+                    <li key={ocorrencia.id} className="aviso-suporte-item">
+                      <div className="aviso-suporte-info">
+                        <strong>{empresa.nomeEmpresa}</strong>
+                        {destinatario && (
+                          <span className="aviso-suporte-contato">
+                            {" "}
+                            — {destinatario.nome} (
+                            {formatarTelefoneExibicao(destinatario.telefone)})
+                          </span>
+                        )}
+                        <p className="aviso-suporte-motivo">
+                          {ocorrencia.descricao}
+                        </p>
+                      </div>
+                      <div className="aviso-suporte-acoes">
+                        <button
+                          type="button"
+                          className="aviso-suporte-link"
+                          onClick={() =>
+                            navigate(
+                              `/historico?empresa=${encodeURIComponent(empresa.nomeEmpresa)}&ocorrencia=${ocorrencia.id}`,
+                            )
+                          }
+                        >
+                          Ver ocorrência
+                        </button>
+                        <button
+                          type="button"
+                          className="aviso-suporte-resolver"
+                          onClick={() =>
+                            marcarAvisoSuporteContatado(ocorrencia.id)
+                          }
+                        >
+                          Marcar como contatado
+                        </button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
             )}
           </div>
         )}
@@ -1995,160 +2132,230 @@ export default function Home() {
           onChange={(e) => setFiltroCliente(e.target.value)}
         />
 
-        <select
-          value={filtroResponsavel}
-          onChange={(e) => setFiltroResponsavel(e.target.value)}
+        <button
+          ref={botaoFiltrosRef}
+          type="button"
+          className="botao-filtros"
+          onClick={() => setModalFiltrosAberto(true)}
+          aria-haspopup="dialog"
+          aria-expanded={modalFiltrosAberto}
         >
-          <option value="">Treinador responsável</option>
-          {[...new Set(dados.map((e) => formatarNome(e.responsavel)))]
-            .filter(Boolean)
-            .sort()
-            .map((r) => (
-              <option key={r} value={r}>
-                {r}
-              </option>
-            ))}
-        </select>
-
-        <select value={filtroCs} onChange={(e) => setFiltroCs(e.target.value)}>
-          <option value="">CS responsável</option>
-          {listaCS.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={filtroComercial}
-          onChange={(e) => setFiltroComercial(e.target.value)}
-        >
-          <option value="">Comercial responsável</option>
-          {listaComercial.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={filtroProgresso}
-          onChange={(e) => setFiltroProgresso(e.target.value)}
-        >
-          <option value="">Qualquer progresso</option>
-          <option value="0-25">0% – 25%</option>
-          <option value="26-50">26% – 50%</option>
-          <option value="51-75">51% – 75%</option>
-          <option value="76-99">76% – 99%</option>
-          <option value="100">100%</option>
-        </select>
-
-        <select
-          value={filtroProduto}
-          onChange={(e) => setFiltroProduto(e.target.value)}
-        >
-          <option value="">Qualquer produto</option>
-          {[...new Set(dados.map((e) => e.produto))]
-            .filter(Boolean)
-            .sort()
-            .map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-        </select>
-
-        <select
-          value={ordenacaoContrato}
-          onChange={(e) => {
-            const val = e.target.value as any;
-            setOrdenacaoContrato(val);
-            if (val !== "") {
-              setOrdenacaoPrincipal("contrato");
-            } else if (ordenacaoScore !== "") {
-              setOrdenacaoPrincipal("score");
-            } else {
-              setOrdenacaoPrincipal("");
-            }
-          }}
-        >
-          <option value="">Ordenar contrato: Padrão</option>
-          <option value="maior">Ordenar contrato: Maior valor</option>
-          <option value="menor">Ordenar contrato: Menor valor</option>
-        </select>
-
-        <select
-          value={ordenacaoScore}
-          onChange={(e) => {
-            const val = e.target.value as any;
-            setOrdenacaoScore(val);
-            if (val !== "") {
-              setOrdenacaoPrincipal("score");
-            } else if (ordenacaoContrato !== "") {
-              setOrdenacaoPrincipal("contrato");
-            } else {
-              setOrdenacaoPrincipal("");
-            }
-          }}
-        >
-          <option value="">Ordenar score: Padrão</option>
-          <option value="maior">Ordenar score: Maior nota</option>
-          <option value="menor">Ordenar score: Menor nota</option>
-        </select>
-
-        {(role === "treinador" || role === "master") && (
-          <label
-            className="checkbox-label"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              cursor: "pointer",
-            }}
-            title="Mostra apenas clientes marcados como elegíveis para dedução de pontos do treinador por contato com o Suporte."
-          >
-            <input
-              type="checkbox"
-              checked={filtroElegivelDeducao}
-              onChange={(e) => setFiltroElegivelDeducao(e.target.checked)}
-            />
-            Elegíveis a dedução de pontos do treinador
-          </label>
-        )}
-
-        {(filtroCliente ||
-          filtroResponsavel ||
-          filtroCs ||
-          filtroComercial ||
-          filtroProgresso ||
-          filtroProduto ||
-          filtroCardStatus ||
-          filtroCardTipo ||
-          filtroCardAlerta ||
-          filtroElegivelDeducao ||
-          ordenacaoContrato ||
-          ordenacaoScore) && (
-            <button
-              onClick={() => {
-                setFiltroCliente("");
-                setFiltroResponsavel("");
-                setFiltroCs("");
-                setFiltroComercial("");
-                setFiltroProgresso("");
-                setFiltroProduto("");
-                setFiltroCardStatus("");
-                setFiltroCardTipo("");
-                setFiltroCardAlerta("");
-                setFiltroElegivelDeducao(false);
-                setOrdenacaoContrato("");
-                setOrdenacaoScore("");
-                setOrdenacaoPrincipal("");
-              }}
-            >
-              Limpar filtros
-            </button>
+          Filtros
+          {filtrosAtivosCount > 0 && (
+            <span className="botao-filtros-selo">{filtrosAtivosCount}</span>
           )}
+        </button>
       </div>
+
+      {modalFiltrosAberto && (
+        <div
+          className="modal-filtros-fundo"
+          onClick={() => setModalFiltrosAberto(false)}
+        >
+          <div
+            ref={modalFiltrosRef}
+            className="modal-filtros-conteudo"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Filtros da esteira"
+            tabIndex={-1}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-filtros-header">
+              <h3>Filtros</h3>
+              <button
+                type="button"
+                className="modal-filtros-fechar"
+                onClick={() => setModalFiltrosAberto(false)}
+                title="Fechar"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="modal-filtros-grid">
+              <select
+                value={filtroResponsavel}
+                onChange={(e) => setFiltroResponsavel(e.target.value)}
+              >
+                <option value="">Treinador responsável</option>
+                {[...new Set(dados.map((e) => formatarNome(e.responsavel)))]
+                  .filter(Boolean)
+                  .sort()
+                  .map((r) => (
+                    <option key={r} value={r}>
+                      {r}
+                    </option>
+                  ))}
+              </select>
+
+              <select
+                value={filtroCs}
+                onChange={(e) => setFiltroCs(e.target.value)}
+              >
+                <option value="">CS responsável</option>
+                {listaCS.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={filtroComercial}
+                onChange={(e) => setFiltroComercial(e.target.value)}
+              >
+                <option value="">Comercial responsável</option>
+                {listaComercial.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={filtroProgresso}
+                onChange={(e) => setFiltroProgresso(e.target.value)}
+              >
+                <option value="">Qualquer progresso</option>
+                <option value="0-25">0% – 25%</option>
+                <option value="26-50">26% – 50%</option>
+                <option value="51-75">51% – 75%</option>
+                <option value="76-99">76% – 99%</option>
+                <option value="100">100%</option>
+              </select>
+
+              <select
+                value={filtroProduto}
+                onChange={(e) => setFiltroProduto(e.target.value)}
+              >
+                <option value="">Qualquer produto</option>
+                {[...new Set(dados.map((e) => e.produto))]
+                  .filter(Boolean)
+                  .sort()
+                  .map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+              </select>
+
+              <select
+                value={ordenacaoContrato}
+                onChange={(e) => {
+                  const val = e.target.value as any;
+                  setOrdenacaoContrato(val);
+                  if (val !== "") {
+                    setOrdenacaoPrincipal("contrato");
+                  } else if (ordenacaoScore !== "") {
+                    setOrdenacaoPrincipal("score");
+                  } else {
+                    setOrdenacaoPrincipal("");
+                  }
+                }}
+              >
+                <option value="">Ordenar contrato: Padrão</option>
+                <option value="maior">Ordenar contrato: Maior valor</option>
+                <option value="menor">Ordenar contrato: Menor valor</option>
+              </select>
+
+              <select
+                value={ordenacaoScore}
+                onChange={(e) => {
+                  const val = e.target.value as any;
+                  setOrdenacaoScore(val);
+                  if (val !== "") {
+                    setOrdenacaoPrincipal("score");
+                  } else if (ordenacaoContrato !== "") {
+                    setOrdenacaoPrincipal("contrato");
+                  } else {
+                    setOrdenacaoPrincipal("");
+                  }
+                }}
+              >
+                <option value="">Ordenar score: Padrão</option>
+                <option value="maior">Ordenar score: Maior nota</option>
+                <option value="menor">Ordenar score: Menor nota</option>
+              </select>
+
+              {(role === "treinador" || role === "master") && (
+                <label
+                  className="checkbox-label"
+                  title="Mostra apenas clientes marcados como elegíveis para dedução de pontos do treinador por contato com o Suporte."
+                >
+                  <input
+                    type="checkbox"
+                    checked={filtroElegivelDeducao}
+                    onChange={(e) => setFiltroElegivelDeducao(e.target.checked)}
+                  />
+                  Elegíveis a dedução de pontos do treinador
+                </label>
+              )}
+
+              <label
+                className="checkbox-label"
+                title="Mostra apenas clientes com data de follow up final preenchida."
+              >
+                <input
+                  type="checkbox"
+                  checked={filtroComFollowUpFinal}
+                  onChange={(e) => setFiltroComFollowUpFinal(e.target.checked)}
+                />
+                Com follow up final realizado
+              </label>
+            </div>
+
+            <div className="modal-filtros-footer">
+              <button
+                type="button"
+                className="modal-filtros-limpar"
+                disabled={
+                  !(
+                    filtroCliente ||
+                    filtroResponsavel ||
+                    filtroCs ||
+                    filtroComercial ||
+                    filtroProgresso ||
+                    filtroProduto ||
+                    filtroCardStatus ||
+                    filtroCardTipo ||
+                    filtroCardAlerta ||
+                    filtroElegivelDeducao ||
+                    filtroComFollowUpFinal ||
+                    ordenacaoContrato ||
+                    ordenacaoScore
+                  )
+                }
+                onClick={() => {
+                  setFiltroCliente("");
+                  setFiltroResponsavel("");
+                  setFiltroCs("");
+                  setFiltroComercial("");
+                  setFiltroProgresso("");
+                  setFiltroProduto("");
+                  setFiltroCardStatus("");
+                  setFiltroCardTipo("");
+                  setFiltroCardAlerta("");
+                  setFiltroElegivelDeducao(false);
+                  setFiltroComFollowUpFinal(false);
+                  setOrdenacaoContrato("");
+                  setOrdenacaoScore("");
+                  setOrdenacaoPrincipal("");
+                }}
+              >
+                Limpar filtros
+              </button>
+              <button
+                type="button"
+                className="modal-filtros-aplicar"
+                onClick={() => setModalFiltrosAberto(false)}
+              >
+                Aplicar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tabela de Clientes Ativos */}
       <div className="collapsible-section">
@@ -2210,7 +2417,11 @@ export default function Home() {
                     <th
                       key={col.key}
                       className={`${col.className || ""} ${colunaArrastadaAtivos === col.key ? "th-arrastando" : ""}`.trim()}
-                      style={col.align === "right" ? { textAlign: "right" } : undefined}
+                      style={
+                        col.align === "right"
+                          ? { textAlign: "right" }
+                          : undefined
+                      }
                       draggable
                       onDragStart={() => setColunaArrastadaAtivos(col.key)}
                       onDragOver={(e) => e.preventDefault()}
@@ -2244,7 +2455,8 @@ export default function Home() {
                           iniciarRedimensionamentoColuna(
                             e,
                             col.key,
-                            colunasAtivasPrefs.widths[col.key] ?? col.defaultWidth,
+                            colunasAtivasPrefs.widths[col.key] ??
+                              col.defaultWidth,
                             colunasAtivasPrefs.alterarLargura,
                           )
                         }
@@ -2370,7 +2582,11 @@ export default function Home() {
                     <th
                       key={col.key}
                       className={`${col.className || ""} ${colunaArrastadaOngoing === col.key ? "th-arrastando" : ""}`.trim()}
-                      style={col.align === "right" ? { textAlign: "right" } : undefined}
+                      style={
+                        col.align === "right"
+                          ? { textAlign: "right" }
+                          : undefined
+                      }
                       draggable
                       onDragStart={() => setColunaArrastadaOngoing(col.key)}
                       onDragOver={(e) => e.preventDefault()}
@@ -2404,7 +2620,8 @@ export default function Home() {
                           iniciarRedimensionamentoColuna(
                             e,
                             col.key,
-                            colunasOngoingPrefs.widths[col.key] ?? col.defaultWidth,
+                            colunasOngoingPrefs.widths[col.key] ??
+                              col.defaultWidth,
                             colunasOngoingPrefs.alterarLargura,
                           )
                         }
@@ -2530,7 +2747,11 @@ export default function Home() {
                     <th
                       key={col.key}
                       className={`${col.className || ""} ${colunaArrastadaSuspensos === col.key ? "th-arrastando" : ""}`.trim()}
-                      style={col.align === "right" ? { textAlign: "right" } : undefined}
+                      style={
+                        col.align === "right"
+                          ? { textAlign: "right" }
+                          : undefined
+                      }
                       draggable
                       onDragStart={() => setColunaArrastadaSuspensos(col.key)}
                       onDragOver={(e) => e.preventDefault()}
@@ -2564,7 +2785,8 @@ export default function Home() {
                           iniciarRedimensionamentoColuna(
                             e,
                             col.key,
-                            colunasSuspensosPrefs.widths[col.key] ?? col.defaultWidth,
+                            colunasSuspensosPrefs.widths[col.key] ??
+                              col.defaultWidth,
                             colunasSuspensosPrefs.alterarLargura,
                           )
                         }
@@ -2687,7 +2909,11 @@ export default function Home() {
                     <th
                       key={col.key}
                       className={`${col.className || ""} ${colunaArrastadaCancelados === col.key ? "th-arrastando" : ""}`.trim()}
-                      style={col.align === "right" ? { textAlign: "right" } : undefined}
+                      style={
+                        col.align === "right"
+                          ? { textAlign: "right" }
+                          : undefined
+                      }
                       draggable
                       onDragStart={() => setColunaArrastadaCancelados(col.key)}
                       onDragOver={(e) => e.preventDefault()}
@@ -2721,7 +2947,8 @@ export default function Home() {
                           iniciarRedimensionamentoColuna(
                             e,
                             col.key,
-                            colunasCanceladosPrefs.widths[col.key] ?? col.defaultWidth,
+                            colunasCanceladosPrefs.widths[col.key] ??
+                              col.defaultWidth,
                             colunasCanceladosPrefs.alterarLargura,
                           )
                         }
@@ -2869,15 +3096,15 @@ export default function Home() {
                   {(() => {
                     const contatos =
                       clienteSelecionado.contatos &&
-                        clienteSelecionado.contatos.length > 0
+                      clienteSelecionado.contatos.length > 0
                         ? clienteSelecionado.contatos
                         : clienteSelecionado.contato
                           ? [
-                            {
-                              nome: clienteSelecionado.contato,
-                              telefone: clienteSelecionado.telefone || "",
-                            },
-                          ]
+                              {
+                                nome: clienteSelecionado.contato,
+                                telefone: clienteSelecionado.telefone || "",
+                              },
+                            ]
                           : [];
 
                     if (contatos.length === 0) return "-";
@@ -2910,11 +3137,11 @@ export default function Home() {
                 <span className="info-label">Valor do Contrato</span>
                 <span className="info-value">
                   {clienteSelecionado.valorContrato !== undefined &&
-                    clienteSelecionado.valorContrato !== null
+                  clienteSelecionado.valorContrato !== null
                     ? new Intl.NumberFormat("pt-BR", {
-                      style: "currency",
-                      currency: "BRL",
-                    }).format(clienteSelecionado.valorContrato)
+                        style: "currency",
+                        currency: "BRL",
+                      }).format(clienteSelecionado.valorContrato)
                     : "—"}
                 </span>
               </div>
@@ -2938,34 +3165,51 @@ export default function Home() {
               </div>
               {role === "master" && clienteSelecionado.isSuspended && (
                 <div className="info-item">
-                  <span className="info-label">Notificação de Suspensão (WhatsApp)</span>
+                  <span className="info-label">
+                    Notificação de Suspensão (WhatsApp)
+                  </span>
                   <span className="info-value">
-                    {clienteSelecionado.whatsappStatusSuspensao === "enviado" && (
+                    {clienteSelecionado.whatsappStatusSuspensao ===
+                      "enviado" && (
                       <span
                         style={{ color: "#16a34a", fontWeight: "bold" }}
                         title={
                           clienteSelecionado.whatsappEnviadoEmSuspensao
-                            ? "Enviado em " + new Date(clienteSelecionado.whatsappEnviadoEmSuspensao).toLocaleString("pt-BR")
+                            ? "Enviado em " +
+                              new Date(
+                                clienteSelecionado.whatsappEnviadoEmSuspensao,
+                              ).toLocaleString("pt-BR")
                             : undefined
                         }
                       >
                         ✅ Enviado
                       </span>
                     )}
-                    {clienteSelecionado.whatsappStatusSuspensao === "parcial" && (
+                    {clienteSelecionado.whatsappStatusSuspensao ===
+                      "parcial" && (
                       <span
                         style={{ color: "#d97706", fontWeight: "bold" }}
-                        title={(clienteSelecionado.whatsappDestinatariosSuspensao || [])
-                          .map((d) => `${d.nome}: ${d.status}${d.erro ? " (" + d.erro + ")" : ""}`)
+                        title={(
+                          clienteSelecionado.whatsappDestinatariosSuspensao ||
+                          []
+                        )
+                          .map(
+                            (d) =>
+                              `${d.nome}: ${d.status}${d.erro ? " (" + d.erro + ")" : ""}`,
+                          )
                           .join("\n")}
                       >
                         ⚠️ Parcial
                       </span>
                     )}
-                    {clienteSelecionado.whatsappStatusSuspensao === "falhou" && (
+                    {clienteSelecionado.whatsappStatusSuspensao ===
+                      "falhou" && (
                       <span
                         style={{ color: "#dc2626", fontWeight: "bold" }}
-                        title={(clienteSelecionado.whatsappDestinatariosSuspensao || [])
+                        title={(
+                          clienteSelecionado.whatsappDestinatariosSuspensao ||
+                          []
+                        )
                           .map((d) => d.erro || "")
                           .filter(Boolean)
                           .join("\n")}
@@ -2973,8 +3217,12 @@ export default function Home() {
                         ❌ Falhou
                       </span>
                     )}
-                    {clienteSelecionado.whatsappStatusSuspensao === "nao_enviado" && (
-                      <span style={{ color: "#64748b" }} title="O usuário optou por não enviar">
+                    {clienteSelecionado.whatsappStatusSuspensao ===
+                      "nao_enviado" && (
+                      <span
+                        style={{ color: "#64748b" }}
+                        title="O usuário optou por não enviar"
+                      >
                         🚫 Não enviado
                       </span>
                     )}
@@ -2986,34 +3234,51 @@ export default function Home() {
               )}
               {role === "master" && clienteSelecionado.isCancelled && (
                 <div className="info-item">
-                  <span className="info-label">Notificação de Cancelamento (WhatsApp)</span>
+                  <span className="info-label">
+                    Notificação de Cancelamento (WhatsApp)
+                  </span>
                   <span className="info-value">
-                    {clienteSelecionado.whatsappStatusCancelamento === "enviado" && (
+                    {clienteSelecionado.whatsappStatusCancelamento ===
+                      "enviado" && (
                       <span
                         style={{ color: "#16a34a", fontWeight: "bold" }}
                         title={
                           clienteSelecionado.whatsappEnviadoEmCancelamento
-                            ? "Enviado em " + new Date(clienteSelecionado.whatsappEnviadoEmCancelamento).toLocaleString("pt-BR")
+                            ? "Enviado em " +
+                              new Date(
+                                clienteSelecionado.whatsappEnviadoEmCancelamento,
+                              ).toLocaleString("pt-BR")
                             : undefined
                         }
                       >
                         ✅ Enviado
                       </span>
                     )}
-                    {clienteSelecionado.whatsappStatusCancelamento === "parcial" && (
+                    {clienteSelecionado.whatsappStatusCancelamento ===
+                      "parcial" && (
                       <span
                         style={{ color: "#d97706", fontWeight: "bold" }}
-                        title={(clienteSelecionado.whatsappDestinatariosCancelamento || [])
-                          .map((d) => `${d.nome}: ${d.status}${d.erro ? " (" + d.erro + ")" : ""}`)
+                        title={(
+                          clienteSelecionado.whatsappDestinatariosCancelamento ||
+                          []
+                        )
+                          .map(
+                            (d) =>
+                              `${d.nome}: ${d.status}${d.erro ? " (" + d.erro + ")" : ""}`,
+                          )
                           .join("\n")}
                       >
                         ⚠️ Parcial
                       </span>
                     )}
-                    {clienteSelecionado.whatsappStatusCancelamento === "falhou" && (
+                    {clienteSelecionado.whatsappStatusCancelamento ===
+                      "falhou" && (
                       <span
                         style={{ color: "#dc2626", fontWeight: "bold" }}
-                        title={(clienteSelecionado.whatsappDestinatariosCancelamento || [])
+                        title={(
+                          clienteSelecionado.whatsappDestinatariosCancelamento ||
+                          []
+                        )
                           .map((d) => d.erro || "")
                           .filter(Boolean)
                           .join("\n")}
@@ -3021,8 +3286,12 @@ export default function Home() {
                         ❌ Falhou
                       </span>
                     )}
-                    {clienteSelecionado.whatsappStatusCancelamento === "nao_enviado" && (
-                      <span style={{ color: "#64748b" }} title="O usuário optou por não enviar">
+                    {clienteSelecionado.whatsappStatusCancelamento ===
+                      "nao_enviado" && (
+                      <span
+                        style={{ color: "#64748b" }}
+                        title="O usuário optou por não enviar"
+                      >
                         🚫 Não enviado
                       </span>
                     )}
@@ -3039,7 +3308,7 @@ export default function Home() {
                   style={{ display: "flex", alignItems: "center", gap: "6px" }}
                 >
                   {clienteSelecionado.score !== undefined &&
-                    clienteSelecionado.score !== null ? (
+                  clienteSelecionado.score !== null ? (
                     <span
                       style={{
                         fontWeight: "bold",
@@ -3049,13 +3318,17 @@ export default function Home() {
                             : "#ef4444",
                       }}
                       title={
-                        (calcularScoreEfetivo(clienteSelecionado) ?? clienteSelecionado.score) !== clienteSelecionado.score
+                        (calcularScoreEfetivo(clienteSelecionado) ??
+                          clienteSelecionado.score) !== clienteSelecionado.score
                           ? "Score reduzido temporariamente por contato recente com o Suporte"
                           : undefined
                       }
                     >
-                      {(calcularScoreEfetivo(clienteSelecionado) ?? clienteSelecionado.score).toFixed(1)} (
-                      {obterTipoEfetivo(clienteSelecionado)})
+                      {(
+                        calcularScoreEfetivo(clienteSelecionado) ??
+                        clienteSelecionado.score
+                      ).toFixed(1)}{" "}
+                      ({obterTipoEfetivo(clienteSelecionado)})
                     </span>
                   ) : (
                     "—"
@@ -3094,18 +3367,18 @@ export default function Home() {
                   <>
                     {(progressoSel >= 100 ||
                       clienteSelecionado.dataFinalizacao) && (
-                        <div className="info-item">
-                          <span
-                            className="info-label"
-                            style={{ fontSize: "0.68rem" }}
-                          >
-                            Finalização da Esteira
-                          </span>
-                          <span className="info-value">
-                            {formatarData(clienteSelecionado.dataFinalizacao)}
-                          </span>
-                        </div>
-                      )}
+                      <div className="info-item">
+                        <span
+                          className="info-label"
+                          style={{ fontSize: "0.68rem" }}
+                        >
+                          Finalização da Esteira
+                        </span>
+                        <span className="info-value">
+                          {formatarData(clienteSelecionado.dataFinalizacao)}
+                        </span>
+                      </div>
+                    )}
                     {clienteSelecionado.dataFollowUpFinal && (
                       <div className="info-item">
                         <span
@@ -3261,7 +3534,10 @@ export default function Home() {
                   // Busca automática do idCentral pelo nome (planilha do CS). Só
                   // preenche sozinho quando o campo ainda está vazio — se alguém já
                   // digitou/corrigiu o ID manualmente, não sobrescreve.
-                  if (!clienteForm.nomeEmpresa.trim() || clienteForm.idCentral?.trim()) {
+                  if (
+                    !clienteForm.nomeEmpresa.trim() ||
+                    clienteForm.idCentral?.trim()
+                  ) {
                     return;
                   }
 
@@ -3398,13 +3674,21 @@ export default function Home() {
 
               <div className="contatos-lista">
                 {(clienteForm.contatos || []).map((c, idx) => {
-                  const telefones = c.telefones?.length ? c.telefones : [c.telefone || ""];
+                  const telefones = c.telefones?.length
+                    ? c.telefones
+                    : [c.telefone || ""];
                   const atualizarTelefones = (numeros: string[]) => {
                     setClienteForm((atual) => ({
                       ...atual,
-                      contatos: (atual.contatos || []).map((contato, i) => i === idx
-                        ? { ...contato, telefone: numeros[0] || "", telefones: numeros }
-                        : contato),
+                      contatos: (atual.contatos || []).map((contato, i) =>
+                        i === idx
+                          ? {
+                              ...contato,
+                              telefone: numeros[0] || "",
+                              telefones: numeros,
+                            }
+                          : contato,
+                      ),
                     }));
                   };
 
@@ -3432,11 +3716,14 @@ export default function Home() {
                       <div className="contato-campo">
                         {telefones.map((telefone, numeroIdx) => {
                           const preenchido = telefone.trim().length > 0;
-                          const { valido, erro } = analisarTelefoneWhatsApp(telefone);
+                          const { valido, erro } =
+                            analisarTelefoneWhatsApp(telefone);
                           const inputId = `contato-${idx}-telefone-${numeroIdx}`;
                           return (
                             <div key={numeroIdx} className="contato-campo">
-                              <label htmlFor={inputId}>Telefone {numeroIdx + 1}</label>
+                              <label htmlFor={inputId}>
+                                Telefone {numeroIdx + 1}
+                              </label>
                               <div className="contato-telefone-linha">
                                 <input
                                   id={inputId}
@@ -3444,29 +3731,56 @@ export default function Home() {
                                   placeholder="Ex: (11) 99999-9999"
                                   value={telefone}
                                   aria-invalid={preenchido && !valido}
-                                  onChange={(e) => atualizarTelefones(telefones.map((numero, i) =>
-                                    i === numeroIdx ? e.target.value : numero,
-                                  ))}
+                                  onChange={(e) =>
+                                    atualizarTelefones(
+                                      telefones.map((numero, i) =>
+                                        i === numeroIdx
+                                          ? e.target.value
+                                          : numero,
+                                      ),
+                                    )
+                                  }
                                 />
                                 {telefones.length > 1 && (
-                                  <button type="button" className="contato-remover"
+                                  <button
+                                    type="button"
+                                    className="contato-remover"
                                     aria-label={`Remover telefone ${numeroIdx + 1} de ${c.nome || "contato"}`}
-                                    onClick={() => atualizarTelefones(telefones.filter((_, i) => i !== numeroIdx))}>
+                                    onClick={() =>
+                                      atualizarTelefones(
+                                        telefones.filter(
+                                          (_, i) => i !== numeroIdx,
+                                        ),
+                                      )
+                                    }
+                                  >
                                     ×
                                   </button>
                                 )}
                               </div>
-                              <span className={`contato-feedback ${preenchido ? (valido ? "valido" : "invalido") : ""}`}>
-                                {preenchido ? valido ? `Será enviado para ${formatarTelefoneExibicao(telefone)}` : erro : ""}
+                              <span
+                                className={`contato-feedback ${preenchido ? (valido ? "valido" : "invalido") : ""}`}
+                              >
+                                {preenchido
+                                  ? valido
+                                    ? `Será enviado para ${formatarTelefoneExibicao(telefone)}`
+                                    : erro
+                                  : ""}
                               </span>
                             </div>
                           );
                         })}
-                        <button type="button" className="btn-add-contato"
-                          onClick={() => atualizarTelefones([...telefones, ""])}>
+                        <button
+                          type="button"
+                          className="btn-add-contato"
+                          onClick={() => atualizarTelefones([...telefones, ""])}
+                        >
                           + Adicionar número
                         </button>
-                        <span className="contato-feedback">Você poderá escolher quais números receberão a mensagem na confirmação do envio.</span>
+                        <span className="contato-feedback">
+                          Você poderá escolher quais números receberão a
+                          mensagem na confirmação do envio.
+                        </span>
                       </div>
 
                       <button
@@ -3591,51 +3905,102 @@ export default function Home() {
                     <input
                       type="checkbox"
                       checked={clienteForm.pendencia?.ativa ?? false}
-                      onChange={e => setClienteForm({ ...clienteForm, pendencia: {
-                        tipoId: clienteForm.pendencia?.tipoId || "",
-                        tipoNome: clienteForm.pendencia?.tipoNome || "",
-                        venceEm: clienteForm.pendencia?.venceEm || "",
-                        ativa: e.target.checked,
-                      } })}
+                      onChange={(e) =>
+                        setClienteForm({
+                          ...clienteForm,
+                          pendencia: {
+                            tipoId: clienteForm.pendencia?.tipoId || "",
+                            tipoNome: clienteForm.pendencia?.tipoNome || "",
+                            venceEm: clienteForm.pendencia?.venceEm || "",
+                            ativa: e.target.checked,
+                          },
+                        })
+                      }
                     />
                     Cliente possui pendências
                   </label>
                 </div>
                 <div className="form-group">
-                  <label htmlFor="cliente-tipo-pendencia">Tipo de pendência</label>
+                  <label htmlFor="cliente-tipo-pendencia">
+                    Tipo de pendência
+                  </label>
                   <select
                     id="cliente-tipo-pendencia"
-                    disabled={!clienteForm.pendencia?.ativa || carregandoPendencias}
+                    disabled={
+                      !clienteForm.pendencia?.ativa || carregandoPendencias
+                    }
                     value={clienteForm.pendencia?.tipoId || ""}
-                    onChange={e => {
-                      const tipo = tiposPendencia.find(t => t.id === e.target.value);
-                      setClienteForm({ ...clienteForm, pendencia: {
-                        ...clienteForm.pendencia!, tipoId: tipo?.id || "", tipoNome: tipo?.nome || "",
-                      } });
+                    onChange={(e) => {
+                      const tipo = tiposPendencia.find(
+                        (t) => t.id === e.target.value,
+                      );
+                      setClienteForm({
+                        ...clienteForm,
+                        pendencia: {
+                          ...clienteForm.pendencia!,
+                          tipoId: tipo?.id || "",
+                          tipoNome: tipo?.nome || "",
+                        },
+                      });
                     }}
                   >
-                    <option value="">{carregandoPendencias ? "Carregando..." : "Selecione a pendência"}</option>
-                    {clienteForm.pendencia?.tipoId && !tiposPendencia.some(t => t.id === clienteForm.pendencia?.tipoId) && (
-                      <option value={clienteForm.pendencia.tipoId}>{clienteForm.pendencia.tipoNome} (tipo removido)</option>
-                    )}
-                    {tiposPendencia.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
+                    <option value="">
+                      {carregandoPendencias
+                        ? "Carregando..."
+                        : "Selecione a pendência"}
+                    </option>
+                    {clienteForm.pendencia?.tipoId &&
+                      !tiposPendencia.some(
+                        (t) => t.id === clienteForm.pendencia?.tipoId,
+                      ) && (
+                        <option value={clienteForm.pendencia.tipoId}>
+                          {clienteForm.pendencia.tipoNome} (tipo removido)
+                        </option>
+                      )}
+                    {tiposPendencia.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.nome}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
               {clienteForm.pendencia?.ativa && (
                 <div className="form-group">
-                  <label htmlFor="cliente-pendencia-vencimento">Vencimento da pendência (opcional)</label>
+                  <label htmlFor="cliente-pendencia-vencimento">
+                    Vencimento da pendência (opcional)
+                  </label>
                   <input
                     id="cliente-pendencia-vencimento"
                     type="date"
                     value={clienteForm.pendencia.venceEm || ""}
-                    onChange={e => setClienteForm({ ...clienteForm, pendencia: {
-                      ...clienteForm.pendencia!, venceEm: e.target.value,
-                    } })}
+                    onChange={(e) =>
+                      setClienteForm({
+                        ...clienteForm,
+                        pendencia: {
+                          ...clienteForm.pendencia!,
+                          venceEm: e.target.value,
+                        },
+                      })
+                    }
                   />
-                  <small>Válida até o fim da data escolhida, no horário de Brasília. Sem data, permanece até desmarcar.</small>
-                  {!tiposPendencia.length && !carregandoPendencias && <small>Cadastre os tipos de pendência na seção Tabulações.</small>}
-                  {clienteForm.pendencia.venceEm && (vencimentoPendencia(clienteForm.pendencia.venceEm) || Infinity) <= agora && <small>Pendência vencida: o semáforo já segue as regras tradicionais.</small>}
+                  <small>
+                    Válida até o fim da data escolhida, no horário de Brasília.
+                    Sem data, permanece até desmarcar.
+                  </small>
+                  {!tiposPendencia.length && !carregandoPendencias && (
+                    <small>
+                      Cadastre os tipos de pendência na seção Tabulações.
+                    </small>
+                  )}
+                  {clienteForm.pendencia.venceEm &&
+                    (vencimentoPendencia(clienteForm.pendencia.venceEm) ||
+                      Infinity) <= agora && (
+                      <small>
+                        Pendência vencida: o semáforo já segue as regras
+                        tradicionais.
+                      </small>
+                    )}
                 </div>
               )}
             </div>
@@ -3813,7 +4178,9 @@ export default function Home() {
                 >
                   <input
                     type="checkbox"
-                    checked={clienteForm.gamificacaoDeducaoSuporte?.ativo ?? false}
+                    checked={
+                      clienteForm.gamificacaoDeducaoSuporte?.ativo ?? false
+                    }
                     onChange={(e) =>
                       setClienteForm({
                         ...clienteForm,
@@ -3954,7 +4321,9 @@ export default function Home() {
                 disabled={buscandoIdCentral}
                 style={{ flex: 1, marginTop: 0 }}
               >
-                {buscandoIdCentral ? "Buscando ID Central..." : "Salvar cliente"}
+                {buscandoIdCentral
+                  ? "Buscando ID Central..."
+                  : "Salvar cliente"}
               </button>
             </div>
           </div>
@@ -3990,11 +4359,16 @@ export default function Home() {
                     partir da 2ª = -1.0)
                   </span>
                 </label>
-                {!!clienteSelecionado?.scoreContadoresPerda?.entraComputador && (
-                  <span className="home-score-hint" style={{ display: "block" }}>
+                {!!clienteSelecionado?.scoreContadoresPerda
+                  ?.entraComputador && (
+                  <span
+                    className="home-score-hint"
+                    style={{ display: "block" }}
+                  >
                     Perda salva (em relação ao bônus do Sim): -
                     {(
-                      clienteSelecionado.scoreContadoresPerda.entraComputador * 1.0
+                      clienteSelecionado.scoreContadoresPerda.entraComputador *
+                      1.0
                     ).toFixed(1)}
                   </span>
                 )}
@@ -4041,11 +4415,16 @@ export default function Home() {
                     partir da 2ª = -1.0)
                   </span>
                 </label>
-                {!!clienteSelecionado?.scoreContadoresPerda?.compartilhaTela && (
-                  <span className="home-score-hint" style={{ display: "block" }}>
+                {!!clienteSelecionado?.scoreContadoresPerda
+                  ?.compartilhaTela && (
+                  <span
+                    className="home-score-hint"
+                    style={{ display: "block" }}
+                  >
                     Perda salva (em relação ao bônus do Sim): -
                     {(
-                      clienteSelecionado.scoreContadoresPerda.compartilhaTela * 1.0
+                      clienteSelecionado.scoreContadoresPerda.compartilhaTela *
+                      1.0
                     ).toFixed(1)}
                   </span>
                 )}
@@ -4135,7 +4514,10 @@ export default function Home() {
                   </span>
                 </label>
                 {!!clienteSelecionado?.scoreContadoresPerda?.recordaTemas && (
-                  <span className="home-score-hint" style={{ display: "block" }}>
+                  <span
+                    className="home-score-hint"
+                    style={{ display: "block" }}
+                  >
                     Perda salva: -
                     {clienteSelecionado.scoreContadoresPerda.recordaTemas.toFixed(
                       1,
@@ -4463,8 +4845,8 @@ export default function Home() {
                   const totalComDeducao = res.score - deducaoAtiva;
                   return (
                     <span>
-                      Total Parcial: <strong>{totalComDeducao.toFixed(1)}</strong>{" "}
-                      ({res.tipo})
+                      Total Parcial:{" "}
+                      <strong>{totalComDeducao.toFixed(1)}</strong> ({res.tipo})
                       {deducaoAtiva > 0 && (
                         <span className="home-score-deducao-inline">
                           {" "}

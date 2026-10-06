@@ -4,13 +4,11 @@ import {
   deleteDoc,
   deleteField,
   doc,
-  getDocs,
-  query,
-  orderBy,
   updateDoc,
 } from "firebase/firestore";
 import { db } from "./firebase";
 import type { TarefaChecklist } from "../types";
+import { sincronizarColecao } from "./sincronizacaoIncremental";
 
 const COLLECTION = "checklist_tarefas";
 
@@ -24,13 +22,10 @@ export async function listarTarefasChecklist(forceRefresh = false): Promise<Tare
     return cachedTarefas;
   }
 
-  const q = query(collection(db, COLLECTION), orderBy("createdAt", "desc"));
-  const snapshot = await getDocs(q);
-
-  cachedTarefas = snapshot.docs.map((d) => ({
-    id: d.id,
-    ...(d.data() as Omit<TarefaChecklist, "id">),
-  }));
+  // Sincronização incremental: lê só as tarefas criadas ou alteradas desde a
+  // última consulta. A ordem vem do cliente, como nas demais listas do Radar.
+  const tarefas = await sincronizarColecao<TarefaChecklist>(COLLECTION, forceRefresh);
+  cachedTarefas = tarefas.sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
 
   lastFetchTarefas = now;
   return cachedTarefas;

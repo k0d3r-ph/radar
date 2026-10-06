@@ -134,7 +134,7 @@ export async function criarNovoUsuario(email: string, senhaTemp: string, role: s
 
 let cachedUsuarios: UsuarioDocument[] | null = null;
 let lastFetchUsuarios = 0;
-const CACHE_TTL = 30000; // 30 segundos
+const CACHE_TTL = 300000; // 5 minutos: a lista de usuários é relida a cada consulta após o TTL.
 
 function invalidarCacheUsuarios() {
   cachedUsuarios = null;

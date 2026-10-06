@@ -1,6 +1,10 @@
 # Redução de leituras do Firestore
 
-As listas de ocorrências, empresas e pontos usam `GET /api/sincronizacao/:colecao` no backend existente do Radar. A rota exige token Firebase válido, usuário cadastrado com perfil do Radar e senha já definida. Retorna somente IDs e versões; os documentos continuam sendo consultados diretamente pelo navegador, com as regras atuais do Firestore.
+As listas de ocorrências, empresas, pontos e tarefas do checklist usam `GET /api/sincronizacao/:colecao` no backend existente do Radar. A rota exige token Firebase válido, usuário cadastrado com perfil do Radar e senha já definida. Retorna somente IDs e versões; os documentos continuam sendo consultados diretamente pelo navegador, com as regras atuais do Firestore. O cadastro do usuário usado nessa validação fica em memória por 60 segundos, então uma revogação de acesso pode levar até esse prazo para valer.
+
+O sincronizador do SSX Desk relê a coleção `usuarios` no máximo uma vez por hora, não a cada ciclo de 5 minutos.
+
+Publique o backend antes do frontend: a lista do checklist passa a chamar a rota com `checklist_tarefas`, que o backend antigo recusa com 400.
 
 O índice de pontos é restrito aos perfis master e treinador, os mesmos que acessam a gamificação no Radar.
 

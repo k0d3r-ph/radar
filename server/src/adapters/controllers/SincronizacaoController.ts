@@ -3,11 +3,25 @@ import type { Auth } from 'firebase-admin/auth';
 import type { Firestore } from 'firebase-admin/firestore';
 import { COLECOES_SINCRONIZADAS, IndiceSincronizacao, type ColecaoSincronizada } from '../../infrastructure/firebase/IndiceSincronizacao.js';
 
+// Cadastro do usuário por UID: evita uma leitura do Firestore a cada consulta de
+// índice (o painel dispara várias por minuto). Revogações valem em até este prazo.
+const CACHE_USUARIO_MS = 60_000;
+
 export class SincronizacaoController {
   private readonly indice: IndiceSincronizacao | null;
+  private readonly usuarios = new Map<string, { dados: Record<string, any> | undefined; expiraEm: number }>();
 
   constructor(private readonly db: Firestore | null, private readonly auth: Auth | null) {
     this.indice = db ? new IndiceSincronizacao(db) : null;
+  }
+
+  private async lerUsuario(uid: string): Promise<Record<string, any> | undefined> {
+    const agora = Date.now();
+    const emCache = this.usuarios.get(uid);
+    if (emCache && emCache.expiraEm > agora) return emCache.dados;
+    const dados = (await this.db!.collection('usuarios').doc(uid).get()).data();
+    this.usuarios.set(uid, { dados, expiraEm: agora + CACHE_USUARIO_MS });
+    return dados;
   }
 
   async listar(req: Request, res: Response): Promise<void> {
@@ -25,7 +39,7 @@ export class SincronizacaoController {
     try { uid = (await this.auth.verifyIdToken(token || '', true)).uid; }
     catch { res.status(401).json({ error: 'Entre novamente no Radar.' }); return; }
     try {
-      const usuario = (await this.db.collection('usuarios').doc(uid).get()).data();
+      const usuario = await this.lerUsuario(uid);
       if (!usuario || usuario.needsPasswordChange
         || !['master', 'treinador', 'suporte', 'hardware', 'comercial', 'financeiro', 'cs', 'crc', 'painel'].includes(usuario.role)) {
         res.status(403).json({ error: 'Usuário sem acesso ao Radar.' }); return;

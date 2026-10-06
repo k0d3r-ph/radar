@@ -111,7 +111,7 @@ const lastFetchPorCategoria: Record<CategoriaTema, number> = {
   tipo: 0,
   pendencia: 0,
 };
-const CACHE_TTL = 30000; // 30 segundos
+const CACHE_TTL = 300000; // 5 minutos: temas mudam raramente e cada releitura custa uma leitura por tema.
 
 function invalidarCacheTemas(categoria: CategoriaTema) {
   cachePorCategoria[categoria] = null;

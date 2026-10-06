@@ -16,6 +16,8 @@ export class SsxDeskSyncService {
   private importacoes: Map<string, { empresaId: string; descricaoImportada: string; tipoProcessado?: string }> | undefined;
   private sessoes = new Map<string, string>();
   private sessoesRegistradas = new Set<string>();
+  private usuarios: { uid: string; nome: string }[] | undefined;
+  private usuariosLidosEm = 0;
 
   constructor(
     private readonly db: Firestore,
@@ -120,8 +122,14 @@ export class SsxDeskSyncService {
   }
 
   private async carregarUsuarios() {
+    // Usuários mudam raramente; reler a coleção a cada ciclo custava uma leitura
+    // por usuário a cada 5 minutos, o dia todo.
+    const agora = Date.now();
+    if (this.usuarios && agora - this.usuariosLidosEm < 60 * 60 * 1000) return this.usuarios;
     const snapshot = await this.db.collection('usuarios').get();
-    return snapshot.docs.map((d) => ({ uid: d.id, nome: (d.data().nome as string) || '' }));
+    this.usuarios = snapshot.docs.map((d) => ({ uid: d.id, nome: (d.data().nome as string) || '' }));
+    this.usuariosLidosEm = agora;
+    return this.usuarios;
   }
 
   private async importar(

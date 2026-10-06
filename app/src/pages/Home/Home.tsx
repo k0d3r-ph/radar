@@ -2113,6 +2113,11 @@ export default function Home() {
               <ul className="avisos-suporte-lista">
                 {avisosSuporte.map(({ ocorrencia, empresa }) => {
                   const destinatario = obterDestinatariosCliente(empresa)[0];
+                  const finalizadoEm = ocorrencia.ssxDesk?.finishedAt
+                    ? new Date(ocorrencia.ssxDesk.finishedAt)
+                    : null;
+                  const finalizacaoValida =
+                    finalizadoEm && Number.isFinite(finalizadoEm.getTime());
                   return (
                     <li key={ocorrencia.id} className="aviso-suporte-item">
                       <div className="aviso-suporte-info">
@@ -2126,6 +2131,26 @@ export default function Home() {
                         )}
                         <p className="aviso-suporte-motivo">
                           {ocorrencia.descricao}
+                        </p>
+                        <p className="aviso-suporte-motivo">
+                          {finalizacaoValida ? (
+                            <>
+                              Chat finalizado em{" "}
+                              <time dateTime={finalizadoEm.toISOString()}>
+                                {finalizadoEm.toLocaleString("pt-BR", {
+                                  timeZone: "America/Sao_Paulo",
+                                  day: "2-digit",
+                                  month: "2-digit",
+                                  year: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </time>{" "}
+                              (horário de Brasília)
+                            </>
+                          ) : (
+                            "Data e hora de finalização do chat não informadas."
+                          )}
                         </p>
                       </div>
                       <div className="aviso-suporte-acoes">

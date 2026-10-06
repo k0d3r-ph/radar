@@ -517,6 +517,7 @@ export function Historico() {
   const isTreinador = role === "treinador" || role === "master";
   const [reservasCsat, setReservasCsat] = useState<ReservaCsat[]>([]);
   const [gerandoCsat, setGerandoCsat] = useState(false);
+  const [erroGerarCsat, setErroGerarCsat] = useState("");
   const [erroReservasCsat, setErroReservasCsat] = useState("");
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -804,13 +805,24 @@ export function Historico() {
   const reservaEditando = reservasCsat.find(r => r.id === editandoId);
   async function gerarCsat() {
     const empresa = empresasList.find(e => normalizar(e.nomeEmpresa) === normalizar(empresaFiltro));
-    if (!empresa?.id || gerandoCsat) return;
+    if (gerandoCsat) return;
+    setErroGerarCsat("");
+    if (!empresa?.id) {
+      const mensagem = "Não foi possível identificar o cadastro do cliente. Atualize a página e abra Ver ocorrências novamente pela Home.";
+      setErroGerarCsat(mensagem);
+      toast.error(mensagem);
+      return;
+    }
     setGerandoCsat(true);
     try {
       const reserva = await requisicaoCsat('reservas', { empresaId: empresa.id }, true) as ReservaCsat;
       setReservasCsat(prev => [...prev, reserva]);
       toast.success(`Link gerado. Ocorrência ${reserva.idSeqFormatted} reservada.`);
-    } catch (error) { toast.error(error instanceof Error ? error.message : 'Não foi possível gerar o link.'); }
+    } catch (error) {
+      const mensagem = error instanceof Error ? error.message : 'Não foi possível gerar o link.';
+      setErroGerarCsat(mensagem);
+      toast.error(mensagem);
+    }
     finally { setGerandoCsat(false); }
   }
   const ocorrenciaIdFiltro = searchParams.get("ocorrencia") || "";
@@ -848,14 +860,15 @@ export function Historico() {
 
   async function carregar() {
     setLoading(true);
-    if (isTreinador) {
-      try {
-        setReservasCsat(await requisicaoCsat('reservas', undefined, true));
+    // Carrega as reservas em paralelo para não bloquear a identificação do cliente.
+    const reservasPromise = isTreinador
+      ? requisicaoCsat('reservas', undefined, true).then(reservas => {
+        setReservasCsat(reservas);
         setErroReservasCsat("");
-      } catch (error) {
+      }).catch(error => {
         setErroReservasCsat(error instanceof Error ? error.message : 'Não foi possível carregar as reservas de CSAT.');
-      }
-    }
+      })
+      : Promise.resolve();
     const [ocLista, empLista, usrLista] = await Promise.all([
       listarOcorrencias(true),
       listarEmpresas(),
@@ -869,6 +882,7 @@ export function Historico() {
     setEmpresasList(empLista);
     setUsuariosList(usrLista);
     setLoading(false);
+    await reservasPromise;
     return enriquecidas;
   }
 
@@ -3089,13 +3103,14 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               + Nova ocorrência
             </button>
             {isTreinador && empresaFiltro && searchParams.get("origem") === "home" && (
-              <button className="btn-primary" disabled={gerandoCsat} onClick={gerarCsat}>
-                {gerandoCsat ? "Gerando link..." : "Gerar link do CSAT"}
+              <button type="button" className="btn-primary" disabled={gerandoCsat || loading} onClick={gerarCsat}>
+                {gerandoCsat ? "Gerando link..." : loading ? "Carregando cliente..." : "Gerar link do CSAT"}
               </button>
             )}
           </div>
         </div>
       </header>
+      {erroGerarCsat && <p role="alert">Não foi possível gerar o link do CSAT: {erroGerarCsat}</p>}
       {isTreinador && erroReservasCsat && <p role="alert">Reservas CSAT: {erroReservasCsat}</p>}
       {isTreinador && reservasCsat.some(r => !empresaFiltro || normalizar(r.empresa) === normalizar(empresaFiltro)) && (
         <section className="hist-csat-reservas" aria-label="Minhas ocorrências reservadas para CSAT">

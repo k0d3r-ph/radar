@@ -12,12 +12,26 @@ export async function requisicaoCsat(path: string, body?: unknown, autenticada =
     if (!auth.currentUser) throw new Error('Entre novamente no Radar.');
     headers.Authorization = `Bearer ${await auth.currentUser.getIdToken()}`;
   }
-  const response = await fetch(`${import.meta.env.VITE_WHATSAPP_API_URL || 'http://localhost:5000'}/api/csat/${path}`, {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 20000);
+  try {
+  const apiUrl = (import.meta.env.VITE_WHATSAPP_API_URL || 'http://localhost:5000').replace(/\/+$/, '');
+  const response = await fetch(`${apiUrl}/api/csat/${path}`, {
     method: body === undefined ? 'GET' : 'POST', headers,
+    signal: controller.signal,
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
-  const dados = await response.json();
+  const dados = await response.json().catch(() => {
+    throw new Error(`A API do CSAT retornou uma resposta inválida (HTTP ${response.status}). Confira a publicação do backend e VITE_WHATSAPP_API_URL.`);
+  });
   if (!response.ok) throw new Error(dados.error || 'Não foi possível acessar o CSAT.');
   return dados;
+  } catch (error) {
+    if (controller.signal.aborted) throw new Error('A API do CSAT demorou a responder. Confira se o servidor está disponível e tente novamente.');
+    if (error instanceof TypeError) throw new Error('Não foi possível conectar à API do CSAT. Confira o endereço HTTPS e CORS_ORIGIN no servidor.');
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+  }
 }
 export const linkCsat = (token: string) => `${window.location.origin}/csat/${token}`;

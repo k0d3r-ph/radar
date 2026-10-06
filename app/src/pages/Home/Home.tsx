@@ -912,16 +912,16 @@ export default function Home() {
 
   // A Home carrega o histórico só uma vez, no mount — sem isto, o painel de
   // avisos de Suporte (e o badge de Alerta) só refletiriam uma ocorrência nova
-  // depois de um F5. `listarOcorrencias` já usa sincronização incremental (só
-  // lê do servidor o que mudou), então repetir a chamada aqui é barato.
+  // depois de um F5. Com `forceRefresh`, a consulta só lê do servidor o que
+  // mudou (sincronização incremental), então repeti-la a cada minuto é barato.
   useEffect(() => {
     const intervalo = setInterval(() => {
-      listarOcorrencias()
+      listarOcorrencias(true)
         .then(setHistorico)
         .catch((err) =>
           console.error("Erro ao atualizar histórico em segundo plano:", err),
         );
-    }, 180000); // 3 minutos
+    }, 60000); // 1 minuto
     return () => clearInterval(intervalo);
   }, []);
 

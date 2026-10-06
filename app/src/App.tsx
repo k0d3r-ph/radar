@@ -3,6 +3,7 @@ import { Esteira } from "./pages/Esteira/Esteira";
 import { Historico } from "./pages/Historico/Historico";
 import Home from "./pages/Home/Home";
 import { Login } from "./pages/Login/Login";
+import { Csat } from "./pages/Csat/Csat";
 import { AlterarSenha } from "./pages/AlterarSenha/AlterarSenha";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { LogOut, Sun, Moon } from "lucide-react";
@@ -212,7 +213,10 @@ function App() {
 
   return (
     <AuthProvider>
-      <AppRoutes />
+      <Routes>
+        <Route path="/csat/:token" element={<Csat />} />
+        <Route path="*" element={<AppRoutes />} />
+      </Routes>
     </AuthProvider>
   );
 }

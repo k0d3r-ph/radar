@@ -2,6 +2,9 @@ import { reordenarTemasEnsinados } from "../../utils/reordenarTemasEnsinados";
 import { useState, useEffect, useMemo } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import "./CsatReservas.css";
+import { requisicaoCsat, linkCsat } from "../../services/csat";
+import type { ReservaCsat } from "../../services/csat";
 import * as XLSX from "xlsx";
 import {
   salvarOcorrencia,
@@ -512,6 +515,9 @@ function descreverRespostas(respostas: ScoreFormAnswers): string[] {
 export function Historico() {
   const { role, userName, user } = useAuth();
   const isTreinador = role === "treinador" || role === "master";
+  const [reservasCsat, setReservasCsat] = useState<ReservaCsat[]>([]);
+  const [gerandoCsat, setGerandoCsat] = useState(false);
+  const [erroReservasCsat, setErroReservasCsat] = useState("");
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [modalScoreAberto, setModalScoreAberto] = useState(false);
@@ -795,6 +801,18 @@ export function Historico() {
     }));
   };
   const empresaFiltro = searchParams.get("empresa") || "";
+  const reservaEditando = reservasCsat.find(r => r.id === editandoId);
+  async function gerarCsat() {
+    const empresa = empresasList.find(e => normalizar(e.nomeEmpresa) === normalizar(empresaFiltro));
+    if (!empresa?.id || gerandoCsat) return;
+    setGerandoCsat(true);
+    try {
+      const reserva = await requisicaoCsat('reservas', { empresaId: empresa.id }, true) as ReservaCsat;
+      setReservasCsat(prev => [...prev, reserva]);
+      toast.success(`Link gerado. Ocorrência ${reserva.idSeqFormatted} reservada.`);
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Não foi possível gerar o link.'); }
+    finally { setGerandoCsat(false); }
+  }
   const ocorrenciaIdFiltro = searchParams.get("ocorrencia") || "";
   const expedienteFiltro = searchParams.get("expediente") || "";
 
@@ -830,8 +848,16 @@ export function Historico() {
 
   async function carregar() {
     setLoading(true);
+    if (isTreinador) {
+      try {
+        setReservasCsat(await requisicaoCsat('reservas', undefined, true));
+        setErroReservasCsat("");
+      } catch (error) {
+        setErroReservasCsat(error instanceof Error ? error.message : 'Não foi possível carregar as reservas de CSAT.');
+      }
+    }
     const [ocLista, empLista, usrLista] = await Promise.all([
-      listarOcorrencias(),
+      listarOcorrencias(true),
       listarEmpresas(),
       listarUsuarios().catch((error) => {
         console.error("Erro ao listar usuários no Histórico:", error);
@@ -855,6 +881,7 @@ export function Historico() {
     const empresaObjeto = empresasList.find(
       (e) => normalizar(e.nomeEmpresa) === normalizar(oc.empresa),
     );
+
     if (!empresaObjeto) {
       toast.error("Empresa não encontrada para retentar a notificação.");
       return;
@@ -1282,6 +1309,10 @@ export function Historico() {
   }
 
   async function salvar() {
+    if (reservaEditando && (form.empresa !== reservaEditando.empresa || form.tipo !== "Treinamento" || form.departamento !== "Treinamento")) {
+      toast.error("A reserva de CSAT deve ser registrada como treinamento do cliente original.");
+      return;
+    }
     const responsavelFinal = formatarNome(
       editandoId ? form.responsavel : userName,
     );
@@ -1397,7 +1428,7 @@ export function Historico() {
     }
 
     const ocorrenciaOriginal = editandoId
-      ? ocorrencias.find((o) => o.id === editandoId)
+      ? ocorrencias.find((o) => o.id === editandoId) || reservaEditando
       : null;
 
     const novaDescricao = form.descricao.trim();
@@ -1721,9 +1752,15 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       base.gamificacaoPontoId = "";
     }
 
-    const savedId = await salvarOcorrencia(
-      editandoId ? { ...base, id: editandoId } : base,
-    );
+    let savedId: string;
+    try {
+      savedId = reservaEditando
+        ? (await requisicaoCsat(`reservas/${reservaEditando.id}/concluir`, base, true)).id
+        : await salvarOcorrencia(editandoId ? { ...base, id: editandoId } : base);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Não foi possível salvar a ocorrência.');
+      return;
+    }
 
     // Notificações automáticas (best-effort — erros não bloqueiam o fluxo)
     // Alerta: notifica quando a ocorrência *vira* alerta, seja ao criar ou ao editar.
@@ -3051,9 +3088,34 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             <button className="btn-primary hist-btn-novo" onClick={abrirNovo}>
               + Nova ocorrência
             </button>
+            {isTreinador && empresaFiltro && searchParams.get("origem") === "home" && (
+              <button className="btn-primary" disabled={gerandoCsat} onClick={gerarCsat}>
+                {gerandoCsat ? "Gerando link..." : "Gerar link do CSAT"}
+              </button>
+            )}
           </div>
         </div>
       </header>
+      {isTreinador && erroReservasCsat && <p role="alert">Reservas CSAT: {erroReservasCsat}</p>}
+      {isTreinador && reservasCsat.some(r => !empresaFiltro || normalizar(r.empresa) === normalizar(empresaFiltro)) && (
+        <section className="hist-csat-reservas" aria-label="Minhas ocorrências reservadas para CSAT">
+          <h2>Minhas ocorrências reservadas para CSAT</h2>
+          <p>Clique no ID para registrar o restante da ocorrência. Compartilhe o link com os participantes.</p>
+          {reservasCsat.filter(r => !empresaFiltro || normalizar(r.empresa) === normalizar(empresaFiltro)).map(reserva => (
+            <div key={reserva.id} className="hist-csat-reserva">
+              <button className="btn-secondary" onClick={() => abrirEdicao({ ...reserva, treinamentoResultados: reserva.respostas.map(r => r.experiencia) })}>{reserva.idSeqFormatted}</button>
+              <span>{reserva.empresa} · {reserva.respostas.length} avaliação(ões)</span>
+              <input aria-label={`Link CSAT ${reserva.idSeqFormatted}`} readOnly value={linkCsat(reserva.token)} onFocus={e => e.target.select()} />
+              <button className="btn-secondary" onClick={async () => {
+                try { await navigator.clipboard.writeText(linkCsat(reserva.token)); toast.success('Link copiado.'); }
+                catch { toast.error('Selecione e copie o link no campo ao lado.'); }
+              }}>Copiar link</button>
+              {reserva.respostas.map((r, index) => <p key={index}>{r.nome}: {r.experiencia}{r.opiniao && ` — ${r.opiniao}`}</p>)}
+            </div>
+          ))}
+          <button className="btn-secondary" onClick={() => carregar()}>Atualizar respostas</button>
+        </section>
+      )}
 
       {/* Popup do Dashboard */}
       {dashboardAberto && (
@@ -3882,6 +3944,12 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                           </div>
                         </div>
                       )}
+                    {selecionada.csatRespostas?.map((resposta, index) => (
+                      <div key={`csat-${index}`}>
+                        <span>{resposta.nome} — {resposta.experiencia}</span>
+                        {resposta.opiniao && <p>{resposta.opiniao}</p>}
+                      </div>
+                    ))}
                     {selecionada.treinamentoNotas &&
                       selecionada.treinamentoNotas.length > 0 && (
                         <div className="hist-detail-training-notes-wrapper">

@@ -57,7 +57,13 @@ export async function salvarOcorrencia(ocorrencia: Ocorrencia) {
           throw new Error('Remova a estrela antes de transferir a ocorrência para outro cliente.');
         }
       }
-      transaction.update(ref, { ...dadosLimpos, updatedAt });
+      const csat = atual.data()?.csatReservaId ? {
+        csatReservaId: atual.data()!.csatReservaId,
+        csatRespostas: atual.data()!.csatRespostas || [],
+        treinamentoResultados: atual.data()!.treinamentoResultados || [],
+        idSeqFormatted: atual.data()!.idSeqFormatted,
+      } : {};
+      transaction.update(ref, { ...dadosLimpos, ...csat, updatedAt });
     });
 
     // Atualização Otimista do Cache

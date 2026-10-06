@@ -191,6 +191,8 @@ export type Ocorrencia = {
   updatedAt?: number;
   temaOcorrencia?: string[];
   idSeqFormatted?: string;
+  csatReservaId?: string;
+  csatRespostas?: { nome: string; experiencia: "Bom" | "Ruim"; opiniao: string; respondidoEm: number }[];
   atualizacoes?: Atualizacao[];
   scoreCalculado?: number;
   scoreAnswers?: any;

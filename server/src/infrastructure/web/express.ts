@@ -1,4 +1,5 @@
 import express from 'express';
+import { registrarCsat } from './csat.js';
 import cors from 'cors';
 import { WhatsAppController } from '../../adapters/controllers/WhatsAppController.js';
 import { IaController } from '../../adapters/controllers/IaController.js';
@@ -36,6 +37,7 @@ export function createExpressApp(
   // Aumenta o limite para aceitar imagens grandes em base64 da esteira
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ limit: '50mb', extended: true }));
+  registrarCsat(app, adminDb, adminAuth);
   const ocorrenciasController = new OcorrenciasController(adminDb, adminAuth);
   app.patch('/api/ocorrencias/:id/favorito', (req, res) => ocorrenciasController.definirFavorita(req, res));
 

@@ -3500,7 +3500,7 @@ export default function Home() {
                 className="btn-ocorrencias"
                 onClick={() =>
                   navigate(
-                    `/historico?empresa=${encodeURIComponent(clienteSelecionado.nomeEmpresa)}`,
+                    `/historico?empresa=${encodeURIComponent(clienteSelecionado.nomeEmpresa)}&origem=home`,
                   )
                 }
               >

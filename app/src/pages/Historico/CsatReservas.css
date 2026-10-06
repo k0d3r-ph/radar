@@ -1,0 +1,5 @@
+.hist-csat-reservas { margin: 20px 0; padding: 20px; border: 1px solid var(--border-color, #cbd5e1); border-radius: 12px; }
+.hist-csat-reservas h2 { font-size: 18px; }
+.hist-csat-reserva { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 0; }
+.hist-csat-reserva input { flex: 1; min-width: 180px; padding: 10px; }
+.hist-csat-reserva p { width: 100%; margin: 0; }

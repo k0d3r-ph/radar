@@ -26,6 +26,8 @@ export function obterPrefixoEmpresa(nomeEmpresa: string, empresasList?: { nomeEm
 export function atribuirIdsOcorrencias(lista: Ocorrencia[], empresasList?: { nomeEmpresa: string; idNumeric?: number }[]): (Ocorrencia & { idSeqFormatted?: string })[] {
   const porEmpresa: Record<string, Ocorrencia[]> = {};
   lista.forEach((o) => {
+    // IDs CSAT têm sequência permanente própria e não renumeram o histórico antigo.
+    if (o.csatReservaId) return;
     const key = o.empresa.trim().toLowerCase();
     if (!porEmpresa[key]) porEmpresa[key] = [];
     porEmpresa[key].push(o);
@@ -52,7 +54,7 @@ export function atribuirIdsOcorrencias(lista: Ocorrencia[], empresasList?: { nom
 
   return lista.map((o) => ({
     ...o,
-    idSeqFormatted: mapaIds.get(o),
+    idSeqFormatted: o.idSeqFormatted || mapaIds.get(o),
   }));
 }
 

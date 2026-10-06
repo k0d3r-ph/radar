@@ -1169,7 +1169,10 @@ export function Historico() {
   }
 
   useEffect(() => {
-    carregar(false);
+    carregar(false).catch(error => {
+      console.error('Erro ao sincronizar o histórico:', error);
+      toast.error('Não foi possível sincronizar o histórico. Tente atualizar a página.');
+    }).finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {

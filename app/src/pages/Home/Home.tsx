@@ -904,7 +904,10 @@ export default function Home() {
       setLoading(false);
     }
 
-    carregarDados();
+    carregarDados().catch(error => {
+      console.error('Erro ao sincronizar os dados da Home:', error);
+      toast.error('Não foi possível sincronizar os dados. Tente atualizar a página.');
+    }).finally(() => setLoading(false));
   }, []);
 
   // A Home carrega o histórico só uma vez, no mount — sem isto, o painel de

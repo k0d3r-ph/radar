@@ -9,7 +9,7 @@ import {
   limit,
 } from "firebase/firestore";
 
-import { db } from "./firebase";
+import { auth, db } from "./firebase";
 import type { Empresa } from "../types";
 import { normalizarTelefoneWhatsApp } from "../utils/telefone";
 import { sincronizarColecao } from "./sincronizacaoIncremental";
@@ -45,6 +45,7 @@ export function formatarTelefoneWhatsApp(telefone?: string): string {
 
 let cachedEmpresas: Empresa[] | null = null;
 let lastFetchEmpresas = 0;
+let cachedUsuario: string | undefined;
 const CACHE_TTL = 300000; // 5 minutos (300.000 ms)
 
 export async function salvarEmpresas(empresa: Partial<Empresa>) {
@@ -109,7 +110,7 @@ export async function listarEmpresas(forceRefresh = false, limitCount?: number) 
       .filter((empresa) => empresa.id) as Empresa[];
   }
 
-  if (cachedEmpresas && !forceRefresh && (now - lastFetchEmpresas < CACHE_TTL)) {
+  if (cachedEmpresas && cachedUsuario === auth.currentUser?.uid && !forceRefresh && (now - lastFetchEmpresas < CACHE_TTL)) {
     return cachedEmpresas;
   }
 
@@ -118,6 +119,7 @@ export async function listarEmpresas(forceRefresh = false, limitCount?: number) 
   cachedEmpresas = empresas.filter((empresa) => empresa.id);
 
   lastFetchEmpresas = now;
+  cachedUsuario = auth.currentUser?.uid;
   return cachedEmpresas;
 }
 

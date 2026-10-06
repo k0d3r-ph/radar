@@ -12,6 +12,7 @@
     "sincronizar-ssx-desk": "tsx scripts/sincronizarSsxDesk.ts",
     "test:ssx-desk": "npm run build && node --test tests/ssxDesk.test.mjs",
     "test:favoritos": "npm run build && node --test tests/favoritos.test.mjs",
+    "test:sincronizacao": "npm run build && node --test tests/sincronizacao.test.mjs",
     "test:whatsapp-media": "npm run build && node --test tests/whatsappMedia.test.mjs",
     "test:centrais": "npm run build && node --test tests/planilhaCentrais.test.mjs"
   },

@@ -1,188 +1,122 @@
-/**
- * Sincronização incremental de coleções do Firestore.
- *
- * O Radar relia coleções inteiras a cada carregamento de página — o que colocou
- * o projeto em ~46 mil leituras diárias contra pouco mais de uma centena de
- * gravações, encostando na cota gratuita de 50 mil leituras do plano Spark.
- *
- * A estratégia aqui troca a varredura completa por duas etapas baratas:
- *
- *   1. lê a base local do próprio SDK (`persistentLocalCache`, já habilitado em
- *      `firebase.ts`), que não consome cota nenhuma;
- *   2. pergunta ao servidor apenas o que mudou desde a última sincronização,
- *      via `where("updatedAt", ">", ...)`.
- *
- * Quando nada mudou, a consulta volta vazia e custa uma única leitura. Por isso
- * toda coleção sincronizada por aqui precisa gravar `updatedAt` em cada escrita
- * — um documento sem esse campo nunca aparece no delta (consultas de intervalo
- * ignoram documentos que não têm o campo) e só seria visto na carga completa.
- */
-
+/** Sincroniza apenas documentos alterados; exclusões são reconciliadas por ID. */
 import {
-  collection,
-  getDocs,
-  getDocsFromCache,
-  query,
-  where,
-  type QuerySnapshot,
-} from "firebase/firestore";
+  collection, documentId, getDocsFromCache, getDocsFromServer,
+  query, where, type QuerySnapshot,
+} from 'firebase/firestore';
+import { auth, db } from './firebase';
 
-import { db } from "./firebase";
-
-/**
- * `updatedAt` é gravado com o `Date.now()` da máquina de quem escreve, então
- * relógios dessincronizados entre os computadores do time poderiam produzir um
- * timestamp anterior ao nosso marcador e sumir do delta. Reconsultar sempre uma
- * janela extra de 5 minutos cobre a diferença por algumas poucas leituras.
- */
-const MARGEM_RELOGIO_MS = 300000;
-
-/**
- * O delta enxerga criações e edições, mas não exclusões: um documento apagado
- * por outro usuário permanece na base local até uma carga completa reconciliar
- * a coleção. Recarregar tudo a cada 6 horas mantém o custo baixo e limita a
- * defasagem a um turno de trabalho.
- */
-const INTERVALO_CARGA_COMPLETA_MS = 21600000;
-
-type MarcadorSincronizacao = {
-  /** Maior `updatedAt` já visto na coleção. Ponto de partida do próximo delta. */
-  ultimoUpdatedAt: number;
-  /** Quando a coleção foi lida por completo pela última vez. */
-  ultimaCargaCompleta: number;
-};
-
-type RegistroSincronizavel = {
-  id?: string;
-  updatedAt?: number;
-};
+type RegistroSincronizavel = { id?: string };
+type DocumentoIndice = { id: string; versao: string };
+const emAndamento = new Map<string, Promise<RegistroSincronizavel[]>>();
 
 function chaveMarcador(nomeColecao: string): string {
-  return `radar:sync:${nomeColecao}`;
+  return `radar:sync:v2:${auth.currentUser?.uid}:${nomeColecao}`;
 }
 
-function lerMarcador(nomeColecao: string): MarcadorSincronizacao | null {
+function lerVersoes(chave: string): Map<string, string> | null {
   try {
-    const bruto = localStorage.getItem(chaveMarcador(nomeColecao));
+    const bruto = localStorage.getItem(chave);
     if (!bruto) return null;
-
-    const dados = JSON.parse(bruto);
-    if (
-      typeof dados?.ultimoUpdatedAt !== "number" ||
-      typeof dados?.ultimaCargaCompleta !== "number"
-    ) {
-      return null;
-    }
-
-    return dados as MarcadorSincronizacao;
-  } catch {
-    // localStorage indisponível (modo privativo, cota cheia) ou JSON corrompido:
-    // sem marcador, a sincronização simplesmente recai na carga completa.
-    return null;
-  }
+    const dados: unknown = JSON.parse(bruto);
+    if (!Array.isArray(dados) || !dados.every(item => Array.isArray(item)
+      && item.length === 2 && item.every(valor => typeof valor === 'string'))) return null;
+    return new Map(dados as [string, string][]);
+  } catch { return null; }
 }
 
-function gravarMarcador(nomeColecao: string, marcador: MarcadorSincronizacao): void {
+function gravarVersoes(chave: string, documentos: DocumentoIndice[]): void {
   try {
-    localStorage.setItem(chaveMarcador(nomeColecao), JSON.stringify(marcador));
-  } catch {
-    // Falhar aqui só custa uma carga completa na próxima vez — não é motivo
-    // para derrubar o carregamento da tela.
-  }
+    localStorage.setItem(chave, JSON.stringify(documentos.map(d => [d.id, d.versao])));
+  } catch { /* Sem persistência, a próxima sincronização relê a base. */ }
 }
 
-/**
- * Descarta o marcador da coleção, forçando uma carga completa na próxima
- * chamada. Útil após operações em lote que mexem em muitos documentos.
- */
+/** Descarta as versões quando uma operação externa exige reler a base. */
 export function invalidarSincronizacao(nomeColecao: string): void {
-  try {
-    localStorage.removeItem(chaveMarcador(nomeColecao));
-  } catch {
-    // Ver comentário em gravarMarcador.
-  }
+  try { localStorage.removeItem(chaveMarcador(nomeColecao)); }
+  catch { /* localStorage indisponível. */ }
 }
 
 function mapearDocumentos<T>(snapshot: QuerySnapshot): T[] {
-  return snapshot.docs.map((documento) => ({
-    id: documento.id,
-    ...(documento.data() as object),
-  })) as T[];
+  return snapshot.docs.map(documento => ({ ...documento.data(), id: documento.id })) as T[];
 }
 
-function maiorUpdatedAt(registros: RegistroSincronizavel[], inicial = 0): number {
-  return registros.reduce(
-    (maior, registro) =>
-      typeof registro.updatedAt === "number" && registro.updatedAt > maior
-        ? registro.updatedAt
-        : maior,
-    inicial
-  );
+async function consultarIndice(nomeColecao: string): Promise<DocumentoIndice[]> {
+  if (!auth.currentUser) throw new Error('Entre novamente no Radar.');
+  const token = await auth.currentUser.getIdToken();
+  const apiUrl = (import.meta.env.VITE_WHATSAPP_API_URL || 'http://localhost:5000').replace(/\/+$/, '');
+  const response = await fetch(`${apiUrl}/api/sincronizacao/${encodeURIComponent(nomeColecao)}`, {
+    headers: { Authorization: `Bearer ${token}` }, cache: 'no-store',
+    signal: AbortSignal.timeout(20_000),
+  });
+  const dados = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(dados.error || 'Não foi possível sincronizar os dados.');
+  if (!Array.isArray(dados.documentos) || !dados.documentos.every((d: DocumentoIndice) =>
+    d && typeof d.id === 'string' && d.id.length > 0 && !d.id.includes('/') && typeof d.versao === 'string')) {
+    throw new Error('Índice de sincronização inválido.');
+  }
+  return dados.documentos;
 }
 
-/**
- * Devolve todos os documentos da coleção, buscando no servidor apenas o que
- * mudou desde a última chamada.
- *
- * @param nomeColecao Coleção do Firestore. Todos os seus documentos devem ter `updatedAt`.
- * @param forceRefresh Ignora o incremental e relê a coleção inteira do servidor.
- */
-export async function sincronizarColecao<T extends RegistroSincronizavel>(
-  nomeColecao: string,
-  forceRefresh = false
-): Promise<T[]> {
+async function sincronizar<T extends RegistroSincronizavel>(nomeColecao: string, chave: string): Promise<T[]> {
+  const documentos = await consultarIndice(nomeColecao);
   const referencia = collection(db, nomeColecao);
-  const agora = Date.now();
-  const marcador = lerMarcador(nomeColecao);
+  const versoes = lerVersoes(chave);
+  let base: T[] = [];
+  if (versoes) {
+    try { base = mapearDocumentos<T>(await getDocsFromCache(referencia)); }
+    catch { /* Cache vazio ou indisponível: faz uma carga inicial. */ }
+  }
 
-  const podeUsarDelta =
-    !forceRefresh &&
-    marcador !== null &&
-    agora - marcador.ultimaCargaCompleta < INTERVALO_CARGA_COMPLETA_MS;
-
-  if (podeUsarDelta && marcador) {
-    try {
-      const base = await getDocsFromCache(referencia);
-
-      // Base local vazia (primeiro acesso neste navegador, ou cache limpo pelo
-      // usuário) não tem o que ser incrementado: cai para a carga completa.
-      if (!base.empty) {
-        const registros = mapearDocumentos<T>(base);
-
-        const desde = Math.max(0, marcador.ultimoUpdatedAt - MARGEM_RELOGIO_MS);
-        const alterados = mapearDocumentos<T>(
-          await getDocs(query(referencia, where("updatedAt", ">", desde)))
-        );
-
-        if (alterados.length === 0) {
-          return registros;
-        }
-
-        const porId = new Map(registros.map((registro) => [registro.id, registro]));
-        alterados.forEach((registro) => porId.set(registro.id, registro));
-        const mesclados = Array.from(porId.values());
-
-        gravarMarcador(nomeColecao, {
-          ultimoUpdatedAt: maiorUpdatedAt(mesclados, marcador.ultimoUpdatedAt),
-          ultimaCargaCompleta: marcador.ultimaCargaCompleta,
-        });
-
-        return mesclados;
+  const porId = new Map(base.map(registro => [registro.id, registro]));
+  const alterados = documentos.filter(d => !porId.has(d.id) || versoes?.get(d.id) !== d.versao);
+  if (alterados.length > 0) {
+    if (!versoes || base.length === 0) {
+      // Uma consulta na primeira carga; não multiplica chamadas por lote.
+      porId.clear();
+      mapearDocumentos<T>(await getDocsFromServer(referencia)).forEach(registro => porId.set(registro.id, registro));
+    } else {
+      // `in` aceita até 30 IDs. Busca criações/edições e documentos que o SDK
+      // tenha removido do cache, inclusive registros sem updatedAt.
+      for (let inicio = 0; inicio < alterados.length; inicio += 30) {
+        const ids = alterados.slice(inicio, inicio + 30).map(d => d.id);
+        const snapshot = await getDocsFromServer(query(referencia, where(documentId(), 'in', ids)));
+        mapearDocumentos<T>(snapshot).forEach(registro => porId.set(registro.id, registro));
+        // Pode haver uma exclusão entre a consulta do índice e a dos documentos.
+        const encontrados = new Set(snapshot.docs.map(d => d.id));
+        ids.filter(id => !encontrados.has(id)).forEach(id => porId.delete(id));
       }
-    } catch (erro) {
-      console.warn(
-        `[sincronizacao] Falha no incremental de "${nomeColecao}". Recorrendo à carga completa.`,
-        erro
-      );
     }
   }
 
-  const completo = mapearDocumentos<T>(await getDocs(referencia));
-
-  gravarMarcador(nomeColecao, {
-    ultimoUpdatedAt: maiorUpdatedAt(completo),
-    ultimaCargaCompleta: agora,
+  // Filtra exclusões mesmo com delta vazio: o cache do SDK pode conservar
+  // documentos apagados por outra pessoa em outro computador.
+  const registros = documentos.flatMap(d => {
+    const registro = porId.get(d.id);
+    return registro ? [registro] : [];
   });
+  if (chave !== chaveMarcador(nomeColecao)) throw new Error('A sessão mudou durante a sincronização. Entre novamente.');
+  gravarVersoes(chave, documentos);
+  return registros;
+}
 
-  return completo;
+/**
+ * Atualiza a lista pelo índice compartilhado. forceRefresh ignora o cache em
+ * memória dos serviços, sem reler a coleção. Cargas completas só ocorrem na
+ * primeira consulta ou quando a base local foi perdida.
+ */
+export async function sincronizarColecao<T extends RegistroSincronizavel>(
+  nomeColecao: string,
+  forceRefresh = false,
+): Promise<T[]> {
+  // A atualização forçada já foi aplicada ao cache em memória do serviço.
+  // Aqui toda chamada consulta o índice atual, independentemente da opção.
+  void forceRefresh;
+  const chave = chaveMarcador(nomeColecao);
+  let pendente = emAndamento.get(chave);
+  if (!pendente) {
+    pendente = sincronizar<T>(nomeColecao, chave);
+    emAndamento.set(chave, pendente);
+  }
+  try { return await pendente as T[]; }
+  finally { if (emAndamento.get(chave) === pendente) emAndamento.delete(chave); }
 }

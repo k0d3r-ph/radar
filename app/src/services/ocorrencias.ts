@@ -4,7 +4,7 @@ import {
   deleteDoc,
   runTransaction,
   doc,
-  getDocs,
+  getDocsFromServer,
   query,
   orderBy,
   limit,
@@ -18,6 +18,7 @@ const COLLECTION = "ocorrencias";
 
 let cachedOcorrencias: Ocorrencia[] | null = null;
 let lastFetchOcorrencias = 0;
+let cachedUsuario: string | undefined;
 const CACHE_TTL = 300000; // 5 minutos (300.000 ms)
 
 // Remove `undefined` recursivamente (inclusive dentro de arrays/objetos aninhados),
@@ -106,26 +107,26 @@ export async function listarOcorrencias(forceRefresh = false, limitCount?: numbe
   // Se for especificado um limite de registros, faz a busca sob demanda sem afetar o cache global
   if (limitCount) {
     const q = query(collection(db, COLLECTION), orderBy("createdAt", "desc"), limit(limitCount));
-    const snapshot = await getDocs(q);
+    const snapshot = await getDocsFromServer(q);
     return snapshot.docs.map((d) => ({
       id: d.id,
       ...(d.data() as Omit<Ocorrencia, "id">),
     })) as Ocorrencia[];
   }
 
-  if (cachedOcorrencias && !forceRefresh && (now - lastFetchOcorrencias < CACHE_TTL)) {
+  if (cachedOcorrencias && cachedUsuario === auth.currentUser?.uid && !forceRefresh && (now - lastFetchOcorrencias < CACHE_TTL)) {
     return cachedOcorrencias;
   }
 
   const ocorrencias = await sincronizarColecao<Ocorrencia>(COLLECTION, forceRefresh);
 
-  // A ordenação sai do Firestore para o cliente: a sincronização incremental
-  // mescla base local e delta, então a ordem precisa ser reaplicada aqui.
+  // Ordena também registros antigos sem createdAt, sem excluí-los da consulta.
   cachedOcorrencias = ocorrencias.sort(
     (a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0)
   );
 
   lastFetchOcorrencias = now;
+  cachedUsuario = auth.currentUser?.uid;
   return cachedOcorrencias;
 }
 

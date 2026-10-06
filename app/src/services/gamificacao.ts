@@ -11,7 +11,7 @@ import {
   where,
   limit,
 } from "firebase/firestore";
-import { db } from "./firebase";
+import { auth, db } from "./firebase";
 import type { LancamentoPonto } from "../types";
 import { sincronizarColecao } from "./sincronizacaoIncremental";
 
@@ -19,6 +19,7 @@ const COLLECTION = "gamificacao_pontos";
 
 let cachedPontos: LancamentoPonto[] | null = null;
 let lastFetchPontos = 0;
+let cachedUsuario: string | undefined;
 const CACHE_TTL = 300000; // 5 minutos (300.000 ms)
 
 export async function salvarLancamentoPonto(
@@ -87,7 +88,7 @@ export async function listarLancamentosPontos(forceRefresh = false, limitCount?:
     })) as LancamentoPonto[];
   }
 
-  if (cachedPontos && !forceRefresh && (now - lastFetchPontos < CACHE_TTL)) {
+  if (cachedPontos && cachedUsuario === auth.currentUser?.uid && !forceRefresh && (now - lastFetchPontos < CACHE_TTL)) {
     return cachedPontos;
   }
 
@@ -97,6 +98,7 @@ export async function listarLancamentosPontos(forceRefresh = false, limitCount?:
   cachedPontos = pontos.sort((a, b) => b.dataLancamento - a.dataLancamento);
 
   lastFetchPontos = now;
+  cachedUsuario = auth.currentUser?.uid;
   return cachedPontos;
 }
 

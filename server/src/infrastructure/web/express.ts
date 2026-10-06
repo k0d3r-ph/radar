@@ -5,6 +5,7 @@ import { WhatsAppController } from '../../adapters/controllers/WhatsAppControlle
 import { IaController } from '../../adapters/controllers/IaController.js';
 import { CentraisController } from '../../adapters/controllers/CentraisController.js';
 import { OcorrenciasController } from '../../adapters/controllers/OcorrenciasController.js';
+import { SincronizacaoController } from '../../adapters/controllers/SincronizacaoController.js';
 import { WhatsAppWebClient } from '../whatsapp/WhatsAppWebClient.js';
 import { config } from '../config/env.js';
 import { adminAuth, adminDb, isFirebaseInitialized } from '../firebase/firebaseAdmin.js';
@@ -40,6 +41,8 @@ export function createExpressApp(
   registrarCsat(app, adminDb, adminAuth);
   const ocorrenciasController = new OcorrenciasController(adminDb, adminAuth);
   app.patch('/api/ocorrencias/:id/favorito', (req, res) => ocorrenciasController.definirFavorita(req, res));
+  const sincronizacaoController = new SincronizacaoController(adminDb, adminAuth);
+  app.get('/api/sincronizacao/:colecao', (req, res) => sincronizacaoController.listar(req, res));
 
   // Rotas HTTP — WhatsApp
   app.get('/api/whatsapp/status', (req, res) => controller.status(req, res));

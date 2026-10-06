@@ -38,6 +38,7 @@ import type { DestinatarioGestao } from "../../services/notificacoes";
 import { resumirOcorrencias } from "../../services/ia";
 import {
   listarTemas,
+  temaDisponivelParaPerfil,
   TIPOS_PADRAO_SISTEMA,
 } from "../../services/temasOcorrencia";
 import { generateEsteiraImage } from "../../utils/generateEsteiraImage";
@@ -547,25 +548,26 @@ export function Historico() {
   // sistema quanto os personalizados — todos livremente editáveis/excluíveis
   // em /tipos-ocorrencia. TIPOS_PADRAO serve só de valor inicial (antes do
   // primeiro carregamento) para a tela não aparecer vazia.
+  const [tabulacoesTipos, setTabulacoesTipos] = useState<import("../../services/temasOcorrencia").TemaOcorrencia[]>([]);
   const [tipos, setTipos] = useState<string[]>(TIPOS_PADRAO);
 
   useEffect(() => {
     listarTemas("duvida")
-      .then((lista) => setDuvidaOpcoes(lista.map((t) => t.nome)))
+      .then((lista) => setDuvidaOpcoes(lista.filter((t) => temaDisponivelParaPerfil(t, role)).map((t) => t.nome)))
       .catch((error) =>
         console.error("Erro ao carregar assuntos de dúvida:", error),
       );
     listarTemas("solicitacao")
-      .then((lista) => setSolicitacaoOpcoes(lista.map((t) => t.nome)))
+      .then((lista) => setSolicitacaoOpcoes(lista.filter((t) => temaDisponivelParaPerfil(t, role)).map((t) => t.nome)))
       .catch((error) =>
         console.error("Erro ao carregar assuntos de solicitação:", error),
       );
     listarTemas("tipo")
-      .then((lista) => setTipos(lista.map((t) => t.nome)))
+      .then((lista) => { setTabulacoesTipos(lista); setTipos(lista.map((t) => t.nome)); })
       .catch((error) =>
         console.error("Erro ao carregar tipos de ocorrência:", error),
       );
-  }, []);
+  }, [role]);
 
   function adicionarDuvidaTemaHistorico() {
     const texto = novaDuvidaTemaHistorico.trim();
@@ -2626,59 +2628,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
   }
 
   const getAllowedTypes = () => {
-    if (editandoImportadaSsx) return tipos.filter(t => ["Problema", "Dúvida", "Solicitação"].includes(t));
-    const base = (() => {
-      if (role === "master") {
-        return [
-          "Informativa",
-          "Financeira",
-          "Comercial",
-          "Treinamento",
-          "Checkpoint",
-          "Problema",
-          "Dúvida",
-          "Solicitação",
-          "Gol",
-        ];
-      }
-      if (role === "treinador") {
-        return [
-          "Informativa",
-          "Treinamento",
-          "Checkpoint",
-          "Dúvida",
-          "Solicitação",
-          "Gol",
-        ];
-      }
-      if (role === "suporte") {
-        return ["Informativa", "Problema", "Dúvida", "Solicitação"];
-      }
-      if (role === "hardware") {
-        return ["Informativa"];
-      }
-      if (role === "comercial") {
-        return ["Comercial", "Informativa"];
-      }
-      if (role === "financeiro") {
-        return ["Financeira", "Informativa"];
-      }
-      if (role === "cs") {
-        return ["Informativa", "Financeira", "Comercial"];
-      }
-      return [];
-    })();
-
-    if (base.length === 0) return [];
-
-    // "tipos" reflete o que está cadastrado em /tipos-ocorrencia agora (pode
-    // ter itens renomeados/excluídos desde a curadoria acima). Mantemos só os
-    // nomes ainda existentes e acrescentamos qualquer tipo que não faça parte
-    // da lista original do sistema (novo ou renomeado) — esses ficam
-    // disponíveis para qualquer perfil que já tenha acesso ao Histórico.
-    const baseDisponivel = base.filter((t) => tipos.includes(t));
-    const extras = tipos.filter((t) => !TIPOS_PADRAO_SISTEMA.includes(t));
-    return [...baseDisponivel, ...extras];
+    const permitidos = tabulacoesTipos.filter((tema) => temaDisponivelParaPerfil(tema, role)).map((tema) => tema.nome);
+    return editandoImportadaSsx
+      ? permitidos.filter((tipo) => ["Problema", "Dúvida", "Solicitação"].includes(tipo))
+      : permitidos;
   };
 
   const getAllowedDepartments = () => {

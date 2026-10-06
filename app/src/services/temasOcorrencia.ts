@@ -10,6 +10,9 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 
+import { TIPOS_PADRAO_SISTEMA, perfisPadraoTema } from "../utils/tabulacoes";
+export { TIPOS_PADRAO_SISTEMA, PERFIS_TABULACAO, perfisPadraoTema, temaDisponivelParaPerfil } from "../utils/tabulacoes";
+
 const COLLECTION_TEMAS = "temasOcorrencia";
 
 export type CategoriaTema = "duvida" | "solicitacao" | "tipo" | "pendencia";
@@ -25,23 +28,17 @@ export type CategoriaTema = "duvida" | "solicitacao" | "tipo" | "pendencia";
 // de score, "Checkpoint" exige data, "Dúvida"/"Solicitação" exigem assunto).
 // Renomear ou excluir um deles remove essa regra especial para o tipo restante
 // — ele passa a se comportar como um tipo genérico.
-export const TIPOS_PADRAO_SISTEMA = [
-  "Informativa",
-  "Financeira",
-  "Comercial",
-  "Treinamento",
-  "Mudança de score",
-  "Problema",
-  "Dúvida",
-  "Solicitação",
-  "Gol",
-];
-
 export interface TemaOcorrencia {
   id: string;
   nome: string;
   categoria: CategoriaTema;
   createdAt: number;
+  perfisDisponiveis?: string[];
+}
+
+export async function atualizarPerfisTema(tema: TemaOcorrencia, perfis: string[]): Promise<void> {
+  await setDoc(doc(db, COLLECTION_TEMAS, tema.id), { perfisDisponiveis: perfis }, { merge: true });
+  invalidarCacheTemas(tema.categoria);
 }
 
 // Listas usadas para popular a coleção na primeira vez que cada categoria é
@@ -226,6 +223,7 @@ export async function listarTemas(
       nome: data.nome || "",
       categoria: data.categoria,
       createdAt: data.createdAt || 0,
+      perfisDisponiveis: data.perfisDisponiveis,
     });
   });
 
@@ -313,6 +311,7 @@ export async function editarTema(
     nome: nomeLimpo,
     categoria,
     createdAt: atual.createdAt,
+    perfisDisponiveis: atual.perfisDisponiveis ?? perfisPadraoTema(atual),
   });
   await deleteDoc(doc(db, COLLECTION_TEMAS, id));
 }

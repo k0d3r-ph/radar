@@ -65,7 +65,7 @@ import type { DestinatarioGestao } from "../../services/notificacoes";
 import { GestaoNotificacaoModal } from "../../components/GestaoNotificacaoModal";
 import { ColumnSelector } from "../../components/ColumnSelector";
 import { buscarIdCentralPorNome } from "../../services/centrais";
-import { listarTemas } from "../../services/temasOcorrencia";
+import { listarTemas, temaDisponivelParaPerfil } from "../../services/temasOcorrencia";
 import type { TemaOcorrencia } from "../../services/temasOcorrencia";
 import { usePendenciasClock } from "../../hooks/usePendenciasClock";
 import { vencimentoPendencia } from "../../utils/pendencias";
@@ -358,7 +358,7 @@ export default function Home() {
     setCarregandoPendencias(true);
     listarTemas("pendencia")
       .then((lista) => {
-        if (ativo) setTiposPendencia(lista);
+        if (ativo) setTiposPendencia(lista.filter((tema) => temaDisponivelParaPerfil(tema, role)));
       })
       .catch(() => {
         if (ativo)
@@ -370,7 +370,7 @@ export default function Home() {
     return () => {
       ativo = false;
     };
-  }, [modalClienteAberto]);
+  }, [modalClienteAberto, role]);
   const [confirmarExclusaoAberto, setConfirmarExclusaoAberto] = useState(false);
 
   const [editandoClienteId, setEditandoClienteId] = useState<string | null>(
@@ -598,6 +598,7 @@ export default function Home() {
       dataEntrada: dataEntradaFinal,
       dataSuspensao,
       diasSuspensoAcumulado,
+      gamificacaoDeducaoSuporte: role === "master" ? clienteForm.gamificacaoDeducaoSuporte : empresaExistente?.gamificacaoDeducaoSuporte,
     };
 
     await salvarEmpresas(empresaSalva);

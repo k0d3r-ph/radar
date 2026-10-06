@@ -13,6 +13,9 @@ import {
 } from "lucide-react";
 import {
   listarTemas,
+  PERFIS_TABULACAO,
+  perfisPadraoTema,
+  atualizarPerfisTema,
   criarTema,
   editarTema,
   removerTema,
@@ -78,6 +81,7 @@ export const TiposOcorrencia: React.FC = () => {
   const [removendoId, setRemovendoId] = useState<string | null>(null);
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [nomeEdicao, setNomeEdicao] = useState("");
+  const [salvandoPerfisId, setSalvandoPerfisId] = useState<string | null>(null);
   const [salvandoEdicao, setSalvandoEdicao] = useState(false);
 
   const carregarTudo = async (forceRefresh = false) => {
@@ -150,6 +154,21 @@ export const TiposOcorrencia: React.FC = () => {
       toast.error(mensagem);
     } finally {
       setSalvandoEdicao(false);
+    }
+  };
+
+  const alterarPerfil = async (tema: TemaOcorrencia, perfil: string, marcado: boolean) => {
+    const atuais = tema.perfisDisponiveis ?? perfisPadraoTema(tema);
+    const perfis = marcado ? [...atuais, perfil] : atuais.filter((p) => p !== perfil);
+    setSalvandoPerfisId(tema.id);
+    try {
+      await atualizarPerfisTema(tema, perfis);
+      setTemas((prev) => ({ ...prev, [tema.categoria]: prev[tema.categoria].map((t) =>
+        t.id === tema.id ? { ...t, perfisDisponiveis: perfis } : t) }));
+    } catch {
+      toast.error("Não foi possível salvar os perfis disponíveis.");
+    } finally {
+      setSalvandoPerfisId(null);
     }
   };
 
@@ -321,6 +340,17 @@ export const TiposOcorrencia: React.FC = () => {
                           </div>
                         </>
                       )}
+                      <fieldset className="tipos-ocorrencia-perfis" disabled={salvandoPerfisId !== null || salvandoEdicao || removendoId !== null}>
+                        <legend>Disponível para</legend>
+                        {PERFIS_TABULACAO.map((perfil) => (
+                          <label key={perfil.id}>
+                            <input type="checkbox"
+                              checked={(tema.perfisDisponiveis ?? perfisPadraoTema(tema)).includes(perfil.id)}
+                              onChange={(e) => alterarPerfil(tema, perfil.id, e.target.checked)} />
+                            {perfil.nome}
+                          </label>
+                        ))}
+                      </fieldset>
                     </li>
                   ))}
                 </ul>

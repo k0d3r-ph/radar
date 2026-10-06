@@ -1,6 +1,6 @@
 # CSAT direto no Radar
 
-Na Home, abra o cadastro do cliente e clique em **Ver ocorrências**. Treinadores e masters podem gerar um link de CSAT, copiar o endereço e clicar no ID reservado para preencher o treinamento. IDs CSAT têm uma sequência própria permanente (`CSAT-000001`), independente da numeração calculada das ocorrências antigas. A reserva fica fora dos relatórios e só é listada para seu criador; ao concluir, a ocorrência passa ao histórico normal.
+Na Home, abra o cadastro do cliente e clique em **Ver ocorrências**. Treinadores e masters podem gerar um link de CSAT, copiar o endereço e clicar no ID reservado para preencher o treinamento. O CSAT reserva o próximo número na sequência do cliente: depois de `#14505`, a reserva é `#14506`. O número é preservado ao concluir a ocorrência e fica ocupado mesmo enquanto a reserva está pendente. A reserva fica fora dos relatórios e só é listada para seu criador; ao concluir, a ocorrência passa ao histórico normal. Reservas antigas com prefixo `CSAT-` mantêm o identificador original.
 
 Cada participante informa nome, Bom/Ruim e opinião opcional de até 100 caracteres. O link aceita vários participantes; reenvios do mesmo navegador são idempotentes. As respostas atualizam `treinamentoResultados` e `csatRespostas` na ocorrência, inclusive depois da conclusão. Não há envio automático do link pelo WhatsApp.
 

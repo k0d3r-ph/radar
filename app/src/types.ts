@@ -142,6 +142,8 @@ export type Empresa = {
   };
   valorContrato?: number;
   idNumeric?: number;
+  /** Números reservados pelo backend para ocorrências geradas via CSAT. */
+  ocorrenciasSequenciasReservadas?: number[];
   /**
    * ID da central de rastreamento no sistema SSX, vinculado a partir da planilha de
    * controle do CS pelo nome da central (ver `services/centrais.ts`). Preenchido

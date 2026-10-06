@@ -829,6 +829,8 @@ export function Historico() {
     try {
       const reserva = await requisicaoCsat('reservas', { empresaId: empresa.id }, true) as ReservaCsat;
       setReservasCsat(prev => [...prev, reserva]);
+      // Atualiza também os números ocupados pela reserva na sequência do cliente.
+      setEmpresasList(await listarEmpresas(true));
       toast.success(`Link gerado. Ocorrência ${reserva.idSeqFormatted} reservada.`);
     } catch (error) {
       const mensagem = error instanceof Error ? error.message : 'Não foi possível gerar o link.';
@@ -887,7 +889,7 @@ export function Historico() {
       : Promise.resolve();
     const [ocLista, empLista, usrLista] = await Promise.all([
       listarOcorrencias(true),
-      listarEmpresas(),
+      listarEmpresas(true),
       listarUsuarios().catch((error) => {
         console.error("Erro ao listar usuários no Histórico:", error);
         return [];

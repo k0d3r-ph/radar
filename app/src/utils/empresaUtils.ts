@@ -23,11 +23,9 @@ export function obterPrefixoEmpresa(nomeEmpresa: string, empresasList?: { nomeEm
   return "0";
 }
 
-export function atribuirIdsOcorrencias(lista: Ocorrencia[], empresasList?: { nomeEmpresa: string; idNumeric?: number }[]): (Ocorrencia & { idSeqFormatted?: string })[] {
+export function atribuirIdsOcorrencias(lista: Ocorrencia[], empresasList?: { nomeEmpresa: string; idNumeric?: number; ocorrenciasSequenciasReservadas?: number[] }[]): (Ocorrencia & { idSeqFormatted?: string })[] {
   const porEmpresa: Record<string, Ocorrencia[]> = {};
   lista.forEach((o) => {
-    // IDs CSAT têm sequência permanente própria e não renumeram o histórico antigo.
-    if (o.csatReservaId) return;
     const key = o.empresa.trim().toLowerCase();
     if (!porEmpresa[key]) porEmpresa[key] = [];
     porEmpresa[key].push(o);
@@ -44,9 +42,18 @@ export function atribuirIdsOcorrencias(lista: Ocorrencia[], empresasList?: { nom
     });
 
     const prefix = obterPrefixoEmpresa(grupo[0].empresa, empresasList);
-
-    sorted.forEach((o, index) => {
-      const seq = index + 1;
+    const empresa = empresasList?.find(e => e.nomeEmpresa.trim().toLowerCase() === emp);
+    const reservados = new Set(empresa?.ocorrenciasSequenciasReservadas || []);
+    grupo.forEach(o => {
+      if (o.idSeqFormatted?.startsWith(`#${prefix}`)) {
+        const sequencia = Number(o.idSeqFormatted.slice(prefix.length + 1));
+        if (Number.isInteger(sequencia) && sequencia > 0) reservados.add(sequencia);
+      }
+    });
+    let seq = 0;
+    sorted.forEach((o) => {
+      if (o.csatReservaId || o.idSeqFormatted) return;
+      do { seq += 1; } while (reservados.has(seq));
       const seqStr = String(seq).padStart(2, "0");
       mapaIds.set(o, `#${prefix}${seqStr}`);
     });

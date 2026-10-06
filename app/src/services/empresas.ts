@@ -48,7 +48,7 @@ let lastFetchEmpresas = 0;
 const CACHE_TTL = 300000; // 5 minutos (300.000 ms)
 
 export async function salvarEmpresas(empresa: Partial<Empresa>) {
-  const { id, tme, progresso, farol, dias, ocorrenciaAlertaId, ...dados } = empresa as any;
+  const { id, tme, progresso, farol, dias, ocorrenciaAlertaId, ocorrenciasSequenciasReservadas, ...dados } = empresa as any;
 
   const dadosLimpos = Object.fromEntries(
     Object.entries(dados).filter(([_, v]) => v !== undefined)

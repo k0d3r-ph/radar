@@ -7,10 +7,10 @@ function setup() {
     ['usuarios/u1', { role: 'treinador', nome: 'Pedro' }],
     ['usuarios/u2', { role: 'treinador', nome: 'Jean' }],
     ['usuarios/u3', { role: 'suporte' }],
-    ['empresas/e1', { nomeEmpresa: 'Cliente' }],
+    ['empresas/e1', { nomeEmpresa: 'Cliente', idNumeric: 145 }],
   ]);
   let seq = 0;
-  const snapshot = ref => ({ exists: data.has(ref.path), id: ref.id, data: () => data.get(ref.path) });
+  const snapshot = ref => ({ exists: data.has(ref.path), id: ref.id, ref, data: () => data.get(ref.path) });
   const ref = path => ({ path, id: path.split('/').at(-1), get: async () => snapshot(ref(path)), collection: name => collection(`${path}/${name}`) });
   const collection = path => ({
     doc: id => ref(`${path}/${id || `id${++seq}`}`),
@@ -77,6 +77,17 @@ test('vincula respostas antes e depois da conclusão, sem duplicar reenvio', asy
 test('link inválido não permite ler ou escrever avaliações', async () => {
   const { call } = setup();
   assert.equal((await call('GET /api/csat/publico/:token', undefined, { token: 'x'.repeat(64) }, '')).status, 404);
+});
+test('reserva o próximo número do cliente e preserva números reservados e concluídos', async () => {
+  const { call, data } = setup();
+  for (let i = 1; i <= 5; i++) data.set(`ocorrencias/antiga${i}`, { empresa: 'Cliente', createdAt: i });
+  const reserva = (await call('POST /api/csat/reservas', { empresaId: 'e1' })).result;
+  assert.equal(reserva.idSeqFormatted, '#14506');
+  assert.deepEqual(data.get('empresas/e1').ocorrenciasSequenciasReservadas, [6]);
+  const outra = (await call('POST /api/csat/reservas', { empresaId: 'e1' }, {}, 'u2')).result;
+  assert.equal(outra.idSeqFormatted, '#14507');
+  await call('POST /api/csat/reservas/:id/concluir', { empresa: 'Cliente', tipo: 'Treinamento', departamento: 'Treinamento', descricao: 'Realizado', dataOcorrencia: Date.now() }, { id: reserva.id });
+  assert.equal(data.get(`ocorrencias/${reserva.id}`).idSeqFormatted, '#14506');
 });
 test('bloqueia novos links por treinador até concluir a reserva, inclusive para outro cliente', async () => {
   const { call, data } = setup();

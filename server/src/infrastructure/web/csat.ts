@@ -59,13 +59,31 @@ export function registrarCsat(app: Express, db: Firestore | null, auth: Auth | n
       const pendente = anteriores.docs.filter(d => d.data().status === 'reservada')
         .sort((a, b) => b.data().createdAt - a.data().createdAt)[0];
       if (pendente) throw new CsatError(409, `Registre a ocorrência ${pendente.data().idSeqFormatted} do cliente ${pendente.data().empresa} antes de gerar outro link do CSAT.`);
+      const cadastro = (await tx.get(empresa.ref)).data()!;
+      const ocorrencias = await tx.get(db!.collection('ocorrencias').where('empresa', '==', cadastro.nomeEmpresa));
+      const prefixo = typeof cadastro.idNumeric === 'number' ? String(cadastro.idNumeric)
+        : (cadastro.nomeEmpresa.match(/#(\d+)/)?.[1] || cadastro.nomeEmpresa.match(/\((\d+)\)/)?.[1] || cadastro.nomeEmpresa.match(/\d+/)?.[0] || '0');
+      const reservados = new Set<number>(cadastro.ocorrenciasSequenciasReservadas || []);
+      const registros = ocorrencias.docs.map(d => d.data());
+      registros.forEach(o => {
+        if (typeof o.idSeqFormatted === 'string' && o.idSeqFormatted.startsWith(`#${prefixo}`)) {
+          const numero = Number(o.idSeqFormatted.slice(prefixo.length + 1));
+          if (Number.isInteger(numero) && numero > 0) reservados.add(numero);
+        }
+      });
+      let ultimo = 0;
+      registros.filter(o => !o.csatReservaId && !o.idSeqFormatted).forEach(() => {
+        do { ultimo += 1; } while (reservados.has(ultimo));
+      });
+      const numeroOcorrencia = Math.max(ultimo, 0, ...reservados) + 1;
       const now = Date.now();
-      const reserva = { id: ref.id, idSeqFormatted: `CSAT-${String(seq).padStart(6, '0')}`,
+      const reserva = { id: ref.id, idSeqFormatted: `#${prefixo}${String(numeroOcorrencia).padStart(2, '0')}`,
         empresa: empresa.data()!.nomeEmpresa, empresaId: empresa.id, tipo: 'Treinamento',
         departamento: 'Treinamento', responsavel: user.nome, descricao: '',
         createdAt: now, updatedAt: now, dataOcorrencia: now,
         criadoPor: user.uid, token, status: 'reservada', respostas: [] };
       tx.set(counter, { ultimo: seq });
+      tx.update(empresa.ref, { ocorrenciasSequenciasReservadas: [...reservados, numeroOcorrencia], updatedAt: now });
       tx.set(ref, reserva);
       tx.set(tokenRef(token), { reservaId: ref.id });
       return reserva;

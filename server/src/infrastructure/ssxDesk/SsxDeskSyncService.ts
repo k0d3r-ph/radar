@@ -33,25 +33,35 @@ export class SsxDeskSyncService {
       const empresas = await this.carregarEmpresas();
       const usuarios = await this.carregarUsuarios();
       if (!this.importacoes) {
-        const registros = await this.db.collection('ssxDeskImportacoes').get();
-        this.importacoes = new Map(registros.docs.map(d => [d.id, d.data() as { empresaId: string; descricaoImportada: string; tipoProcessado?: string }]));
-        // Localizar a primeira ocorrência da sessão antes de criar novos registros.
-        // Duplicatas legadas permanecem intactas para preservar edições e referências.
-        const antigas = await this.db.collection('ocorrencias').where('origem', '==', 'ssx-desk').get();
-        const ordenadas = antigas.docs.map(d => d.data()).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
-        for (const o of ordenadas) {
-          const s = o.ssxDesk;
-          if (!s?.companyId || !s.sessionId || !s.conversationId) continue;
-          const chave = JSON.stringify([s.companyId, s.sessionId]);
-          if (!this.sessoes.has(chave)) this.sessoes.set(chave, s.conversationId);
-        }
-        const sessoes = await this.db.collection('ssxDeskSessoes').get();
-        for (const d of sessoes.docs) {
-          const s = d.data();
-          const chave = JSON.stringify([s.companyId, s.sessionId]);
-          this.sessoesRegistradas.add(chave);
-          const controle = registros.docs.find(r => r.id === s.ocorrenciaId)?.data();
-          if (controle?.conversationId) this.sessoes.set(chave, controle.conversationId);
+        // Só marca como carregado quando as três leituras terminam. Se uma falhar
+        // (por exemplo, cota do Firestore), o próximo ciclo refaz tudo: um mapa
+        // parcial recriaria sessões já importadas.
+        try {
+          const registros = await this.db.collection('ssxDeskImportacoes').get();
+          const importacoes = new Map(registros.docs.map(d => [d.id, d.data() as { empresaId: string; descricaoImportada: string; tipoProcessado?: string }]));
+          // Localizar a primeira ocorrência da sessão antes de criar novos registros.
+          // Duplicatas legadas permanecem intactas para preservar edições e referências.
+          const antigas = await this.db.collection('ocorrencias').where('origem', '==', 'ssx-desk').get();
+          const ordenadas = antigas.docs.map(d => d.data()).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+          for (const o of ordenadas) {
+            const s = o.ssxDesk;
+            if (!s?.companyId || !s.sessionId || !s.conversationId) continue;
+            const chave = JSON.stringify([s.companyId, s.sessionId]);
+            if (!this.sessoes.has(chave)) this.sessoes.set(chave, s.conversationId);
+          }
+          const sessoes = await this.db.collection('ssxDeskSessoes').get();
+          for (const d of sessoes.docs) {
+            const s = d.data();
+            const chave = JSON.stringify([s.companyId, s.sessionId]);
+            this.sessoesRegistradas.add(chave);
+            const controle = registros.docs.find(r => r.id === s.ocorrenciaId)?.data();
+            if (controle?.conversationId) this.sessoes.set(chave, controle.conversationId);
+          }
+          this.importacoes = importacoes;
+        } catch (erro) {
+          this.sessoes.clear();
+          this.sessoesRegistradas.clear();
+          throw erro;
         }
       }
       // Controles também preservam exclusões: não recriar sessões excluídas.

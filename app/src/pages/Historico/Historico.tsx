@@ -803,6 +803,7 @@ export function Historico() {
     }));
   };
   const empresaFiltro = searchParams.get("empresa") || "";
+  const clienteCsatCarregado = empresasList.some(e => normalizar(e.nomeEmpresa) === normalizar(empresaFiltro) && !!e.id);
   const reservaEditando = reservasCsat.find(r => r.id === editandoId);
   const ultimaReservaCsat = reservasCsat.reduce<ReservaCsat | undefined>(
     (ultima, reserva) => !ultima || (reserva.createdAt || 0) > (ultima.createdAt || 0) ? reserva : ultima,
@@ -875,7 +876,7 @@ export function Historico() {
     false;
   const temTemaValido = temOutrosTemas && !temAusenteOuCancelado;
 
-  async function carregar() {
+  async function carregar(forceRefresh = true) {
     setLoading(true);
     setCarregandoReservasCsat(true);
     // Carrega as reservas em paralelo para não bloquear a identificação do cliente.
@@ -888,8 +889,12 @@ export function Historico() {
       }).finally(() => setCarregandoReservasCsat(false))
       : Promise.resolve();
     const [ocLista, empLista, usrLista] = await Promise.all([
-      listarOcorrencias(true),
-      listarEmpresas(true),
+      listarOcorrencias(forceRefresh),
+      listarEmpresas(forceRefresh).then(empresas => {
+        // Libera o botão assim que o cliente chegar, sem esperar histórico e usuários.
+        setEmpresasList(empresas);
+        return empresas;
+      }),
       listarUsuarios().catch((error) => {
         console.error("Erro ao listar usuários no Histórico:", error);
         return [];
@@ -1164,7 +1169,7 @@ export function Historico() {
   }
 
   useEffect(() => {
-    carregar();
+    carregar(false);
   }, []);
 
   useEffect(() => {
@@ -3122,9 +3127,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             </button>
             {isTreinador && empresaFiltro && searchParams.get("origem") === "home" && (
               <button type="button" className="btn-primary"
-                disabled={gerandoCsat || loading || carregandoReservasCsat || !!erroReservasCsat}
+                disabled={gerandoCsat || (!ultimaReservaCsat && !clienteCsatCarregado) || carregandoReservasCsat || !!erroReservasCsat}
                 onClick={ultimaReservaCsat ? registrarUltimoCsat : gerarCsat}>
-                {gerandoCsat ? "Gerando link..." : ultimaReservaCsat ? "Registrar ocorrência" : loading || carregandoReservasCsat ? "Carregando cliente..." : "Gerar link do CSAT"}
+                {gerandoCsat ? "Gerando link..." : ultimaReservaCsat ? "Registrar ocorrência" : carregandoReservasCsat ? "Verificando CSAT pendente..." : !clienteCsatCarregado ? "Carregando cliente..." : "Gerar link do CSAT"}
               </button>
             )}
           </div>

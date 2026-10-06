@@ -19,7 +19,7 @@ function setup() {
       .map(([key]) => snapshot(ref(key))) }) }),
   });
   const db = { collection, doc: ref, runTransaction: async fn => fn({
-    get: async r => snapshot(r),
+    get: async r => r.path ? snapshot(r) : r.get(),
     set: (r, value, options) => data.set(r.path, options?.merge ? { ...data.get(r.path), ...value } : value),
     update: (r, value) => { assert.ok(data.has(r.path)); data.set(r.path, { ...data.get(r.path), ...value }); },
   }) };
@@ -77,4 +77,15 @@ test('vincula respostas antes e depois da conclusão, sem duplicar reenvio', asy
 test('link inválido não permite ler ou escrever avaliações', async () => {
   const { call } = setup();
   assert.equal((await call('GET /api/csat/publico/:token', undefined, { token: 'x'.repeat(64) }, '')).status, 404);
+});
+test('bloqueia novos links por treinador até concluir a reserva, inclusive para outro cliente', async () => {
+  const { call, data } = setup();
+  data.set('empresas/e2', { nomeEmpresa: 'Outro cliente' });
+  const reserva = (await call('POST /api/csat/reservas', { empresaId: 'e1' })).result;
+  assert.equal((await call('POST /api/csat/reservas', { empresaId: 'e1' })).status, 409);
+  assert.equal((await call('POST /api/csat/reservas', { empresaId: 'e2' })).status, 409);
+  assert.equal(data.get('csatControle/sequencia').ultimo, 1);
+  assert.equal((await call('POST /api/csat/reservas', { empresaId: 'e1' }, {}, 'u2')).status, 200);
+  await call('POST /api/csat/reservas/:id/concluir', { empresa: 'Cliente', tipo: 'Treinamento', departamento: 'Treinamento', descricao: 'Realizado', dataOcorrencia: Date.now() }, { id: reserva.id });
+  assert.equal((await call('POST /api/csat/reservas', { empresaId: 'e2' })).status, 200);
 });

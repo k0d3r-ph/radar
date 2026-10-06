@@ -516,6 +516,7 @@ export function Historico() {
   const { role, userName, user } = useAuth();
   const isTreinador = role === "treinador" || role === "master";
   const [reservasCsat, setReservasCsat] = useState<ReservaCsat[]>([]);
+  const [carregandoReservasCsat, setCarregandoReservasCsat] = useState(true);
   const [gerandoCsat, setGerandoCsat] = useState(false);
   const [erroGerarCsat, setErroGerarCsat] = useState("");
   const [erroReservasCsat, setErroReservasCsat] = useState("");
@@ -803,7 +804,18 @@ export function Historico() {
   };
   const empresaFiltro = searchParams.get("empresa") || "";
   const reservaEditando = reservasCsat.find(r => r.id === editandoId);
+  const ultimaReservaCsat = reservasCsat.reduce<ReservaCsat | undefined>(
+    (ultima, reserva) => !ultima || (reserva.createdAt || 0) > (ultima.createdAt || 0) ? reserva : ultima,
+    undefined,
+  );
+  function registrarUltimoCsat() {
+    if (!ultimaReservaCsat) return;
+    setErroGerarCsat("");
+    abrirEdicao({ ...ultimaReservaCsat, treinamentoResultados: ultimaReservaCsat.respostas.map(r => r.experiencia) });
+  }
   async function gerarCsat() {
+    if (ultimaReservaCsat) { registrarUltimoCsat(); return; }
+    if (carregandoReservasCsat || erroReservasCsat) return;
     const empresa = empresasList.find(e => normalizar(e.nomeEmpresa) === normalizar(empresaFiltro));
     if (gerandoCsat) return;
     setErroGerarCsat("");
@@ -822,6 +834,9 @@ export function Historico() {
       const mensagem = error instanceof Error ? error.message : 'Não foi possível gerar o link.';
       setErroGerarCsat(mensagem);
       toast.error(mensagem);
+      // Recupera também uma reserva criada em outra aba enquanto esta tela estava aberta.
+      try { setReservasCsat(await requisicaoCsat('reservas', undefined, true)); }
+      catch { /* Preserva a mensagem original de falha na geração. */ }
     }
     finally { setGerandoCsat(false); }
   }
@@ -860,6 +875,7 @@ export function Historico() {
 
   async function carregar() {
     setLoading(true);
+    setCarregandoReservasCsat(true);
     // Carrega as reservas em paralelo para não bloquear a identificação do cliente.
     const reservasPromise = isTreinador
       ? requisicaoCsat('reservas', undefined, true).then(reservas => {
@@ -867,7 +883,7 @@ export function Historico() {
         setErroReservasCsat("");
       }).catch(error => {
         setErroReservasCsat(error instanceof Error ? error.message : 'Não foi possível carregar as reservas de CSAT.');
-      })
+      }).finally(() => setCarregandoReservasCsat(false))
       : Promise.resolve();
     const [ocLista, empLista, usrLista] = await Promise.all([
       listarOcorrencias(true),
@@ -3103,13 +3119,18 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               + Nova ocorrência
             </button>
             {isTreinador && empresaFiltro && searchParams.get("origem") === "home" && (
-              <button type="button" className="btn-primary" disabled={gerandoCsat || loading} onClick={gerarCsat}>
-                {gerandoCsat ? "Gerando link..." : loading ? "Carregando cliente..." : "Gerar link do CSAT"}
+              <button type="button" className="btn-primary"
+                disabled={gerandoCsat || loading || carregandoReservasCsat || !!erroReservasCsat}
+                onClick={ultimaReservaCsat ? registrarUltimoCsat : gerarCsat}>
+                {gerandoCsat ? "Gerando link..." : ultimaReservaCsat ? "Registrar ocorrência" : loading || carregandoReservasCsat ? "Carregando cliente..." : "Gerar link do CSAT"}
               </button>
             )}
           </div>
         </div>
       </header>
+      {isTreinador && ultimaReservaCsat && (
+        <p>Registre a ocorrência {ultimaReservaCsat.idSeqFormatted} de {ultimaReservaCsat.empresa} para liberar a geração de outro link do CSAT.</p>
+      )}
       {erroGerarCsat && <p role="alert">Não foi possível gerar o link do CSAT: {erroGerarCsat}</p>}
       {isTreinador && erroReservasCsat && <p role="alert">Reservas CSAT: {erroReservasCsat}</p>}
       {isTreinador && reservasCsat.some(r => !empresaFiltro || normalizar(r.empresa) === normalizar(empresaFiltro)) && (

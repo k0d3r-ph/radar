@@ -53,7 +53,12 @@ export function registrarCsat(app: Express, db: Firestore | null, auth: Auth | n
     const ref = db!.collection('csatReservas').doc();
     const counter = db!.doc('csatControle/sequencia');
     return db!.runTransaction(async tx => {
+      // O contador compartilhado serializa criações concorrentes, inclusive entre abas.
       const seq = Number((await tx.get(counter)).data()?.ultimo || 0) + 1;
+      const anteriores = await tx.get(db!.collection('csatReservas').where('criadoPor', '==', user.uid));
+      const pendente = anteriores.docs.filter(d => d.data().status === 'reservada')
+        .sort((a, b) => b.data().createdAt - a.data().createdAt)[0];
+      if (pendente) throw new CsatError(409, `Registre a ocorrência ${pendente.data().idSeqFormatted} do cliente ${pendente.data().empresa} antes de gerar outro link do CSAT.`);
       const now = Date.now();
       const reserva = { id: ref.id, idSeqFormatted: `CSAT-${String(seq).padStart(6, '0')}`,
         empresa: empresa.data()!.nomeEmpresa, empresaId: empresa.id, tipo: 'Treinamento',

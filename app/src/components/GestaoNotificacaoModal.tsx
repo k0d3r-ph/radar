@@ -319,7 +319,7 @@ export function GestaoNotificacaoModal({
               onClick={async () => {
                 if (onResultado) {
                   try {
-                    await onResultado({ status: "nao_enviado", enviadoEm: Date.now(), destinatarios: [] });
+                    await onResultado({ status: destinatarios.length === 0 ? "sem_destinatario" : "nao_enviado", enviadoEm: Date.now(), destinatarios: [] });
                   } catch (error) {
                     console.error("Erro ao registrar não-envio da notificação de gestão:", error);
                   }
@@ -327,7 +327,7 @@ export function GestaoNotificacaoModal({
                 onClose();
               }}
             >
-              Não enviar
+              {destinatarios.length === 0 ? "Fechar" : "Não enviar"}
             </button>
           )}
 

@@ -196,6 +196,8 @@ export async function obterDestinatariosGestao(
         `O Comercial "${comercialNome}" está sem telefone válido cadastrado, então não será notificado.`,
       );
     }
+  } else {
+    avisos.push("Este cliente não tem Comercial Responsável definido no cadastro.");
   }
 
   return { destinatarios, avisos };

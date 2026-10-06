@@ -157,6 +157,9 @@ export type Empresa = {
   whatsappStatusCancelamento?: WhatsappStatus;
   whatsappEnviadoEmCancelamento?: number;
   whatsappDestinatariosCancelamento?: WhatsappDestinatarioEnvio[];
+  whatsappStatusConclusao?: WhatsappStatus;
+  whatsappEnviadoEmConclusao?: number;
+  whatsappDestinatariosConclusao?: WhatsappDestinatarioEnvio[];
 };
 
 export type Ocorrencia = {

@@ -18,6 +18,7 @@ import {
 import type { DestinatarioGestao } from "../../services/notificacoes";
 import { GestaoNotificacaoModal } from "../../components/GestaoNotificacaoModal";
 import { buscarIdCentralPorNome } from "../../services/centrais";
+import { camposResultadoConclusao } from "../../utils/notificacaoConclusao";
 
 function normalizarNome(nome: string) {
   return nome
@@ -110,6 +111,7 @@ function Esteira() {
   >([]);
   const [gestaoAvisos, setGestaoAvisos] = useState<string[]>([]);
   const [gestaoMensagem, setGestaoMensagem] = useState("");
+  const [gestaoEmpresaId, setGestaoEmpresaId] = useState<string>();
 
   useEffect(() => {
     async function carregar() {
@@ -497,7 +499,7 @@ function Esteira() {
                   };
                   obterDestinatariosGestao(empresaConcluida, "conclusao")
                     .then(({ destinatarios, avisos }) => {
-                      if (destinatarios.length === 0) return;
+                      setGestaoEmpresaId(empresaConcluida.id);
                       setGestaoDestinatarios(destinatarios);
                       setGestaoAvisos(avisos);
                       setGestaoMensagem(
@@ -505,12 +507,13 @@ function Esteira() {
                       );
                       setGestaoConfirmModalOpen(true);
                     })
-                    .catch((err) =>
+                    .catch((err) => {
                       console.error(
                         "[notificações] Falha ao montar destinatários de conclusão:",
                         err,
-                      ),
-                    );
+                      );
+                      toast.error("Não foi possível preparar o aviso de conclusão. Reenvie pelos detalhes do cliente.");
+                    });
                 }
 
                 setEmpresaId("");
@@ -845,10 +848,16 @@ function Esteira() {
         avisos={gestaoAvisos}
         mensagem={gestaoMensagem}
         onChangeMensagem={setGestaoMensagem}
+        onResultado={async (resultado) => {
+          if (!gestaoEmpresaId) return;
+          await salvarEmpresas({ id: gestaoEmpresaId, ...camposResultadoConclusao(resultado) });
+          setEmpresas(await listarEmpresas());
+        }}
         onClose={() => {
           setGestaoConfirmModalOpen(false);
           setGestaoDestinatarios([]);
           setGestaoMensagem("");
+          setGestaoEmpresaId(undefined);
         }}
       />
 

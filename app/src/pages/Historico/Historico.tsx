@@ -44,6 +44,7 @@ import {
 import { generateEsteiraImage } from "../../utils/generateEsteiraImage";
 import { obterDataRealizacaoTreinamento } from "../../utils/dataTreinamento";
 import { GestaoNotificacaoModal } from "../../components/GestaoNotificacaoModal";
+import { camposResultadoConclusao } from "../../utils/notificacaoConclusao";
 
 import {
   salvarLancamentoPonto,
@@ -686,6 +687,7 @@ export function Historico() {
   >([]);
   const [gestaoAvisos, setGestaoAvisos] = useState<string[]>([]);
   const [gestaoMensagem, setGestaoMensagem] = useState("");
+  const [gestaoConclusaoEmpresaId, setGestaoConclusaoEmpresaId] = useState<string>();
   const [gestaoOcorrenciaId, setGestaoOcorrenciaId] = useState<
     string | undefined
   >(undefined);
@@ -909,6 +911,7 @@ export function Historico() {
     setGestaoMensagem(mensagem);
     setGestaoOcorrenciaId(oc.id);
     setGestaoOcorrenciaEvento(evento);
+    setGestaoConclusaoEmpresaId(evento === "conclusao" ? empresaObjeto.id : undefined);
     setGestaoConfirmModalOpen(true);
   }
 
@@ -2322,8 +2325,8 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       error,
                     );
                   }
-                  return;
                 }
+                setGestaoConclusaoEmpresaId(empresaAtualizadaEsteira.id);
                 setGestaoDestinatarios(destinatarios);
                 setGestaoAvisos(avisos);
                 setGestaoMensagem(
@@ -2336,12 +2339,13 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 setGestaoOcorrenciaEvento("conclusao");
                 setGestaoConfirmModalOpen(true);
               })
-              .catch((err) =>
+              .catch((err) => {
                 console.error(
                   "[notificações] Falha ao montar destinatários de conclusão:",
                   err,
-                ),
-              );
+                );
+                toast.error("Não foi possível preparar o aviso de conclusão. Reenvie pelos detalhes do cliente.");
+              });
           }
         }
       }
@@ -6186,6 +6190,12 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         onResultado={async ({ status, enviadoEm, destinatarios }) => {
           if (!gestaoOcorrenciaId) return;
           try {
+            if (gestaoOcorrenciaEvento === "conclusao" && gestaoConclusaoEmpresaId) {
+              await salvarEmpresas({
+                id: gestaoConclusaoEmpresaId,
+                ...camposResultadoConclusao({ status, enviadoEm, destinatarios }),
+              });
+            }
             await salvarOcorrencia({
               id: gestaoOcorrenciaId,
               whatsappStatus: status,
@@ -6206,6 +6216,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
           setGestaoDestinatarios([]);
           setGestaoMensagem("");
           setGestaoOcorrenciaId(undefined);
+          setGestaoConclusaoEmpresaId(undefined);
         }}
       />
 

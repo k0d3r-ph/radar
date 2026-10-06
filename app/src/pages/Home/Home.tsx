@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
+import { RotateCw } from "lucide-react";
 
 import "./Home.css";
 
@@ -60,8 +61,10 @@ import {
   montarMensagemSuspensaoGestao,
   montarMensagemCanceladoGestao,
   montarMensagemRetornoEsteiraGestao,
+  montarMensagemConclusaoEsteiraGestao,
 } from "../../services/notificacoes";
 import type { DestinatarioGestao } from "../../services/notificacoes";
+import { podeNotificarConclusao, camposResultadoConclusao } from "../../utils/notificacaoConclusao";
 import { GestaoNotificacaoModal } from "../../components/GestaoNotificacaoModal";
 import { ColumnSelector } from "../../components/ColumnSelector";
 import { buscarIdCentralPorNome } from "../../services/centrais";
@@ -387,8 +390,28 @@ export default function Home() {
     undefined,
   );
   const [gestaoEmpresaEvento, setGestaoEmpresaEvento] = useState<
-    "suspenso" | "cancelado" | "retorno"
+    "suspenso" | "cancelado" | "retorno" | "conclusao"
   >("suspenso");
+  const [carregandoConclusao, setCarregandoConclusao] = useState(false);
+
+  async function abrirNotificacaoConclusao(empresa: Empresa) {
+    if (!empresa.id || !podeNotificarConclusao(empresa, role) || carregandoConclusao) return;
+    setCarregandoConclusao(true);
+    try {
+      const { destinatarios, avisos } = await obterDestinatariosGestao(empresa, "conclusao");
+      setGestaoDestinatarios(destinatarios);
+      setGestaoAvisos(avisos);
+      setGestaoMensagem(montarMensagemConclusaoEsteiraGestao(empresa));
+      setGestaoEmpresaId(empresa.id);
+      setGestaoEmpresaEvento("conclusao");
+      setGestaoConfirmModalOpen(true);
+    } catch (error) {
+      console.error("Erro ao preparar aviso de conclusão:", error);
+      toast.error("Não foi possível preparar o aviso de conclusão. Tente novamente.");
+    } finally {
+      setCarregandoConclusao(false);
+    }
+  }
 
   const [tabelaAtivaAberta, setTabelaAtivaAberta] = useState(true);
   const [tabelaOngoingAberta, setTabelaOngoingAberta] = useState(true);
@@ -601,7 +624,12 @@ export default function Home() {
       gamificacaoDeducaoSuporte: role === "master" ? clienteForm.gamificacaoDeducaoSuporte : empresaExistente?.gamificacaoDeducaoSuporte,
     };
 
-    await salvarEmpresas(empresaSalva);
+    empresaSalva.id = await salvarEmpresas(empresaSalva);
+
+    if (!empresaSalva.isSuspended && !empresaSalva.isCancelled && podeNotificarConclusao(empresaSalva, role) &&
+      (!empresaExistente || !podeNotificarConclusao(empresaExistente, role))) {
+      await abrirNotificacaoConclusao(empresaSalva);
+    }
 
     // Cliente acabou de ser suspenso agora (não estava suspenso antes): notifica Supervisor + CS + Comercial
     if (empresaSalva.isSuspended && !empresaExistente?.isSuspended) {
@@ -3383,6 +3411,29 @@ export default function Home() {
                         <span className="info-value">
                           {formatarData(clienteSelecionado.dataFinalizacao)}
                         </span>
+                        {podeNotificarConclusao(clienteSelecionado, role) && (
+                          <div className="conclusao-notificacao">
+                            <span className="conclusao-notificacao-destino">Aviso ao CS e Comercial</span>
+                            <span className={`conclusao-notificacao-status conclusao-notificacao-status--${clienteSelecionado.whatsappStatusConclusao || "pendente"}`}>
+                              {clienteSelecionado.whatsappStatusConclusao === "enviado"
+                                ? "Enviado"
+                                : clienteSelecionado.whatsappStatusConclusao === "parcial"
+                                  ? "Enviado parcialmente"
+                                  : clienteSelecionado.whatsappStatusConclusao === "falhou"
+                                    ? "Falha no envio"
+                                    : clienteSelecionado.whatsappStatusConclusao === "sem_destinatario"
+                                      ? "Sem destinatários"
+                                      : "Envio não confirmado"}
+                            </span>
+                            <button type="button" className="conclusao-notificacao-reenviar"
+                              disabled={carregandoConclusao}
+                              title="Reenviar aviso de finalização ao CS e Comercial"
+                              onClick={() => abrirNotificacaoConclusao(clienteSelecionado)}>
+                              <RotateCw size={13} aria-hidden="true" />
+                              {carregandoConclusao ? "Preparando..." : "Reenviar aviso"}
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                     {clienteSelecionado.dataFollowUpFinal && (
@@ -4909,7 +4960,9 @@ export default function Home() {
       <GestaoNotificacaoModal
         open={gestaoConfirmModalOpen}
         titulo={
-          gestaoEmpresaEvento === "cancelado"
+          gestaoEmpresaEvento === "conclusao"
+            ? "Notificar Supervisor, CS e Comercial sobre a conclusão da esteira?"
+            : gestaoEmpresaEvento === "cancelado"
             ? "🚫 Notificar Supervisor, CS e Comercial sobre o cancelamento?"
             : gestaoEmpresaEvento === "retorno"
               ? "🔄 Notificar Supervisor, CS e Comercial sobre o retorno à esteira?"
@@ -4924,7 +4977,14 @@ export default function Home() {
           // de suspensão apagaria o registro do envio da suspensão.
           if (!gestaoEmpresaId || gestaoEmpresaEvento === "retorno") return;
           try {
-            if (gestaoEmpresaEvento === "cancelado") {
+            if (gestaoEmpresaEvento === "conclusao") {
+              const campos = camposResultadoConclusao({ status, enviadoEm, destinatarios });
+              await salvarEmpresas({ id: gestaoEmpresaId, ...campos });
+              setEmpresas((lista) => lista.map((empresa) => empresa.id === gestaoEmpresaId
+                ? { ...empresa, ...campos } : empresa));
+              setClienteSelecionado((empresa) => empresa?.id === gestaoEmpresaId
+                ? { ...empresa, ...campos } : empresa);
+            } else if (gestaoEmpresaEvento === "cancelado") {
               await salvarEmpresas({
                 id: gestaoEmpresaId,
                 whatsappStatusCancelamento: status,
@@ -4944,6 +5004,7 @@ export default function Home() {
               "Erro ao registrar status de envio da notificação de gestão:",
               error,
             );
+            throw error;
           }
         }}
         onClose={() => {

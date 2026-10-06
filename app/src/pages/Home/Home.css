@@ -865,6 +865,95 @@
   grid-column: span 2;
 }
 
+.conclusao-notificacao {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.conclusao-notificacao-destino {
+  color: var(--text-muted, #94a3b8);
+  font-size: 0.7rem;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.conclusao-notificacao-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted, #94a3b8);
+  font-size: 0.7rem;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.conclusao-notificacao-status::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.conclusao-notificacao-status--enviado { color: #4ade80; }
+.conclusao-notificacao-status--parcial { color: #fbbf24; }
+.conclusao-notificacao-status--falhou { color: #f87171; }
+
+.cliente-info-details .conclusao-notificacao-reenviar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: auto;
+  margin-top: 3px;
+  padding: 6px 9px;
+  border: 1px solid rgba(96, 165, 250, 0.2);
+  border-radius: 6px;
+  background: rgba(59, 130, 246, 0.08);
+  color: #93c5fd;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.cliente-info-details .conclusao-notificacao-reenviar:hover:not(:disabled) {
+  background: rgba(59, 130, 246, 0.16);
+  border-color: rgba(96, 165, 250, 0.4);
+}
+
+.cliente-info-details .conclusao-notificacao-reenviar:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 3px;
+}
+
+.cliente-info-details .conclusao-notificacao-reenviar:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.conclusao-notificacao-reenviar:disabled svg {
+  animation: conclusao-notificacao-girar 1s linear infinite;
+}
+
+@keyframes conclusao-notificacao-girar {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .conclusao-notificacao-reenviar:disabled svg { animation: none; }
+}
+
 .cliente-info-details .info-label {
   font-size: 0.7rem;
   text-transform: uppercase;

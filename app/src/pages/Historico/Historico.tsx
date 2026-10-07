@@ -323,7 +323,7 @@ const renderMarkdown = (text: string) => {
   });
 };
 
-const TEMPLATE_TREINAMENTO = `Participantes: \n\nNOTA: \n\nRelatório de treinamento:\n\n• Cliente se manteve atento? \n• Cliente absorveu o conteúdo aplicado?\n• Cliente foi participativo?\n• Houve alguma interrupção?\n• Ambiente favorável (Som)?\n• Manifestou alguma insatisfação?\n• Treinamento foi gravado?\n\nRelatório do atendimento:\n\nE-mail: \nExperiência boa ou ruim?:\nTexto: `;
+const TEMPLATE_TREINAMENTO = `Participantes: \n\nNOTA: \n\nRelatório de treinamento:\n\n• Cliente se manteve atento? \n• Cliente absorveu o conteúdo aplicado?\n• Cliente foi participativo?\n• Houve alguma interrupção?\n• Ambiente favorável (Som)?\n• Manifestou alguma insatisfação?\n• Treinamento foi gravado?\n\nRelatório do atendimento:`;
 
 const EMPTY: OcorrenciaForm = {
   empresa: "",
@@ -557,22 +557,39 @@ export function Historico() {
   // sistema quanto os personalizados — todos livremente editáveis/excluíveis
   // em /tipos-ocorrencia. TIPOS_PADRAO serve só de valor inicial (antes do
   // primeiro carregamento) para a tela não aparecer vazia.
-  const [tabulacoesTipos, setTabulacoesTipos] = useState<import("../../services/temasOcorrencia").TemaOcorrencia[]>([]);
+  const [tabulacoesTipos, setTabulacoesTipos] = useState<
+    import("../../services/temasOcorrencia").TemaOcorrencia[]
+  >([]);
   const [tipos, setTipos] = useState<string[]>(TIPOS_PADRAO);
 
   useEffect(() => {
     listarTemas("duvida")
-      .then((lista) => setDuvidaOpcoes(lista.filter((t) => temaDisponivelParaPerfil(t, role)).map((t) => t.nome)))
+      .then((lista) =>
+        setDuvidaOpcoes(
+          lista
+            .filter((t) => temaDisponivelParaPerfil(t, role))
+            .map((t) => t.nome),
+        ),
+      )
       .catch((error) =>
         console.error("Erro ao carregar assuntos de dúvida:", error),
       );
     listarTemas("solicitacao")
-      .then((lista) => setSolicitacaoOpcoes(lista.filter((t) => temaDisponivelParaPerfil(t, role)).map((t) => t.nome)))
+      .then((lista) =>
+        setSolicitacaoOpcoes(
+          lista
+            .filter((t) => temaDisponivelParaPerfil(t, role))
+            .map((t) => t.nome),
+        ),
+      )
       .catch((error) =>
         console.error("Erro ao carregar assuntos de solicitação:", error),
       );
     listarTemas("tipo")
-      .then((lista) => { setTabulacoesTipos(lista); setTipos(lista.map((t) => t.nome)); })
+      .then((lista) => {
+        setTabulacoesTipos(lista);
+        setTipos(lista.map((t) => t.nome));
+      })
       .catch((error) =>
         console.error("Erro ao carregar tipos de ocorrência:", error),
       );
@@ -684,9 +701,10 @@ export function Historico() {
   const [editedWhatsAppText, setEditedWhatsAppText] = useState("");
   const [sendConveyorImage, setSendConveyorImage] = useState(true);
   const [sendingWhatsApp, setSendingWhatsApp] = useState(false);
-  const destinatariosWhatsAppSelecionados = pendingWhatsAppMessage?.destinatarios.filter(
-    (d) => pendingWhatsAppMessage.telefonesSelecionados.includes(d.telefone),
-  ) ?? [];
+  const destinatariosWhatsAppSelecionados =
+    pendingWhatsAppMessage?.destinatarios.filter((d) =>
+      pendingWhatsAppMessage.telefonesSelecionados.includes(d.telefone),
+    ) ?? [];
 
   // Notificação de Gestão (Alerta -> Supervisor + CS Responsável) via WhatsApp
   const [gestaoConfirmModalOpen, setGestaoConfirmModalOpen] = useState(false);
@@ -695,7 +713,8 @@ export function Historico() {
   >([]);
   const [gestaoAvisos, setGestaoAvisos] = useState<string[]>([]);
   const [gestaoMensagem, setGestaoMensagem] = useState("");
-  const [gestaoConclusaoEmpresaId, setGestaoConclusaoEmpresaId] = useState<string>();
+  const [gestaoConclusaoEmpresaId, setGestaoConclusaoEmpresaId] =
+    useState<string>();
   const [gestaoOcorrenciaId, setGestaoOcorrenciaId] = useState<
     string | undefined
   >(undefined);
@@ -724,7 +743,9 @@ export function Historico() {
   const [selecionada, setSelecionada] = useState<Ocorrencia | null>(null);
   const [form, setForm] = useState({ ...EMPTY });
   const [editandoId, setEditandoId] = useState<string | null>(null);
-  const editandoImportadaSsx = !!editandoId && ocorrencias.some(o => o.id === editandoId && o.origem === "ssx-desk");
+  const editandoImportadaSsx =
+    !!editandoId &&
+    ocorrencias.some((o) => o.id === editandoId && o.origem === "ssx-desk");
   const [busca, setBusca] = useState("");
   const [buscaAssunto, setBuscaAssunto] = useState("");
   const [filtroTipo, setFiltroTipo] = useState(
@@ -732,7 +753,9 @@ export function Historico() {
   );
   const [filtroFavoritas, setFiltroFavoritas] = useState(false);
   const [salvandoFavorita, setSalvandoFavorita] = useState(false);
-  const [filtroDepto, setFiltroDepto] = useState(() => searchParams.get("depto") || "");
+  const [filtroDepto, setFiltroDepto] = useState(
+    () => searchParams.get("depto") || "",
+  );
   const [dataInicio, setDataInicio] = useState(
     () => searchParams.get("dataInicio") || "",
   );
@@ -760,14 +783,25 @@ export function Historico() {
     setSalvandoFavorita(true);
     try {
       const dados = await definirOcorrenciaFavorita(id, favorita);
-      setOcorrencias(lista => lista.map(o => o.id === id ? { ...o, ...dados } : o));
-      setSelecionada(atual => atual?.id === id ? { ...atual, ...dados } : atual);
-      toast.success(favorita ? "Ocorrência marcada com estrela." : "Estrela removida.");
+      setOcorrencias((lista) =>
+        lista.map((o) => (o.id === id ? { ...o, ...dados } : o)),
+      );
+      setSelecionada((atual) =>
+        atual?.id === id ? { ...atual, ...dados } : atual,
+      );
+      toast.success(
+        favorita ? "Ocorrência marcada com estrela." : "Estrela removida.",
+      );
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Não foi possível alterar a estrela.");
-    } finally { setSalvandoFavorita(false); }
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível alterar a estrela.",
+      );
+    } finally {
+      setSalvandoFavorita(false);
+    }
   }
-
 
   useEffect(() => {
     const tipo = searchParams.get("tipo") || "";
@@ -803,45 +837,74 @@ export function Historico() {
     }));
   };
   const empresaFiltro = searchParams.get("empresa") || "";
-  const clienteCsatCarregado = empresasList.some(e => normalizar(e.nomeEmpresa) === normalizar(empresaFiltro) && !!e.id);
-  const reservaEditando = reservasCsat.find(r => r.id === editandoId);
+  const clienteCsatCarregado = empresasList.some(
+    (e) => normalizar(e.nomeEmpresa) === normalizar(empresaFiltro) && !!e.id,
+  );
+  const reservaEditando = reservasCsat.find((r) => r.id === editandoId);
   const ultimaReservaCsat = reservasCsat.reduce<ReservaCsat | undefined>(
-    (ultima, reserva) => !ultima || (reserva.createdAt || 0) > (ultima.createdAt || 0) ? reserva : ultima,
+    (ultima, reserva) =>
+      !ultima || (reserva.createdAt || 0) > (ultima.createdAt || 0)
+        ? reserva
+        : ultima,
     undefined,
   );
   function registrarUltimoCsat() {
     if (!ultimaReservaCsat) return;
     setErroGerarCsat("");
-    abrirEdicao({ ...ultimaReservaCsat, treinamentoResultados: ultimaReservaCsat.respostas.map(r => r.experiencia) });
+    abrirEdicao({
+      ...ultimaReservaCsat,
+      treinamentoResultados: ultimaReservaCsat.respostas.map(
+        (r) => r.experiencia,
+      ),
+    });
   }
   async function gerarCsat() {
-    if (ultimaReservaCsat) { registrarUltimoCsat(); return; }
+    if (ultimaReservaCsat) {
+      registrarUltimoCsat();
+      return;
+    }
     if (carregandoReservasCsat || erroReservasCsat) return;
-    const empresa = empresasList.find(e => normalizar(e.nomeEmpresa) === normalizar(empresaFiltro));
+    const empresa = empresasList.find(
+      (e) => normalizar(e.nomeEmpresa) === normalizar(empresaFiltro),
+    );
     if (gerandoCsat) return;
     setErroGerarCsat("");
     if (!empresa?.id) {
-      const mensagem = "Não foi possível identificar o cadastro do cliente. Atualize a página e abra Ver ocorrências novamente pela Home.";
+      const mensagem =
+        "Não foi possível identificar o cadastro do cliente. Atualize a página e abra Ver ocorrências novamente pela Home.";
       setErroGerarCsat(mensagem);
       toast.error(mensagem);
       return;
     }
     setGerandoCsat(true);
     try {
-      const reserva = await requisicaoCsat('reservas', { empresaId: empresa.id }, true) as ReservaCsat;
-      setReservasCsat(prev => [...prev, reserva]);
+      const reserva = (await requisicaoCsat(
+        "reservas",
+        { empresaId: empresa.id },
+        true,
+      )) as ReservaCsat;
+      setReservasCsat((prev) => [...prev, reserva]);
       // Atualiza também os números ocupados pela reserva na sequência do cliente.
       setEmpresasList(await listarEmpresas(true));
-      toast.success(`Link gerado. Ocorrência ${reserva.idSeqFormatted} reservada.`);
+      toast.success(
+        `Link gerado. Ocorrência ${reserva.idSeqFormatted} reservada.`,
+      );
     } catch (error) {
-      const mensagem = error instanceof Error ? error.message : 'Não foi possível gerar o link.';
+      const mensagem =
+        error instanceof Error
+          ? error.message
+          : "Não foi possível gerar o link.";
       setErroGerarCsat(mensagem);
       toast.error(mensagem);
       // Recupera também uma reserva criada em outra aba enquanto esta tela estava aberta.
-      try { setReservasCsat(await requisicaoCsat('reservas', undefined, true)); }
-      catch { /* Preserva a mensagem original de falha na geração. */ }
+      try {
+        setReservasCsat(await requisicaoCsat("reservas", undefined, true));
+      } catch {
+        /* Preserva a mensagem original de falha na geração. */
+      }
+    } finally {
+      setGerandoCsat(false);
     }
-    finally { setGerandoCsat(false); }
   }
   const ocorrenciaIdFiltro = searchParams.get("ocorrencia") || "";
   const expedienteFiltro = searchParams.get("expediente") || "";
@@ -881,16 +944,23 @@ export function Historico() {
     setCarregandoReservasCsat(true);
     // Carrega as reservas em paralelo para não bloquear a identificação do cliente.
     const reservasPromise = isTreinador
-      ? requisicaoCsat('reservas', undefined, true).then(reservas => {
-        setReservasCsat(reservas);
-        setErroReservasCsat("");
-      }).catch(error => {
-        setErroReservasCsat(error instanceof Error ? error.message : 'Não foi possível carregar as reservas de CSAT.');
-      }).finally(() => setCarregandoReservasCsat(false))
+      ? requisicaoCsat("reservas", undefined, true)
+          .then((reservas) => {
+            setReservasCsat(reservas);
+            setErroReservasCsat("");
+          })
+          .catch((error) => {
+            setErroReservasCsat(
+              error instanceof Error
+                ? error.message
+                : "Não foi possível carregar as reservas de CSAT.",
+            );
+          })
+          .finally(() => setCarregandoReservasCsat(false))
       : Promise.resolve();
     const [ocLista, empLista, usrLista] = await Promise.all([
       listarOcorrencias(forceRefresh),
-      listarEmpresas(forceRefresh).then(empresas => {
+      listarEmpresas(forceRefresh).then((empresas) => {
         // Libera o botão assim que o cliente chegar, sem esperar histórico e usuários.
         setEmpresasList(empresas);
         return empresas;
@@ -975,7 +1045,9 @@ export function Historico() {
     setGestaoMensagem(mensagem);
     setGestaoOcorrenciaId(oc.id);
     setGestaoOcorrenciaEvento(evento);
-    setGestaoConclusaoEmpresaId(evento === "conclusao" ? empresaObjeto.id : undefined);
+    setGestaoConclusaoEmpresaId(
+      evento === "conclusao" ? empresaObjeto.id : undefined,
+    );
     setGestaoConfirmModalOpen(true);
   }
 
@@ -983,8 +1055,13 @@ export function Historico() {
     const empresa = empresasList.find(
       (e) => normalizar(e.nomeEmpresa) === normalizar(oc.empresa),
     );
-    return isTreinamentoRealizado(oc) && !oc.temaForaEsteira &&
-      !!empresa && !empresa.isOngoing && !isEmpresaInterna(empresa);
+    return (
+      isTreinamentoRealizado(oc) &&
+      !oc.temaForaEsteira &&
+      !!empresa &&
+      !empresa.isOngoing &&
+      !isEmpresaInterna(empresa)
+    );
   }
 
   /**
@@ -1044,9 +1121,14 @@ export function Historico() {
       ocorrenciaId: oc.id!,
       // Oferece também os demais números cadastrados, mesmo se o envio
       // anterior tiver sido feito apenas para parte deles.
-      destinatarios: [...new Map(
-        [...alvos, ...obterDestinatariosCliente(empresaObjeto)].map((d) => [d.telefone, d]),
-      ).values()],
+      destinatarios: [
+        ...new Map(
+          [...alvos, ...obterDestinatariosCliente(empresaObjeto)].map((d) => [
+            d.telefone,
+            d,
+          ]),
+        ).values(),
+      ],
       telefonesSelecionados: alvos.map((d) => d.telefone),
       empresaNome: empresaObjeto.nomeEmpresa,
       temas,
@@ -1169,10 +1251,14 @@ export function Historico() {
   }
 
   useEffect(() => {
-    carregar(false).catch(error => {
-      console.error('Erro ao sincronizar o histórico:', error);
-      toast.error('Não foi possível sincronizar o histórico. Tente atualizar a página.');
-    }).finally(() => setLoading(false));
+    carregar(false)
+      .catch((error) => {
+        console.error("Erro ao sincronizar o histórico:", error);
+        toast.error(
+          "Não foi possível sincronizar o histórico. Tente atualizar a página.",
+        );
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
@@ -1260,8 +1346,12 @@ export function Historico() {
   }
 
   function abrirEdicao(o: Ocorrencia) {
-    const treinamento = lerTemasTreinamento(o.temaOcorrencia ?? [], o.isRevisao);
-    const temas = o.tipo === "Treinamento" ? treinamento.temas : o.temaOcorrencia ?? [];
+    const treinamento = lerTemasTreinamento(
+      o.temaOcorrencia ?? [],
+      o.isRevisao,
+    );
+    const temas =
+      o.tipo === "Treinamento" ? treinamento.temas : (o.temaOcorrencia ?? []);
     let dataFormatada = "";
     let hora = "";
 
@@ -1324,7 +1414,9 @@ export function Historico() {
     setNovaDuvidaTemaHistorico("");
     setPainelAberto(true);
     setIsRevisao(o.tipo === "Treinamento" && treinamento.isRevisao);
-    setTemasRevisados(o.tipo === "Treinamento" ? treinamento.temasRevisados : []);
+    setTemasRevisados(
+      o.tipo === "Treinamento" ? treinamento.temasRevisados : [],
+    );
     setTemaForaEsteira(o.temaForaEsteira ?? false);
   }
 
@@ -1349,8 +1441,15 @@ export function Historico() {
   }
 
   async function salvar() {
-    if (reservaEditando && (form.empresa !== reservaEditando.empresa || form.tipo !== "Treinamento" || form.departamento !== "Treinamento")) {
-      toast.error("A reserva de CSAT deve ser registrada como treinamento do cliente original.");
+    if (
+      reservaEditando &&
+      (form.empresa !== reservaEditando.empresa ||
+        form.tipo !== "Treinamento" ||
+        form.departamento !== "Treinamento")
+    ) {
+      toast.error(
+        "A reserva de CSAT deve ser registrada como treinamento do cliente original.",
+      );
       return;
     }
     const responsavelFinal = formatarNome(
@@ -1485,7 +1584,9 @@ export function Historico() {
 
     // Marca individualmente os temas revisados, inclusive nas agendas mistas.
     const treinamento = prepararTemasTreinamento(
-      form.temaOcorrencia ?? [], temasRevisados, isRevisao,
+      form.temaOcorrencia ?? [],
+      temasRevisados,
+      isRevisao,
     );
     const temaOcorrenciaFinal =
       form.tipo === "Treinamento"
@@ -1514,9 +1615,10 @@ export function Historico() {
       finalCreatedAt = ocorrenciaOriginal.createdAt;
     }
 
-    const dataRealizacaoStr = form.tipo === "Treinamento"
-      ? obterDataRealizacaoTreinamento({ createdAt: finalCreatedAt })
-      : "";
+    const dataRealizacaoStr =
+      form.tipo === "Treinamento"
+        ? obterDataRealizacaoTreinamento({ createdAt: finalCreatedAt })
+        : "";
 
     const base: Ocorrencia = {
       ...form,
@@ -1537,9 +1639,8 @@ export function Historico() {
           : respostasScore
         : ocorrenciaOriginal?.scoreAnswers,
       temaOcorrencia: temaOcorrenciaFinal,
-      isRevisao: form.tipo === "Treinamento"
-        ? treinamento.isRevisao
-        : undefined,
+      isRevisao:
+        form.tipo === "Treinamento" ? treinamento.isRevisao : undefined,
       temaForaEsteira:
         form.tipo === "Treinamento" ? temaForaEsteira : undefined,
       csatSuporte:
@@ -1795,10 +1896,22 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
     let savedId: string;
     try {
       savedId = reservaEditando
-        ? (await requisicaoCsat(`reservas/${reservaEditando.id}/concluir`, base, true)).id
-        : await salvarOcorrencia(editandoId ? { ...base, id: editandoId } : base);
+        ? (
+            await requisicaoCsat(
+              `reservas/${reservaEditando.id}/concluir`,
+              base,
+              true,
+            )
+          ).id
+        : await salvarOcorrencia(
+            editandoId ? { ...base, id: editandoId } : base,
+          );
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Não foi possível salvar a ocorrência.');
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível salvar a ocorrência.",
+      );
       return;
     }
 
@@ -2421,7 +2534,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   "[notificações] Falha ao montar destinatários de conclusão:",
                   err,
                 );
-                toast.error("Não foi possível preparar o aviso de conclusão. Reenvie pelos detalhes do cliente.");
+                toast.error(
+                  "Não foi possível preparar o aviso de conclusão. Reenvie pelos detalhes do cliente.",
+                );
               });
           }
         }
@@ -2709,9 +2824,13 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
   }
 
   const getAllowedTypes = () => {
-    const permitidos = tabulacoesTipos.filter((tema) => temaDisponivelParaPerfil(tema, role)).map((tema) => tema.nome);
+    const permitidos = tabulacoesTipos
+      .filter((tema) => temaDisponivelParaPerfil(tema, role))
+      .map((tema) => tema.nome);
     return editandoImportadaSsx
-      ? permitidos.filter((tipo) => ["Problema", "Dúvida", "Solicitação"].includes(tipo))
+      ? permitidos.filter((tipo) =>
+          ["Problema", "Dúvida", "Solicitação"].includes(tipo),
+        )
       : permitidos;
   };
 
@@ -2849,7 +2968,13 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       }
 
       return (
-        bateBusca && empresaOk && tipoOk && deptoOk && dataOk && expedienteOk && (!filtroFavoritas || o.favorita === true)
+        bateBusca &&
+        empresaOk &&
+        tipoOk &&
+        deptoOk &&
+        dataOk &&
+        expedienteOk &&
+        (!filtroFavoritas || o.favorita === true)
       );
     });
   };
@@ -3128,40 +3253,125 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             <button className="btn-primary hist-btn-novo" onClick={abrirNovo}>
               + Nova ocorrência
             </button>
-            {isTreinador && empresaFiltro && searchParams.get("origem") === "home" && (
-              <button type="button" className="btn-primary"
-                disabled={gerandoCsat || (!ultimaReservaCsat && !clienteCsatCarregado) || carregandoReservasCsat || !!erroReservasCsat}
-                onClick={ultimaReservaCsat ? registrarUltimoCsat : gerarCsat}>
-                {gerandoCsat ? "Gerando link..." : ultimaReservaCsat ? "Registrar ocorrência" : carregandoReservasCsat ? "Verificando CSAT pendente..." : !clienteCsatCarregado ? "Carregando cliente..." : "Gerar link do CSAT"}
-              </button>
-            )}
+            {isTreinador &&
+              empresaFiltro &&
+              searchParams.get("origem") === "home" && (
+                <button
+                  type="button"
+                  className="btn-primary"
+                  disabled={
+                    gerandoCsat ||
+                    (!ultimaReservaCsat && !clienteCsatCarregado) ||
+                    carregandoReservasCsat ||
+                    !!erroReservasCsat
+                  }
+                  onClick={ultimaReservaCsat ? registrarUltimoCsat : gerarCsat}
+                >
+                  {gerandoCsat
+                    ? "Gerando link..."
+                    : ultimaReservaCsat
+                      ? "Registrar ocorrência"
+                      : carregandoReservasCsat
+                        ? "Verificando CSAT pendente..."
+                        : !clienteCsatCarregado
+                          ? "Carregando cliente..."
+                          : "Gerar link do CSAT"}
+                </button>
+              )}
           </div>
         </div>
       </header>
       {isTreinador && ultimaReservaCsat && (
-        <p>Registre a ocorrência {ultimaReservaCsat.idSeqFormatted} de {ultimaReservaCsat.empresa} para liberar a geração de outro link do CSAT.</p>
+        <p>
+          Registre a ocorrência {ultimaReservaCsat.idSeqFormatted} de{" "}
+          {ultimaReservaCsat.empresa} para liberar a geração de outro link do
+          CSAT.
+        </p>
       )}
-      {erroGerarCsat && <p role="alert">Não foi possível gerar o link do CSAT: {erroGerarCsat}</p>}
-      {isTreinador && erroReservasCsat && <p role="alert">Reservas CSAT: {erroReservasCsat}</p>}
-      {isTreinador && reservasCsat.some(r => !empresaFiltro || normalizar(r.empresa) === normalizar(empresaFiltro)) && (
-        <section className="hist-csat-reservas" aria-label="Minhas ocorrências reservadas para CSAT">
-          <h2>Minhas ocorrências reservadas para CSAT</h2>
-          <p>Clique no ID para registrar o restante da ocorrência. Compartilhe o link com os participantes.</p>
-          {reservasCsat.filter(r => !empresaFiltro || normalizar(r.empresa) === normalizar(empresaFiltro)).map(reserva => (
-            <div key={reserva.id} className="hist-csat-reserva">
-              <button className="btn-secondary" onClick={() => abrirEdicao({ ...reserva, treinamentoResultados: reserva.respostas.map(r => r.experiencia) })}>{reserva.idSeqFormatted}</button>
-              <span>{reserva.empresa} · {reserva.respostas.length} avaliação(ões)</span>
-              <input aria-label={`Link CSAT ${reserva.idSeqFormatted}`} readOnly value={linkCsat(reserva.token)} onFocus={e => e.target.select()} />
-              <button className="btn-secondary" onClick={async () => {
-                try { await navigator.clipboard.writeText(linkCsat(reserva.token)); toast.success('Link copiado.'); }
-                catch { toast.error('Selecione e copie o link no campo ao lado.'); }
-              }}>Copiar link</button>
-              {reserva.respostas.map((r, index) => <p key={index}>{r.nome}: {r.experiencia}{r.opiniao && ` — ${r.opiniao}`}</p>)}
-            </div>
-          ))}
-          <button className="btn-secondary" onClick={() => carregar()}>Atualizar respostas</button>
-        </section>
+      {erroGerarCsat && (
+        <p role="alert">
+          Não foi possível gerar o link do CSAT: {erroGerarCsat}
+        </p>
       )}
+      {isTreinador && erroReservasCsat && (
+        <p role="alert">Reservas CSAT: {erroReservasCsat}</p>
+      )}
+      {isTreinador &&
+        reservasCsat.some(
+          (r) =>
+            !empresaFiltro ||
+            normalizar(r.empresa) === normalizar(empresaFiltro),
+        ) && (
+          <section
+            className="hist-csat-reservas"
+            aria-label="Minhas ocorrências reservadas para CSAT"
+          >
+            <h2>Minhas ocorrências reservadas para CSAT</h2>
+            <p>
+              Clique no ID para registrar o restante da ocorrência. Compartilhe
+              o link com os participantes.
+            </p>
+            {reservasCsat
+              .filter(
+                (r) =>
+                  !empresaFiltro ||
+                  normalizar(r.empresa) === normalizar(empresaFiltro),
+              )
+              .map((reserva) => (
+                <div key={reserva.id} className="hist-csat-reserva">
+                  <button
+                    className="btn-secondary"
+                    onClick={() =>
+                      abrirEdicao({
+                        ...reserva,
+                        treinamentoResultados: reserva.respostas.map(
+                          (r) => r.experiencia,
+                        ),
+                      })
+                    }
+                  >
+                    {reserva.idSeqFormatted}
+                  </button>
+                  <span>
+                    {reserva.empresa} · {reserva.respostas.length}{" "}
+                    avaliação(ões)
+                  </span>
+                  <input
+                    aria-label={`Link CSAT ${reserva.idSeqFormatted}`}
+                    readOnly
+                    value={linkCsat(reserva.token)}
+                    onFocus={(e) => e.target.select()}
+                  />
+                  <button
+                    className="btn-secondary"
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(
+                          linkCsat(reserva.token),
+                        );
+                        toast.success("Link copiado.");
+                      } catch {
+                        toast.error(
+                          "Selecione e copie o link no campo ao lado.",
+                        );
+                      }
+                    }}
+                  >
+                    Copiar link
+                  </button>
+                  {reserva.respostas.map((r, index) => (
+                    <p key={index}>
+                      {r.nome}: {r.experiencia}
+                      {r.opiniao && ` — ${r.opiniao}`}
+                    </p>
+                  ))}
+                </div>
+              ))}
+            <button className="btn-secondary" onClick={() => carregar()}>
+              Atualizar respostas
+            </button>
+          </section>
+        )}
 
       {/* Popup do Dashboard */}
       {dashboardAberto && (
@@ -3191,11 +3401,18 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   data={tipoChartData}
                   onItemClick={(tipo) =>
                     setFiltroTipo((prev) => {
-                      const filtro = tipo === "Sem classificação" ? FILTRO_SEM_CLASSIFICACAO : tipo;
+                      const filtro =
+                        tipo === "Sem classificação"
+                          ? FILTRO_SEM_CLASSIFICACAO
+                          : tipo;
                       return prev === filtro ? "" : filtro;
                     })
                   }
-                  selectedLabel={filtroTipo === FILTRO_SEM_CLASSIFICACAO ? "Sem classificação" : filtroTipo}
+                  selectedLabel={
+                    filtroTipo === FILTRO_SEM_CLASSIFICACAO
+                      ? "Sem classificação"
+                      : filtroTipo
+                  }
                 />
                 <DoughnutChart
                   title="Ocorrências por Departamento"
@@ -3328,7 +3545,11 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
           />
 
           <label className="hist-filtro-favoritas">
-            <input type="checkbox" checked={filtroFavoritas} onChange={e => setFiltroFavoritas(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={filtroFavoritas}
+              onChange={(e) => setFiltroFavoritas(e.target.checked)}
+            />
             <Star size={16} fill="#eab308" color="#eab308" />
             Somente com estrela
           </label>
@@ -3461,7 +3682,15 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   >
                     <td>
                       {o.empresa}
-                      {o.favorita && <Star className="hist-estrela-indicador" size={15} fill="#eab308" color="#eab308" aria-label="Ocorrência com estrela" />}
+                      {o.favorita && (
+                        <Star
+                          className="hist-estrela-indicador"
+                          size={15}
+                          fill="#eab308"
+                          color="#eab308"
+                          aria-label="Ocorrência com estrela"
+                        />
+                      )}
                       {o.alerta &&
                         (o.alertaResolvidoPorId ? (
                           <span
@@ -3683,14 +3912,34 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       type="button"
                       className={`hist-estrela-btn ${selecionada.favorita ? "hist-estrela-btn--ativa" : ""}`}
                       aria-pressed={selecionada.favorita === true}
-                      aria-label={selecionada.favorita ? "Remover estrela" : "Marcar ocorrência com estrela"}
-                      title={selecionada.favorita ? "Remover estrela" : `Marcar com estrela (${ocorrencias.filter(o => o.favorita && normalizar(o.empresa) === normalizar(selecionada.empresa)).length}/3 para este cliente)`}
+                      aria-label={
+                        selecionada.favorita
+                          ? "Remover estrela"
+                          : "Marcar ocorrência com estrela"
+                      }
+                      title={
+                        selecionada.favorita
+                          ? "Remover estrela"
+                          : `Marcar com estrela (${ocorrencias.filter((o) => o.favorita && normalizar(o.empresa) === normalizar(selecionada.empresa)).length}/3 para este cliente)`
+                      }
                       disabled={salvandoFavorita}
                       onClick={alternarFavorita}
                     >
-                      <Star size={20} fill={selecionada.favorita ? "currentColor" : "none"} />
+                      <Star
+                        size={20}
+                        fill={selecionada.favorita ? "currentColor" : "none"}
+                      />
                     </button>
-                  ) : selecionada.favorita && <Star size={20} fill="#eab308" color="#eab308" aria-label="Ocorrência com estrela" />}
+                  ) : (
+                    selecionada.favorita && (
+                      <Star
+                        size={20}
+                        fill="#eab308"
+                        color="#eab308"
+                        aria-label="Ocorrência com estrela"
+                      />
+                    )
+                  )}
                   <button
                     className="hist-detail-compartilhar"
                     title="Copiar link direto para esta ocorrência"
@@ -3907,7 +4156,8 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 {selecionada.createdAt &&
                   selecionada.dataOcorrencia > 0 &&
                   selecionada.tipo !== "Problema" &&
-                  selecionada.tipo !== "Dúvida" && selecionada.departamento !== "Suporte" && (
+                  selecionada.tipo !== "Dúvida" &&
+                  selecionada.departamento !== "Suporte" && (
                     <div>
                       <span>
                         {selecionada.tipo === "Informativa" ||
@@ -3992,7 +4242,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       )}
                     {selecionada.csatRespostas?.map((resposta, index) => (
                       <div key={`csat-${index}`}>
-                        <span>{resposta.nome} — {resposta.experiencia}</span>
+                        <span>
+                          {resposta.nome} — {resposta.experiencia}
+                        </span>
                         {resposta.opiniao && <p>{resposta.opiniao}</p>}
                       </div>
                     ))}
@@ -4485,14 +4737,19 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               </datalist>
             </div>
 
-            {(isTreinador || form.departamento === "Suporte" ||
+            {(isTreinador ||
+              form.departamento === "Suporte" ||
               form.tipo === "Problema" ||
               form.tipo === "Dúvida") && (
               <div className="hist-campo hist-campo-row">
                 <div>
                   <label>
                     {(() => {
-                      if (form.departamento === "Suporte" || form.tipo === "Problema" || form.tipo === "Dúvida") {
+                      if (
+                        form.departamento === "Suporte" ||
+                        form.tipo === "Problema" ||
+                        form.tipo === "Dúvida"
+                      ) {
                         return "Data da ocorrência (não obrigatório)";
                       }
                       if (
@@ -4566,12 +4823,16 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             )}
 
             <div className="hist-campo hist-campo-row">
-              <label>Tipo de ocorrência {editandoImportadaSsx ? "(opcional)" : "*"}</label>
+              <label>
+                Tipo de ocorrência {editandoImportadaSsx ? "(opcional)" : "*"}
+              </label>
               <select
                 value={form.tipo}
                 onChange={(e) => set("tipo", e.target.value)}
               >
-                <option value="">{editandoImportadaSsx ? "Sem classificação" : "Selecione..."}</option>
+                <option value="">
+                  {editandoImportadaSsx ? "Sem classificação" : "Selecione..."}
+                </option>
                 {getAllowedTypes().map((t) => (
                   <option key={t} value={t}>
                     {t}
@@ -4580,7 +4841,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               </select>
             </div>
 
-            {!editandoId &&
+            {(!editandoId || reservaEditando) &&
               isTreinador &&
               form.tipo === "Treinamento" &&
               !isSelectedEmpresaOngoing && (
@@ -4887,7 +5148,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       setTemaOcorrenciaOngoingText(val);
                       setForm((f) => ({
                         ...f,
-                        temaOcorrencia: normalizarTemasTreinamento(val.split(",")),
+                        temaOcorrencia: normalizarTemasTreinamento(
+                          val.split(","),
+                        ),
                       }));
                     }}
                     placeholder="Digite os temas separados por vírgula..."
@@ -4902,9 +5165,12 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       );
                       const temaGolEmpresa =
                         empresaSelecionada?.temaGol?.trim();
-                      const datasAplicacao = (empresaSelecionada?.dataText ?? "").split("\n");
+                      const datasAplicacao = (
+                        empresaSelecionada?.dataText ?? ""
+                      ).split("\n");
                       const temasAplicados = new Set(
-                        (empresaSelecionada?.temaText ?? "").split("\n")
+                        (empresaSelecionada?.temaText ?? "")
+                          .split("\n")
                           .filter((_, index) => datasAplicacao[index]?.trim())
                           .map((tema) => normalizar(tema)),
                       );
@@ -4931,12 +5197,18 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                             onChange={(e) => {
                               const atual = form.temaOcorrencia ?? [];
                               if (!e.target.checked) {
-                                setTemasRevisados((temas) => temas.filter((t) => t !== tema));
+                                setTemasRevisados((temas) =>
+                                  temas.filter((t) => t !== tema),
+                                );
                               } else if (
-                                !["ausente", "cancelado"].includes(tema.trim().toLowerCase()) &&
+                                !["ausente", "cancelado"].includes(
+                                  tema.trim().toLowerCase(),
+                                ) &&
                                 temasAplicados.has(normalizar(tema))
                               ) {
-                                setTemasRevisados((temas) => [...new Set([...temas, tema])]);
+                                setTemasRevisados((temas) => [
+                                  ...new Set([...temas, tema]),
+                                ]);
                               }
                               const novoTema = e.target.checked
                                 ? normalizarTemasTreinamento([...atual, tema])
@@ -4951,8 +5223,19 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                           {tema}
                           {form.temaOcorrencia?.includes(tema) &&
                             (isRevisao || temasRevisados.includes(tema)) &&
-                            !["ausente", "cancelado"].includes(tema.trim().toLowerCase()) && (
-                              <small style={{ padding: "2px 6px", borderRadius: "4px", background: "rgba(99, 102, 241, 0.15)", fontWeight: 600 }}>Revisão</small>
+                            !["ausente", "cancelado"].includes(
+                              tema.trim().toLowerCase(),
+                            ) && (
+                              <small
+                                style={{
+                                  padding: "2px 6px",
+                                  borderRadius: "4px",
+                                  background: "rgba(99, 102, 241, 0.15)",
+                                  fontWeight: 600,
+                                }}
+                              >
+                                Revisão
+                              </small>
                             )}
                           {temaGolEmpresa && tema.trim() === temaGolEmpresa && (
                             <span
@@ -4970,35 +5253,51 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               </div>
             )}
 
-            {form.tipo === "Treinamento" && !isSelectedEmpresaOngoing &&
-              !temaForaEsteira && (form.temaOcorrencia ?? []).some(
-                (tema) => !["ausente", "cancelado"].includes(tema.trim().toLowerCase()),
+            {form.tipo === "Treinamento" &&
+              !isSelectedEmpresaOngoing &&
+              !temaForaEsteira &&
+              (form.temaOcorrencia ?? []).some(
+                (tema) =>
+                  !["ausente", "cancelado"].includes(tema.trim().toLowerCase()),
               ) && (
                 <div className="hist-campo">
                   <label>Quais temas foram revisados?</label>
                   <div className="temas-lista">
-                    {(form.temaOcorrencia ?? []).filter(
-                      (tema) => !["ausente", "cancelado"].includes(tema.trim().toLowerCase()),
-                    ).map((tema) => (
-                      <label key={tema} className="tema-opcao">
-                        <input
-                          type="checkbox"
-                          checked={isRevisao || temasRevisados.includes(tema)}
-                          onChange={(e) => {
-                            const atual = isRevisao
-                              ? (form.temaOcorrencia ?? []).filter(isTemaTreinamento)
-                              : temasRevisados;
-                            setIsRevisao(false);
-                            setTemasRevisados(e.target.checked
-                              ? normalizarTemasTreinamento([...atual, tema])
-                              : atual.filter((t) => t !== tema));
-                          }}
-                        />
-                        Revisão de {tema}
-                      </label>
-                    ))}
+                    {(form.temaOcorrencia ?? [])
+                      .filter(
+                        (tema) =>
+                          !["ausente", "cancelado"].includes(
+                            tema.trim().toLowerCase(),
+                          ),
+                      )
+                      .map((tema) => (
+                        <label key={tema} className="tema-opcao">
+                          <input
+                            type="checkbox"
+                            checked={isRevisao || temasRevisados.includes(tema)}
+                            onChange={(e) => {
+                              const atual = isRevisao
+                                ? (form.temaOcorrencia ?? []).filter(
+                                    isTemaTreinamento,
+                                  )
+                                : temasRevisados;
+                              setIsRevisao(false);
+                              setTemasRevisados(
+                                e.target.checked
+                                  ? normalizarTemasTreinamento([...atual, tema])
+                                  : atual.filter((t) => t !== tema),
+                              );
+                            }}
+                          />
+                          Revisão de {tema}
+                        </label>
+                      ))}
                   </div>
-                  <small>Temas com data de aplicação entram automaticamente como revisão. Apenas os temas não marcados como revisão avançam a esteira.</small>
+                  <small>
+                    Temas com data de aplicação entram automaticamente como
+                    revisão. Apenas os temas não marcados como revisão avançam a
+                    esteira.
+                  </small>
                 </div>
               )}
 
@@ -5221,7 +5520,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               >
                 <label style={{ marginBottom: 0 }}>Descrição *</label>
                 {form.tipo === "Treinamento" &&
-                  !editandoId &&
+                  (!editandoId || reservaEditando) &&
                   form.descricao !== TEMPLATE_TREINAMENTO && (
                     <button
                       type="button"
@@ -5241,7 +5540,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               <textarea
                 value={form.descricao}
                 onChange={(e) => {
-                  if (!editandoId || role === "master") {
+                  if (!editandoId || reservaEditando || role === "master") {
                     const val = e.target.value;
                     set("descricao", val);
                     if (!val.trim()) {
@@ -5249,16 +5548,16 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                     }
                   }
                 }}
-                readOnly={editandoId ? role !== "master" : false}
+                readOnly={editandoId && !reservaEditando ? role !== "master" : false}
                 placeholder="Descreva a ocorrência com detalhes..."
                 rows={Math.max(6, form.descricao.split("\n").length + 2)}
                 style={
-                  editandoId && role !== "master"
+                  editandoId && !reservaEditando && role !== "master"
                     ? { opacity: 0.5, cursor: "not-allowed", resize: "none" }
                     : {}
                 }
               />
-              {editandoId && role !== "master" && (
+              {editandoId && !reservaEditando && role !== "master" && (
                 <small style={{ color: "var(--text-muted)" }}>
                   Para adicionar uma nova descrição, use{" "}
                   <b>"Incluir nova atualização"</b> nos detalhes.
@@ -5928,36 +6227,62 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 atualizado do progresso de onboarding dele?
               </p>
 
-              <fieldset className="whatsapp-destinatarios" disabled={sendingWhatsApp}>
+              <fieldset
+                className="whatsapp-destinatarios"
+                disabled={sendingWhatsApp}
+              >
                 <legend>Para quais números deseja enviar?</legend>
                 <label className="whatsapp-destinatario-opcao">
                   <input
                     type="checkbox"
-                    checked={destinatariosWhatsAppSelecionados.length === pendingWhatsAppMessage.destinatarios.length}
+                    checked={
+                      destinatariosWhatsAppSelecionados.length ===
+                      pendingWhatsAppMessage.destinatarios.length
+                    }
                     onChange={(e) => {
                       const selecionarTodos = e.target.checked;
-                      setPendingWhatsAppMessage((atual) => atual && ({
-                        ...atual,
-                        telefonesSelecionados: selecionarTodos ? atual.destinatarios.map((d) => d.telefone) : [],
-                      }));
+                      setPendingWhatsAppMessage(
+                        (atual) =>
+                          atual && {
+                            ...atual,
+                            telefonesSelecionados: selecionarTodos
+                              ? atual.destinatarios.map((d) => d.telefone)
+                              : [],
+                          },
+                      );
                     }}
                   />
                   <strong>Selecionar todos</strong>
                 </label>
                 <div className="whatsapp-destinatarios-lista">
                   {pendingWhatsAppMessage.destinatarios.map((d) => (
-                    <label key={d.telefone} className="whatsapp-destinatario-opcao">
+                    <label
+                      key={d.telefone}
+                      className="whatsapp-destinatario-opcao"
+                    >
                       <input
                         type="checkbox"
-                        checked={pendingWhatsAppMessage.telefonesSelecionados.includes(d.telefone)}
+                        checked={pendingWhatsAppMessage.telefonesSelecionados.includes(
+                          d.telefone,
+                        )}
                         onChange={(e) => {
                           const selecionado = e.target.checked;
-                          setPendingWhatsAppMessage((atual) => atual && ({
-                            ...atual,
-                            telefonesSelecionados: selecionado
-                              ? [...new Set([...atual.telefonesSelecionados, d.telefone])]
-                              : atual.telefonesSelecionados.filter((telefone) => telefone !== d.telefone),
-                          }));
+                          setPendingWhatsAppMessage(
+                            (atual) =>
+                              atual && {
+                                ...atual,
+                                telefonesSelecionados: selecionado
+                                  ? [
+                                      ...new Set([
+                                        ...atual.telefonesSelecionados,
+                                        d.telefone,
+                                      ]),
+                                    ]
+                                  : atual.telefonesSelecionados.filter(
+                                      (telefone) => telefone !== d.telefone,
+                                    ),
+                              },
+                          );
                         }}
                       />
                       <span>
@@ -6040,7 +6365,8 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                         color: "var(--text-color, #ffffff)",
                       }}
                     >
-                      Prévia — {destinatariosWhatsAppSelecionados.length} mensagem(ns)
+                      Prévia — {destinatariosWhatsAppSelecionados.length}{" "}
+                      mensagem(ns)
                     </label>
                     <div
                       style={{
@@ -6070,7 +6396,8 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                               marginBottom: "4px",
                             }}
                           >
-                            {d.nome} · {formatarTelefoneExibicao(d.telefone) || d.telefone}
+                            {d.nome} ·{" "}
+                            {formatarTelefoneExibicao(d.telefone) || d.telefone}
                           </div>
                           <div
                             style={{
@@ -6165,10 +6492,17 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               <button
                 type="button"
                 className="btn-primary"
-                disabled={sendingWhatsApp || destinatariosWhatsAppSelecionados.length === 0}
+                disabled={
+                  sendingWhatsApp ||
+                  destinatariosWhatsAppSelecionados.length === 0
+                }
                 style={{ display: "flex", alignItems: "center", gap: "6px" }}
                 onClick={async () => {
-                  if (sendingWhatsApp || destinatariosWhatsAppSelecionados.length === 0) return;
+                  if (
+                    sendingWhatsApp ||
+                    destinatariosWhatsAppSelecionados.length === 0
+                  )
+                    return;
                   setSendingWhatsApp(true);
                   try {
                     let imageBase64: string | undefined = undefined;
@@ -6277,7 +6611,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   }
                 }}
               >
-                {sendingWhatsApp ? "Enviando..." : `Enviar para ${destinatariosWhatsAppSelecionados.length} número(s)`}
+                {sendingWhatsApp
+                  ? "Enviando..."
+                  : `Enviar para ${destinatariosWhatsAppSelecionados.length} número(s)`}
               </button>
             </div>
           </div>
@@ -6304,10 +6640,17 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         onResultado={async ({ status, enviadoEm, destinatarios }) => {
           if (!gestaoOcorrenciaId) return;
           try {
-            if (gestaoOcorrenciaEvento === "conclusao" && gestaoConclusaoEmpresaId) {
+            if (
+              gestaoOcorrenciaEvento === "conclusao" &&
+              gestaoConclusaoEmpresaId
+            ) {
               await salvarEmpresas({
                 id: gestaoConclusaoEmpresaId,
-                ...camposResultadoConclusao({ status, enviadoEm, destinatarios }),
+                ...camposResultadoConclusao({
+                  status,
+                  enviadoEm,
+                  destinatarios,
+                }),
               });
             }
             await salvarOcorrencia({

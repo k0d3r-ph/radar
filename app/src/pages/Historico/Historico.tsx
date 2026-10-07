@@ -2546,11 +2546,13 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
     // Fluxo de Disparo do WhatsApp — só oferece o envio ao criar a ocorrência.
     // Em edições (ex.: apenas corrigir data/hora), não repete a oferta para não
     // sobrescrever o status de envio já registrado na criação original.
+    // Registrar uma ocorrência reservada para CSAT conta como criação: o
+    // registro ainda não teve essa oferta, mesmo abrindo em modo de edição.
     // A notificação inclui todos os temas realizados; apenas os novos avançam
     // a esteira. Usa a mesma regra do botão de envio nos detalhes da ocorrência.
     const temasValidos = treinamento.temaOcorrencia.filter(isTemaTreinamento);
 
-    if (!editandoId && podeNotificarTreinamento(base)) {
+    if ((!editandoId || reservaEditando) && podeNotificarTreinamento(base)) {
       const destinatarios = obterDestinatariosCliente(empresaObjeto);
 
       if (destinatarios.length === 0) {
@@ -2574,7 +2576,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         setSalvando(false);
         cancelar();
         toast.success(
-          editandoId ? "Ocorrência atualizada!" : "Ocorrência registrada!",
+          editandoId && !reservaEditando
+            ? "Ocorrência atualizada!"
+            : "Ocorrência registrada!",
         );
       } else {
         // Encontra o novo temaText e dataText (que foram atualizados logo acima)
@@ -2679,7 +2683,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       setSalvando(false);
       cancelar();
       toast.success(
-        editandoId ? "Ocorrência atualizada!" : "Ocorrência registrada!",
+        editandoId && !reservaEditando
+          ? "Ocorrência atualizada!"
+          : "Ocorrência registrada!",
       );
     }
   }
@@ -5576,7 +5582,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               >
                 {salvando
                   ? "Salvando..."
-                  : editandoId
+                  : editandoId && !reservaEditando
                     ? "Atualizar"
                     : "Registrar"}
               </button>
@@ -6481,7 +6487,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   setSalvando(false);
                   cancelar();
                   toast.success(
-                    editandoId
+                    editandoId && !reservaEditando
                       ? "Ocorrência atualizada!"
                       : "Ocorrência registrada!",
                   );
@@ -6604,7 +6610,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                     setSalvando(false);
                     cancelar();
                     toast.success(
-                      editandoId
+                      editandoId && !reservaEditando
                         ? "Ocorrência atualizada!"
                         : "Ocorrência registrada!",
                     );

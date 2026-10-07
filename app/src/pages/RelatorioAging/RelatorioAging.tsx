@@ -79,7 +79,12 @@ export const RelatorioAging: React.FC = () => {
       .then(([lista, historico]) => {
         setEmpresas(
           lista.filter(
-            (e) => e.id && !isEmpresaInterna(e) && !e.isCancelled && !e.isOngoing && !e.isSuspended,
+            (e) =>
+              e.id &&
+              !isEmpresaInterna(e) &&
+              !e.isCancelled &&
+              !e.isOngoing &&
+              !e.isSuspended,
           ),
         );
         setOcorrencias(historico);
@@ -134,11 +139,24 @@ export const RelatorioAging: React.FC = () => {
       totais[f.chave] = emAndamento[f.chave] + concluido[f.chave];
     });
 
-    const totalEmAndamento = FAIXAS.reduce((acc, f) => acc + emAndamento[f.chave], 0);
-    const totalConcluido = FAIXAS.reduce((acc, f) => acc + concluido[f.chave], 0);
+    const totalEmAndamento = FAIXAS.reduce(
+      (acc, f) => acc + emAndamento[f.chave],
+      0,
+    );
+    const totalConcluido = FAIXAS.reduce(
+      (acc, f) => acc + concluido[f.chave],
+      0,
+    );
     const totalGeral = totalEmAndamento + totalConcluido;
 
-    return { emAndamento, concluido, totais, totalEmAndamento, totalConcluido, totalGeral };
+    return {
+      emAndamento,
+      concluido,
+      totais,
+      totalEmAndamento,
+      totalConcluido,
+      totalGeral,
+    };
   }, [empresasFiltradas, ocorrencias]);
 
   // Controle de Gol: só entram clientes que iniciaram a esteira a partir de
@@ -151,10 +169,16 @@ export const RelatorioAging: React.FC = () => {
     empresasFiltradas
       .filter((e) => e.dataEntrada && e.dataEntrada >= DATA_CORTE_GOL)
       .forEach((e) => {
-        const ocorrenciaGol = encontrarOcorrenciaGol(ocorrencias, e.nomeEmpresa);
+        const ocorrenciaGol = encontrarOcorrenciaGol(
+          ocorrencias,
+          e.nomeEmpresa,
+        );
 
         if (ocorrenciaGol) {
-          const dias = calcularDiasAteGol(e.dataEntrada, ocorrenciaGol.dataOcorrencia);
+          const dias = calcularDiasAteGol(
+            e.dataEntrada,
+            ocorrenciaGol.dataOcorrencia,
+          );
           concluido[faixaDosDias(dias)] += 1;
         } else {
           const dias = calcularDiasAteGol(e.dataEntrada, Date.now());
@@ -167,11 +191,24 @@ export const RelatorioAging: React.FC = () => {
       totais[f.chave] = emAndamento[f.chave] + concluido[f.chave];
     });
 
-    const totalEmAndamento = FAIXAS.reduce((acc, f) => acc + emAndamento[f.chave], 0);
-    const totalConcluido = FAIXAS.reduce((acc, f) => acc + concluido[f.chave], 0);
+    const totalEmAndamento = FAIXAS.reduce(
+      (acc, f) => acc + emAndamento[f.chave],
+      0,
+    );
+    const totalConcluido = FAIXAS.reduce(
+      (acc, f) => acc + concluido[f.chave],
+      0,
+    );
     const totalGeral = totalEmAndamento + totalConcluido;
 
-    return { emAndamento, concluido, totais, totalEmAndamento, totalConcluido, totalGeral };
+    return {
+      emAndamento,
+      concluido,
+      totais,
+      totalEmAndamento,
+      totalConcluido,
+      totalGeral,
+    };
   }, [empresasFiltradas, ocorrencias]);
 
   return (
@@ -213,26 +250,38 @@ export const RelatorioAging: React.FC = () => {
               <tr>
                 <td className="aging-col-status">
                   <div className="aging-status-label">
-                    <Clock size={18} className="aging-status-icon aging-status-icon--andamento" />
+                    <Clock
+                      size={18}
+                      className="aging-status-icon aging-status-icon--andamento"
+                    />
                     <div>
                       <strong>Em andamento</strong>
-                      <span>Clientes que ainda estão em processo de capacitação.</span>
+                      <span>
+                        Clientes que ainda estão em processo de capacitação.
+                      </span>
                     </div>
                   </div>
                 </td>
                 {FAIXAS.map((f) => (
                   <td key={f.chave}>
                     <div className="aging-cell">
-                      <span className="aging-cell-valor">{dados.emAndamento[f.chave]}</span>
+                      <span className="aging-cell-valor">
+                        {dados.emAndamento[f.chave]}
+                      </span>
                       <span className="aging-cell-pct">
-                        {formatarPct(dados.emAndamento[f.chave], dados.totalGeral)}
+                        {formatarPct(
+                          dados.emAndamento[f.chave],
+                          dados.totalGeral,
+                        )}
                       </span>
                     </div>
                   </td>
                 ))}
                 <td className="aging-col-total">
                   <div className="aging-cell">
-                    <span className="aging-cell-valor">{dados.totalEmAndamento}</span>
+                    <span className="aging-cell-valor">
+                      {dados.totalEmAndamento}
+                    </span>
                     <span className="aging-cell-pct">
                       {formatarPct(dados.totalEmAndamento, dados.totalGeral)}
                     </span>
@@ -243,7 +292,10 @@ export const RelatorioAging: React.FC = () => {
               <tr>
                 <td className="aging-col-status">
                   <div className="aging-status-label">
-                    <CheckCircle2 size={18} className="aging-status-icon aging-status-icon--concluido" />
+                    <CheckCircle2
+                      size={18}
+                      className="aging-status-icon aging-status-icon--concluido"
+                    />
                     <div>
                       <strong>Concluído</strong>
                       <span>Clientes que finalizaram a capacitação.</span>
@@ -253,16 +305,23 @@ export const RelatorioAging: React.FC = () => {
                 {FAIXAS.map((f) => (
                   <td key={f.chave}>
                     <div className="aging-cell">
-                      <span className="aging-cell-valor">{dados.concluido[f.chave]}</span>
+                      <span className="aging-cell-valor">
+                        {dados.concluido[f.chave]}
+                      </span>
                       <span className="aging-cell-pct">
-                        {formatarPct(dados.concluido[f.chave], dados.totalGeral)}
+                        {formatarPct(
+                          dados.concluido[f.chave],
+                          dados.totalGeral,
+                        )}
                       </span>
                     </div>
                   </td>
                 ))}
                 <td className="aging-col-total">
                   <div className="aging-cell">
-                    <span className="aging-cell-valor">{dados.totalConcluido}</span>
+                    <span className="aging-cell-valor">
+                      {dados.totalConcluido}
+                    </span>
                     <span className="aging-cell-pct">
                       {formatarPct(dados.totalConcluido, dados.totalGeral)}
                     </span>
@@ -273,17 +332,24 @@ export const RelatorioAging: React.FC = () => {
               <tr className="aging-linha-totais">
                 <td className="aging-col-status">
                   <div className="aging-status-label">
-                    <Users2 size={18} className="aging-status-icon aging-status-icon--totais" />
+                    <Users2
+                      size={18}
+                      className="aging-status-icon aging-status-icon--totais"
+                    />
                     <div>
                       <strong>Totais</strong>
-                      <span>Quantidade total de clientes na esteira de capacitação.</span>
+                      <span>
+                        Quantidade total de clientes na esteira de capacitação.
+                      </span>
                     </div>
                   </div>
                 </td>
                 {FAIXAS.map((f) => (
                   <td key={f.chave}>
                     <div className="aging-cell">
-                      <span className="aging-cell-valor">{dados.totais[f.chave]}</span>
+                      <span className="aging-cell-valor">
+                        {dados.totais[f.chave]}
+                      </span>
                       <span className="aging-cell-pct">
                         {formatarPct(dados.totais[f.chave], dados.totalGeral)}
                       </span>
@@ -312,10 +378,10 @@ export const RelatorioAging: React.FC = () => {
       )}
 
       <p className="aging-legenda">
-        O Aging da esteira de capacitação permite identificar gargalos, antecipar ações e
-        garantir que mais clientes concluam a capacitação no menor tempo possível. Os dias são
-        contados da data de entrada até a data de finalização (ou até hoje, para quem ainda está
-        em andamento).
+        O Aging da esteira de capacitação permite identificar gargalos,
+        antecipar ações e garantir que mais clientes concluam a capacitação no
+        menor tempo possível. Os dias são contados da data de entrada até a data
+        de finalização (ou até hoje, para quem ainda está em andamento).
       </p>
 
       {!loading && (
@@ -337,7 +403,10 @@ export const RelatorioAging: React.FC = () => {
               <tr>
                 <td className="aging-col-status">
                   <div className="aging-status-label">
-                    <Clock size={18} className="aging-status-icon aging-status-icon--andamento" />
+                    <Clock
+                      size={18}
+                      className="aging-status-icon aging-status-icon--andamento"
+                    />
                     <div>
                       <strong>Em andamento</strong>
                       <span>Clientes que ainda não bateram o Gol.</span>
@@ -347,18 +416,28 @@ export const RelatorioAging: React.FC = () => {
                 {FAIXAS.map((f) => (
                   <td key={f.chave}>
                     <div className="aging-cell">
-                      <span className="aging-cell-valor">{dadosGol.emAndamento[f.chave]}</span>
+                      <span className="aging-cell-valor">
+                        {dadosGol.emAndamento[f.chave]}
+                      </span>
                       <span className="aging-cell-pct">
-                        {formatarPct(dadosGol.emAndamento[f.chave], dadosGol.totalGeral)}
+                        {formatarPct(
+                          dadosGol.emAndamento[f.chave],
+                          dadosGol.totalGeral,
+                        )}
                       </span>
                     </div>
                   </td>
                 ))}
                 <td className="aging-col-total">
                   <div className="aging-cell">
-                    <span className="aging-cell-valor">{dadosGol.totalEmAndamento}</span>
+                    <span className="aging-cell-valor">
+                      {dadosGol.totalEmAndamento}
+                    </span>
                     <span className="aging-cell-pct">
-                      {formatarPct(dadosGol.totalEmAndamento, dadosGol.totalGeral)}
+                      {formatarPct(
+                        dadosGol.totalEmAndamento,
+                        dadosGol.totalGeral,
+                      )}
                     </span>
                   </div>
                 </td>
@@ -367,7 +446,12 @@ export const RelatorioAging: React.FC = () => {
               <tr>
                 <td className="aging-col-status">
                   <div className="aging-status-label">
-                    <CheckCircle2 size={18} className="aging-status-icon aging-status-icon--concluido" />
+                    <span
+                      className="aging-status-icon aging-status-icon--gol"
+                      aria-hidden="true"
+                    >
+                      ⚽
+                    </span>
                     <div>
                       <strong>Concluído</strong>
                       <span>Clientes que já bateram o Gol.</span>
@@ -377,18 +461,28 @@ export const RelatorioAging: React.FC = () => {
                 {FAIXAS.map((f) => (
                   <td key={f.chave}>
                     <div className="aging-cell">
-                      <span className="aging-cell-valor">{dadosGol.concluido[f.chave]}</span>
+                      <span className="aging-cell-valor">
+                        {dadosGol.concluido[f.chave]}
+                      </span>
                       <span className="aging-cell-pct">
-                        {formatarPct(dadosGol.concluido[f.chave], dadosGol.totalGeral)}
+                        {formatarPct(
+                          dadosGol.concluido[f.chave],
+                          dadosGol.totalGeral,
+                        )}
                       </span>
                     </div>
                   </td>
                 ))}
                 <td className="aging-col-total">
                   <div className="aging-cell">
-                    <span className="aging-cell-valor">{dadosGol.totalConcluido}</span>
+                    <span className="aging-cell-valor">
+                      {dadosGol.totalConcluido}
+                    </span>
                     <span className="aging-cell-pct">
-                      {formatarPct(dadosGol.totalConcluido, dadosGol.totalGeral)}
+                      {formatarPct(
+                        dadosGol.totalConcluido,
+                        dadosGol.totalGeral,
+                      )}
                     </span>
                   </div>
                 </td>
@@ -397,26 +491,38 @@ export const RelatorioAging: React.FC = () => {
               <tr className="aging-linha-totais">
                 <td className="aging-col-status">
                   <div className="aging-status-label">
-                    <Users2 size={18} className="aging-status-icon aging-status-icon--totais" />
+                    <Users2
+                      size={18}
+                      className="aging-status-icon aging-status-icon--totais"
+                    />
                     <div>
                       <strong>Totais</strong>
-                      <span>Quantidade total de clientes no controle de Gol.</span>
+                      <span>
+                        Quantidade total de clientes no controle de Gol.
+                      </span>
                     </div>
                   </div>
                 </td>
                 {FAIXAS.map((f) => (
                   <td key={f.chave}>
                     <div className="aging-cell">
-                      <span className="aging-cell-valor">{dadosGol.totais[f.chave]}</span>
+                      <span className="aging-cell-valor">
+                        {dadosGol.totais[f.chave]}
+                      </span>
                       <span className="aging-cell-pct">
-                        {formatarPct(dadosGol.totais[f.chave], dadosGol.totalGeral)}
+                        {formatarPct(
+                          dadosGol.totais[f.chave],
+                          dadosGol.totalGeral,
+                        )}
                       </span>
                     </div>
                   </td>
                 ))}
                 <td className="aging-col-total">
                   <div className="aging-cell">
-                    <span className="aging-cell-valor">{dadosGol.totalGeral}</span>
+                    <span className="aging-cell-valor">
+                      {dadosGol.totalGeral}
+                    </span>
                     <span className="aging-cell-pct">100%</span>
                   </div>
                 </td>
@@ -436,10 +542,11 @@ export const RelatorioAging: React.FC = () => {
       )}
 
       <p className="aging-legenda">
-        O controle de Gol considera apenas clientes que iniciaram a esteira a partir de{" "}
-        {DATA_CORTE_GOL.split("-").reverse().join("/")}. Os dias são contados da data de
-        entrada até a ocorrência marcada como Gol (marco definido pelo treinador na Esteira),
-        ou até hoje para quem ainda não bateu o Gol.
+        O controle de Gol considera apenas clientes que iniciaram a esteira a
+        partir de {DATA_CORTE_GOL.split("-").reverse().join("/")}. Os dias são
+        contados da data de entrada até a ocorrência marcada como Gol (marco
+        definido pelo treinador na Esteira), ou até hoje para quem ainda não
+        bateu o Gol.
       </p>
     </div>
   );

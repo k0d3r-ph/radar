@@ -4,6 +4,16 @@
   gap: 1.5rem;
 }
 
+.aging-secao-titulo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #e2e8f0;
+}
+
 .relatorio-aging-filtros {
   display: flex;
   align-items: center;

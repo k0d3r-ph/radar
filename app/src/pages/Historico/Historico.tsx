@@ -66,6 +66,7 @@ import { DoughnutChart } from "../../components/DoughnutChart";
 import { BarChart } from "../../components/BarChart";
 import { useAuth } from "../../context/AuthContext";
 import { formatarNome } from "../../utils/formatarNome";
+import { formatarListaNomes } from "../../utils/formatarListaNomes";
 import {
   isTemaTreinamento,
   isTreinamentoRealizado,
@@ -323,7 +324,9 @@ const renderMarkdown = (text: string) => {
   });
 };
 
-const TEMPLATE_TREINAMENTO = `Participantes: \n\nNOTA: \n\nRelatório de treinamento:\n\n• Cliente se manteve atento? \n• Cliente absorveu o conteúdo aplicado?\n• Cliente foi participativo?\n• Houve alguma interrupção?\n• Ambiente favorável (Som)?\n• Manifestou alguma insatisfação?\n• Treinamento foi gravado?\n\nRelatório do atendimento:`;
+const montarTemplateTreinamento = (participantes?: string) =>
+  `Participantes: ${participantes ?? ""}\n\nNOTA: \n\nRelatório de treinamento:\n\n• Cliente se manteve atento? \n• Cliente absorveu o conteúdo aplicado?\n• Cliente foi participativo?\n• Houve alguma interrupção?\n• Ambiente favorável (Som)?\n• Manifestou alguma insatisfação?\n• Treinamento foi gravado?\n\nRelatório do atendimento:`;
+const TEMPLATE_TREINAMENTO = montarTemplateTreinamento();
 
 const EMPTY: OcorrenciaForm = {
   empresa: "",
@@ -841,6 +844,14 @@ export function Historico() {
     (e) => normalizar(e.nomeEmpresa) === normalizar(empresaFiltro) && !!e.id,
   );
   const reservaEditando = reservasCsat.find((r) => r.id === editandoId);
+  const nomesParticipantesReserva = reservaEditando
+    ? formatarListaNomes(
+        reservaEditando.respostas.map((r) => formatarNome(r.nome)),
+      )
+    : "";
+  const templateTreinamentoAtual = montarTemplateTreinamento(
+    nomesParticipantesReserva || undefined,
+  );
   const ultimaReservaCsat = reservasCsat.reduce<ReservaCsat | undefined>(
     (ultima, reserva) =>
       !ultima || (reserva.createdAt || 0) > (ultima.createdAt || 0)
@@ -5527,7 +5538,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 <label style={{ marginBottom: 0 }}>Descrição *</label>
                 {form.tipo === "Treinamento" &&
                   (!editandoId || reservaEditando) &&
-                  form.descricao !== TEMPLATE_TREINAMENTO && (
+                  form.descricao !== templateTreinamentoAtual && (
                     <button
                       type="button"
                       className="btn-link-template"
@@ -5535,7 +5546,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                         setUsarTemplate(true);
                         setForm((f) => ({
                           ...f,
-                          descricao: TEMPLATE_TREINAMENTO,
+                          descricao: templateTreinamentoAtual,
                         }));
                       }}
                     >

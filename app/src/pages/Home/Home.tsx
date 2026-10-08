@@ -1074,15 +1074,15 @@ export default function Home() {
 
   /**
    * Dúvidas de Suporte ainda não acompanhadas pelo Treinamento, para clientes
-   * que estão na esteira ativa (ver pedido do supervisor: ao concluir um
+   * que estão na esteira, inclusive suspensos (ao concluir um
    * atendimento de Suporte com cliente em treinamento, o Treinamento precisa
    * saber para sondar se a dúvida foi sanada).
    */
   const avisosSuporte = useMemo(() => {
     const limite = agora - DIAS_AVISO_SUPORTE_TREINAMENTO * 24 * 60 * 60 * 1000;
-    const empresasAtivasPorNome = new Map(
-      dadosAtivos
-        .filter((e) => e.exibirAvisosSuporte !== false)
+    const empresasPorNome = new Map(
+      dados
+        .filter((e) => !e.isOngoing && !e.isCancelled && e.exibirAvisosSuporte !== false)
         .map((e) => [e.nomeEmpresa.trim().toLowerCase(), e]),
     );
     return historico
@@ -1094,7 +1094,7 @@ export default function Home() {
           o.dataOcorrencia >= limite,
       )
       .map((o) => {
-        const empresa = empresasAtivasPorNome.get(
+        const empresa = empresasPorNome.get(
           o.empresa.trim().toLowerCase(),
         );
         return empresa ? { ocorrencia: o, empresa } : null;
@@ -1106,7 +1106,7 @@ export default function Home() {
       .sort(
         (a, b) => b.ocorrencia.dataOcorrencia - a.ocorrencia.dataOcorrencia,
       );
-  }, [historico, dadosAtivos, agora]);
+  }, [historico, dados, agora]);
 
   const [avisosSuporteAbertos, setAvisosSuporteAbertos] = useState(false);
 

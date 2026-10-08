@@ -48,7 +48,7 @@ export function normalizarNome(nome: string): string {
 
 export function empresaEmTreinamento(empresa: RadarEmpresa): boolean {
   return !!empresa.nomeEmpresa && normalizarNome(empresa.nomeEmpresa) !== 'systemsat'
-    && !empresa.isOngoing && !empresa.isCancelled && !empresa.isSuspended;
+    && !empresa.isOngoing && !empresa.isCancelled;
 }
 
 export function conversaElegivel(conversa: TrainingConversation, empresa: RadarEmpresa): boolean {

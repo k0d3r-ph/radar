@@ -413,8 +413,8 @@ export default function Home() {
     }
   }
 
-  const [tabelaAtivaAberta, setTabelaAtivaAberta] = useState(true);
-  const [tabelaOngoingAberta, setTabelaOngoingAberta] = useState(true);
+  const [tabelaAtivaAberta, setTabelaAtivaAberta] = useState(false);
+  const [tabelaOngoingAberta, setTabelaOngoingAberta] = useState(false);
   const [tabelaSuspensaAberta, setTabelaSuspensaAberta] = useState(false);
   const [tabelaCanceladosAberta, setTabelaCanceladosAberta] = useState(false);
 

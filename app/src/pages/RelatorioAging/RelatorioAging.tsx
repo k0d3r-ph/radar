@@ -80,11 +80,7 @@ export const RelatorioAging: React.FC = () => {
         setEmpresas(
           lista.filter(
             (e) =>
-              e.id &&
-              !isEmpresaInterna(e) &&
-              !e.isCancelled &&
-              !e.isOngoing &&
-              !e.isSuspended,
+              e.id && !isEmpresaInterna(e) && !e.isCancelled && !e.isOngoing,
           ),
         );
         setOcorrencias(historico);

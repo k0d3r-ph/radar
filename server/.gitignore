@@ -4,3 +4,4 @@ dist/
 .wwebjs_cache/
 .env
 .private-backups/
+serviceAccountKey.json

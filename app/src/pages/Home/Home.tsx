@@ -33,6 +33,7 @@ import type { Empresa, Ocorrencia } from "../../types";
 import { useAuth } from "../../context/AuthContext";
 import { formatarNome } from "../../utils/formatarNome";
 import { BASE_CS_LIST, normalizarNomeCS, compararCS } from "../../utils/cs";
+import { atuaComoTreinador } from "../../utils/perfis";
 import {
   calcularScoreEfetivo,
   calcularPontuacaoScore,
@@ -317,6 +318,20 @@ export default function Home() {
   });
 
   const [comerciaisUsuarios, setComerciaisUsuarios] = useState<string[]>([]);
+  const [treinadoresUsuarios, setTreinadoresUsuarios] = useState<string[]>([]);
+
+  // Combina treinadores cadastrados em Usuários com os já usados em clientes
+  // (nomes antigos, de quem não está mais ativo). Reaproveita a mesma
+  // consolidação do Comercial, que já resolve "Jean" x "Jean Faria" como o
+  // mesmo treinador em vez de duplicar na lista.
+  const { lista: listaResponsaveis, mapaCanonical: mapaResponsaveis } =
+    useMemo(() => {
+      const todosBrutos = [
+        ...treinadoresUsuarios,
+        ...empresas.map((e) => e.responsavel).filter(Boolean),
+      ];
+      return consolidarListaComerciais(todosBrutos);
+    }, [treinadoresUsuarios, empresas]);
 
   const { lista: listaComercial, mapaCanonical: mapaComerciais } =
     useMemo(() => {
@@ -771,6 +786,12 @@ export default function Home() {
         .map((u) => formatarNome(u.nome.trim()));
 
       setComerciaisUsuarios(comercialFromUsers);
+
+      const treinadorFromUsers = usersList
+        .filter((u) => atuaComoTreinador(u.role) && u.nome?.trim())
+        .map((u) => formatarNome(u.nome.trim()));
+
+      setTreinadoresUsuarios(treinadorFromUsers);
 
       const todosComerciaisBrutos = [
         ...comercialFromUsers,
@@ -1283,7 +1304,7 @@ export default function Home() {
           e.nomeEmpresa.toLowerCase().includes(filtroCliente.toLowerCase());
         const responsavelOk =
           !filtroResponsavel ||
-          formatarNome(e.responsavel) === filtroResponsavel;
+          compararComercial(e.responsavel, filtroResponsavel, mapaResponsaveis);
         const csOk =
           !filtroCs ||
           compararCS(e.csResponsavel, filtroCs) ||
@@ -1391,6 +1412,7 @@ export default function Home() {
     ordenacaoScore,
     ordenacaoPrincipal,
     mapaComerciais,
+    mapaResponsaveis,
   ]);
 
   const dadosOngoingFiltrados = useMemo(() => {
@@ -1412,7 +1434,7 @@ export default function Home() {
           );
         const responsavelOk =
           !filtroResponsavel ||
-          formatarNome(e.responsavel) === filtroResponsavel;
+          compararComercial(e.responsavel, filtroResponsavel, mapaResponsaveis);
         const produtoOk = !filtroProduto || e.produto === filtroProduto;
 
         return clienteOk && csOk && comercialOk && responsavelOk && produtoOk;
@@ -1445,6 +1467,7 @@ export default function Home() {
     ordenacaoScore,
     ordenacaoPrincipal,
     mapaComerciais,
+    mapaResponsaveis,
   ]);
 
   const dadosSuspensosFiltrados = useMemo(() => {
@@ -1466,7 +1489,7 @@ export default function Home() {
           );
         const responsavelOk =
           !filtroResponsavel ||
-          formatarNome(e.responsavel) === filtroResponsavel;
+          compararComercial(e.responsavel, filtroResponsavel, mapaResponsaveis);
         const produtoOk = !filtroProduto || e.produto === filtroProduto;
 
         return clienteOk && csOk && comercialOk && responsavelOk && produtoOk;
@@ -1499,6 +1522,7 @@ export default function Home() {
     ordenacaoScore,
     ordenacaoPrincipal,
     mapaComerciais,
+    mapaResponsaveis,
   ]);
 
   const dadosCanceladosFiltrados = useMemo(() => {
@@ -1520,7 +1544,7 @@ export default function Home() {
           );
         const responsavelOk =
           !filtroResponsavel ||
-          formatarNome(e.responsavel) === filtroResponsavel;
+          compararComercial(e.responsavel, filtroResponsavel, mapaResponsaveis);
         const produtoOk = !filtroProduto || e.produto === filtroProduto;
 
         return clienteOk && csOk && comercialOk && responsavelOk && produtoOk;
@@ -1553,6 +1577,7 @@ export default function Home() {
     ordenacaoScore,
     ordenacaoPrincipal,
     mapaComerciais,
+    mapaResponsaveis,
   ]);
 
   const LABEL_FAROL: Record<string, string> = {
@@ -1685,6 +1710,10 @@ export default function Home() {
     );
   }
 
+  function renderResponsavel(empresa: LinhaEsteira) {
+    return normalizarNomeComercial(empresa.responsavel, mapaResponsaveis) || "-";
+  }
+
   const colunasEsteiraAtual: ColumnDef<LinhaEsteira>[] = [
     {
       key: "status",
@@ -1714,8 +1743,8 @@ export default function Home() {
       key: "responsavel",
       label: "Responsável",
       defaultWidth: 150,
-      render: (empresa) => formatarNome(empresa.responsavel),
-      exportValue: (empresa) => formatarNome(empresa.responsavel),
+      render: renderResponsavel,
+      exportValue: renderResponsavel,
     },
     {
       key: "tipo",
@@ -2298,14 +2327,11 @@ export default function Home() {
                 onChange={(e) => setFiltroResponsavel(e.target.value)}
               >
                 <option value="">Treinador responsável</option>
-                {[...new Set(dados.map((e) => formatarNome(e.responsavel)))]
-                  .filter(Boolean)
-                  .sort()
-                  .map((r) => (
-                    <option key={r} value={r}>
-                      {r}
-                    </option>
-                  ))}
+                {listaResponsaveis.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
               </select>
 
               <select
@@ -3732,16 +3758,16 @@ export default function Home() {
                   onChange={(e) =>
                     setClienteForm({
                       ...clienteForm,
-                      responsavel: e.target.value as Empresa["responsavel"],
+                      responsavel: e.target.value,
                     })
                   }
                 >
                   <option value="">Selecione...</option>
-                  <option value="Pedro">Pedro</option>
-                  <option value="Jean">Jean</option>
-                  <option value="Jeff">Jeff</option>
-                  <option value="Natalia">Natalia</option>
-                  <option value="Clarice">Clarice</option>
+                  {listaResponsaveis.map((r) => (
+                    <option key={r} value={r}>
+                      {r}
+                    </option>
+                  ))}
                 </select>
               </div>
 

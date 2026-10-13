@@ -1067,10 +1067,10 @@ export default function Home() {
     );
   }, [dados]);
 
-  // Janela de exibição do aviso: depois de alguns dias sem ninguém marcar como
+  // Janela de exibição do aviso: depois de algumas horas sem ninguém marcar como
   // contatado, o aviso some por conta própria — segue sendo pendência, mas não
   // vale mais a pena empilhar na Home um follow-up que já perdeu a urgência.
-  const DIAS_AVISO_SUPORTE_TREINAMENTO = 3;
+  const HORAS_AVISO_SUPORTE_TREINAMENTO = 24;
 
   /**
    * Dúvidas de Suporte ainda não acompanhadas pelo Treinamento, para clientes
@@ -1079,7 +1079,7 @@ export default function Home() {
    * saber para sondar se a dúvida foi sanada).
    */
   const avisosSuporte = useMemo(() => {
-    const limite = agora - DIAS_AVISO_SUPORTE_TREINAMENTO * 24 * 60 * 60 * 1000;
+    const limite = agora - HORAS_AVISO_SUPORTE_TREINAMENTO * 60 * 60 * 1000;
     const empresasPorNome = new Map(
       dados
         .filter((e) => !e.isOngoing && !e.isCancelled && e.exibirAvisosSuporte !== false)

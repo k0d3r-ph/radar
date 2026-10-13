@@ -8,6 +8,7 @@ import {
   KeyRound,
   AlertTriangle,
   UserCheck,
+  UserX,
   User,
   Edit2,
   Phone,
@@ -78,6 +79,7 @@ export const Usuarios: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [deletingUid, setDeletingUid] = useState<string | null>(null);
   const [confirmarExclusaoUid, setConfirmarExclusaoUid] = useState<string | null>(null);
+  const [togglingInativoUid, setTogglingInativoUid] = useState<string | null>(null);
 
   // Edit role states
   const [editingUser, setEditingUser] = useState<UsuarioDocument | null>(null);
@@ -307,6 +309,29 @@ export const Usuarios: React.FC = () => {
       toast.error("Erro ao tentar conectar ao servidor para excluir o usuário.");
     } finally {
       setDeletingUid(null);
+    }
+  };
+
+  const handleToggleInativo = async (usuario: UsuarioDocument) => {
+    const tornarInativo = !usuario.inativo;
+    const nomeExibicao = formatarNome(usuario.nome) || usuario.email;
+    const confirmado = window.confirm(
+      tornarInativo
+        ? `Inativar ${nomeExibicao}? Ele não conseguirá mais entrar no Radar e deixará de aparecer nas listas de seleção para novos cadastros. Os registros antigos vinculados a ele são mantidos.`
+        : `Reativar ${nomeExibicao}? Ele voltará a conseguir entrar no Radar e a aparecer nas listas de seleção para novos cadastros.`,
+    );
+    if (!confirmado) return;
+
+    setTogglingInativoUid(usuario.uid);
+    try {
+      await atualizarDadosUsuario(usuario.uid, { inativo: tornarInativo });
+      toast.success(tornarInativo ? "Usuário inativado." : "Usuário reativado.");
+      await carregarUsuarios();
+    } catch (error) {
+      console.error("Erro ao atualizar status do usuário:", error);
+      toast.error("Erro ao atualizar o status do usuário.");
+    } finally {
+      setTogglingInativoUid(null);
     }
   };
 
@@ -653,8 +678,20 @@ export const Usuarios: React.FC = () => {
                           : "—"}
                       </td>
                       <td>
-                        <span className={`status-badge ${u.needsPasswordChange ? "status-pending" : "status-active"}`}>
-                          {u.needsPasswordChange ? "Primeiro Acesso Pendente" : "Ativo"}
+                        <span
+                          className={`status-badge ${
+                            u.inativo
+                              ? "status-inativo"
+                              : u.needsPasswordChange
+                                ? "status-pending"
+                                : "status-active"
+                          }`}
+                        >
+                          {u.inativo
+                            ? "Inativo"
+                            : u.needsPasswordChange
+                              ? "Primeiro Acesso Pendente"
+                              : "Ativo"}
                         </span>
                         {atuaComoTreinador(u.role) && u.suspensoDistribuicao && (
                           <span
@@ -703,6 +740,14 @@ export const Usuarios: React.FC = () => {
                             title="Redefinir Senha do Usuário"
                           >
                             <KeyRound size={16} />
+                          </button>
+                          <button
+                            className={`btn-toggle-ativo-user ${u.inativo ? "reativar" : ""}`}
+                            onClick={() => handleToggleInativo(u)}
+                            disabled={togglingInativoUid === u.uid}
+                            title={u.inativo ? "Reativar Usuário" : "Inativar Usuário"}
+                          >
+                            {u.inativo ? <UserCheck size={16} /> : <UserX size={16} />}
                           </button>
                           <button
                             className="btn-delete-user"

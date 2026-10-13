@@ -319,6 +319,12 @@ export default function Home() {
 
   const [comerciaisUsuarios, setComerciaisUsuarios] = useState<string[]>([]);
   const [treinadoresUsuarios, setTreinadoresUsuarios] = useState<string[]>([]);
+  // Só usuários ativos — alimentam os selects de novo cadastro/edição de cliente.
+  // Usuários inativados continuam em treinadoresUsuarios/comerciaisUsuarios/listaCS
+  // (via empresas já cadastradas) para não sumir dos filtros e registros antigos.
+  const [treinadoresAtivos, setTreinadoresAtivos] = useState<string[]>([]);
+  const [comerciaisAtivos, setComerciaisAtivos] = useState<string[]>([]);
+  const [listaCSCadastro, setListaCSCadastro] = useState<string[]>([]);
 
   // Combina treinadores cadastrados em Usuários com os já usados em clientes
   // (nomes antigos, de quem não está mais ativo). Reaproveita a mesma
@@ -367,6 +373,25 @@ export default function Home() {
 
   const [clienteForm, setClienteForm] = useState<Empresa>(EMPTY_CLIENTE);
   const [buscandoIdCentral, setBuscandoIdCentral] = useState(false);
+
+  // Garante que o valor já selecionado apareça no select mesmo se pertencer a um
+  // usuário inativado — evita que editar um cliente antigo pareça ter perdido o
+  // responsável/CS só porque a pessoa não pode mais ser escolhida em um cadastro novo.
+  function comOpcaoAtual(ativos: string[], atual?: string): string[] {
+    const atualFormatado = atual?.trim();
+    if (!atualFormatado || ativos.includes(atualFormatado)) return ativos;
+    return [...ativos, atualFormatado].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }
+
+  const listaResponsaveisCadastro = useMemo(
+    () => comOpcaoAtual(treinadoresAtivos, clienteForm.responsavel),
+    [treinadoresAtivos, clienteForm.responsavel],
+  );
+
+  const listaCSCadastroComAtual = useMemo(
+    () => comOpcaoAtual(listaCSCadastro, clienteForm.csResponsavel),
+    [listaCSCadastro, clienteForm.csResponsavel],
+  );
 
   const [modalClienteAberto, setModalClienteAberto] = useState(false);
   const [tiposPendencia, setTiposPendencia] = useState<TemaOcorrencia[]>([]);
@@ -766,32 +791,47 @@ export default function Home() {
         listarUsuarios().catch(() => [] as any[]),
       ]);
 
+      const csRoleMatch = (u: (typeof usersList)[number]) =>
+        u.role?.toLowerCase() === "cs" ||
+        u.cargo?.toLowerCase() === "analista" ||
+        u.cargo?.toLowerCase() === "cs";
+      const comercialRoleMatch = (u: (typeof usersList)[number]) =>
+        u.role?.toLowerCase() === "comercial" ||
+        u.cargo?.toLowerCase() === "comercial";
+
       const csFromUsers = usersList
-        .filter(
-          (u) =>
-            (u.role?.toLowerCase() === "cs" ||
-              u.cargo?.toLowerCase() === "analista" ||
-              u.cargo?.toLowerCase() === "cs") &&
-            u.nome?.trim(),
-        )
+        .filter((u) => csRoleMatch(u) && u.nome?.trim())
         .map((u) => normalizarNomeCS(u.nome.trim()));
 
+      // Nomes de CS inativados: usados para excluir da lista de cadastro mesmo
+      // quando o nome também está fixo em BASE_CS_LIST.
+      const csInativosNomes = new Set(
+        usersList
+          .filter((u) => csRoleMatch(u) && u.inativo && u.nome?.trim())
+          .map((u) => normalizarNomeCS(u.nome.trim())),
+      );
+
       const comercialFromUsers = usersList
-        .filter(
-          (u) =>
-            (u.role?.toLowerCase() === "comercial" ||
-              u.cargo?.toLowerCase() === "comercial") &&
-            u.nome?.trim(),
-        )
+        .filter((u) => comercialRoleMatch(u) && u.nome?.trim())
+        .map((u) => formatarNome(u.nome.trim()));
+
+      const comercialFromUsersAtivos = usersList
+        .filter((u) => comercialRoleMatch(u) && !u.inativo && u.nome?.trim())
         .map((u) => formatarNome(u.nome.trim()));
 
       setComerciaisUsuarios(comercialFromUsers);
+      setComerciaisAtivos(comercialFromUsersAtivos);
 
       const treinadorFromUsers = usersList
         .filter((u) => atuaComoTreinador(u.role) && u.nome?.trim())
         .map((u) => formatarNome(u.nome.trim()));
 
+      const treinadorFromUsersAtivos = usersList
+        .filter((u) => atuaComoTreinador(u.role) && !u.inativo && u.nome?.trim())
+        .map((u) => formatarNome(u.nome.trim()));
+
       setTreinadoresUsuarios(treinadorFromUsers);
+      setTreinadoresAtivos(treinadorFromUsersAtivos);
 
       const todosComerciaisBrutos = [
         ...comercialFromUsers,
@@ -914,6 +954,22 @@ export default function Home() {
         allDiscoveredCS.forEach((nome) => {
           const norm = normalizarNomeCS(nome);
           if (norm) {
+            uniqueNames.add(norm);
+          }
+        });
+        return Array.from(uniqueNames).sort((a, b) =>
+          a.localeCompare(b, "pt-BR"),
+        );
+      });
+
+      // CS disponíveis para novo cadastro: BASE_CS_LIST é uma lista fixa no
+      // código (não ligada a nenhum usuário), então um CS só some daqui se
+      // também existir um usuário cadastrado com esse nome marcado inativo.
+      setListaCSCadastro(() => {
+        const uniqueNames = new Set<string>();
+        [...BASE_CS_LIST, ...csFromUsers].forEach((nome) => {
+          const norm = normalizarNomeCS(nome);
+          if (norm && !csInativosNomes.has(norm)) {
             uniqueNames.add(norm);
           }
         });
@@ -3763,7 +3819,7 @@ export default function Home() {
                   }
                 >
                   <option value="">Selecione...</option>
-                  {listaResponsaveis.map((r) => (
+                  {listaResponsaveisCadastro.map((r) => (
                     <option key={r} value={r}>
                       {r}
                     </option>
@@ -3802,7 +3858,7 @@ export default function Home() {
                   }
                 >
                   <option value="">Selecione...</option>
-                  {listaCS.map((c) => (
+                  {listaCSCadastroComAtual.map((c) => (
                     <option key={c} value={c}>
                       {c}
                     </option>
@@ -3824,7 +3880,7 @@ export default function Home() {
                   list="comerciais-sugestoes"
                 />
                 <datalist id="comerciais-sugestoes">
-                  {listaComercial.map((c) => (
+                  {comerciaisAtivos.map((c) => (
                     <option key={c} value={c} />
                   ))}
                 </datalist>

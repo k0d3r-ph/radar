@@ -38,7 +38,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         try {
           const userDocRef = doc(db, "usuarios", currentUser.uid);
           const userDoc = await getDoc(userDocRef);
-          if (userDoc.exists()) {
+          if (userDoc.exists() && userDoc.data()?.inativo) {
+            console.warn("Acesso negado: usuário inativado.");
+            await deslogarUsuario();
+            setUser(null);
+            setRole("");
+            setUserName("");
+            setNeedsPasswordChange(false);
+            toast.error("Esta conta foi desativada ou não possui permissões de acesso.");
+          } else if (userDoc.exists()) {
             const data = userDoc.data();
             let userRole = data.role || "suporte";
             if (userRole === "crc") {

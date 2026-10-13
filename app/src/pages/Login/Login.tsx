@@ -69,6 +69,12 @@ export const Login: React.FC = () => {
         return;
       }
 
+      if (userDoc.data()?.inativo) {
+        await deslogarUsuario();
+        toast.error("Esta conta foi desativada. Fale com um administrador do Radar.");
+        return;
+      }
+
       toast.success("Login efetuado com sucesso!");
       navigate("/home");
     } catch (err: any) {

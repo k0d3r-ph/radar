@@ -106,6 +106,14 @@ export interface UsuarioDocument {
   notificarAlerta?: boolean;
   notificarCancelado?: boolean;
   notificarConclusao?: boolean;
+  /**
+   * Quando true, o usuário está inativado: não consegue mais entrar no Radar
+   * (ver checagem em AuthContext/Login) e some das listas de seleção para
+   * novos cadastros (responsável, CS, comercial). Registros antigos já
+   * vinculados a ele permanecem intactos e continuam aparecendo em filtros
+   * e tabulações existentes.
+   */
+  inativo?: boolean;
 }
 
 export async function criarNovoUsuario(email: string, senhaTemp: string, role: string, nome: string): Promise<void> {
@@ -167,6 +175,7 @@ export async function listarUsuarios(forceRefresh = false): Promise<UsuarioDocum
       notificarAlerta: data.notificarAlerta,
       notificarCancelado: data.notificarCancelado,
       notificarConclusao: data.notificarConclusao,
+      inativo: !!data.inativo,
     });
   });
 
@@ -198,6 +207,7 @@ export async function atualizarDadosUsuario(
     notificarAlerta?: boolean;
     notificarCancelado?: boolean;
     notificarConclusao?: boolean;
+    inativo?: boolean;
   }
 ): Promise<void> {
   invalidarCacheUsuarios();

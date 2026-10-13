@@ -212,6 +212,13 @@ export type Ocorrencia = {
    */
   avisoTreinamentoResolvidoPorId?: string;
   avisoTreinamentoResolvidoEm?: number;
+  /**
+   * Uid de quem marcou que o contato com o cliente foi feito mas ele não
+   * respondeu — diferente de avisoTreinamentoResolvidoPorId, não remove o
+   * aviso da Home, só sinaliza que já houve tentativa de contato.
+   */
+  avisoTreinamentoContatoRealizadoPorId?: string;
+  avisoTreinamentoContatoRealizadoEm?: number;
   treinamentoDataSolicitacao?: string;
   treinamentoTempoAgenda?: string;
   treinamentoSolicitante?: string;

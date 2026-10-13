@@ -1139,6 +1139,40 @@ export default function Home() {
     }
   }
 
+  // Diferente de marcarAvisoSuporteContatado, não preenche avisoTreinamentoResolvidoPorId:
+  // o aviso continua na lista (cliente não respondeu), só ganha uma indicação de que já
+  // houve uma tentativa de contato. `realizado = false` desfaz a marcação, para o caso de
+  // clique por engano.
+  async function marcarAvisoSuporteContatoRealizado(
+    ocorrenciaId: string | undefined,
+    realizado: boolean,
+  ) {
+    if (!ocorrenciaId) return;
+    const contatoRealizadoPorId = realizado ? user?.uid || "" : (null as any);
+    const contatoRealizadoEm = realizado ? Date.now() : (null as any);
+    try {
+      await salvarOcorrencia({
+        id: ocorrenciaId,
+        avisoTreinamentoContatoRealizadoPorId: contatoRealizadoPorId,
+        avisoTreinamentoContatoRealizadoEm: contatoRealizadoEm,
+      } as Ocorrencia);
+      setHistorico((prev) =>
+        prev.map((o) =>
+          o.id === ocorrenciaId
+            ? {
+                ...o,
+                avisoTreinamentoContatoRealizadoPorId: contatoRealizadoPorId,
+                avisoTreinamentoContatoRealizadoEm: contatoRealizadoEm,
+              }
+            : o,
+        ),
+      );
+    } catch (error) {
+      console.error("Erro ao atualizar contato realizado no aviso de Suporte:", error);
+      toast.error("Não foi possível atualizar o status de contato.");
+    }
+  }
+
   const dadosOngoing = useMemo(() => {
     return dados.filter(
       (e) => !!e.isOngoing && !e.isSuspended && !e.isCancelled,
@@ -2132,6 +2166,11 @@ export default function Home() {
                             {formatarTelefoneExibicao(destinatario.telefone)})
                           </span>
                         )}
+                        {ocorrencia.avisoTreinamentoContatoRealizadoPorId && (
+                          <span className="aviso-suporte-contato-realizado">
+                            Contato realizado, aguardando retorno do cliente
+                          </span>
+                        )}
                         <p className="aviso-suporte-motivo">
                           {ocorrencia.descricao}
                         </p>
@@ -2167,6 +2206,24 @@ export default function Home() {
                           }
                         >
                           Ver ocorrência
+                        </button>
+                        <button
+                          type="button"
+                          className={`aviso-suporte-contato-btn ${
+                            ocorrencia.avisoTreinamentoContatoRealizadoPorId
+                              ? "ativo"
+                              : ""
+                          }`}
+                          onClick={() =>
+                            marcarAvisoSuporteContatoRealizado(
+                              ocorrencia.id,
+                              !ocorrencia.avisoTreinamentoContatoRealizadoPorId,
+                            )
+                          }
+                        >
+                          {ocorrencia.avisoTreinamentoContatoRealizadoPorId
+                            ? "Desmarcar contato realizado"
+                            : "Contato realizado"}
                         </button>
                         <button
                           type="button"

@@ -237,6 +237,17 @@
   font-size: 0.85rem;
 }
 
+.aviso-suporte-contato-realizado {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(34, 197, 94, 0.18);
+  color: #4ade80;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
 .aviso-suporte-acoes {
   display: flex;
   gap: 0.5rem;
@@ -244,12 +255,32 @@
 }
 
 .aviso-suporte-link,
+.aviso-suporte-contato-btn,
 .aviso-suporte-resolver {
   border: none;
   border-radius: 8px;
   padding: 0.4rem 0.75rem;
   font-size: 0.85rem;
   cursor: pointer;
+}
+
+.aviso-suporte-contato-btn {
+  background: rgba(34, 197, 94, 0.18);
+  color: #4ade80;
+  font-weight: 600;
+}
+
+.aviso-suporte-contato-btn:hover {
+  background: rgba(34, 197, 94, 0.3);
+}
+
+.aviso-suporte-contato-btn.ativo {
+  background: rgba(34, 197, 94, 0.35);
+  color: #dcfce7;
+}
+
+.aviso-suporte-contato-btn.ativo:hover {
+  background: rgba(34, 197, 94, 0.5);
 }
 
 .aviso-suporte-link {

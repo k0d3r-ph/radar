@@ -4373,6 +4373,22 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                                   {resposta.nome} — {resposta.experiencia}
                                 </span>
                                 {resposta.opiniao && <p>{resposta.opiniao}</p>}
+                                {resposta.editadoPor && resposta.editadoEm && (
+                                  <p
+                                    style={{
+                                      fontSize: "0.75rem",
+                                      opacity: 0.7,
+                                      marginTop: "2px",
+                                    }}
+                                  >
+                                    Editado por {formatarNome(resposta.editadoPor)} em{" "}
+                                    {new Date(resposta.editadoEm).toLocaleDateString("pt-BR")}{" "}
+                                    {new Date(resposta.editadoEm).toLocaleTimeString("pt-BR", {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })}
+                                  </p>
+                                )}
                               </div>
                               {role === "master" && (
                                 <button

@@ -29,7 +29,7 @@ export function registrarCsat(app: Express, db: Firestore | null, auth: Auth | n
       });
     }
   };
-  const usuario = async (req: Request) => {
+  const usuario = async (req: Request, exigirMaster = false) => {
     const token = req.headers.authorization?.match(/^Bearer (.+)$/i)?.[1];
     let uid: string;
     try { uid = (await auth!.verifyIdToken(token || '', true)).uid; }
@@ -37,6 +37,9 @@ export function registrarCsat(app: Express, db: Firestore | null, auth: Auth | n
     const user = (await db!.collection('usuarios').doc(uid).get()).data();
     if (!user || !['master', 'treinador'].includes(user.role) || user.needsPasswordChange) {
       throw new CsatError(403, 'Apenas usuários de treinamento podem gerar CSAT.');
+    }
+    if (exigirMaster && user.role !== 'master') {
+      throw new CsatError(403, 'Apenas usuários Master podem editar avaliações do CSAT.');
     }
     return { uid, nome: user.nome || 'Treinamento' };
   };
@@ -155,6 +158,35 @@ export function registrarCsat(app: Express, db: Firestore | null, auth: Auth | n
         });
       }
       return { sucesso: true };
+    });
+  }));
+  app.post('/api/csat/ocorrencias/:id/respostas/:index/editar', wrap(async req => {
+    const user = await usuario(req, true);
+    const index = Number(req.params.index);
+    if (!/^[a-zA-Z0-9]+$/.test(req.params.id) || !Number.isInteger(index) || index < 0) {
+      throw new CsatError(400, 'Avaliação inválida.');
+    }
+    const experiencia = req.body?.experiencia;
+    const opiniao = typeof req.body?.opiniao === 'string' ? req.body.opiniao.trim() : '';
+    if (!['Bom', 'Ruim'].includes(experiencia) || opiniao.length > 100) {
+      throw new CsatError(400, 'Informe a experiência (Bom ou Ruim) e uma opinião com até 100 caracteres.');
+    }
+    const ref = db!.collection('ocorrencias').doc(req.params.id);
+    return db!.runTransaction(async tx => {
+      const ocorrencia = (await tx.get(ref)).data();
+      if (!ocorrencia) throw new CsatError(404, 'Ocorrência não encontrada.');
+      const respostas = Array.isArray(ocorrencia.csatRespostas) ? [...ocorrencia.csatRespostas] : [];
+      if (index >= respostas.length) throw new CsatError(404, 'Avaliação não encontrada.');
+      respostas[index] = { ...respostas[index], experiencia, opiniao, editadoPor: user.nome, editadoEm: Date.now() };
+      const resultados = respostas.map((r: any) => r.experiencia);
+      tx.update(ref, { csatRespostas: respostas, treinamentoResultados: resultados, updatedAt: Date.now() });
+      if (typeof ocorrencia.csatReservaId === 'string') {
+        tx.update(db!.collection('csatReservas').doc(ocorrencia.csatReservaId), { respostas, updatedAt: Date.now() });
+      }
+      if (typeof ocorrencia.gamificacaoPontoId === 'string' && /^[a-zA-Z0-9]+$/.test(ocorrencia.gamificacaoPontoId)) {
+        tx.update(db!.collection('gamificacao_pontos').doc(ocorrencia.gamificacaoPontoId), { treinamentoResultados: resultados, updatedAt: Date.now() });
+      }
+      return { csatRespostas: respostas, treinamentoResultados: resultados };
     });
   }));
 }

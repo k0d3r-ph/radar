@@ -6,6 +6,9 @@ export interface ReservaCsat extends Ocorrencia {
   criadoPor: string;
   respostas: { nome: string; experiencia: 'Bom' | 'Ruim'; opiniao: string; respondidoEm: number }[];
 }
+export async function editarRespostaCsat(ocorrenciaId: string, index: number, experiencia: 'Bom' | 'Ruim', opiniao: string) {
+  return requisicaoCsat(`ocorrencias/${encodeURIComponent(ocorrenciaId)}/respostas/${index}/editar`, { experiencia, opiniao }, true);
+}
 export async function requisicaoCsat(path: string, body?: unknown, autenticada = false) {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (autenticada) {

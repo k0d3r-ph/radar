@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import "./CsatReservas.css";
-import { requisicaoCsat, linkCsat } from "../../services/csat";
+import { requisicaoCsat, linkCsat, editarRespostaCsat } from "../../services/csat";
 import type { ReservaCsat } from "../../services/csat";
 import * as XLSX from "xlsx";
 import {
@@ -739,6 +739,9 @@ export function Historico() {
   const [novaDescricaoAtual, setNovaDescricaoAtual] = useState("");
   const [editingUpdateIdx, setEditingUpdateIdx] = useState<number | null>(null);
   const [editingUpdateText, setEditingUpdateText] = useState("");
+  const [editingCsatIdx, setEditingCsatIdx] = useState<number | null>(null);
+  const [editingCsatExperiencia, setEditingCsatExperiencia] = useState<"Bom" | "Ruim">("Bom");
+  const [editingCsatOpiniao, setEditingCsatOpiniao] = useState("");
   const [novoResponsavelAtual, setNovoResponsavelAtual] = useState("");
   const [empresasList, setEmpresasList] = useState<Empresa[]>([]);
   const [usuariosList, setUsuariosList] = useState<UsuarioDocument[]>([]);
@@ -1259,6 +1262,35 @@ export function Historico() {
     setNovaAtualizacaoAberta(false);
     setNovaDescricaoAtual("");
     setNovoResponsavelAtual("");
+  }
+
+  async function salvarEdicaoCsat(index: number) {
+    if (!selecionada?.id) return;
+    setSalvando(true);
+    try {
+      const dados = await editarRespostaCsat(
+        selecionada.id,
+        index,
+        editingCsatExperiencia,
+        editingCsatOpiniao.trim(),
+      );
+      setSelecionada({
+        ...selecionada,
+        csatRespostas: dados.csatRespostas,
+        treinamentoResultados: dados.treinamentoResultados,
+      });
+      await carregar(true);
+      setEditingCsatIdx(null);
+      setEditingCsatOpiniao("");
+      toast.success("Avaliação do CSAT atualizada com sucesso!");
+    } catch (error) {
+      console.error("Erro ao editar avaliação do CSAT:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Erro ao salvar a avaliação.",
+      );
+    } finally {
+      setSalvando(false);
+    }
   }
 
   useEffect(() => {
@@ -4257,14 +4289,113 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                           </div>
                         </div>
                       )}
-                    {selecionada.csatRespostas?.map((resposta, index) => (
-                      <div key={`csat-${index}`}>
-                        <span>
-                          {resposta.nome} — {resposta.experiencia}
-                        </span>
-                        {resposta.opiniao && <p>{resposta.opiniao}</p>}
-                      </div>
-                    ))}
+                    {selecionada.csatRespostas?.map((resposta, index) => {
+                      const isEditingCsat = editingCsatIdx === index;
+                      return (
+                        <div key={`csat-${index}`}>
+                          {isEditingCsat ? (
+                            <div className="hist-atualizacao-edit-container">
+                              <span>{resposta.nome}</span>
+                              <fieldset
+                                style={{
+                                  display: "flex",
+                                  gap: "12px",
+                                  border: "none",
+                                  padding: 0,
+                                  margin: 0,
+                                }}
+                              >
+                                {["Bom", "Ruim"].map((valor) => (
+                                  <label
+                                    key={valor}
+                                    style={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: "4px",
+                                    }}
+                                  >
+                                    <input
+                                      type="radio"
+                                      name={`csat-experiencia-${index}`}
+                                      value={valor}
+                                      checked={editingCsatExperiencia === valor}
+                                      onChange={() =>
+                                        setEditingCsatExperiencia(
+                                          valor as "Bom" | "Ruim",
+                                        )
+                                      }
+                                    />
+                                    {valor}
+                                  </label>
+                                ))}
+                              </fieldset>
+                              <textarea
+                                rows={2}
+                                maxLength={100}
+                                value={editingCsatOpiniao}
+                                onChange={(e) =>
+                                  setEditingCsatOpiniao(e.target.value)
+                                }
+                                className="hist-atualizacao-edit-textarea"
+                              />
+                              <div className="hist-atualizacao-edit-actions">
+                                <button
+                                  type="button"
+                                  className="hist-atualizacao-edit-btn-save"
+                                  onClick={() => salvarEdicaoCsat(index)}
+                                  disabled={salvando}
+                                >
+                                  {salvando ? "Salvando..." : "Salvar"}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="hist-atualizacao-edit-btn-cancel"
+                                  onClick={() => {
+                                    setEditingCsatIdx(null);
+                                    setEditingCsatOpiniao("");
+                                  }}
+                                >
+                                  Cancelar
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "flex-start",
+                                gap: "8px",
+                              }}
+                            >
+                              <div>
+                                <span>
+                                  {resposta.nome} — {resposta.experiencia}
+                                </span>
+                                {resposta.opiniao && <p>{resposta.opiniao}</p>}
+                              </div>
+                              {role === "master" && (
+                                <button
+                                  type="button"
+                                  className="btn-edit-atualizacao"
+                                  onClick={() => {
+                                    setEditingCsatIdx(index);
+                                    setEditingCsatExperiencia(
+                                      resposta.experiencia,
+                                    );
+                                    setEditingCsatOpiniao(
+                                      resposta.opiniao || "",
+                                    );
+                                  }}
+                                >
+                                  Editar
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                     {selecionada.treinamentoNotas &&
                       selecionada.treinamentoNotas.length > 0 && (
                         <div className="hist-detail-training-notes-wrapper">

@@ -10,6 +10,8 @@ dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
 export const config = {
   port: parseInt(process.env.PORT || '5000', 10),
+  /** Porta do processo leve (CSAT, ocorrências, sincronização, IA, Centrais), separado do bot do WhatsApp. */
+  apiPort: parseInt(process.env.API_PORT || '5001', 10),
   corsOrigin: process.env.CORS_ORIGIN || '*',
   geminiApiKey: process.env.GEMINI_API_KEY || '',
   /** URL do CSV publicado (Arquivo → Compartilhar → Publicar na web) da aba de controle do CS. */

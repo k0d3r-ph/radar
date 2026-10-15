@@ -8,9 +8,11 @@ import { GetConnectionStatus } from '../../application/use-cases/GetConnectionSt
 import { DisconnectClient } from '../../application/use-cases/DisconnectClient.js';
 import { SendMediaMessage } from '../../application/use-cases/SendMediaMessage.js';
 import { config } from '../config/env.js';
-import { adminDb } from '../firebase/firebaseAdmin.js';
-import { iniciarSincronizacaoSsxDesk } from '../ssxDesk/SsxDeskSyncService.js';
 
+/**
+ * Processo do bot do WhatsApp. CSAT, ocorrências, sincronização, IA e
+ * Centrais rodam separados em apiIndex.ts — ver comentário lá.
+ */
 async function bootstrap() {
   console.log('Iniciando Radar WhatsApp Server...');
 
@@ -44,8 +46,6 @@ async function bootstrap() {
     console.log(`WebSocket Server pronto para conexões.`);
     console.log(`--------------------------------------------------`);
   });
-
-  iniciarSincronizacaoSsxDesk(adminDb, config.ssxDeskApiKey, config.ssxDeskSyncIntervalMs);
 
   // 7. Auto-inicialização automática do cliente WhatsApp para restaurar sessões existentes
   try {

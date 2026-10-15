@@ -1,48 +1,19 @@
 import express from 'express';
-import { registrarCsat } from './csat.js';
-import cors from 'cors';
+import { criarAppBase } from './expressBase.js';
 import { WhatsAppController } from '../../adapters/controllers/WhatsAppController.js';
-import { IaController } from '../../adapters/controllers/IaController.js';
-import { CentraisController } from '../../adapters/controllers/CentraisController.js';
-import { OcorrenciasController } from '../../adapters/controllers/OcorrenciasController.js';
-import { SincronizacaoController } from '../../adapters/controllers/SincronizacaoController.js';
 import { WhatsAppWebClient } from '../whatsapp/WhatsAppWebClient.js';
-import { config } from '../config/env.js';
 import { adminAuth, adminDb, isFirebaseInitialized } from '../firebase/firebaseAdmin.js';
 
+/**
+ * Processo do bot do WhatsApp: só as rotas que dependem do cliente Puppeteer/
+ * Chromium. CSAT, ocorrências, sincronização, IA e Centrais ficam no processo
+ * leve (ver apiExpress.ts) para não competir por CPU/memória com o Chromium.
+ */
 export function createExpressApp(
   controller: WhatsAppController,
   whatsappService: WhatsAppWebClient
 ): express.Express {
-  const app = express();
-
-  const allowedOrigins = config.corsOrigin
-    ? config.corsOrigin.split(',').map(o => o.trim())
-    : ['*'];
-
-  app.use(cors({
-    origin: (origin, callback) => {
-      // Permitir requisições sem origin (como mobile apps, curl, etc.)
-      if (!origin) return callback(null, true);
-      
-      if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(null, false);
-      }
-    },
-    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-    credentials: true
-  }));
-
-  // Aumenta o limite para aceitar imagens grandes em base64 da esteira
-  app.use(express.json({ limit: '50mb' }));
-  app.use(express.urlencoded({ limit: '50mb', extended: true }));
-  registrarCsat(app, adminDb, adminAuth);
-  const ocorrenciasController = new OcorrenciasController(adminDb, adminAuth);
-  app.patch('/api/ocorrencias/:id/favorito', (req, res) => ocorrenciasController.definirFavorita(req, res));
-  const sincronizacaoController = new SincronizacaoController(adminDb, adminAuth);
-  app.get('/api/sincronizacao/:colecao', (req, res) => sincronizacaoController.listar(req, res));
+  const app = criarAppBase();
 
   // Rotas HTTP — WhatsApp
   app.get('/api/whatsapp/status', (req, res) => controller.status(req, res));
@@ -142,15 +113,6 @@ export function createExpressApp(
     }
   });
 
-  // Rotas HTTP — IA
-  const iaController = new IaController();
-  app.post('/api/ia/resumir', (req, res) => iaController.resumir(req, res));
-
-  // Rotas HTTP — Centrais (vínculo idCentral/SSX via planilha do CS)
-  const centraisController = new CentraisController();
-  app.get('/api/centrais/id-central', (req, res) => centraisController.buscarIdCentral(req, res));
-
-
   // Rota de depuração do Puppeteer
   app.get('/api/whatsapp/screenshot', async (req, res) => {
     try {
@@ -168,11 +130,6 @@ export function createExpressApp(
     } catch (err: any) {
       res.status(500).json({ error: 'Erro ao obter screenshot', details: err.message });
     }
-  });
-
-  // Rota de Health Check
-  app.get('/health', (req, res) => {
-    res.status(200).json({ status: 'OK', timestamp: Date.now() });
   });
 
   return app;

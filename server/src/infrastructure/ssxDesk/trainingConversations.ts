@@ -175,7 +175,7 @@ export async function listarConversas(
   let offset = 0;
   // Sem filtro de início: uma conversa antiga pode encerrar hoje ou receber o resumo depois.
   for (let pagina = 0; pagina < 1000; pagina++) {
-    const url = new URL('https://ssxdesk.ssat.dev/api/integrations/v1/training-conversations');
+    const url = new URL('https://ssxdesk.ssatx.com.br/api/integrations/v1/training-conversations');
     url.searchParams.set('limit', '500');
     url.searchParams.set('offset', String(offset));
     const response = await fetchApi(url, {

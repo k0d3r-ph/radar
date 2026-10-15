@@ -2591,7 +2591,9 @@ export const Gamificacao: React.FC = () => {
                                     )}
                                   {entry.tipoAcao !== "treinamento" &&
                                     (role === "master" ||
-                                      entry.criadoPorId === user?.uid) && (
+                                      (entry.tipoAcao !== "desconto_suporte" &&
+                                        entry.tipoAcao !== "chamado_falha" &&
+                                        entry.criadoPorId === user?.uid)) && (
                                       <button
                                         className="btn-delete-entry"
                                         onClick={() =>

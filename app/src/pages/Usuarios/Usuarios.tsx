@@ -31,6 +31,8 @@ import { useAuth } from "../../context/AuthContext";
 import { listarLancamentosPontos, reassociarPontosTreinador } from "../../services/gamificacao";
 import "./Usuarios.css";
 
+const WHATSAPP_API_URL = import.meta.env?.VITE_WHATSAPP_API_URL || "http://localhost:5000";
+
 const ROLE_DISPLAY: Record<string, string> = {
   suporte: "Suporte",
   hardware: "Hardware",
@@ -291,7 +293,7 @@ export const Usuarios: React.FC = () => {
   const handleExcluir = async (uid: string) => {
     setDeletingUid(uid);
     try {
-      const response = await fetch(`http://localhost:5000/api/whatsapp/users/${uid}`, {
+      const response = await fetch(`${WHATSAPP_API_URL}/api/whatsapp/users/${uid}`, {
         method: "DELETE"
       });
 
@@ -381,7 +383,7 @@ export const Usuarios: React.FC = () => {
 
     setResettingPassword(true);
     try {
-      const response = await fetch(`http://localhost:5000/api/whatsapp/users/${resetPasswordUser.uid}/reset-password`, {
+      const response = await fetch(`${WHATSAPP_API_URL}/api/whatsapp/users/${resetPasswordUser.uid}/reset-password`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"

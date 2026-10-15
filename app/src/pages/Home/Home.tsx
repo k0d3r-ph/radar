@@ -579,6 +579,21 @@ export default function Home() {
       nomeFinal = nomeFinal.replace(/\s*\(#\d+\)/, "").trim();
     }
 
+    const nomeFinalComparavel = nomeFinal.trim().toLowerCase();
+    const clienteComMesmoNome = empresas.find(
+      (e) =>
+        e.id !== editandoClienteId &&
+        e.nomeEmpresa.trim().toLowerCase() === nomeFinalComparavel,
+    );
+    if (
+      clienteComMesmoNome &&
+      !window.confirm(
+        `Já existe um cliente cadastrado como "${clienteComMesmoNome.nomeEmpresa}". Como o histórico e os avisos são vinculados pelo nome do cliente, cadastrar outro cliente com o mesmo nome pode misturar os dados dos dois.\n\nConfirma que quer salvar mesmo assim?`,
+      )
+    ) {
+      return;
+    }
+
     if (typeof idNumericToSave !== "number") {
       let highest = 0;
       empresas.forEach((e) => {

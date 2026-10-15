@@ -191,7 +191,6 @@ export const Relatorios: React.FC = () => {
     const interval = setInterval(() => {
       if (autoplayTimer <= 1) {
         setKpiSelecionado((current) => (current + 1) % 6);
-        carregarDados(true);
         setAutoplayTimer(intervaloSegundos);
       } else {
         setAutoplayTimer(autoplayTimer - 1);
@@ -199,7 +198,21 @@ export const Relatorios: React.FC = () => {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [isAutoplayActive, autoplayTimer, activeTab, intervaloSegundos, carregarDados]);
+  }, [isAutoplayActive, autoplayTimer, activeTab, intervaloSegundos]);
+
+  // Recarrega os dados periodicamente enquanto o modo painel/TV está ativo,
+  // numa cadência própria e fixa — o intervalo de rotação do KPI acima pode
+  // ser configurado em poucos segundos (é só o carrossel visual), mas recarregar
+  // dados nesse ritmo não teria efeito real (listarEmpresas/listarOcorrencias
+  // já têm cache de 5 min) e só gera chamadas desnecessárias.
+  const RECARGA_AUTOPLAY_MS = 5 * 60 * 1000;
+  useEffect(() => {
+    if (!isAutoplayActive || activeTab !== "esteira") return;
+    const intervalId = setInterval(() => {
+      carregarDados(true);
+    }, RECARGA_AUTOPLAY_MS);
+    return () => clearInterval(intervalId);
+  }, [isAutoplayActive, activeTab, carregarDados]);
 
   useEffect(() => {
     setAutoplayTimer(intervaloSegundos);

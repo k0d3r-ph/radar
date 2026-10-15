@@ -1920,6 +1920,21 @@ body.light-theme .tema-opcao:hover {
   width: 100%;
 }
 
+/* CSAT legado (modelo de nota 1-5), recolhido por padrão para não competir
+   visualmente com o CSAT atual (participantes com nome e opinião). */
+.hist-detail-legacy-csat summary {
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #64748b;
+  list-style: revert;
+}
+
+.hist-detail-legacy-csat[open] summary {
+  margin-bottom: 4px;
+}
+
 .nota-treinamento-tag {
   background: #f1f5f9;
   border: 1px solid #cbd5e1;

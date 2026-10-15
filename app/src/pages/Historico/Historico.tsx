@@ -4316,7 +4316,12 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                         <strong>{selecionada.treinamentoSolicitante}</strong>
                       </div>
                     )}
-                    {selecionada.treinamentoResultados &&
+                    {/* Resumo em tags só aparece quando não há csatRespostas (registros
+                        antigos, anteriores ao modelo com nome+opinião por participante) —
+                        evita mostrar a mesma informação duas vezes em formatos diferentes. */}
+                    {(!selecionada.csatRespostas ||
+                      selecionada.csatRespostas.length === 0) &&
+                      selecionada.treinamentoResultados &&
                       selecionada.treinamentoResultados.length > 0 && (
                         <div className="hist-detail-training-notes-wrapper">
                           <span>Resultado do CSAT</span>
@@ -4336,6 +4341,16 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                               ),
                             )}
                           </div>
+                        </div>
+                      )}
+                    {selecionada.csatRespostas &&
+                      selecionada.csatRespostas.length > 0 && (
+                        <div className="hist-detail-desc">
+                          <span>
+                            CSAT ({selecionada.csatRespostas.length}{" "}
+                            participante
+                            {selecionada.csatRespostas.length === 1 ? "" : "s"})
+                          </span>
                         </div>
                       )}
                     {selecionada.csatRespostas?.map((resposta, index) => {
@@ -4463,10 +4478,8 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                     })}
                     {selecionada.treinamentoNotas &&
                       selecionada.treinamentoNotas.length > 0 && (
-                        <div className="hist-detail-training-notes-wrapper">
-                          <span>
-                            Notas do Treinamento (CSAT, modelo antigo)
-                          </span>
+                        <details className="hist-detail-training-notes-wrapper hist-detail-legacy-csat">
+                          <summary>CSAT (modelo descontinuado)</summary>
                           <div className="hist-detail-training-notes-list">
                             {selecionada.treinamentoNotas.map((nota, idx) => (
                               <span key={idx} className="nota-treinamento-tag">
@@ -4480,7 +4493,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                                 </span>
                               )}
                           </div>
-                        </div>
+                        </details>
                       )}
                   </>
                 )}

@@ -2364,6 +2364,7 @@ export default function Home() {
         <input
           className="home-busca-cliente"
           placeholder="Buscar cliente..."
+          aria-label="Buscar cliente"
           value={filtroCliente}
           onChange={(e) => setFiltroCliente(e.target.value)}
         />
@@ -2403,7 +2404,7 @@ export default function Home() {
                 type="button"
                 className="modal-filtros-fechar"
                 onClick={() => setModalFiltrosAberto(false)}
-                title="Fechar"
+                title="Fechar" aria-label="Fechar"
               >
                 ×
               </button>
@@ -3270,7 +3271,7 @@ export default function Home() {
                   transition: "background 0.2s, color 0.2s",
                 }}
                 className="btn-fechar-modal"
-                title="Fechar"
+                title="Fechar" aria-label="Fechar"
               >
                 ✕
               </button>
@@ -3707,7 +3708,9 @@ export default function Home() {
             <p className="confirm-modal-text">
               Deseja realmente excluir o cliente{" "}
               <strong>{clienteSelecionado.nomeEmpresa}</strong>? Esta ação não
-              poderá ser desfeita.
+              poderá ser desfeita. O histórico de ocorrências já registrado
+              para este cliente não é apagado e continuará aparecendo no
+              Histórico sob este nome.
             </p>
             <div className="confirm-modal-actions">
               <button
@@ -3765,7 +3768,7 @@ export default function Home() {
                   transition: "background 0.2s, color 0.2s",
                 }}
                 className="btn-fechar-modal"
-                title="Fechar"
+                title="Fechar" aria-label="Fechar"
               >
                 ✕
               </button>

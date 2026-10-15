@@ -1,7 +1,16 @@
+.farol-wrapper {
+  position: relative;
+  display: inline-flex;
+  outline: none;
+}
+
 .farol {
   width: 14px;
   height: 14px;
   border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .farol-verde {
@@ -12,10 +21,52 @@
   background: #f1c40f;
 }
 
+/* Laranja (pendência manual) ganha um "!" para não depender só da cor,
+   já que é facilmente confundido com o vermelho (atraso calculado). */
 .farol-laranja {
   background: #f97316;
 }
 
+.farol-laranja::after {
+  content: "!";
+  color: #1e293b;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+}
+
 .farol-vermelho {
   background: #e74c3c;
+}
+
+.farol-wrapper:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 3px;
+  border-radius: 50%;
+}
+
+.farol-tooltip {
+  position: absolute;
+  bottom: 180%;
+  left: 50%;
+  transform: translateX(-50%) translateY(8px) scale(0.9);
+  background: #1e293b;
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  z-index: 99;
+}
+
+.farol-wrapper:hover .farol-tooltip,
+.farol-wrapper:focus-visible .farol-tooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0) scale(1);
 }

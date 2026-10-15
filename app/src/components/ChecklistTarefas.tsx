@@ -164,6 +164,7 @@ export default function ChecklistTarefas() {
 
   async function excluirTarefa(id?: string) {
     if (!id) return;
+    if (!window.confirm("Excluir esta tarefa? Essa ação não pode ser desfeita.")) return;
     await removerTarefaChecklist(id);
     setTarefas((prev) => prev.filter((t) => t.id !== id));
   }

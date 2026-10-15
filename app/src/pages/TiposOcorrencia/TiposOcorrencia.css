@@ -334,6 +334,23 @@
   margin: 0 0 22px 0;
 }
 
+.tipos-ocorrencia-modal-aviso-sistema {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-top: -10px;
+  color: #fbbf24 !important;
+}
+
+.tipos-ocorrencia-modal-aviso-sistema svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
 .tipos-ocorrencia-modal-actions {
   display: flex;
   justify-content: flex-end;

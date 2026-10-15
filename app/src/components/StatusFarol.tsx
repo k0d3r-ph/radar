@@ -11,5 +11,15 @@ export default function StatusFarol({ status, pendencia }: Props) {
 
   const descricao = status === "laranja" ? `Pendência: ${pendencia || 'Não informada'}` : `Status ${status}`;
 
-  return <div className={`farol farol-${status}`} role="img" aria-label={descricao} title={descricao} />;
+  return (
+    <div className="farol-wrapper" tabIndex={0}>
+      <div
+        className={`farol farol-${status}`}
+        role="img"
+        aria-label={descricao}
+        title={descricao}
+      />
+      <span className="farol-tooltip">{descricao}</span>
+    </div>
+  );
 }

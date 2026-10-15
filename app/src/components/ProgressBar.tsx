@@ -24,7 +24,12 @@ export default function ProgressBar({ value }: Props) {
 
   return (
     <div className="progress-container">
-      <div className="progress-bar-wrapper">
+      <div
+        className="progress-bar-wrapper"
+        tabIndex={0}
+        role="img"
+        aria-label={`Progresso: ${Math.round(value)}%`}
+      >
         <div ref={fillRef} className="progress-fill" />
         <span className="progress-tooltip">
           {Math.round(value)}%

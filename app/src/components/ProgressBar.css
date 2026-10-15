@@ -10,12 +10,18 @@
   height: 8px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.1);
-  cursor: pointer;
+  cursor: help;
   transition: background 0.2s ease;
+  outline: none;
 }
 
 .progress-bar-wrapper:hover {
   background: rgba(255, 255, 255, 0.15);
+}
+
+.progress-bar-wrapper:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 2px;
 }
 
 .progress-fill {
@@ -58,8 +64,9 @@
   border-color: #1e293b transparent transparent transparent;
 }
 
-/* Hover state triggers tooltip */
-.progress-bar-wrapper:hover .progress-tooltip {
+/* Hover/foco por teclado disparam o tooltip */
+.progress-bar-wrapper:hover .progress-tooltip,
+.progress-bar-wrapper:focus-visible .progress-tooltip {
   opacity: 1;
   transform: translateX(-50%) translateY(0) scale(1);
 }

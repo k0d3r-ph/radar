@@ -30,7 +30,7 @@ export const DoughnutChart: React.FC<DoughnutChartProps> = ({
   const circumference = 2 * Math.PI * radius; // ~414.69
 
   let accumulatedLength = 0;
-  
+
   // Calculate starting percentages for slice text positioning
   let currentAccumulated = 0;
   const accumulatedPercents = data.map((item) => {
@@ -39,13 +39,30 @@ export const DoughnutChart: React.FC<DoughnutChartProps> = ({
     return start;
   });
 
+  const resumoAcessivel = `${title}: ${
+    total === 0
+      ? "sem dados"
+      : data
+          .map(
+            (item) =>
+              `${item.label} ${item.value} (${((item.value / total) * 100).toFixed(0)}%)`,
+          )
+          .join(", ")
+  }`;
+
   return (
     <div className="doughnut-chart-card">
       <h3 className="doughnut-chart-title">{title}</h3>
       
       {total === 0 ? (
         <div className="doughnut-chart-empty-container">
-          <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+          <svg
+            width={size}
+            height={size}
+            viewBox={`0 0 ${size} ${size}`}
+            role="img"
+            aria-label={resumoAcessivel}
+          >
             <circle
               cx={size / 2}
               cy={size / 2}
@@ -71,10 +88,12 @@ export const DoughnutChart: React.FC<DoughnutChartProps> = ({
       ) : (
         <div className="doughnut-chart-content">
           <div className="doughnut-chart-svg-wrapper">
-            <svg 
-              width={size} 
-              height={size} 
+            <svg
+              width={size}
+              height={size}
               viewBox={`0 0 ${size} ${size}`}
+              role="img"
+              aria-label={resumoAcessivel}
             >
               {data.map((item, idx) => {
                 if (item.value === 0) return null;

@@ -378,6 +378,14 @@ export const TiposOcorrencia: React.FC = () => {
               <strong>"{confirmarExclusao.nome}"</strong>? Essa ação não pode
               ser desfeita.
             </p>
+            {NOMES_TIPOS_SISTEMA.has(confirmarExclusao.nome) && (
+              <p className="tipos-ocorrencia-modal-aviso-sistema">
+                <AlertTriangle size={16} />
+                Este é um tipo usado pelo sistema (ex.: cálculo de score,
+                assunto obrigatório). Excluí-lo remove essa regra de negócio
+                para novos registros — ocorrências antigas não são afetadas.
+              </p>
+            )}
             <div className="tipos-ocorrencia-modal-actions">
               <button
                 type="button"

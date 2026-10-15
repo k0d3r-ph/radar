@@ -733,6 +733,7 @@ export const Usuarios: React.FC = () => {
                                 setEditingUserNotificarConclusao(u.notificarConclusao !== false);
                               }}
                               title="Editar Perfil"
+                              aria-label="Editar Perfil"
                             >
                               <Edit2 size={16} />
                             </button>
@@ -745,6 +746,7 @@ export const Usuarios: React.FC = () => {
                               setMostrarNovaSenhaTemp(false);
                             }}
                             title="Redefinir Senha do Usuário"
+                            aria-label="Redefinir Senha do Usuário"
                           >
                             <KeyRound size={16} />
                           </button>
@@ -753,6 +755,7 @@ export const Usuarios: React.FC = () => {
                             onClick={() => handleToggleInativo(u)}
                             disabled={togglingInativoUid === u.uid}
                             title={u.inativo ? "Reativar Usuário" : "Inativar Usuário"}
+                            aria-label={u.inativo ? "Reativar Usuário" : "Inativar Usuário"}
                           >
                             {u.inativo ? <UserCheck size={16} /> : <UserX size={16} />}
                           </button>
@@ -760,6 +763,7 @@ export const Usuarios: React.FC = () => {
                             className="btn-delete-user"
                             onClick={() => setConfirmarExclusaoUid(u.uid)}
                             title="Excluir Usuário"
+                            aria-label="Excluir Usuário"
                           >
                             <Trash2 size={16} />
                           </button>

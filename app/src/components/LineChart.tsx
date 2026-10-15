@@ -35,6 +35,15 @@ export const LineChart: React.FC<LineChartProps> = ({ title, categorias, series 
 
   const gridLines = 4;
 
+  const resumoAcessivel = `${title}. ${series
+    .map((s) => {
+      const totalSerie = s.values.reduce((acc, v) => acc + v, 0);
+      const ultimoValor = s.values[s.values.length - 1] ?? 0;
+      const ultimaCategoria = categorias[categorias.length - 1] ?? "";
+      return `${s.label}: total ${totalSerie}, último valor ${ultimoValor}${ultimaCategoria ? ` (${ultimaCategoria})` : ""}`;
+    })
+    .join("; ")}`;
+
   // Com muitos pontos (ex.: 90 dias) os rótulos do eixo X se sobrepõem; exibe um a cada
   // `passoRotulo`, sempre mantendo o mais recente (último) visível.
   const passoRotulo = Math.max(1, Math.ceil(n / 16));
@@ -48,7 +57,13 @@ export const LineChart: React.FC<LineChartProps> = ({ title, categorias, series 
       ) : (
         <>
           <div className="line-chart-svg-wrapper">
-            <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="line-chart-svg" preserveAspectRatio="xMidYMid meet">
+            <svg
+              viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+              className="line-chart-svg"
+              preserveAspectRatio="xMidYMid meet"
+              role="img"
+              aria-label={resumoAcessivel}
+            >
               {Array.from({ length: gridLines + 1 }).map((_, i) => {
                 const y = PADDING_TOP + (plotHeight / gridLines) * i;
                 const valor = Math.round(maxValor - (maxValor / gridLines) * i);
@@ -80,7 +95,7 @@ export const LineChart: React.FC<LineChartProps> = ({ title, categorias, series 
                 </text>
               ))}
 
-              {series.map((s) => {
+              {series.map((s, serieIdx) => {
                 const pontos = s.values.map((v, idx) => `${xFor(idx)},${yFor(v)}`).join(" ");
                 return (
                   <polyline
@@ -91,6 +106,10 @@ export const LineChart: React.FC<LineChartProps> = ({ title, categorias, series 
                     strokeWidth={2.5}
                     strokeLinejoin="round"
                     strokeLinecap="round"
+                    // A partir da 2ª série, um traço tracejado reforça a diferença
+                    // entre linhas de cores parecidas (ex.: mesma cor-base ao comparar
+                    // "Treinamento" com "Suporte") sem depender só da cor.
+                    strokeDasharray={serieIdx > 0 ? "6 4" : undefined}
                     className="line-chart-line"
                   />
                 );

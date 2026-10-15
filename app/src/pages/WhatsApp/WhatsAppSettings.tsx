@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import { toast } from "sonner";
 import {
@@ -9,6 +9,7 @@ import {
   Send,
   Smartphone,
   AlertCircle,
+  AlertTriangle,
   CheckCircle2,
   Loader2,
   RefreshCw,
@@ -41,6 +42,8 @@ export const WhatsAppSettings: React.FC = () => {
   const [enviarImagem, setEnviarImagem] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [padronizando, setPadronizando] = useState(false);
+  const [desconectarConfirmOpen, setDesconectarConfirmOpen] = useState(false);
+  const [padronizarConfirmOpen, setPadronizarConfirmOpen] = useState(false);
 
   // Carrega empresas para a lista de teste
   useEffect(() => {
@@ -118,68 +121,74 @@ export const WhatsAppSettings: React.FC = () => {
   };
 
   const handleDesconectar = async () => {
-    if (window.confirm("Deseja realmente desconectar o WhatsApp do Radar?")) {
-      try {
-        toast.info("Desconectando do WhatsApp...");
-        await desconectarWhatsApp();
-        toast.success("Desconectado com sucesso!");
-      } catch (err: any) {
-        toast.error(err.message || "Erro ao desconectar.");
-      }
+    setDesconectarConfirmOpen(false);
+    try {
+      toast.info("Desconectando do WhatsApp...");
+      await desconectarWhatsApp();
+      toast.success("Desconectado com sucesso!");
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao desconectar.");
     }
   };
 
+  // Números inválidos permanecem como estão, para não descartar o dado
+  // digitado — eles aparecem sinalizados no cadastro do cliente.
+  function calcularPadraoTelefone(emp: Empresa) {
+    const telPadrao = emp.telefone
+      ? normalizarTelefoneWhatsApp(emp.telefone) || emp.telefone
+      : emp.telefone;
+    // A lista de contatos é a fonte usada no disparo da esteira, então
+    // precisa ser padronizada junto com o telefone principal.
+    const contatosPadrao = (emp.contatos || []).map(normalizarContatoCliente);
+    const telefoneMudou = emp.telefone !== telPadrao;
+    const contatosMudaram = contatosPadrao.some(
+      (c, i) => JSON.stringify(c) !== JSON.stringify((emp.contatos || [])[i])
+    );
+    return { telPadrao, contatosPadrao, precisaAtualizar: telefoneMudou || contatosMudaram };
+  }
+
+  const clientesParaPadronizar = useMemo(
+    () => empresas.filter((emp) => emp.id && calcularPadraoTelefone(emp).precisaAtualizar),
+    [empresas],
+  );
+
   const handlePadronizarTelefones = async () => {
-    if (window.confirm("Deseja realmente padronizar os números de WhatsApp de todos os clientes cadastrados? (Isso adicionará o DDI '55' caso não exista e removerá caracteres especiais)")) {
-      setPadronizando(true);
-      toast.info("Iniciando a padronização dos números dos clientes no banco de dados...");
-      try {
-        const lista = await listarEmpresas();
-        let alteradas = 0;
-        
-        for (const emp of lista) {
-          if (!emp.id) continue;
+    setPadronizarConfirmOpen(false);
+    setPadronizando(true);
+    toast.info("Iniciando a padronização dos números dos clientes no banco de dados...");
+    try {
+      const lista = await listarEmpresas();
+      let alteradas = 0;
 
-          // Números inválidos permanecem como estão, para não descartar o dado
-          // digitado — eles aparecem sinalizados no cadastro do cliente.
-          const telPadrao = emp.telefone
-            ? normalizarTelefoneWhatsApp(emp.telefone) || emp.telefone
-            : emp.telefone;
+      for (const emp of lista) {
+        if (!emp.id) continue;
 
-          // A lista de contatos é a fonte usada no disparo da esteira, então
-          // precisa ser padronizada junto com o telefone principal.
-          const contatosPadrao = (emp.contatos || []).map(normalizarContatoCliente);
+        const { telPadrao, contatosPadrao, precisaAtualizar } = calcularPadraoTelefone(emp);
 
-          const telefoneMudou = emp.telefone !== telPadrao;
-          const contatosMudaram = contatosPadrao.some(
-            (c, i) => JSON.stringify(c) !== JSON.stringify((emp.contatos || [])[i])
-          );
-
-          if (telefoneMudou || contatosMudaram) {
-            await salvarEmpresas({
-              ...emp,
-              telefone: telPadrao,
-              ...(emp.contatos ? { contatos: contatosPadrao } : {}),
-            });
-            alteradas++;
-          }
+        if (precisaAtualizar) {
+          await salvarEmpresas({
+            ...emp,
+            telefone: telPadrao,
+            ...(emp.contatos ? { contatos: contatosPadrao } : {}),
+          });
+          alteradas++;
         }
-        
-        const listaAtualizada = await listarEmpresas();
-        listaAtualizada.sort((a, b) => a.nomeEmpresa.localeCompare(b.nomeEmpresa, "pt-BR"));
-        setEmpresas(listaAtualizada);
-        
-        if (alteradas > 0) {
-          toast.success(`Padronização concluída! ${alteradas} número(s) de cliente(s) foram corrigidos.`);
-        } else {
-          toast.success("Todos os números de clientes já estão no padrão correto!");
-        }
-      } catch (err: any) {
-        console.error("Erro ao padronizar telefones:", err);
-        toast.error("Erro durante o processo de padronização.");
-      } finally {
-        setPadronizando(false);
       }
+
+      const listaAtualizada = await listarEmpresas();
+      listaAtualizada.sort((a, b) => a.nomeEmpresa.localeCompare(b.nomeEmpresa, "pt-BR"));
+      setEmpresas(listaAtualizada);
+
+      if (alteradas > 0) {
+        toast.success(`Padronização concluída! ${alteradas} número(s) de cliente(s) foram corrigidos.`);
+      } else {
+        toast.success("Todos os números de clientes já estão no padrão correto!");
+      }
+    } catch (err: any) {
+      console.error("Erro ao padronizar telefones:", err);
+      toast.error("Erro durante o processo de padronização.");
+    } finally {
+      setPadronizando(false);
     }
   };
 
@@ -256,7 +265,7 @@ export const WhatsAppSettings: React.FC = () => {
               </div>
             </div>
 
-            <button onClick={handleDesconectar} className="btn-whatsapp-disconnect">
+            <button onClick={() => setDesconectarConfirmOpen(true)} className="btn-whatsapp-disconnect">
               <Power size={16} />
               <span>Desconectar Conta</span>
             </button>
@@ -376,7 +385,7 @@ export const WhatsAppSettings: React.FC = () => {
               </p>
               <button
                 type="button"
-                onClick={handlePadronizarTelefones}
+                onClick={() => setPadronizarConfirmOpen(true)}
                 disabled={padronizando}
                 className="btn-whatsapp-maintenance"
                 style={{ marginTop: "12px" }}
@@ -494,6 +503,64 @@ export const WhatsAppSettings: React.FC = () => {
           </div>
         </section>
       </div>
+
+      {desconectarConfirmOpen && (
+        <div className="confirm-overlay" onClick={() => setDesconectarConfirmOpen(false)}>
+          <div className="confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="confirm-modal-header">
+              <AlertTriangle className="confirm-modal-icon warning" size={24} />
+              <h2>Desconectar WhatsApp</h2>
+            </div>
+            <p className="confirm-modal-text">
+              Deseja realmente desconectar o WhatsApp do Radar? As atualizações
+              automáticas de esteiras param de ser enviadas até um novo
+              pareamento (via QR Code).
+            </p>
+            <div className="confirm-modal-actions">
+              <button className="btn-excluir-confirm" onClick={handleDesconectar}>
+                Sim, desconectar
+              </button>
+              <button
+                className="btn-cancelar-confirm"
+                onClick={() => setDesconectarConfirmOpen(false)}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {padronizarConfirmOpen && (
+        <div className="confirm-overlay" onClick={() => setPadronizarConfirmOpen(false)}>
+          <div className="confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="confirm-modal-header">
+              <AlertTriangle className="confirm-modal-icon warning" size={24} />
+              <h2>Padronizar números de telefone</h2>
+            </div>
+            <p className="confirm-modal-text">
+              {clientesParaPadronizar.length === 0
+                ? "Todos os números de clientes já estão no padrão correto — nenhuma alteração será feita."
+                : `Isso vai alterar o telefone e/ou os contatos de ${clientesParaPadronizar.length} cliente(s) cadastrado(s), adicionando o DDI "55" quando faltar e removendo caracteres especiais. Essa ação grava direto no banco de dados e não pode ser desfeita em lote.`}
+            </p>
+            <div className="confirm-modal-actions">
+              <button
+                className="btn-excluir-confirm"
+                onClick={handlePadronizarTelefones}
+                disabled={clientesParaPadronizar.length === 0}
+              >
+                Sim, padronizar
+              </button>
+              <button
+                className="btn-cancelar-confirm"
+                onClick={() => setPadronizarConfirmOpen(false)}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

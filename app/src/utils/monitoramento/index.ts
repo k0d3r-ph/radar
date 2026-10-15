@@ -6,3 +6,4 @@ export * from "./calcularDiasCongeladosPorCheckpoint";
 export * from "./obterUltimoTreinamentoOuCheckpointOuInformativo";
 export * from "./calcularTotalFases";
 export * from "./obterProximoCheckpoint";
+export * from "./calcularStatusEsteiraCliente";

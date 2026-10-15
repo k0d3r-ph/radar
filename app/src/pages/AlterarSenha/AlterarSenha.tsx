@@ -119,22 +119,11 @@ export const AlterarSenha: React.FC = () => {
               <input
                 id="perfil"
                 type="text"
+                className="input-disabled"
                 value={ROLE_DISPLAY[userRole] || userRole}
                 readOnly
                 disabled
-                style={{
-                  width: "100%",
-                  height: "48px",
-                  backgroundColor: "rgba(31, 41, 55, 0.3)",
-                  border: "1px solid rgba(255, 255, 255, 0.05)",
-                  borderRadius: "12px",
-                  padding: "0 15px",
-                  fontSize: "15px",
-                  color: "rgba(255, 255, 255, 0.6)",
-                  outline: "none",
-                  boxSizing: "border-box",
-                  cursor: "not-allowed"
-                }}
+                style={{ width: "100%", height: "48px", padding: "0 15px" }}
               />
             </div>
           </div>

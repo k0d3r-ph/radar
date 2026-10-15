@@ -323,6 +323,27 @@
   margin: 0 0 8px 0;
 }
 
+/* ── Aviso de conexão perdida com o servidor (socket) ── */
+.whatsapp-socket-aviso {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  color: #b45309;
+  padding: 12px 14px;
+  border-radius: 10px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.whatsapp-socket-aviso svg {
+  flex-shrink: 0;
+  color: #f59e0b;
+  margin-top: 2px;
+}
+
 /* ── Cartão de Desconectado ── */
 .whatsapp-disconnected-card {
   display: flex;

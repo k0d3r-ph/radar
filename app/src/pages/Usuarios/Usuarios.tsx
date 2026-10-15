@@ -15,6 +15,8 @@ import {
   Briefcase,
   Lock,
   Gauge,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import {
   criarNovoUsuario,
@@ -99,6 +101,7 @@ export const Usuarios: React.FC = () => {
   // Estados para redefinição de senha de usuários
   const [resetPasswordUser, setResetPasswordUser] = useState<UsuarioDocument | null>(null);
   const [novaSenhaTemp, setNovaSenhaTemp] = useState("");
+  const [mostrarNovaSenhaTemp, setMostrarNovaSenhaTemp] = useState(false);
   const [resettingPassword, setResettingPassword] = useState(false);
 
   // Estados para reconsolidação de pontos da gamificação
@@ -397,6 +400,7 @@ export const Usuarios: React.FC = () => {
         toast.success(`Senha do usuário ${resetPasswordUser.nome} redefinida com sucesso!`);
         setResetPasswordUser(null);
         setNovaSenhaTemp("");
+        setMostrarNovaSenhaTemp(false);
         await carregarUsuarios();
       } else {
         toast.error(data.error || "Erro ao redefinir a senha do usuário.");
@@ -738,6 +742,7 @@ export const Usuarios: React.FC = () => {
                             onClick={() => {
                               setResetPasswordUser(u);
                               setNovaSenhaTemp("");
+                              setMostrarNovaSenhaTemp(false);
                             }}
                             title="Redefinir Senha do Usuário"
                           >
@@ -1064,13 +1069,22 @@ export const Usuarios: React.FC = () => {
                 <Lock className="input-icon" size={18} />
                 <input
                   id="novaSenhaTemp"
-                  type="text"
+                  type={mostrarNovaSenhaTemp ? "text" : "password"}
                   placeholder="Mínimo 6 caracteres"
                   value={novaSenhaTemp}
                   onChange={(e) => setNovaSenhaTemp(e.target.value)}
                   disabled={resettingPassword}
-                  style={{ width: "100%", paddingLeft: "45px" }}
+                  style={{ width: "100%", paddingLeft: "45px", paddingRight: "40px" }}
                 />
+                <button
+                  type="button"
+                  className="password-toggle-btn"
+                  onClick={() => setMostrarNovaSenhaTemp((atual) => !atual)}
+                  disabled={resettingPassword}
+                  aria-label={mostrarNovaSenhaTemp ? "Ocultar senha" : "Mostrar senha"}
+                >
+                  {mostrarNovaSenhaTemp ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
             </div>
 

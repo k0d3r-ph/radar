@@ -3,6 +3,7 @@ import {
   addDoc,
   deleteDoc,
   updateDoc,
+  runTransaction,
   doc,
   getDocs,
   query,
@@ -48,7 +49,10 @@ let lastFetchEmpresas = 0;
 let cachedUsuario: string | undefined;
 const CACHE_TTL = 300000; // 5 minutos (300.000 ms)
 
-export async function salvarEmpresas(empresa: Partial<Empresa>) {
+export async function salvarEmpresas(
+  empresa: Partial<Empresa>,
+  opcoes?: { updatedAtEsperado?: number },
+) {
   const { id, tme, progresso, farol, dias, ocorrenciaAlertaId, ocorrenciasSequenciasReservadas, ...dados } = empresa as any;
 
   const dadosLimpos = Object.fromEntries(
@@ -60,10 +64,25 @@ export async function salvarEmpresas(empresa: Partial<Empresa>) {
   if (id) {
     const ref = doc(db, COLLECTION, id);
 
-    await updateDoc(ref, {
-      ...dadosLimpos,
-      updatedAt,
-    });
+    if (opcoes?.updatedAtEsperado !== undefined) {
+      await runTransaction(db, async (transaction) => {
+        const atual = await transaction.get(ref);
+        if (atual.exists() && atual.data()?.updatedAt !== opcoes.updatedAtEsperado) {
+          throw new Error(
+            'Este cliente foi alterado por outra pessoa enquanto você editava. Recarregue a página e tente novamente.',
+          );
+        }
+        transaction.update(ref, {
+          ...dadosLimpos,
+          updatedAt,
+        });
+      });
+    } else {
+      await updateDoc(ref, {
+        ...dadosLimpos,
+        updatedAt,
+      });
+    }
 
     // Atualização Otimista do Cache
     if (cachedEmpresas) {

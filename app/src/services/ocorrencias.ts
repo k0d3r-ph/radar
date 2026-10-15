@@ -37,7 +37,10 @@ function removerUndefined<T>(valor: T): T {
   return valor;
 }
 
-export async function salvarOcorrencia(ocorrencia: Ocorrencia) {
+export async function salvarOcorrencia(
+  ocorrencia: Ocorrencia,
+  opcoes?: { updatedAtEsperado?: number },
+) {
   // A estrela é alterada somente pelo endpoint que valida perfil e limite por cliente.
   const { horaOcorrencia, id, favorita, favoritadaPor, favoritadaEm, favoritaEmpresaId, ...dados } = ocorrencia as any;
 
@@ -48,6 +51,15 @@ export async function salvarOcorrencia(ocorrencia: Ocorrencia) {
     const updatedAt = Date.now();
     await runTransaction(db, async transaction => {
       const atual = await transaction.get(ref);
+      if (
+        opcoes?.updatedAtEsperado !== undefined &&
+        atual.exists() &&
+        atual.data()?.updatedAt !== opcoes.updatedAtEsperado
+      ) {
+        throw new Error(
+          'Esta ocorrência foi alterada por outra pessoa enquanto você editava. Recarregue a página e tente novamente.',
+        );
+      }
       const normalizarEmpresa = (nome: string) => nome.trim().toLowerCase().replace(/&amp;/g, '&').replace(/\s+/g, ' ');
       if (atual.data()?.favorita && dadosLimpos.empresa
         && normalizarEmpresa(atual.data()!.empresa) !== normalizarEmpresa(dadosLimpos.empresa)) {

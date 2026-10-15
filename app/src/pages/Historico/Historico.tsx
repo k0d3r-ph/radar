@@ -1,5 +1,5 @@
 import { reordenarTemasEnsinados } from "../../utils/reordenarTemasEnsinados";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import "./CsatReservas.css";
@@ -748,6 +748,7 @@ export function Historico() {
   const [ocorrencias, setOcorrencias] = useState<Ocorrencia[]>([]);
   const [selecionada, setSelecionada] = useState<Ocorrencia | null>(null);
   const [form, setForm] = useState({ ...EMPTY });
+  const formSnapshotRef = useRef<string>(JSON.stringify(EMPTY));
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const editandoImportadaSsx =
     !!editandoId &&
@@ -1368,12 +1369,14 @@ export function Historico() {
   function abrirNovo() {
     const deptos = getAllowedDepartments();
     const deptoPadrao = deptos.length === 1 ? deptos[0] : "";
-    setForm({
+    const novoForm = {
       ...EMPTY,
       empresa: empresaFiltro || "",
       responsavel: userName,
       departamento: deptoPadrao,
-    });
+    };
+    setForm(novoForm);
+    formSnapshotRef.current = JSON.stringify(novoForm);
     setTemaOcorrenciaOngoingText("");
     setBuscaAssunto("");
     setEditandoId(null);
@@ -1428,7 +1431,7 @@ export function Historico() {
       horaCriacaoFormatada = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
     }
 
-    setForm({
+    const formEdicao: OcorrenciaForm = {
       empresa: o.empresa,
       tipo: o.tipo,
       descricao: o.descricao,
@@ -1457,7 +1460,9 @@ export function Historico() {
       chamadoAberto: o.chamadoAberto ?? false,
       chamadoDescricao: o.chamadoDescricao ?? "",
       chamadoLink: o.chamadoLink ?? "",
-    });
+    };
+    setForm(formEdicao);
+    formSnapshotRef.current = JSON.stringify(formEdicao);
     setTemaOcorrenciaOngoingText(temas.join(", "));
     setBuscaAssunto("");
     setEditandoId(o.id ?? null);
@@ -1473,7 +1478,17 @@ export function Historico() {
     setTemaForaEsteira(o.temaForaEsteira ?? false);
   }
 
-  function cancelar() {
+  function cancelar(opts?: { skipConfirmacao?: boolean }) {
+    const houveAlteracao = JSON.stringify(form) !== formSnapshotRef.current;
+    if (
+      !opts?.skipConfirmacao &&
+      houveAlteracao &&
+      !window.confirm(
+        "Existem alterações não salvas nesta ocorrência. Deseja descartá-las?",
+      )
+    ) {
+      return;
+    }
     setTemasRevisados([]);
     setPainelAberto(false);
     setForm({ ...EMPTY });
@@ -1958,6 +1973,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
           ).id
         : await salvarOcorrencia(
             editandoId ? { ...base, id: editandoId } : base,
+            editandoId
+              ? { updatedAtEsperado: ocorrenciaOriginal?.updatedAt }
+              : undefined,
           );
     } catch (error) {
       toast.error(
@@ -2174,24 +2192,45 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
     // Cliente marcado (Master-only, no cadastro) como elegível para dedução de pontos
     // do treinador responsável quando entra em contato com o Suporte por Dúvida,
-    // Problema ou Solicitação — só na criação, para não reaplicar a cada edição.
-    if (
-      !editandoId &&
+    // Problema ou Solicitação. Reavaliado também na edição (comparando com
+    // `ocorrenciaOriginal`) para que corrigir o departamento/tipo depois de
+    // registrar a ocorrência não deixe de aplicar — ou devolva o ponto — o
+    // desconto; `jaTinhaDesconto` evita reaplicar duas vezes a mesma dedução.
+    const jaTinhaDesconto = !!ocorrenciaOriginal?.gamificacaoDescontoPontoId;
+    const qualificaParaDescontoSuporte =
       !empresaInterna &&
-      empresaObjeto?.gamificacaoDeducaoSuporte?.ativo &&
-      empresaObjeto.responsavel &&
+      !!empresaObjeto?.gamificacaoDeducaoSuporte?.ativo &&
+      !!empresaObjeto.responsavel &&
       form.departamento === "Suporte" &&
       (form.tipo === "Dúvida" ||
         form.tipo === "Problema" ||
-        form.tipo === "Solicitação")
-    ) {
+        form.tipo === "Solicitação");
+
+    if (editandoId && jaTinhaDesconto && !qualificaParaDescontoSuporte) {
+      // Deixou de qualificar (ex.: corrigiram o departamento/tipo): devolve o ponto.
+      try {
+        await removerLancamentoPonto(ocorrenciaOriginal!.gamificacaoDescontoPontoId!);
+        await salvarOcorrencia({
+          id: savedId,
+          gamificacaoDescontoPontoId: "",
+        } as Ocorrencia);
+      } catch (error) {
+        console.error(
+          "Erro ao reverter desconto de gamificação por contato com Suporte:",
+          error,
+        );
+      }
+    }
+
+    if (qualificaParaDescontoSuporte && !jaTinhaDesconto) {
       const chavePorTipo = {
         Dúvida: "duvida",
         Problema: "problema",
         Solicitação: "solicitacao",
       } as const;
-      const chave = chavePorTipo[form.tipo];
-      const config = empresaObjeto.gamificacaoDeducaoSuporte[chave];
+      const chave =
+        chavePorTipo[form.tipo as "Dúvida" | "Problema" | "Solicitação"];
+      const config = empresaObjeto!.gamificacaoDeducaoSuporte![chave];
       // Data da ocorrência é opcional para Dúvida/Problema/Solicitação e fica
       // 0 quando não preenchida — nesse caso o contato aconteceu agora, então
       // usamos o momento atual para não cair em 01/01/1970 (sempre "fora do
@@ -2627,7 +2666,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         }
         await carregar();
         setSalvando(false);
-        cancelar();
+        cancelar({ skipConfirmacao: true });
         toast.success(
           editandoId && !reservaEditando
             ? "Ocorrência atualizada!"
@@ -2734,7 +2773,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
     } else {
       await carregar();
       setSalvando(false);
-      cancelar();
+      cancelar({ skipConfirmacao: true });
       toast.success(
         editandoId && !reservaEditando
           ? "Ocorrência atualizada!"
@@ -4885,7 +4924,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               <h2>{editandoId ? "Editar ocorrência" : "Nova ocorrência"}</h2>
               <button
                 className="hist-fechar"
-                onClick={cancelar}
+                onClick={() => cancelar()}
                 aria-label="Fechar painel"
               >
                 <X size={18} />
@@ -5740,7 +5779,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             </div>
 
             <div className="hist-painel-actions">
-              <button className="btn-ghost" onClick={cancelar}>
+              <button className="btn-ghost" onClick={() => cancelar()}>
                 Cancelar
               </button>
               <button
@@ -6653,7 +6692,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   setPendingWhatsAppMessage(null);
                   await carregar();
                   setSalvando(false);
-                  cancelar();
+                  cancelar({ skipConfirmacao: true });
                   toast.success(
                     editandoId && !reservaEditando
                       ? "Ocorrência atualizada!"
@@ -6776,7 +6815,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                     setPendingWhatsAppMessage(null);
                     await carregar();
                     setSalvando(false);
-                    cancelar();
+                    cancelar({ skipConfirmacao: true });
                     toast.success(
                       editandoId && !reservaEditando
                         ? "Ocorrência atualizada!"

@@ -266,6 +266,15 @@
   color: #eef3ff;
 }
 
+.phase-status-badge {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: rgba(238, 243, 255, 0.75);
+}
+
 .controls input::placeholder,
 .controls textarea::placeholder {
   color: rgba(255, 255, 255, 0.65);

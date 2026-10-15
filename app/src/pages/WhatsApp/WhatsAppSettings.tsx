@@ -31,6 +31,7 @@ export const WhatsAppSettings: React.FC = () => {
     status: "disconnected"
   });
   const [socket, setSocket] = useState<Socket | null>(null);
+  const [socketConectado, setSocketConectado] = useState(true);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   
   // Test Message Form States
@@ -64,6 +65,7 @@ export const WhatsAppSettings: React.FC = () => {
 
     newSocket.on("connect", () => {
       console.log("Conectado ao Socket.io do WhatsApp.");
+      setSocketConectado(true);
     });
 
     newSocket.on("whatsapp-status", (data: WhatsAppSessionState) => {
@@ -77,6 +79,7 @@ export const WhatsAppSettings: React.FC = () => {
 
     newSocket.on("disconnect", () => {
       console.log("Desconectado do Socket.io do WhatsApp.");
+      setSocketConectado(false);
     });
 
     setSocket(newSocket);
@@ -348,6 +351,15 @@ export const WhatsAppSettings: React.FC = () => {
             <h2>Pareamento e Conexão</h2>
           </div>
           <div className="card-body">
+            {!socketConectado && (
+              <div className="whatsapp-socket-aviso">
+                <AlertCircle size={16} />
+                <span>
+                  Sem conexão com o servidor do WhatsApp. O status abaixo pode estar
+                  desatualizado — tentando reconectar automaticamente.
+                </span>
+              </div>
+            )}
             {renderStatusSection()}
           </div>
         </section>
@@ -456,7 +468,7 @@ export const WhatsAppSettings: React.FC = () => {
 
               <button
                 type="submit"
-                disabled={enviando || session.status !== "connected"}
+                disabled={enviando || !socketConectado || session.status !== "connected"}
                 className="btn-whatsapp-send"
               >
                 {enviando ? (

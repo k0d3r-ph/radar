@@ -1,12 +1,15 @@
 import "./Esteira.css";
 import base from "../../assets/base.png";
-import { useState, useRef, useEffect } from "react";
-import type { Empresa } from "../../types";
+import { useState, useRef, useEffect, useMemo } from "react";
+import type { Empresa, Ocorrencia } from "../../types";
 import {
   salvarEmpresas,
   listarEmpresas,
   removerEmpresa,
 } from "../../services/empresas";
+import { listarOcorrencias } from "../../services/ocorrencias";
+import { calcularStatusEsteiraCliente } from "../../utils/monitoramento";
+import StatusFarol from "../../components/StatusFarol";
 import FakeSelect from "../../components/FakeSelect";
 import { toast } from "sonner";
 import { useParams, useNavigate } from "react-router-dom";
@@ -89,6 +92,7 @@ function Esteira() {
 
   const [empresaId, setEmpresaId] = useState("");
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [ocorrencias, setOcorrencias] = useState<Ocorrencia[]>([]);
   const [templatesAbertos, setTemplatesAbertos] = useState(false);
 
   const [nomeEmpresa, setNomeEmpresa] = useState("");
@@ -115,8 +119,12 @@ function Esteira() {
 
   useEffect(() => {
     async function carregar() {
-      const lista = await listarEmpresas();
+      const [lista, historico] = await Promise.all([
+        listarEmpresas(),
+        listarOcorrencias(),
+      ]);
       setEmpresas(lista);
+      setOcorrencias(historico);
 
       if (id) {
         const empresa = lista.find((x) => String(x.id) === id);
@@ -141,6 +149,15 @@ function Esteira() {
 
     carregar();
   }, [id]);
+
+  const empresaSelecionada = empresas.find(
+    (e) => String(e.id) === empresaId,
+  );
+
+  const statusEsteiraCliente = useMemo(() => {
+    if (!empresaSelecionada) return null;
+    return calcularStatusEsteiraCliente(empresaSelecionada, ocorrencias);
+  }, [empresaSelecionada, ocorrencias]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -455,21 +472,36 @@ function Esteira() {
                   ? empresaExistente?.dataFinalizacao || dataHoje
                   : "";
 
-                const novoId = await salvarEmpresas({
-                  ...(empresaId ? { id: empresaId } : {}),
-                  nomeEmpresa,
-                  idCentral: idCentralFinal || undefined,
-                  temaText,
-                  dataText,
-                  currentPhase,
-                  dataFinalizacao,
-                  // Se o treinador esquecer de preencher a data de entrada
-                  // (esse campo não existe neste formulário), assume hoje —
-                  // é a base do cálculo de dias na esteira e do Aging.
-                  dataEntrada: empresaExistente?.dataEntrada || dataHoje,
-                  temaGol,
-                  updatedAt: Date.now(),
-                });
+                let novoId: string | void;
+                try {
+                  novoId = await salvarEmpresas(
+                    {
+                      ...(empresaId ? { id: empresaId } : {}),
+                      nomeEmpresa,
+                      idCentral: idCentralFinal || undefined,
+                      temaText,
+                      dataText,
+                      currentPhase,
+                      dataFinalizacao,
+                      // Se o treinador esquecer de preencher a data de entrada
+                      // (esse campo não existe neste formulário), assume hoje —
+                      // é a base do cálculo de dias na esteira e do Aging.
+                      dataEntrada: empresaExistente?.dataEntrada || dataHoje,
+                      temaGol,
+                      updatedAt: Date.now(),
+                    },
+                    empresaId
+                      ? { updatedAtEsperado: empresaExistente?.updatedAt }
+                      : undefined,
+                  );
+                } catch (error) {
+                  toast.error(
+                    error instanceof Error
+                      ? error.message
+                      : "Não foi possível salvar a empresa.",
+                  );
+                  return;
+                }
 
                 if (novoId) {
                   setEmpresaId(String(novoId));
@@ -690,6 +722,20 @@ function Esteira() {
           <div className="phase-label">
             {currentPhase + 1} — {temas[currentPhase]?.tema || "-"}
           </div>
+
+          {statusEsteiraCliente && (
+            <div className="phase-status-badge">
+              <StatusFarol
+                status={statusEsteiraCliente.farol}
+                pendencia={empresaSelecionada?.pendencia?.tipoNome}
+              />
+              <span>
+                {statusEsteiraCliente.dias} dia
+                {statusEsteiraCliente.dias === 1 ? "" : "s"} na esteira
+                {statusEsteiraCliente.alerta ? " · alerta de churn" : ""}
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="control-row" ref={golWrapperRef}>

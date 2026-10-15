@@ -1398,7 +1398,17 @@ export function Historico() {
     let dataFormatada = "";
     let hora = "";
 
-    if (o.dataOcorrencia && o.dataOcorrencia > 0 && !isNaN(o.dataOcorrencia)) {
+    // Reserva de CSAT ainda pendente: dataOcorrencia é só o instante em que o
+    // link foi gerado, não uma data de agendamento real. Deixar vazio pro
+    // treinador preencher a data do próximo treinamento do cliente.
+    const ehReservaCsatPendente = (o as any).status === "reservada";
+
+    if (
+      !ehReservaCsatPendente &&
+      o.dataOcorrencia &&
+      o.dataOcorrencia > 0 &&
+      !isNaN(o.dataOcorrencia)
+    ) {
       const d = new Date(o.dataOcorrencia);
       const year = d.getFullYear();
       const month = String(d.getMonth() + 1).padStart(2, "0");

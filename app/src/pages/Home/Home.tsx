@@ -1638,14 +1638,13 @@ export default function Home() {
 
   // Enquanto o usuário digita na busca de cliente, cada esteira abre ou fecha
   // sozinha conforme tem ou não resultado — sem isso ele precisaria abrir cada
-  // uma manualmente pra achar o cliente. Some a busca e o estado manual volta
-  // a valer (não mexe nas esteiras com o campo vazio).
+  // uma manualmente pra achar o cliente. Ao apagar a busca, todas voltam ao
+  // estado natural (fechadas).
   useEffect(() => {
-    if (!filtroCliente) return;
-    setTabelaAtivaAberta(dadosAtivosFiltrados.length > 0);
-    setTabelaOngoingAberta(dadosOngoingFiltrados.length > 0);
-    setTabelaSuspensaAberta(dadosSuspensosFiltrados.length > 0);
-    setTabelaCanceladosAberta(dadosCanceladosFiltrados.length > 0);
+    setTabelaAtivaAberta(!!filtroCliente && dadosAtivosFiltrados.length > 0);
+    setTabelaOngoingAberta(!!filtroCliente && dadosOngoingFiltrados.length > 0);
+    setTabelaSuspensaAberta(!!filtroCliente && dadosSuspensosFiltrados.length > 0);
+    setTabelaCanceladosAberta(!!filtroCliente && dadosCanceladosFiltrados.length > 0);
   }, [
     filtroCliente,
     dadosAtivosFiltrados,

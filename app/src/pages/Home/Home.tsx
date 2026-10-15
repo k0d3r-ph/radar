@@ -1636,6 +1636,24 @@ export default function Home() {
     mapaResponsaveis,
   ]);
 
+  // Enquanto o usuário digita na busca de cliente, cada esteira abre ou fecha
+  // sozinha conforme tem ou não resultado — sem isso ele precisaria abrir cada
+  // uma manualmente pra achar o cliente. Some a busca e o estado manual volta
+  // a valer (não mexe nas esteiras com o campo vazio).
+  useEffect(() => {
+    if (!filtroCliente) return;
+    setTabelaAtivaAberta(dadosAtivosFiltrados.length > 0);
+    setTabelaOngoingAberta(dadosOngoingFiltrados.length > 0);
+    setTabelaSuspensaAberta(dadosSuspensosFiltrados.length > 0);
+    setTabelaCanceladosAberta(dadosCanceladosFiltrados.length > 0);
+  }, [
+    filtroCliente,
+    dadosAtivosFiltrados,
+    dadosOngoingFiltrados,
+    dadosSuspensosFiltrados,
+    dadosCanceladosFiltrados,
+  ]);
+
   const LABEL_FAROL: Record<string, string> = {
     verde: "Verde",
     amarelo: "Amarelo",

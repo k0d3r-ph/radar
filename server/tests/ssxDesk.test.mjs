@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  conversaElegivel, criarOcorrencia, idOcorrencia, listarConversas, resolverEmpresa, RESUMO_PENDENTE,
+  conversaElegivel, conversaSomenteAbandono, criarOcorrencia, idOcorrencia, listarConversas, resolverEmpresa, RESUMO_PENDENTE,
 } from '../dist/infrastructure/ssxDesk/trainingConversations.js';
 import { SsxDeskSyncService } from '../dist/infrastructure/ssxDesk/SsxDeskSyncService.js';
 
@@ -13,6 +13,83 @@ const conversa = {
   customerName: 'Contato', summary: 'Resumo do atendimento', summaryGeneratedAt: '2026-10-01T13:00:00Z',
   tags: [{ id: 'tag-1', label: 'Dúvida' }],
 };
+
+const comTags = labels => ({ ...conversa, tags: labels.map((label, i) => ({ id: `tag-${i}`, label })) });
+
+test('somente Abandono torna a conversa inelegível; tags mistas e ausência de tags mantêm as regras anteriores', () => {
+  for (const labels of [['Abandono'], [' ABANDONO '], ['Abândono'], ['Abandono', ' abandono ']]) {
+    assert.equal(conversaSomenteAbandono(comTags(labels)), true);
+    assert.equal(conversaElegivel(comTags(labels), empresa), false);
+  }
+  for (const labels of [[], ['Outro'], ['Abandono', 'Dúvida'], ['Abandono', 'Problema'], ['Abandono', 'Solicitação'], ['Abandono', 'Outro']]) {
+    assert.equal(conversaSomenteAbandono(comTags(labels)), false);
+    assert.equal(conversaElegivel(comTags(labels), empresa), true);
+  }
+});
+
+test('sessão somente com Abandono é ignorada após agrupar conversas, sem criar controles nem abrir transações', async () => {
+  const db = database();
+  const empresaAntes = structuredClone(db.docs.get('empresas/radar-1'));
+  db.runTransaction = () => { assert.fail('Abandono não deve abrir transação de importação.'); };
+  const service = new SsxDeskSyncService(db, 'teste', async () => [
+    comTags(['Abandono']), { ...comTags([]), id: 'c-2' }, { ...comTags([' ABANDONO ']), id: 'c-3' },
+  ]);
+  for (const dryRun of [true, false, false]) {
+    const stats = await service.sincronizar(dryRun);
+    assert.equal(stats.ignoradasPorAbandono, 1);
+    assert.equal(stats.ignoradas, 1);
+    assert.equal(stats.criadas, 0);
+    assert.equal(stats.atualizadas, 0);
+    assert.deepEqual([...db.docs.keys()].filter(k => k !== 'empresas/radar-1' && k !== 'integracoes/ssxDesk'), []);
+    assert.deepEqual(db.docs.get('empresas/radar-1'), empresaAntes);
+    if (dryRun) assert.deepEqual(stats.previstas, []);
+  }
+});
+
+test('Abandono em uma conversa não bloqueia a sessão que tem outra tag em outra conversa', async () => {
+  const db = database();
+  const stats = await new SsxDeskSyncService(db, 'teste', async () => [
+    comTags(['Abandono']), { ...comTags(['Dúvida']), id: 'c-2' },
+  ]).sincronizar();
+  assert.equal(stats.criadas, 1);
+  assert.equal(stats.ignoradasPorAbandono, 0);
+  const registros = [...db.docs.entries()].filter(([k]) => k.startsWith('ocorrencias/'));
+  assert.equal(registros.length, 1);
+  assert.equal(registros[0][1].tipo, 'Dúvida');
+  assert.deepEqual(new Set(registros[0][1].ssxDesk.tags), new Set(['Abandono', 'Dúvida']));
+});
+
+test('sessão antes ignorada pode ser importada uma única vez ao receber outra tag', async () => {
+  const db = database();
+  let atual = comTags(['Abandono']);
+  const service = new SsxDeskSyncService(db, 'teste', async () => [atual]);
+  assert.equal((await service.sincronizar()).criadas, 0);
+  atual = comTags(['Abandono', 'Dúvida']);
+  assert.equal((await service.sincronizar()).criadas, 1);
+  assert.equal((await service.sincronizar()).criadas, 0);
+  assert.equal((await new SsxDeskSyncService(db, 'teste', async () => [atual]).sincronizar()).criadas, 0);
+  assert.equal([...db.docs.keys()].filter(k => k.startsWith('ocorrencias/')).length, 1);
+});
+
+test('Abandono preserva registros antigos sem atualizar resumo ou classificação e mantém a proteção contra recriação', async () => {
+  const db = database();
+  let atual = conversa;
+  const service = new SsxDeskSyncService(db, 'teste', async () => [atual]);
+  await service.sincronizar();
+  const path = `ocorrencias/${idOcorrencia(conversa.id)}`;
+  const antes = structuredClone([...db.docs].filter(([k]) => k !== 'integracoes/ssxDesk'));
+  atual = { ...comTags(['Abandono']), summary: 'Resumo alterado' };
+  const stats = await service.sincronizar();
+  assert.equal(stats.ignoradasPorAbandono, 1);
+  assert.equal(stats.atualizadas, 0);
+  assert.deepEqual([...db.docs].filter(([k]) => k !== 'integracoes/ssxDesk'), antes);
+  db.docs.delete(path);
+  await service.sincronizar();
+  atual = { ...comTags(['Abandono', 'Dúvida']), id: 'novo-id-da-mesma-sessao' };
+  const novaInstancia = new SsxDeskSyncService(db, 'teste', async () => [atual]);
+  assert.equal((await novaInstancia.sincronizar()).criadas, 0);
+  assert.equal(db.docs.has(path), false);
+});
 
 test('três conversas de uma sessão criam uma ocorrência e combinam tags e resumo recente', async () => {
   const db = database();

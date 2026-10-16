@@ -51,10 +51,15 @@ export function empresaEmTreinamento(empresa: RadarEmpresa): boolean {
     && !empresa.isOngoing && !empresa.isCancelled;
 }
 
+/** Avaliada após combinar as tags de todas as conversas da sessão. */
+export function conversaSomenteAbandono(conversa: TrainingConversation): boolean {
+  return conversa.tags.length > 0 && conversa.tags.every(tag => normalizarNome(tag.label) === 'abandono');
+}
+
 export function conversaElegivel(conversa: TrainingConversation, empresa: RadarEmpresa): boolean {
   const inicio = Date.parse(conversa.startedAt);
   const fim = Date.parse(conversa.finishedAt);
-  return conversa.company.isInTraining === true && empresaEmTreinamento(empresa)
+  return conversa.company.isInTraining === true && empresaEmTreinamento(empresa) && !conversaSomenteAbandono(conversa)
     && /^\d{4}-\d{2}-\d{2}$/.test(empresa.dataEntrada)
     && Number.isFinite(inicio) && Number.isFinite(fim) && fim >= inicio
     && conversa.date >= empresa.dataEntrada;

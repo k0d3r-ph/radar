@@ -1,6 +1,6 @@
 import type { Firestore } from 'firebase-admin/firestore';
 import {
-  agruparConversas, chaveSessao, conversaElegivel, criarOcorrencia, idOcorrencia, listarConversas, resolverEmpresa,
+  agruparConversas, chaveSessao, conversaElegivel, conversaSomenteAbandono, criarOcorrencia, idOcorrencia, listarConversas, resolverEmpresa,
   RESUMO_PENDENTE, tipoDaConversa, type RadarEmpresa, type TrainingConversation,
 } from './trainingConversations.js';
 import {
@@ -71,11 +71,16 @@ export class SsxDeskSyncService {
       const conversas = agruparConversas(recebidas, this.sessoes);
       const companies = recebidas.map(c => c.company);
       const stats = { consultadas: recebidas.length, sessoes: conversas.length, agrupadas: recebidas.length - conversas.length, criadas: 0, atualizadas: 0, existentes: 0, ignoradas: 0,
-        foraTreinamentoOuPeriodo: 0, semVinculo: [] as string[],
+        foraTreinamentoOuPeriodo: 0, ignoradasPorAbandono: 0, semVinculo: [] as string[],
         ...(dryRun ? { previstas: [] as { empresa: string; startedAt: string; conversationId: string }[] } : {}),
       };
       for (const conversa of conversas) {
         if (!conversa.company.isInTraining) { stats.ignoradas++; continue; }
+        if (conversaSomenteAbandono(conversa)) {
+          stats.ignoradas++;
+          stats.ignoradasPorAbandono++;
+          continue;
+        }
         const id = idOcorrencia(conversa.id);
         const importada = this.importacoes.get(id);
         const tipo = tipoDaConversa(conversa);

@@ -24,8 +24,9 @@ export function createApiApp(): express.Express {
   const iaController = new IaController();
   app.post('/api/ia/resumir', (req, res) => iaController.resumir(req, res));
 
-  const centraisController = new CentraisController();
+  const centraisController = new CentraisController(adminDb, adminAuth);
   app.get('/api/centrais/id-central', (req, res) => centraisController.buscarIdCentral(req, res));
+  app.get('/api/centrais/dados', (req, res) => centraisController.buscarDados(req, res));
 
   return app;
 }

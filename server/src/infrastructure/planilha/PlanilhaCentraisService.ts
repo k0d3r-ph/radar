@@ -9,11 +9,8 @@
  */
 
 import { config } from '../config/env.js';
-
-export type LinhaCentral = {
-  nomeCentral: string;
-  idCentral: string;
-};
+import { resolverCentral, type LinhaCentral, type IdentificacaoCentral } from '../../domain/entities/CentralPlanilha.js';
+export { normalizarNomeCentral, resolverCentral, type LinhaCentral } from '../../domain/entities/CentralPlanilha.js';
 
 type Cache = {
   linhas: LinhaCentral[];
@@ -23,15 +20,22 @@ type Cache = {
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos — evita reler a planilha a cada cadastro
 
 let cache: Cache | null = null;
+let emAndamento: Promise<LinhaCentral[]> | null = null;
 
-export function normalizarNomeCentral(nome: string): string {
-  return nome
-    .trim()
-    .toUpperCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '') // remove acentos
-    .replace(/^SSX[_\s-]*/, '') // prefixo comum na planilha (ex.: "SSX_SMARTSYSTEM")
-    .replace(/[^A-Z0-9]/g, ''); // ignora espaços, underscores, pontuação
+/** Célula vazia/inválida não vira zero nem apaga um valor existente. */
+export function parsearValorContrato(celula: string): number | undefined {
+  const valor = celula.trim().replace(/^R\$\s*/i, '').replace(/[\s\u00a0]/g, '');
+  if (!valor) return undefined;
+  let normalizado: string;
+  if (/^(?:\d+|\d{1,3}(?:\.\d{3})+),\d{1,2}$/.test(valor)) {
+    normalizado = valor.replace(/\./g, '').replace(',', '.');
+  } else if (/^\d{1,3}(?:\.\d{3})+$/.test(valor)) {
+    normalizado = valor.replace(/\./g, '');
+  } else if (/^\d+(?:\.\d{1,2})?$/.test(valor)) {
+    normalizado = valor;
+  } else return undefined;
+  const numero = Number(normalizado);
+  return Number.isFinite(numero) && numero <= Number.MAX_SAFE_INTEGER / 100 ? numero : undefined;
 }
 
 /**
@@ -122,6 +126,7 @@ export function extrairCentrais(csv: string): LinhaCentral[] {
   // clientee", que também contém a substring "cliente" e daria falso positivo.
   const idxNome = acharIndiceColuna(cabecalhos, ['cliente', 'nome da central', 'central/empresa', 'empresa']);
   const idxId = acharIndiceColuna(cabecalhos, ['id central', 'idcentral', 'id da central']);
+  const idxValor = acharIndiceColuna(cabecalhos, ['valor de contrato', 'valor do contrato', 'valor contrato']);
 
   if (idxId === -1 || idxNome === -1) {
     throw new Error('O CSV não contém as colunas de cliente e/ou Id central. Confira se o gid aponta para a aba Controle de Implantação.');
@@ -132,8 +137,9 @@ export function extrairCentrais(csv: string): LinhaCentral[] {
     const campos = linhas[i];
     const nomeCentral = (campos[idxNome] || '').trim();
     const idCentral = (campos[idxId] || '').trim();
-    if (!nomeCentral || !idCentral) continue;
-    linhasCentrais.push({ nomeCentral, idCentral });
+    if (!nomeCentral) continue;
+    const valorContrato = idxValor === -1 ? undefined : parsearValorContrato(campos[idxValor] || '');
+    linhasCentrais.push({ nomeCentral, idCentral, ...(valorContrato === undefined ? {} : { valorContrato }) });
   }
   return linhasCentrais;
 }
@@ -177,9 +183,13 @@ async function buscarLinhasDaPlanilha(forceRefresh = false): Promise<LinhaCentra
     );
   }
 
-  const linhas = await baixarCentrais(config.planilhaCentraisCsvUrl);
-  cache = { linhas, buscadoEm: agora };
-  return linhas;
+  if (!emAndamento) {
+    emAndamento = baixarCentrais(config.planilhaCentraisCsvUrl).then(linhas => {
+      cache = { linhas, buscadoEm: Date.now() };
+      return linhas;
+    }).finally(() => { emAndamento = null; });
+  }
+  return emAndamento;
 }
 
 /**
@@ -187,12 +197,12 @@ async function buscarLinhasDaPlanilha(forceRefresh = false): Promise<LinhaCentra
  * quando a planilha não tem nenhuma linha cujo nome normalizado bata.
  */
 export async function buscarIdCentralPorNome(nomeEmpresa: string): Promise<string | null> {
-  const alvo = normalizarNomeCentral(nomeEmpresa);
-  if (!alvo) return null;
+  return (await buscarDadosCentral({ nomeEmpresa }))?.idCentral || null;
+}
 
-  const linhas = await buscarLinhasDaPlanilha();
-  const encontrada = linhas.find((l) => normalizarNomeCentral(l.nomeCentral) === alvo);
-  return encontrada?.idCentral ?? null;
+export async function buscarDadosCentral(cliente: IdentificacaoCentral): Promise<LinhaCentral | null> {
+  if (!cliente.nomeEmpresa.trim() && !cliente.idCentral?.trim()) return null;
+  return resolverCentral(await buscarLinhasDaPlanilha(), cliente);
 }
 
 /** Usado pelo script de vinculação em lote — devolve a planilha inteira já normalizada. */

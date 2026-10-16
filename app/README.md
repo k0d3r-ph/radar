@@ -27,6 +27,12 @@ node --experimental-vm-modules --test tests/apiConfig.test.mjs
 npm run test:sincronizacao
 ```
 
+## Links de dúvidas no Histórico
+
+No dashboard do Histórico, as colunas de **Assuntos das Dúvidas Registradas** abrem a lista com o tipo **Dúvida** e o assunto escolhido. As colunas do **Top 10 Clientes com Mais Dúvidas** abrem a lista com o cliente escolhido e o tipo **Dúvida**. Os links mantêm o período, departamento, pesquisa, expediente e filtro de estrelas usados no gráfico, além de outros filtros de cliente ou assunto já aplicados.
+
+O assunto aparece em um seletor próprio na barra de filtros e também no endereço, no parâmetro `assuntoDuvida`. A comparação usa os assuntos registrados em `temaOcorrencia`, permitindo listar as ocorrências do assunto mesmo quando ele não aparece na descrição. Os links podem ser abertos em outra aba; na aba atual, fecham o dashboard e levam o foco para a lista. **Limpar Filtros** remove também o assunto escolhido.
+
 ## Template React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.

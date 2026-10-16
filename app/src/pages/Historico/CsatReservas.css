@@ -3,3 +3,100 @@
 .hist-csat-reserva { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 0; }
 .hist-csat-reserva input { flex: 1; min-width: 180px; padding: 10px; }
 .hist-csat-reserva p { width: 100%; margin: 0; }
+
+.hist-csat-dialog {
+  --csat-fundo: #ffffff;
+  --csat-campo: #f8fafc;
+  --csat-texto: #1e293b;
+  --csat-suave: #475569;
+  --csat-borda: #cbd5e1;
+  --csat-destaque: #1d4ed8;
+  --csat-selecionada: #eff6ff;
+  width: min(480px, calc(100% - 32px));
+  max-height: calc(100dvh - 32px);
+  box-sizing: border-box;
+  margin: auto;
+  padding: 24px;
+  border: 1px solid var(--csat-borda);
+  border-radius: 12px;
+  background: var(--csat-fundo);
+  color: var(--csat-texto);
+  box-shadow: 0 24px 70px rgb(15 23 42 / 22%);
+  font-family: inherit;
+  overflow-y: auto;
+}
+
+body.dark-theme .hist-csat-dialog {
+  --csat-fundo: #151d2d;
+  --csat-campo: #0f172a;
+  --csat-texto: #f1f5f9;
+  --csat-suave: #b4c0d2;
+  --csat-borda: #475569;
+  --csat-destaque: #93c5fd;
+  --csat-selecionada: #1e3a5f;
+  color-scheme: dark;
+}
+
+.hist-csat-dialog::backdrop { background: rgb(15 23 42 / 55%); }
+.hist-csat-dialog h2 { margin: 0 0 12px; font-size: 20px; color: inherit; }
+.hist-csat-dialog p { margin: 0 0 20px; line-height: 1.5; color: inherit; }
+.hist-csat-dialog label { display: block; margin-bottom: 8px; font-weight: 600; }
+.hist-csat-dialog .hist-csat-pesquisa {
+  width: 100%;
+  min-height: 44px;
+  box-sizing: border-box;
+  margin: 0 0 8px;
+  padding: 12px;
+  border: 1px solid var(--csat-borda);
+  border-radius: 8px;
+  background: var(--csat-campo);
+  color: var(--csat-texto);
+  font: inherit;
+}
+.hist-csat-pesquisa::placeholder { color: var(--csat-suave); opacity: 1; }
+.hist-csat-dialog .hist-csat-contagem { margin: 0 0 16px; color: var(--csat-suave); font-size: 13px; }
+.hist-csat-empresas { min-width: 0; margin: 0; padding: 0; border: 0; }
+.hist-csat-empresas legend { padding: 0; margin-bottom: 8px; font-weight: 600; }
+.hist-csat-empresas-lista {
+  max-height: min(260px, 32dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--csat-borda);
+  border-radius: 10px;
+  background: var(--csat-campo);
+  scrollbar-color: var(--csat-borda) var(--csat-campo);
+  scroll-padding-block: 6px;
+}
+.hist-csat-dialog .hist-csat-empresa {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 46px;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--csat-borda);
+  color: var(--csat-texto);
+  font-weight: 400;
+  cursor: pointer;
+}
+.hist-csat-empresa:last-child { border-bottom: 0; }
+.hist-csat-empresa:hover { background: var(--csat-selecionada); }
+.hist-csat-dialog .hist-csat-empresa-selecionada { background: var(--csat-selecionada); font-weight: 600; }
+.hist-csat-empresa span { min-width: 0; overflow-wrap: anywhere; }
+.hist-csat-empresa input { flex: 0 0 auto; width: 18px; height: 18px; margin: 0; accent-color: var(--csat-destaque); }
+.hist-csat-empresa:focus-within { outline: 2px solid var(--csat-destaque); outline-offset: -3px; }
+.hist-csat-dialog .hist-csat-empresas-vazio { margin: 0; padding: 20px 14px; color: var(--csat-suave); }
+.hist-csat-dialog .hist-csat-selecao { margin: 12px 0 20px; color: var(--csat-suave); font-size: 13px; overflow-wrap: anywhere; }
+.hist-csat-selecao strong { color: var(--csat-texto); }
+.hist-csat-dialog .hist-csat-erro { color: #b91c1c; }
+body.dark-theme .hist-csat-dialog .hist-csat-erro { color: #fca5a5; }
+.hist-csat-dialog-acoes { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 12px; }
+.hist-csat-dialog button { min-height: 44px; }
+.hist-csat-dialog :is(.hist-csat-pesquisa, button):focus-visible { outline: 3px solid var(--csat-destaque); outline-offset: 3px; }
+.hist-csat-dialog :disabled { opacity: .6; cursor: wait; }
+
+@media (max-width: 480px) {
+  .hist-csat-dialog { padding: 20px; }
+  .hist-csat-dialog-acoes button { flex: 1; }
+}

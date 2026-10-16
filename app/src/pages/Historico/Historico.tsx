@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import "./CsatReservas.css";
 import { requisicaoCsat, linkCsat, editarRespostaCsat } from "../../services/csat";
 import type { ReservaCsat } from "../../services/csat";
+import { GerarCsatModal } from "./GerarCsatModal";
 import * as XLSX from "xlsx";
 import {
   salvarOcorrencia,
@@ -522,6 +523,7 @@ export function Historico() {
   const [reservasCsat, setReservasCsat] = useState<ReservaCsat[]>([]);
   const [carregandoReservasCsat, setCarregandoReservasCsat] = useState(true);
   const [gerandoCsat, setGerandoCsat] = useState(false);
+  const [modalCsatAberto, setModalCsatAberto] = useState(false);
   const [erroGerarCsat, setErroGerarCsat] = useState("");
   const [erroReservasCsat, setErroReservasCsat] = useState("");
   const [searchParams] = useSearchParams();
@@ -753,16 +755,20 @@ export function Historico() {
   const [confirmarDescarteAberto, setConfirmarDescarteAberto] = useState(false);
   const origemPainelRef = useRef<HTMLElement | null>(null);
   const novaOcorrenciaRef = useRef<HTMLButtonElement>(null);
+  const listaOcorrenciasRef = useRef<HTMLDivElement>(null);
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const editandoImportadaSsx =
     !!editandoId &&
     ocorrencias.some((o) => o.id === editandoId && o.origem === "ssx-desk");
-  const [busca, setBusca] = useState("");
+  const [busca, setBusca] = useState(() => searchParams.get("busca") || "");
   const [buscaAssunto, setBuscaAssunto] = useState("");
   const [filtroTipo, setFiltroTipo] = useState(
     () => searchParams.get("tipo") || "",
   );
-  const [filtroFavoritas, setFiltroFavoritas] = useState(false);
+  const [filtroAssuntoDuvida, setFiltroAssuntoDuvida] = useState(
+    () => searchParams.get("assuntoDuvida") || "",
+  );
+  const [filtroFavoritas, setFiltroFavoritas] = useState(() => searchParams.get("favoritas") === "1");
   const [salvandoFavorita, setSalvandoFavorita] = useState(false);
   const [filtroDepto, setFiltroDepto] = useState(
     () => searchParams.get("depto") || "",
@@ -819,6 +825,9 @@ export function Historico() {
     const start = searchParams.get("dataInicio") || "";
     const end = searchParams.get("dataFim") || "";
     setFiltroTipo(tipo);
+    setBusca(searchParams.get("busca") || "");
+    setFiltroAssuntoDuvida(searchParams.get("assuntoDuvida") || "");
+    setFiltroFavoritas(searchParams.get("favoritas") === "1");
     setFiltroDepto(searchParams.get("depto") || "");
     setDataInicio(start);
     setDataFim(end);
@@ -848,9 +857,6 @@ export function Historico() {
     }));
   };
   const empresaFiltro = searchParams.get("empresa") || "";
-  const clienteCsatCarregado = empresasList.some(
-    (e) => normalizar(e.nomeEmpresa) === normalizar(empresaFiltro) && !!e.id,
-  );
   const reservaEditando = reservasCsat.find((r) => r.id === editandoId);
   const nomesParticipantesReserva = reservaEditando
     ? formatarListaNomes(
@@ -877,20 +883,29 @@ export function Historico() {
       ),
     });
   }
-  async function gerarCsat() {
+  function abrirGeracaoCsat() {
     if (ultimaReservaCsat) {
+      registrarUltimoCsat();
+      return;
+    }
+    setErroGerarCsat("");
+    setModalCsatAberto(true);
+  }
+  async function gerarCsat(empresaId: string) {
+    if (!isTreinador || gerandoCsat) return;
+    if (ultimaReservaCsat) {
+      setModalCsatAberto(false);
       registrarUltimoCsat();
       return;
     }
     if (carregandoReservasCsat || erroReservasCsat) return;
     const empresa = empresasList.find(
-      (e) => normalizar(e.nomeEmpresa) === normalizar(empresaFiltro),
+      (e) => e.id === empresaId,
     );
-    if (gerandoCsat) return;
     setErroGerarCsat("");
     if (!empresa?.id) {
       const mensagem =
-        "Não foi possível identificar o cadastro do cliente. Atualize a página e abra Ver ocorrências novamente pela Home.";
+        "Selecione um cliente cadastrado para gerar o link.";
       setErroGerarCsat(mensagem);
       toast.error(mensagem);
       return;
@@ -903,11 +918,16 @@ export function Historico() {
         true,
       )) as ReservaCsat;
       setReservasCsat((prev) => [...prev, reserva]);
-      // Atualiza também os números ocupados pela reserva na sequência do cliente.
-      setEmpresasList(await listarEmpresas(true));
+      setModalCsatAberto(false);
       toast.success(
         `Link gerado. Ocorrência ${reserva.idSeqFormatted} reservada.`,
       );
+      // Uma falha ao atualizar os cadastros não invalida o link já criado.
+      try {
+        setEmpresasList(await listarEmpresas(true));
+      } catch {
+        toast.warning("O link foi gerado, mas os cadastros não foram atualizados. Atualize a página antes de registrar a ocorrência.");
+      }
     } catch (error) {
       const mensagem =
         error instanceof Error
@@ -917,7 +937,9 @@ export function Historico() {
       toast.error(mensagem);
       // Recupera também uma reserva criada em outra aba enquanto esta tela estava aberta.
       try {
-        setReservasCsat(await requisicaoCsat("reservas", undefined, true));
+        const reservas = await requisicaoCsat("reservas", undefined, true) as ReservaCsat[];
+        setReservasCsat(reservas);
+        if (reservas.length > 0) setModalCsatAberto(false);
       } catch {
         /* Preserva a mensagem original de falha na geração. */
       }
@@ -933,6 +955,7 @@ export function Historico() {
   }, [
     busca,
     filtroTipo,
+    filtroAssuntoDuvida,
     filtroDepto,
     dataInicio,
     dataFim,
@@ -2960,7 +2983,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
     return DEPARTAMENTO;
   };
 
-  const obterFiltradas = (ignoreTipo = false, ignoreDepto = false) => {
+  const obterFiltradas = (ignoreTipo = false, ignoreDepto = false, ignoreAssuntoDuvida = false) => {
     return ocorrencias.filter((o) => {
       const texto = busca.toLowerCase();
 
@@ -3036,6 +3059,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
       const deptoOk =
         ignoreDepto || !filtroDepto || o.departamento === filtroDepto;
+      const assuntoDuvidaOk =
+        ignoreAssuntoDuvida ||
+        !filtroAssuntoDuvida ||
+        (o.tipo === "Dúvida" && (o.temaOcorrencia ?? []).includes(filtroAssuntoDuvida));
 
       const timestamp = getOcorrenciaTimestamp(o);
       let dataOk = true;
@@ -3074,6 +3101,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         bateBusca &&
         empresaOk &&
         tipoOk &&
+        assuntoDuvidaOk &&
         deptoOk &&
         dataOk &&
         expedienteOk &&
@@ -3092,6 +3120,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
     ocorrencias,
     busca,
     filtroTipo,
+    filtroAssuntoDuvida,
     filtroDepto,
     dataInicio,
     dataFim,
@@ -3106,6 +3135,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
     [
       ocorrencias,
       busca,
+      filtroAssuntoDuvida,
       filtroDepto,
       dataInicio,
       dataFim,
@@ -3120,12 +3150,20 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       ocorrencias,
       busca,
       filtroTipo,
+      filtroAssuntoDuvida,
       dataInicio,
       dataFim,
       empresaFiltro,
       expedienteFiltro,
       filtroFavoritas,
     ],
+  );
+
+  // O gráfico de assuntos permite trocar de assunto sem restringir as colunas
+  // às ocorrências que também continham o assunto anteriormente selecionado.
+  const filtradasSemAssuntoDuvida = useMemo(
+    () => obterFiltradas(true, false, true),
+    [ocorrencias, busca, filtroDepto, dataInicio, dataFim, empresaFiltro, expedienteFiltro, filtroFavoritas],
   );
 
   const selectedEmpresaObj = empresasList.find(
@@ -3181,7 +3219,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       counts[op] = 0;
     });
 
-    filtradasSemTipo
+    filtradasSemAssuntoDuvida
       .filter((o) => o.tipo === "Dúvida")
       .forEach((o) => {
         (o.temaOcorrencia ?? []).forEach((tema) => {
@@ -3194,7 +3232,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
     return Object.entries(counts)
       .map(([label, value]) => ({ label, value }))
       .sort((a, b) => b.value - a.value);
-  }, [filtradasSemTipo, duvidaOpcoes]);
+  }, [filtradasSemAssuntoDuvida, duvidaOpcoes]);
 
   const topClientesDuvidasChartData = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -3212,6 +3250,34 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       .sort((a, b) => b.value - a.value)
       .slice(0, 10);
   }, [filtradasSemTipo]);
+
+  function linkOcorrenciasDuvidas(filtro: { empresa?: string; assunto?: string }) {
+    const params = new URLSearchParams();
+    params.set("tipo", "Dúvida");
+    const empresa = filtro.empresa ?? empresaFiltro;
+    const assunto = filtro.assunto ?? filtroAssuntoDuvida;
+    if (empresa) params.set("empresa", empresa);
+    if (assunto) params.set("assuntoDuvida", assunto);
+    if (busca) params.set("busca", busca);
+    if (filtroDepto) params.set("depto", filtroDepto);
+    if (dataInicio) params.set("dataInicio", dataInicio);
+    if (dataFim) params.set("dataFim", dataFim);
+    if (expedienteFiltro) params.set("expediente", expedienteFiltro);
+    if (filtroFavoritas) params.set("favoritas", "1");
+    return `/historico?${params.toString()}`;
+  }
+
+  function mostrarOcorrenciasDuvidas() {
+    setDashboardAberto(false);
+    setCurrentPage(1);
+    listaOcorrenciasRef.current?.focus({ preventScroll: true });
+    listaOcorrenciasRef.current?.scrollIntoView({ block: "start" });
+  }
+
+  function alterarFiltroTipo(tipo: string) {
+    setFiltroTipo(tipo);
+    if (tipo !== "Dúvida") setFiltroAssuntoDuvida("");
+  }
 
   const totalItems = filtradas.length;
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE) || 1;
@@ -3265,7 +3331,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               Registro e acompanhamento de ocorrências
             </p>
           </div>
-          <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", alignItems: "center" }}>
             {empresaFiltro && (
               <button
                 className="btn-secondary"
@@ -3356,34 +3422,42 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             <button ref={novaOcorrenciaRef} className="btn-primary hist-btn-novo" onClick={abrirNovo}>
               + Nova ocorrência
             </button>
-            {isTreinador &&
-              empresaFiltro &&
-              searchParams.get("origem") === "home" && (
-                <button
-                  type="button"
-                  className="btn-primary"
-                  disabled={
-                    gerandoCsat ||
-                    (!ultimaReservaCsat && !clienteCsatCarregado) ||
-                    carregandoReservasCsat ||
-                    !!erroReservasCsat
-                  }
-                  onClick={ultimaReservaCsat ? registrarUltimoCsat : gerarCsat}
-                >
-                  {gerandoCsat
-                    ? "Gerando link..."
-                    : ultimaReservaCsat
-                      ? "Registrar ocorrência"
-                      : carregandoReservasCsat
-                        ? "Verificando CSAT pendente..."
-                        : !clienteCsatCarregado
-                          ? "Carregando cliente..."
-                          : "Gerar link do CSAT"}
-                </button>
-              )}
+            {isTreinador && (
+              <button
+                type="button"
+                className="btn-primary"
+                disabled={
+                  (gerandoCsat && !ultimaReservaCsat) ||
+                  (!ultimaReservaCsat && loading && empresasList.length === 0) ||
+                  carregandoReservasCsat ||
+                  !!erroReservasCsat
+                }
+                onClick={abrirGeracaoCsat}
+              >
+                {gerandoCsat && !ultimaReservaCsat
+                  ? "Gerando link..."
+                  : ultimaReservaCsat
+                    ? "Registrar ocorrência"
+                    : carregandoReservasCsat
+                      ? "Verificando CSAT pendente..."
+                      : loading && empresasList.length === 0
+                        ? "Carregando clientes..."
+                        : "Gerar link CSAT"}
+              </button>
+            )}
           </div>
         </div>
       </header>
+      {isTreinador && modalCsatAberto && (
+        <GerarCsatModal
+          empresas={empresasList}
+          empresaInicialId={empresasList.find((e) => normalizar(e.nomeEmpresa) === normalizar(empresaFiltro))?.id}
+          gerando={gerandoCsat}
+          erro={erroGerarCsat}
+          onGerar={gerarCsat}
+          onFechar={() => setModalCsatAberto(false)}
+        />
+      )}
       {isTreinador && ultimaReservaCsat && (
         <p>
           Registre a ocorrência {ultimaReservaCsat.idSeqFormatted} de{" "}
@@ -3391,7 +3465,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
           CSAT.
         </p>
       )}
-      {erroGerarCsat && (
+      {erroGerarCsat && !modalCsatAberto && (
         <p role="alert">
           Não foi possível gerar o link do CSAT: {erroGerarCsat}
         </p>
@@ -3399,12 +3473,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       {isTreinador && erroReservasCsat && (
         <p role="alert">Reservas CSAT: {erroReservasCsat}</p>
       )}
-      {isTreinador &&
-        reservasCsat.some(
-          (r) =>
-            !empresaFiltro ||
-            normalizar(r.empresa) === normalizar(empresaFiltro),
-        ) && (
+      {isTreinador && reservasCsat.length > 0 && (
           <section
             className="hist-csat-reservas"
             aria-label="Minhas ocorrências reservadas para CSAT"
@@ -3415,11 +3484,6 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               o link com os participantes.
             </p>
             {reservasCsat
-              .filter(
-                (r) =>
-                  !empresaFiltro ||
-                  normalizar(r.empresa) === normalizar(empresaFiltro),
-              )
               .map((reserva) => (
                 <div key={reserva.id} className="hist-csat-reserva">
                   <button
@@ -3502,15 +3566,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 <DoughnutChart
                   title="Ocorrências por Tipo"
                   data={tipoChartData}
-                  onItemClick={(tipo) =>
-                    setFiltroTipo((prev) => {
-                      const filtro =
-                        tipo === "Sem classificação"
-                          ? FILTRO_SEM_CLASSIFICACAO
-                          : tipo;
-                      return prev === filtro ? "" : filtro;
-                    })
-                  }
+                  onItemClick={(tipo) => {
+                    const filtro = tipo === "Sem classificação" ? FILTRO_SEM_CLASSIFICACAO : tipo;
+                    alterarFiltroTipo(filtroTipo === filtro ? "" : filtro);
+                  }}
                   selectedLabel={
                     filtroTipo === FILTRO_SEM_CLASSIFICACAO
                       ? "Sem classificação"
@@ -3530,11 +3589,17 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               <BarChart
                 title="Top 10 Clientes com Mais Dúvidas"
                 data={topClientesDuvidasChartData}
+                getItemHref={(empresa) => linkOcorrenciasDuvidas({ empresa })}
+                onItemClick={mostrarOcorrenciasDuvidas}
+                selectedLabel={empresaFiltro}
               />
 
               <BarChart
                 title="Assuntos das Dúvidas Registradas"
                 data={duvidaTemasChartData}
+                getItemHref={(assunto) => linkOcorrenciasDuvidas({ assunto })}
+                onItemClick={mostrarOcorrenciasDuvidas}
+                selectedLabel={filtroAssuntoDuvida}
               />
             </div>
           </div>
@@ -3660,7 +3725,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
           <select
             className="hist-select-filtro"
             value={filtroTipo}
-            onChange={(e) => setFiltroTipo(e.target.value)}
+            onChange={(e) => alterarFiltroTipo(e.target.value)}
           >
             <option value="">Todos os tipos</option>
             <option value={FILTRO_SEM_CLASSIFICACAO}>Sem classificação</option>
@@ -3678,6 +3743,20 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             <option value={FILTRO_TREINAMENTO_CAN}>Treinamento (Can.)</option>
             <option value={FILTRO_TREINAMENTO_AUS}>Treinamento (Aus.)</option>
           </select>
+
+          {(filtroTipo === "Dúvida" || filtroAssuntoDuvida) && (
+            <select
+              className="hist-select-filtro"
+              aria-label="Assunto da dúvida"
+              value={filtroAssuntoDuvida}
+              onChange={(event) => setFiltroAssuntoDuvida(event.target.value)}
+            >
+              <option value="">Todos os assuntos de dúvida</option>
+              {Array.from(new Set([...duvidaOpcoes, filtroAssuntoDuvida].filter(Boolean)))
+                .sort((a, b) => a.localeCompare(b, "pt-BR"))
+                .map((assunto) => <option key={assunto} value={assunto}>{assunto}</option>)}
+            </select>
+          )}
 
           <select
             className="hist-select-filtro"
@@ -3718,6 +3797,8 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
           {(busca ||
             filtroTipo ||
+            filtroAssuntoDuvida ||
+            filtroFavoritas ||
             filtroDepto ||
             dataInicio ||
             dataFim ||
@@ -3728,12 +3809,17 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               onClick={() => {
                 setBusca("");
                 setFiltroTipo("");
+                setFiltroAssuntoDuvida("");
+                setFiltroFavoritas(false);
                 setFiltroDepto("");
                 setDataInicio("");
                 setDataFim("");
                 if (
                   empresaFiltro ||
                   expedienteFiltro ||
+                  searchParams.has("assuntoDuvida") ||
+                  searchParams.has("busca") ||
+                  searchParams.has("favoritas") ||
                   searchParams.get("ocorrencia")
                 ) {
                   navigate("/historico");
@@ -3748,7 +3834,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       </div>
 
       {/* Lista */}
-      <div className="hist-table-wrapper">
+      <div ref={listaOcorrenciasRef} className="hist-table-wrapper" tabIndex={-1} role="region" aria-label="Lista de ocorrências">
         <table className="hist-table">
           <thead>
             <tr>

@@ -2475,6 +2475,12 @@ body.light-theme .tema-opcao:hover {
   background: rgba(37, 99, 235, 0.08);
 }
 
+.bar-chart-col-link { text-decoration: none; color: inherit; }
+.bar-chart-col:focus-visible,
+.hist-table-wrapper:focus-visible { outline: 3px solid #2563eb; outline-offset: 2px; }
+body.dark-theme .bar-chart-col:focus-visible,
+body.dark-theme .hist-table-wrapper:focus-visible { outline-color: #93c5fd; }
+
 .bar-chart-col-value {
   font-size: 0.78rem;
   font-weight: 800;

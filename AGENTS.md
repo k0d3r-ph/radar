@@ -78,6 +78,8 @@ Confirme o comportamento no código e nos testes. Se houver divergência com a d
 
 ## Validação e comandos
 
+Quando o usuário informar explicitamente que fará os testes, deixe a execução de testes, builds, lint e checagem de tipos por conta dele nessa tarefa. Revise o código e o diff, sem iniciar a aplicação para validação, e informe na entrega quais verificações não foram executadas. Essa orientação prevalece sobre os comandos de validação abaixo para a tarefa em questão.
+
 Use npm a partir do pacote correspondente; confira os scripts em cada `package.json`. Não há um comando único de testes na raiz.
 
 - Frontend: em `app/`, `npm run dev`, `npm run build` e `npm run lint`.

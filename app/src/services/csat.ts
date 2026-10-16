@@ -1,4 +1,5 @@
 import { auth } from './firebase';
+import { RADAR_API_URL } from './apiConfig.ts';
 import type { Ocorrencia } from '../types';
 
 export interface ReservaCsat extends Ocorrencia {
@@ -18,14 +19,13 @@ export async function requisicaoCsat(path: string, body?: unknown, autenticada =
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), 20000);
   try {
-  const apiUrl = (import.meta.env.VITE_WHATSAPP_API_URL || 'http://localhost:5000').replace(/\/+$/, '');
-  const response = await fetch(`${apiUrl}/api/csat/${path}`, {
+  const response = await fetch(`${RADAR_API_URL}/api/csat/${path}`, {
     method: body === undefined ? 'GET' : 'POST', headers,
     signal: controller.signal,
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
   const dados = await response.json().catch(() => {
-    throw new Error(`A API do CSAT retornou uma resposta inválida (HTTP ${response.status}). Confira a publicação do backend e VITE_WHATSAPP_API_URL.`);
+    throw new Error(`A API do CSAT retornou uma resposta inválida (HTTP ${response.status}). Confira a publicação do backend e VITE_RADAR_API_URL.`);
   });
   if (!response.ok) throw new Error(dados.error || 'Não foi possível acessar o CSAT.');
   return dados;

@@ -8,7 +8,7 @@ Cada participante informa nome, Bom/Ruim e opinião opcional de até 100 caracte
 
 Após gerar um link, o botão muda para **Registrar ocorrência** e abre o último CSAT pendente do usuário. Novos links ficam bloqueados até registrar a ocorrência, inclusive ao trocar de cliente ou tentar pela API/outra aba. Se houver reservas anteriores à implantação desta regra, todas precisam ser registradas antes de liberar a geração de novos links. O bloqueio é individual por treinador e validado por transação no backend.
 
-Atualize o frontend **e** o backend. O endereço público `/csat/:token` precisa usar o mesmo fallback para `index.html` das outras rotas React. `VITE_WHATSAPP_API_URL` deve apontar para a API HTTPS acessível aos clientes, e o domínio do frontend precisa estar autorizado em `CORS_ORIGIN`.
+Atualize o frontend **e** o backend. O endereço público `/csat/:token` precisa usar o mesmo fallback para `index.html` das outras rotas React. `VITE_RADAR_API_URL` deve apontar para a API HTTPS acessível aos clientes, e o domínio do frontend precisa estar autorizado em `CORS_ORIGIN`. O endereço do bot é configurado separadamente em `VITE_WHATSAPP_API_URL`. Publicações antigas com um domínio único mantêm essa variável antiga como fallback quando `VITE_RADAR_API_URL` não está definida.
 
 As coleções `csatReservas`, `csatLinks` e `csatControle` são acessadas exclusivamente pelo Firebase Admin no backend. Nas regras Firestore publicadas, negue acesso de clientes a essas coleções e subcoleções. Exemplo para incorporar às regras existentes:
 

@@ -38,6 +38,11 @@ Confirme o comportamento no código e nos testes. Se houver divergência com a d
 5. Valide o comportamento alterado e revise o diff. Atualize a documentação quando mudar contratos, regras ou operação.
 6. Ao concluir, informe o resultado, as validações realizadas e eventuais limitações ou passos de implantação. Diferencie fatos verificados de hipóteses. Nunca afirme ter executado um teste ou visto uma tela sem tê-lo feito.
 
+## Autonomia no terminal
+
+- O usuário autoriza antecipadamente os comandos de terminal necessários para executar e validar a tarefa solicitada. Execute-os sem pedir permissão ou confirmação adicional no chat, incluindo leitura, buscas, edição de arquivos, builds, testes e inicialização ou encerramento de processos temporários criados para a tarefa.
+- Respeite as restrições do ambiente. Quando uma ferramenta exigir aprovação obrigatória por sandbox ou elevação de privilégios, utilize somente o mecanismo de aprovação da ferramenta, sem repetir a pergunta no chat e sem contornar o bloqueio. Esta preferência não amplia o escopo da tarefa nem autoriza ações em produção que não tenham sido solicitadas.
+
 ## Engenharia e dados
 
 - Reutilize serviços, tipos e funções de cálculo existentes. Evite duplicar regras entre páginas ou fazer novas chamadas de infraestrutura diretamente no JSX.

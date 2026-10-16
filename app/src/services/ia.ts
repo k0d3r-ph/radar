@@ -1,6 +1,6 @@
 import type { Ocorrencia } from "../types";
+import { RADAR_API_URL } from './apiConfig.ts';
 
-const WHATSAPP_API_URL = import.meta.env.VITE_WHATSAPP_API_URL || "http://localhost:5000";
 const STREAM_ERROR_MARKER = "[[ERRO_IA]]";
 
 export async function resumirOcorrencias(
@@ -8,7 +8,7 @@ export async function resumirOcorrencias(
   ocorrencias: Ocorrencia[],
   onChunk?: (textoAcumulado: string) => void
 ): Promise<string> {
-  const response = await fetch(`${WHATSAPP_API_URL}/api/ia/resumir`, {
+  const response = await fetch(`${RADAR_API_URL}/api/ia/resumir`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ nomeCliente, ocorrencias }),

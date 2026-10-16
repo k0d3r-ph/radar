@@ -17,12 +17,14 @@ O cache em memória dos serviços dura cinco minutos. Atualização forçada con
 ## Publicação
 
 1. Publique e reinicie primeiro o backend atualizado, com as credenciais Firebase Admin já usadas pelo Radar.
-2. Confira que `VITE_WHATSAPP_API_URL` aponta para esse backend e que `CORS_ORIGIN` inclui a origem do frontend.
+2. Confira que `VITE_RADAR_API_URL` aponta para a API do Radar e que `CORS_ORIGIN` inclui a origem do frontend. `VITE_WHATSAPP_API_URL` aponta separadamente para o bot. No desenvolvimento, os padrões são as portas 5001 (API, `npm run dev:api`) e 5000 (bot, `npm run dev`), ambos executados em `server/`.
 3. Publique o frontend atualizado.
 4. Em uma sessão autenticada, abra o Radar, recarregue a página e exclua uma ocorrência de teste em outro navegador. Ao recarregar o primeiro, ela deve desaparecer. A aba Network deve mostrar chamadas ao índice; em listas sem mudanças, nenhuma consulta de documentos ao Firestore é necessária para esses três serviços.
 5. Compare a evolução de leituras em Firestore > Uso em um dia de uso semelhante. Primeiros acessos após a atualização ainda fazem uma carga completa para iniciar o marcador v2; leituras já consumidas no dia não são recuperadas.
 
 Não exige uma nova coleção, novos índices compostos nem alteração das regras do Firestore. O carregamento dessas listas passa a depender da disponibilidade do backend. Os demais serviços e a integração SSX ainda podem gerar leituras; esta mudança não garante ficar abaixo da cota em qualquer volume de usuários ou alterações.
+
+Em ambientes antigos com um domínio único e proxy para os dois processos, a ausência de `VITE_RADAR_API_URL` mantém o uso de `VITE_WHATSAPP_API_URL` para compatibilidade. Ao usar endereços separados, configure as duas variáveis explicitamente. Alterações em `app/.env` exigem reiniciar o Vite; em produção, gerar e publicar uma nova build do frontend.
 
 ## Validação
 

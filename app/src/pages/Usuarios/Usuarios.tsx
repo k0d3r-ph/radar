@@ -31,9 +31,8 @@ import { atuaComoTreinador } from "../../utils/perfis";
 import { elegivelNotificacoesGestao } from "../../services/notificacoes";
 import { useAuth } from "../../context/AuthContext";
 import { listarLancamentosPontos, reassociarPontosTreinador } from "../../services/gamificacao";
+import { WHATSAPP_API_URL } from "../../services/apiConfig.ts";
 import "./Usuarios.css";
-
-const WHATSAPP_API_URL = import.meta.env?.VITE_WHATSAPP_API_URL || "http://localhost:5000";
 
 const ROLE_DISPLAY: Record<string, string> = {
   suporte: "Suporte",

@@ -2,7 +2,7 @@
 // resolver o idCentral (SSX) de um cliente a partir do nome. Ver
 // server/src/infrastructure/planilha/PlanilhaCentraisService.ts.
 
-const WHATSAPP_API_URL = import.meta.env.VITE_WHATSAPP_API_URL || "http://localhost:5000";
+import { RADAR_API_URL } from './apiConfig.ts';
 
 /**
  * Retorna o idCentral encontrado para o nome informado, ou `null` se a planilha
@@ -15,7 +15,7 @@ export async function buscarIdCentralPorNome(nomeEmpresa: string): Promise<strin
 
   try {
     const resposta = await fetch(
-      `${WHATSAPP_API_URL}/api/centrais/id-central?nome=${encodeURIComponent(nome)}`,
+      `${RADAR_API_URL}/api/centrais/id-central?nome=${encodeURIComponent(nome)}`,
     );
     if (!resposta.ok) return null;
 

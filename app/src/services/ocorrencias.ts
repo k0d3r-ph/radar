@@ -13,6 +13,7 @@ import {
 import { auth, db } from "./firebase";
 import type { Ocorrencia } from "../types";
 import { sincronizarColecao } from "./sincronizacaoIncremental";
+import { RADAR_API_URL } from './apiConfig.ts';
 
 const COLLECTION = "ocorrencias";
 
@@ -154,8 +155,7 @@ export async function removerOcorrencia(id: string) {
 export async function definirOcorrenciaFavorita(id: string, favorita: boolean) {
   if (!auth.currentUser) throw new Error('Entre no Radar para alterar as estrelas.');
   const token = await auth.currentUser.getIdToken();
-  const apiUrl = import.meta.env.VITE_WHATSAPP_API_URL || 'http://localhost:5000';
-  const response = await fetch(`${apiUrl}/api/ocorrencias/${encodeURIComponent(id)}/favorito`, {
+  const response = await fetch(`${RADAR_API_URL}/api/ocorrencias/${encodeURIComponent(id)}/favorito`, {
     method: 'PATCH',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ favorita }),

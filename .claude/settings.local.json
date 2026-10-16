@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)",
+      "Bash(xargs grep -l \"generateContentStream\")",
+      "Bash(cd \"c:\\\\Users\\\\Computador\\\\Desktop\\\\Code\\\\automatiza-esteira\\\\server\" && ls node_modules/@google 2>/dev/null; find / -maxdepth 0 2>/dev/null; find \"c:\\\\Users\\\\Computador\\\\Desktop\\\\Code\\\\automatiza-esteira\" -type d -iname \"genai\" 2>/dev/null)",
+      "Read(//c//**)",
+      "Bash(npm ci *)",
+      "Bash(node \"C:\\\\Users\\\\COMPUT~1\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\bundled-skills\\\\2.1.219\\\\b86b8d62decf4efa945abd1a7a8992ba\\\\dataviz\\\\scripts\\\\validate_palette.js\" \"#2a78d6,#eb6834,#1baf7a,#eda100,#e87ba4\" --mode light --pairs all)",
+      "Bash(node \"C:\\\\Users\\\\COMPUT~1\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\bundled-skills\\\\2.1.219\\\\b86b8d62decf4efa945abd1a7a8992ba\\\\dataviz\\\\scripts\\\\validate_palette.js\" \"#2a78d6,#eb6834,#1baf7a,#eda100,#e87ba4\" --mode light)",
+      "Bash(node \"C:\\\\Users\\\\COMPUT~1\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\bundled-skills\\\\2.1.219\\\\b86b8d62decf4efa945abd1a7a8992ba\\\\dataviz\\\\scripts\\\\validate_palette.js\" \"#2a78d6,#eb6834,#1baf7a,#eda100\" --mode light)",
+      "Bash(node \"C:\\\\Users\\\\COMPUT~1\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\bundled-skills\\\\2.1.219\\\\b86b8d62decf4efa945abd1a7a8992ba\\\\dataviz\\\\scripts\\\\validate_palette.js\" \"#3987e5,#d95926,#199e70,#c98500,#d55181\" --mode dark --surface \"#1a1a19\")",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(npm run *)",
+      "Bash(xargs -I{} wc -l {})",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(echo \"EXIT_CODE:$?\")",
+      "Bash(echo \"TSC_EXIT:$?\")",
+      "Bash(node \"C:/Users/COMPUT~1/AppData/Local/Temp/claude/c--Users-Computador-Desktop-Code-automatiza-esteira/ddee4350-8347-42f7-9666-03dcb38cf066/scratchpad/diag.js\")",
+      "Bash(node -e \"const a=require\\('firebase-admin'\\);console.log\\(Object.keys\\(a\\).slice\\(0,20\\)\\); const p=require\\('./package.json'\\); console.log\\(p.type, JSON.stringify\\(p.dependencies\\)\\)\")",
+      "Bash(cp \"C:/Users/COMPUT~1/AppData/Local/Temp/claude/c--Users-Computador-Desktop-Code-automatiza-esteira/ddee4350-8347-42f7-9666-03dcb38cf066/scratchpad/diag.js\" \"c:/Users/Computador/Desktop/Code/automatiza-esteira/server/__diag.cjs\")",
+      "Bash(sed -i 's|const NM = .*|const NM = \"\";|' __diag.cjs)",
+      "Bash(node __diag.cjs)",
+      "Bash(node __diag2.cjs)",
+      "Bash(npx eslint *)"
+    ]
+  }
+}

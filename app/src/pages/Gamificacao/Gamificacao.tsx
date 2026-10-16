@@ -5,7 +5,6 @@ import {
   Trophy,
   PlusCircle,
   Trash2,
-  Award,
   AlertTriangle,
   History,
   TrendingUp,
@@ -46,6 +45,8 @@ import { calcularProgressoPorFases } from "../../utils/monitoramento/calcularPro
 import { calcularTotalFases } from "../../utils/monitoramento/calcularTotalFases";
 import { calcularDiasNaEsteira } from "../../utils/monitoramento/calcularDiasNaEsteira";
 import { calcularDiasCongeladosPorCheckpoint } from "../../utils/monitoramento/calcularDiasCongeladosPorCheckpoint";
+import { calcularRankingGamificacao } from "../../utils/rankingGamificacao";
+import { PainelGamificacao } from "./PainelGamificacao";
 import "./Gamificacao.css";
 
 const ACOES_DISPONIVEIS = [
@@ -682,7 +683,9 @@ export const Gamificacao: React.FC = () => {
     Record<string, { id: string; alerta?: boolean }>
   >({});
   const [loading, setLoading] = useState(true);
+  const [erroCarregamento, setErroCarregamento] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const historicoRef = useRef<HTMLElement>(null);
 
   // Filtro de data
   const [filtroDataInicio, setFiltroDataInicio] = useState(() => {
@@ -790,6 +793,7 @@ export const Gamificacao: React.FC = () => {
   const carregarDados = async () => {
     try {
       setLoading(true);
+      setErroCarregamento(null);
       const [listaUsuarios, listaPontos, listaEmpresas, listaOcorrencias] =
         await Promise.all([
           listarUsuarios(true),
@@ -845,6 +849,7 @@ export const Gamificacao: React.FC = () => {
       }
     } catch (error: any) {
       console.error("Erro ao carregar dados de gamificação:", error);
+      setErroCarregamento("Não foi possível carregar a gamificação. Tente novamente para consultar os pontos.");
       toast.error(`Erro ao carregar dados: ${error?.message || error}`);
     } finally {
       setLoading(false);
@@ -904,85 +909,10 @@ export const Gamificacao: React.FC = () => {
     });
   }, [filteredEntries, filtroTreinadorId, filtroTipoAcao]);
 
-  // Compute scores and rank trainers
-  const rankedTrainers = useMemo(() => {
-    return trainers
-      .map((t) => {
-        const trainerEntries = filteredEntries.filter(
-          (e) => e.treinadorId === t.uid,
-        );
-        const baseScore = trainerEntries.reduce(
-          (acc, curr) => acc + curr.pontos,
-          0,
-        );
-
-        // Filter realized trainings (excluding canceled/absent)
-        const realizedTrainings = trainerEntries.filter((e) => {
-          if (e.tipoAcao !== "treinamento" || !e.treinamentoTema) return false;
-          const themes = e.treinamentoTema
-            .split(",")
-            .map((theme) => theme.trim().toLowerCase());
-          return !themes.includes("cancelado") && !themes.includes("ausente");
-        });
-
-        // Count realized trainings that have CSAT responses (nota antiga ou
-        // resultado Bom/Ruim atual)
-        const answeredTrainings = realizedTrainings.filter(
-          (e) =>
-            (e.treinamentoNotas && e.treinamentoNotas.length > 0) ||
-            (e.treinamentoResultados && e.treinamentoResultados.length > 0),
-        );
-
-        const totalTrainingsCount = realizedTrainings.length;
-        const answeredTrainingsCount = answeredTrainings.length;
-        const taxaResposta =
-          totalTrainingsCount > 0
-            ? answeredTrainingsCount / totalTrainingsCount
-            : 0;
-
-        let bonus = 0;
-        if (taxaResposta >= 0.9) bonus = 0.3;
-        else if (taxaResposta >= 0.8) bonus = 0.2;
-        else if (taxaResposta >= 0.7) bonus = 0.1;
-
-        const score = parseFloat((baseScore * (1 + bonus)).toFixed(1));
-        const qtdAcoes = trainerEntries.filter((e) => {
-          if (e.tipoAcao === "chamado_falha" || e.tipoAcao === "desconto_suporte")
-            return false;
-          if (e.tipoAcao === "treinamento" && e.treinamentoTema) {
-            const themes = e.treinamentoTema
-              .split(",")
-              .map((theme) => theme.trim().toLowerCase());
-            if (themes.includes("cancelado") || themes.includes("ausente"))
-              return false;
-          }
-          return true;
-        }).length;
-
-        const qtdFalhas = trainerEntries.filter(
-          (e) => e.tipoAcao === "chamado_falha",
-        ).length;
-
-        return {
-          ...t,
-          baseScore,
-          score,
-          qtdAcoes,
-          qtdFalhas,
-          totalTrainingsCount,
-          answeredTrainingsCount,
-          taxaResposta,
-          bonusPercentage: Math.round(bonus * 100),
-        };
-      })
-      .sort(
-        (a, b) =>
-          b.score - a.score ||
-          b.taxaResposta - a.taxaResposta ||
-          a.qtdFalhas - b.qtdFalhas ||
-          a.nome.localeCompare(b.nome),
-      );
-  }, [trainers, filteredEntries]);
+  const rankedTrainers = useMemo(
+    () => calcularRankingGamificacao(trainers, filteredEntries),
+    [trainers, filteredEntries],
+  );
 
   // Ranking de distribuição do próximo cliente: baseado nos treinamentos dos
   // últimos 30 dias (com peso decrescente conforme envelhecem) e nos clientes
@@ -2103,8 +2033,8 @@ export const Gamificacao: React.FC = () => {
           <div>
             <h1>Gamificação dos Treinadores</h1>
             <p>
-              Acompanhe o ranking de pontos e lance novas atividades realizadas
-              pela equipe.
+              Acompanhe sua evolução, entenda seus pontos e reconheça as entregas
+              da equipe.
             </p>
           </div>
           <div className="gamificacao-header-acoes">
@@ -2137,12 +2067,18 @@ export const Gamificacao: React.FC = () => {
           <div className="spinner"></div>
           <p>Carregando dados da gamificação...</p>
         </div>
+      ) : erroCarregamento ? (
+        <div className="gp-carregamento-erro" role="alert">
+          <p>{erroCarregamento}</p>
+          <button type="button" className="gp-ver-atividades" onClick={carregarDados}>Tentar novamente</button>
+        </div>
       ) : (
         <>
           {/* Barra de Filtros de Período */}
           <div className="gamificacao-filtros-bar">
             <div className="filtro-titulo-wrapper">
-              <h3>Filtrar por Período</h3>
+              <h3>Período do ranking</h3>
+              <p className="gp-periodo-ajuda">Aplica-se ao pódio, ao desempenho e às atividades.</p>
             </div>
             <div className="filtro-inputs-wrapper">
               <div className="filtros-data-grupo">
@@ -2163,172 +2099,40 @@ export const Gamificacao: React.FC = () => {
                   onChange={(e) => setFiltroDataFim(e.target.value)}
                 />
               </div>
-              <div className="filtros-data-grupo">
-                <label htmlFor="filtro-treinador">Treinador</label>
-                <select
-                  id="filtro-treinador"
-                  value={filtroTreinadorId}
-                  onChange={(e) => setFiltroTreinadorId(e.target.value)}
-                >
-                  <option value="">Todos</option>
-                  {trainers.map((t) => (
-                    <option key={t.uid} value={t.uid}>
-                      {formatarNome(t.nome) || t.email}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="filtros-data-grupo">
-                <label htmlFor="filtro-motivo">Motivo</label>
-                <select
-                  id="filtro-motivo"
-                  value={filtroTipoAcao}
-                  onChange={(e) => setFiltroTipoAcao(e.target.value)}
-                >
-                  <option value="">Todos</option>
-                  {motivoOptions.map((m) => (
-                    <option key={m.tipo} value={m.tipo}>
-                      {m.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {(filtroDataInicio ||
-                filtroDataFim ||
-                filtroTreinadorId ||
-                filtroTipoAcao) && (
+              {(filtroDataInicio || filtroDataFim) && (
                 <button
                   type="button"
                   className="btn-limpar-filtros"
                   onClick={() => {
                     setFiltroDataInicio("");
                     setFiltroDataFim("");
-                    setFiltroTreinadorId("");
-                    setFiltroTipoAcao("");
                   }}
                 >
-                  Limpar Filtros
+                  Todo o período
                 </button>
               )}
             </div>
           </div>
 
-          <div className="gamificacao-grid">
-            {/* Coluna da Esquerda: Ranking */}
-            <section className="gamificacao-card ranking-section">
-              <div className="section-header">
-                <h2>
-                  <Trophy size={20} className="card-icon gold-glow" />
-                  Placar de Líderes
-                </h2>
-                <span className="badge-count">
-                  {rankedTrainers.length}{" "}
-                  {rankedTrainers.length === 1 ? "Treinador" : "Treinadores"}
-                </span>
-              </div>
+          <PainelGamificacao
+            ranking={rankedTrainers}
+            usuarioId={user?.uid}
+            periodo={filtroDataInicio || filtroDataFim
+              ? `${filtroDataInicio ? filtroDataInicio.split("-").reverse().join("/") : "Início"} a ${filtroDataFim ? filtroDataFim.split("-").reverse().join("/") : "hoje"}`
+              : "Todo o período"}
+            rotulosAcoes={{ ...Object.fromEntries(ACOES_DISPONIVEIS.map((acao) => [acao.tipo, acao.label])), ...LABELS_TIPO_ACAO_SISTEMA }}
+            onVerAtividades={(treinadorId) => {
+              setFiltroTreinadorId(treinadorId);
+              setFiltroTipoAcao("");
+              historicoRef.current?.focus({ preventScroll: true });
+              historicoRef.current?.scrollIntoView({
+                block: "start",
+                behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+              });
+            }}
+          />
 
-              {rankedTrainers.length === 0 ? (
-                <p className="no-data-msg">
-                  Nenhum treinador cadastrado no sistema.
-                </p>
-              ) : (
-                <div className="ranking-list">
-                  {rankedTrainers.map((t, index) => {
-                    const isTop1 = index === 0;
-                    const isTop2 = index === 1;
-                    const isTop3 = index === 2;
-
-                    let rankClass = "rank-other";
-                    let TrophyIcon = null;
-
-                    if (isTop1) {
-                      rankClass = "rank-first";
-                      TrophyIcon = <Trophy className="trophy-gold" size={24} />;
-                    } else if (isTop2) {
-                      rankClass = "rank-second";
-                      TrophyIcon = (
-                        <Award className="trophy-silver" size={22} />
-                      );
-                    } else if (isTop3) {
-                      rankClass = "rank-third";
-                      TrophyIcon = (
-                        <Award className="trophy-bronze" size={20} />
-                      );
-                    }
-
-                    return (
-                      <div key={t.uid} className={`ranking-item ${rankClass}`}>
-                        <div className="ranking-position">
-                          {TrophyIcon ? (
-                            TrophyIcon
-                          ) : (
-                            <span className="position-number">{index + 1}</span>
-                          )}
-                        </div>
-
-                        <div className="ranking-details">
-                          <div className="ranking-name">
-                            {formatarNome(t.nome) || t.email}
-                            {t.uid === user?.uid && (
-                              <span className="me-badge">Você</span>
-                            )}
-                          </div>
-                          <div className="ranking-sub">
-                            <div>
-                              {t.qtdAcoes}{" "}
-                              {t.qtdAcoes === 1 ? "atividade" : "atividades"}
-                            </div>
-                            {t.totalTrainingsCount > 0 && (
-                              <div
-                                className="csat-rate-info"
-                                style={{
-                                  fontSize: "11px",
-                                  color: "#94a3b8",
-                                  marginTop: "4px",
-                                }}
-                              >
-                                CSAT:{" "}
-                                <strong>
-                                  {Math.round(t.taxaResposta * 100)}%
-                                </strong>{" "}
-                                ({t.answeredTrainingsCount}/
-                                {t.totalTrainingsCount})
-                                {t.bonusPercentage > 0 && (
-                                  <span
-                                    className="bonus-pill"
-                                    style={{
-                                      marginLeft: "6px",
-                                      color: "#34d399",
-                                      background: "rgba(16, 185, 129, 0.1)",
-                                      padding: "2px 6px",
-                                      borderRadius: "4px",
-                                      fontSize: "10px",
-                                      fontWeight: "bold",
-                                    }}
-                                  >
-                                    +{t.bonusPercentage}% Bônus
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="ranking-score-wrapper">
-                          <span
-                            className={`ranking-score ${t.score >= 0 ? "positive-score" : "negative-score"}`}
-                          >
-                            {t.score > 0 ? `+${t.score}` : t.score}
-                          </span>
-                          <span className="score-label">pts</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
-
+          <div className="gamificacao-grid gamificacao-operacao-grid">
             {/* Coluna da Direita: Lançar e Histórico */}
             <div className="actions-column">
               {/* Bloco 1: Lançar Pontos */}
@@ -2482,12 +2286,53 @@ export const Gamificacao: React.FC = () => {
               )}
 
               {/* Bloco 2: Histórico Recente */}
-              <section className="gamificacao-card historico-section">
+              <section className="gamificacao-card historico-section gp-historico" ref={historicoRef} tabIndex={-1} aria-label="Atividades recentes">
                 <div className="section-header">
                   <h2>
                     <History size={20} className="card-icon" />
                     Atividades Recentes
                   </h2>
+                </div>
+                <div className="gp-historico-filtros">
+                  <p>Filtros exclusivos das atividades. A classificação da equipe permanece baseada em todos os lançamentos do período.</p>
+                  <div className="filtro-inputs-wrapper">
+                    <div className="filtros-data-grupo">
+                      <label htmlFor="filtro-treinador">Treinador</label>
+                      <select
+                        id="filtro-treinador"
+                        value={filtroTreinadorId}
+                        onChange={(e) => setFiltroTreinadorId(e.target.value)}
+                      >
+                        <option value="">Todos</option>
+                        {trainers.map((t) => (
+                          <option key={t.uid} value={t.uid}>
+                            {formatarNome(t.nome) || t.email}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="filtros-data-grupo">
+                      <label htmlFor="filtro-motivo">Motivo</label>
+                      <select
+                        id="filtro-motivo"
+                        value={filtroTipoAcao}
+                        onChange={(e) => setFiltroTipoAcao(e.target.value)}
+                      >
+                        <option value="">Todos</option>
+                        {motivoOptions.map((m) => (
+                          <option key={m.tipo} value={m.tipo}>
+                            {m.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    {(filtroTreinadorId || filtroTipoAcao) && (
+                      <button type="button" className="btn-limpar-filtros" onClick={() => {
+                        setFiltroTreinadorId("");
+                        setFiltroTipoAcao("");
+                      }}>Limpar filtros do histórico</button>
+                    )}
+                  </div>
                 </div>
 
                 {historyEntries.length === 0 ? (

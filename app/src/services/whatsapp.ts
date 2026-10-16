@@ -1,3 +1,5 @@
+import { WHATSAPP_API_URL } from './apiConfig.ts';
+
 export interface WhatsAppSessionState {
   status: 'disconnected' | 'qrcode' | 'authenticating' | 'connected';
   qrCode?: string;
@@ -6,8 +8,6 @@ export interface WhatsAppSessionState {
     number: string;
   };
 }
-
-const WHATSAPP_API_URL = import.meta.env?.VITE_WHATSAPP_API_URL || 'http://localhost:5000';
 
 export async function obterStatusWhatsApp(): Promise<WhatsAppSessionState> {
   const response = await fetch(`${WHATSAPP_API_URL}/api/whatsapp/status`);

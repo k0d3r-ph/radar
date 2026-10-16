@@ -58,9 +58,9 @@ async function criarPagina(estado) {
   async function carregar(nome) {
     if (nome === 'firebase/firestore') return firestore;
     if (nome === './firebase') return firebase;
-    if (!['./ocorrencias', './sincronizacaoIncremental'].includes(nome)) throw new Error(`Import inesperado: ${nome}`);
+    if (!['./ocorrencias', './sincronizacaoIncremental', './apiConfig.ts'].includes(nome)) throw new Error(`Import inesperado: ${nome}`);
     if (modules.has(nome)) return modules.get(nome);
-    const source = readFileSync(new URL(`../src/services/${nome.slice(2)}.ts`, import.meta.url), 'utf8');
+    const source = readFileSync(new URL(`../src/services/${nome.slice(2).replace(/\.ts$/, '')}.ts`, import.meta.url), 'utf8');
     const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
     const module = new SourceTextModule(code, { context, initializeImportMeta: meta => { meta.env = {}; } });
     modules.set(nome, module);

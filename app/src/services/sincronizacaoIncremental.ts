@@ -4,6 +4,7 @@ import {
   query, where, type QuerySnapshot,
 } from 'firebase/firestore';
 import { auth, db } from './firebase';
+import { RADAR_API_URL } from './apiConfig.ts';
 
 type RegistroSincronizavel = { id?: string };
 type DocumentoIndice = { id: string; versao: string };
@@ -43,8 +44,7 @@ function mapearDocumentos<T>(snapshot: QuerySnapshot): T[] {
 async function consultarIndice(nomeColecao: string): Promise<DocumentoIndice[]> {
   if (!auth.currentUser) throw new Error('Entre novamente no Radar.');
   const token = await auth.currentUser.getIdToken();
-  const apiUrl = (import.meta.env.VITE_WHATSAPP_API_URL || 'http://localhost:5000').replace(/\/+$/, '');
-  const response = await fetch(`${apiUrl}/api/sincronizacao/${encodeURIComponent(nomeColecao)}`, {
+  const response = await fetch(`${RADAR_API_URL}/api/sincronizacao/${encodeURIComponent(nomeColecao)}`, {
     headers: { Authorization: `Bearer ${token}` }, cache: 'no-store',
     signal: AbortSignal.timeout(20_000),
   });

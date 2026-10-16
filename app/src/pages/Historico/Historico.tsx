@@ -47,6 +47,7 @@ import {
 import { generateEsteiraImage } from "../../utils/generateEsteiraImage";
 import { obterDataRealizacaoTreinamento } from "../../utils/dataTreinamento";
 import { GestaoNotificacaoModal } from "../../components/GestaoNotificacaoModal";
+import { ConfirmarDescarteModal } from "../../components/ConfirmarDescarteModal";
 import { camposResultadoConclusao } from "../../utils/notificacaoConclusao";
 
 import {
@@ -749,6 +750,9 @@ export function Historico() {
   const [selecionada, setSelecionada] = useState<Ocorrencia | null>(null);
   const [form, setForm] = useState({ ...EMPTY });
   const formSnapshotRef = useRef<string>(JSON.stringify(EMPTY));
+  const [confirmarDescarteAberto, setConfirmarDescarteAberto] = useState(false);
+  const origemPainelRef = useRef<HTMLElement | null>(null);
+  const novaOcorrenciaRef = useRef<HTMLButtonElement>(null);
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const editandoImportadaSsx =
     !!editandoId &&
@@ -1367,6 +1371,7 @@ export function Historico() {
   }
 
   function abrirNovo() {
+    origemPainelRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const deptos = getAllowedDepartments();
     const deptoPadrao = deptos.length === 1 ? deptos[0] : "";
     const novoForm = {
@@ -1392,6 +1397,7 @@ export function Historico() {
   }
 
   function abrirEdicao(o: Ocorrencia) {
+    origemPainelRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const treinamento = lerTemasTreinamento(
       o.temaOcorrencia ?? [],
       o.isRevisao,
@@ -1479,16 +1485,13 @@ export function Historico() {
   }
 
   function cancelar(opts?: { skipConfirmacao?: boolean }) {
+    if (salvando && !opts?.skipConfirmacao) return;
     const houveAlteracao = JSON.stringify(form) !== formSnapshotRef.current;
-    if (
-      !opts?.skipConfirmacao &&
-      houveAlteracao &&
-      !window.confirm(
-        "Existem alterações não salvas nesta ocorrência. Deseja descartá-las?",
-      )
-    ) {
+    if (!opts?.skipConfirmacao && houveAlteracao) {
+      setConfirmarDescarteAberto(true);
       return;
     }
+    setConfirmarDescarteAberto(false);
     setTemasRevisados([]);
     setPainelAberto(false);
     setForm({ ...EMPTY });
@@ -1502,6 +1505,8 @@ export function Historico() {
     setNovaDuvidaTemaHistorico("");
     setIsRevisao(false);
     setTemaForaEsteira(false);
+    const destinoFoco = origemPainelRef.current?.isConnected ? origemPainelRef.current : novaOcorrenciaRef.current;
+    destinoFoco?.focus({ preventScroll: true });
   }
 
   function normalizar(str: string) {
@@ -3348,7 +3353,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             >
               📥 Exportar Excel
             </button>
-            <button className="btn-primary hist-btn-novo" onClick={abrirNovo}>
+            <button ref={novaOcorrenciaRef} className="btn-primary hist-btn-novo" onClick={abrirNovo}>
               + Nova ocorrência
             </button>
             {isTreinador &&
@@ -4939,6 +4944,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 className="hist-fechar"
                 onClick={() => cancelar()}
                 aria-label="Fechar painel"
+                disabled={salvando}
               >
                 <X size={18} />
               </button>
@@ -5792,7 +5798,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             </div>
 
             <div className="hist-painel-actions">
-              <button className="btn-ghost" onClick={() => cancelar()}>
+              <button className="btn-ghost" onClick={() => cancelar()} disabled={salvando}>
                 Cancelar
               </button>
               <button
@@ -5809,6 +5815,12 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             </div>
           </div>
         </div>
+      )}
+      {confirmarDescarteAberto && (
+        <ConfirmarDescarteModal
+          onContinuar={() => setConfirmarDescarteAberto(false)}
+          onDescartar={() => cancelar({ skipConfirmacao: true })}
+        />
       )}
       {modalScoreAberto && (
         <div className="score-modal-overlay">

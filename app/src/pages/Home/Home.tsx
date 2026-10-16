@@ -55,7 +55,7 @@ import {
   obterTelefonesContato,
   obterDestinatariosCliente,
 } from "../../utils/telefone";
-import { listarUsuarios } from "../../services/auth";
+import { listarUsuarios, type UsuarioDocument } from "../../services/auth";
 import { toast } from "sonner";
 import {
   obterDestinatariosGestao,
@@ -111,7 +111,7 @@ const CORES_PRODUTO: Record<string, string> = {
 
 export default function Home() {
   const navigate = useNavigate();
-  const { role, user } = useAuth();
+  const { role, user, userName } = useAuth();
 
   const [clienteSelecionado, setClienteSelecionado] = useState<Empresa | null>(
     null,
@@ -306,6 +306,9 @@ export default function Home() {
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
 
   const [historico, setHistorico] = useState<Ocorrencia[]>([]);
+  const [nomesUsuariosPorId, setNomesUsuariosPorId] = useState<Map<string, string>>(
+    () => new Map(),
+  );
   const agora = usePendenciasClock(empresas);
 
   const historicoComIds = useMemo(
@@ -803,8 +806,12 @@ export default function Home() {
       let [empresasLista, ocorrenciasLista, usersList] = await Promise.all([
         listarEmpresas(),
         listarOcorrencias(),
-        listarUsuarios().catch(() => [] as any[]),
+        listarUsuarios().catch((): UsuarioDocument[] => []),
       ]);
+
+      setNomesUsuariosPorId(
+        new Map(usersList.map((usuario) => [usuario.uid, formatarNome(usuario.nome)])),
+      );
 
       const csRoleMatch = (u: (typeof usersList)[number]) =>
         u.role?.toLowerCase() === "cs" ||
@@ -2272,6 +2279,12 @@ export default function Home() {
                     : null;
                   const finalizacaoValida =
                     finalizadoEm && Number.isFinite(finalizadoEm.getTime());
+                  const contatoRealizadoPorId =
+                    ocorrencia.avisoTreinamentoContatoRealizadoPorId;
+                  const analistaContato = contatoRealizadoPorId
+                    ? nomesUsuariosPorId.get(contatoRealizadoPorId) ||
+                      (contatoRealizadoPorId === user?.uid ? userName : "")
+                    : "";
                   return (
                     <li key={ocorrencia.id} className="aviso-suporte-item">
                       <div className="aviso-suporte-info">
@@ -2285,7 +2298,9 @@ export default function Home() {
                         )}
                         {ocorrencia.avisoTreinamentoContatoRealizadoPorId && (
                           <span className="aviso-suporte-contato-realizado">
-                            Contato realizado, aguardando retorno do cliente
+                            Contato realizado
+                            {analistaContato ? ` por ${analistaContato}` : ""},
+                            {" "}aguardando retorno do cliente
                           </span>
                         )}
                         <p className="aviso-suporte-motivo">

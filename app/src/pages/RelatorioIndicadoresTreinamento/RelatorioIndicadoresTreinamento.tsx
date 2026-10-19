@@ -103,6 +103,7 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
             )
             .map((u) => u.nome.trim()),
             lancamentosLista,
+            ocorrenciasLista,
           )
             .sort((a, b) => formatarNome(a).localeCompare(formatarNome(b), "pt-BR")),
         );
@@ -160,9 +161,14 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
     return { inicio, fim };
   }, [modoPeriodo, dataInicioPersonalizada, dataFimPersonalizada]);
 
+  const incluirFinsDeSemana = ![
+    "contatosSuporte", "atendimentosWhatsApp", "clientesSuspensos", "clientesCancelados",
+  ].includes(kpiSelecionado);
   const periodos = useMemo(
-    () => (rangeAtivo ? gerarPeriodosIndicadoresEntreDatas(rangeAtivo.inicio, rangeAtivo.fim, granularidade) : []),
-    [rangeAtivo, granularidade],
+    () => (rangeAtivo ? gerarPeriodosIndicadoresEntreDatas(
+      rangeAtivo.inicio, rangeAtivo.fim, granularidade, incluirFinsDeSemana,
+    ) : []),
+    [rangeAtivo, granularidade, incluirFinsDeSemana],
   );
 
   const periodoTotal = rangeAtivo;
@@ -443,8 +449,10 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
           <p className="aging-legenda">
             Os treinamentos incluem clientes de todos os status, inclusive suspensos e cancelados,
             exceto ongoing. Treinadores com histórico permanecem disponíveis mesmo após mudança de perfil.
-            Os dias de fim de semana não entram no gráfico nem no painel — não há expediente de
-            treinamento nesses dias. "Clientes Suspensos" usa a data de suspensão registrada e
+            A contagem usa as ocorrências e a mesma data do Histórico, inclusive registros sem tema
+            e treinamentos em fins de semana. Lançamentos da gamificação complementam dados sem gerar
+            contagens extras. Indicadores de atendimento e de status de clientes consideram dias úteis.
+            "Clientes Suspensos" usa a data de suspensão registrada e
             "Clientes cancelados" usa a data de envio do aviso de cancelamento por WhatsApp, por
             serem as únicas datas disponíveis para essas duas situações; clientes suspensos ou
             cancelados sem essa data registrada não entram em nenhuma das duas métricas neste

@@ -8,7 +8,7 @@ const normalizarNome = (s?: string) =>
 
 const primeiroNome = (s?: string) => normalizarNome((s || "").trim().split(/\s+/)[0] || "");
 
-/** Fim de semana nunca entra nos indicadores de treinamento: não há expediente nesses dias. */
+/** Indicadores de atendimento e de status de clientes mantêm o filtro de dias úteis. */
 export function isDiaUtil(data: Date): boolean {
   const dia = data.getDay();
   return dia !== 0 && dia !== 6;
@@ -31,6 +31,8 @@ function inicioDoDia(data: Date): Date {
 
 export interface EventoIndicador {
   data: Date;
+  /** Treinamentos registrados são contabilizados também fora dos dias úteis. */
+  incluirFimDeSemana?: boolean;
   /** Nome completo do treinador responsável pelo evento (já resolvido quando possível). */
   treinador: string;
 }
@@ -164,13 +166,11 @@ export const KPI_POR_CHAVE: Record<KpiTreinamentoChave, ConfigKpiTreinamento> = 
   {} as Record<KpiTreinamentoChave, ConfigKpiTreinamento>,
 );
 
-const temasDoLancamento = (l: LancamentoPonto) =>
-  (l.treinamentoTema || "").split(",").map((t) => t.trim().toLowerCase());
-
 /** Preserva no relatório quem realizou treinamentos, mesmo após mudar de perfil ou sair da equipe. */
 export function listarTreinadoresIndicadoresTreinamento(
   treinadoresAtuais: string[],
   lancamentos: LancamentoPonto[],
+  ocorrencias: Ocorrencia[] = [],
 ): string[] {
   const nomes = new Map<string, string>();
   const adicionar = (nome?: string) => {
@@ -181,16 +181,23 @@ export function listarTreinadoresIndicadoresTreinamento(
   };
   treinadoresAtuais.forEach(adicionar);
   lancamentos.forEach((l) => {
-    if (l.tipoAcao === "treinamento" && l.treinamentoTema) adicionar(l.treinadorNome);
+    if (l.tipoAcao === "treinamento") adicionar(l.treinadorNome);
+  });
+  const historicos = ocorrencias.filter((o) => o.tipo === "Treinamento")
+    .map((o) => o.responsavel?.trim() || "Não informado");
+  // Cadastra nomes completos antes dos primeiros nomes dos registros antigos.
+  historicos.filter((nome) => nome.includes(" ")).forEach(adicionar);
+  historicos.filter((nome) => !nome.includes(" ")).forEach((nome) => {
+    const candidatos = [...nomes.values()].filter((n) => primeiroNome(n) === primeiroNome(nome));
+    if (candidatos.length !== 1) adicionar(nome);
   });
   return Array.from(nomes.values()).sort((a, b) => a.localeCompare(b, "pt-BR"));
 }
 
 /**
  * Constrói os eventos datados de todos os indicadores de treinamento a partir das
- * três fontes já usadas no modal de Indicadores da Gamificação (lançamentos de
- * pontos, ocorrências e carteira de clientes), para manter os números consistentes
- * entre as duas telas.
+ * ocorrências como fonte dos treinamentos. Lançamentos vinculados complementam
+ * dados ausentes, mas não geram eventos extras nem alteram cliente/data da ocorrência.
  */
 export function construirEventosIndicadoresTreinamento(
   empresas: Empresa[],
@@ -237,48 +244,76 @@ export function construirEventosIndicadoresTreinamento(
   const treinamentosRuins: EventoIndicador[] = [];
   const esperas: EventoEspera[] = [];
 
-  lancamentos
-    .filter((l) => l.tipoAcao === "treinamento" && l.treinamentoTema)
-    .forEach((l) => {
-      const empresa = normalizarNome(l.treinamentoEmpresa);
-      if (empresasOngoing.has(empresa)) return;
-      const treinador = l.treinadorNome?.trim();
-      if (!treinador) return;
+  const lancamentosPorId = new Map(lancamentos.filter((l) => l.id).map((l) => [l.id, l]));
+  const lancamentosPorOcorrencia = new Map<string, LancamentoPonto>();
+  lancamentos.forEach((l) => {
+    if (l.tipoAcao === "treinamento" && l.ocorrenciaId && !lancamentosPorOcorrencia.has(l.ocorrenciaId)) {
+      lancamentosPorOcorrencia.set(l.ocorrenciaId, l);
+    }
+  });
 
-      const data =
-        parseDataLocalISO(l.treinamentoDataRealizacao) || inicioDoDia(new Date(l.dataLancamento));
-      const evento: EventoIndicador = { data, treinador };
-      const temas = temasDoLancamento(l);
+  const nomesCanonicos = new Map(treinadores.map((t) => [normalizarNome(t.nome), t.nome.trim()]));
+  const resolverAutorTreinamento = (nome?: string): string => {
+    const chave = normalizarNome(nome);
+    if (!chave) return "Não informado";
+    const exato = nomesCanonicos.get(chave);
+    if (exato) return exato;
+    if (!chave.includes(" ")) {
+      const candidatos = [...nomesCanonicos.values()].filter((n) => primeiroNome(n) === chave);
+      if (candidatos.length === 1) return candidatos[0];
+    }
+    return nome?.trim() || "Não informado";
+  };
+  const ocorrenciasProcessadas = new Set<string>();
+  ocorrencias.filter((o) => o.tipo === "Treinamento").forEach((o) => {
+    if (o.id) {
+      if (ocorrenciasProcessadas.has(o.id)) return;
+      ocorrenciasProcessadas.add(o.id);
+    }
+    const empresa = normalizarNome(o.empresa);
+    if (empresasOngoing.has(empresa)) return;
+    const timestamp = o.createdAt ?? o.dataOcorrencia;
+    if (!timestamp || !Number.isFinite(timestamp)) return;
+    const data = inicioDoDia(new Date(timestamp));
+    if (Number.isNaN(data.getTime())) return;
+    const vinculado = (o.gamificacaoPontoId ? lancamentosPorId.get(o.gamificacaoPontoId) : undefined)
+      ?? (o.id ? lancamentosPorOcorrencia.get(o.id) : undefined);
+    const l = vinculado?.tipoAcao === "treinamento" ? vinculado : undefined;
+    const treinador = resolverAutorTreinamento(o.responsavel || l?.treinadorNome);
+    const evento: EventoIndicador = { data, treinador, incluirFimDeSemana: true };
+    // Mesmo critério do filtro "Treinamento (Rea.)" do Histórico, inclusive tema vazio.
+    const temas = (o.temaOcorrencia || []).map((t) => t.trim().toLowerCase());
 
-      if (temas.includes("ausente")) {
-        treinamentosAusentes.push(evento);
-        return;
+    if (temas.includes("ausente")) {
+      treinamentosAusentes.push(evento);
+      return;
+    }
+    if (temas.includes("cancelado")) {
+      treinamentosCancelados.push(evento);
+      return;
+    }
+
+    treinamentosRealizados.push(evento);
+
+    const resultados = o.treinamentoResultados
+      ?? o.csatRespostas?.map((r) => r.experiencia)
+      ?? l?.treinamentoResultados ?? [];
+    if (resultados.length > 0) {
+      treinamentosComResultado.push(evento);
+      resultados.forEach((r) => {
+        if (r === "Bom") treinamentosBons.push(evento);
+        else if (r === "Ruim") treinamentosRuins.push(evento);
+      });
+    }
+
+    if (empresasSemOngoing.has(empresa)) {
+      const inicio = parseDataLocalISO(o.treinamentoDataSolicitacao ?? l?.treinamentoDataSolicitacao);
+      if (inicio) {
+        const dias = Math.round((data.getTime() - inicio.getTime()) / 86_400_000);
+        if (dias >= 0) esperas.push({ ...evento, dias });
       }
-      if (temas.includes("cancelado")) {
-        treinamentosCancelados.push(evento);
-        return;
-      }
-
-      treinamentosRealizados.push(evento);
-
-      const resultados = l.treinamentoResultados || [];
-      if (resultados.length > 0) {
-        treinamentosComResultado.push(evento);
-        resultados.forEach((r) => {
-          if (r === "Bom") treinamentosBons.push(evento);
-          else if (r === "Ruim") treinamentosRuins.push(evento);
-        });
-      }
-
-      if (empresasSemOngoing.has(empresa)) {
-        const inicio = parseDataLocalISO(l.treinamentoDataSolicitacao);
-        const fim = parseDataLocalISO(l.treinamentoDataRealizacao);
-        if (inicio && fim) {
-          const dias = Math.round((fim.getTime() - inicio.getTime()) / 86_400_000);
-          if (dias >= 0) esperas.push({ ...evento, dias });
-        }
-      }
-    });
+    }
+  });
 
   const contatosSuporte: EventoIndicador[] = [];
   const atendimentosWhatsApp: EventoIndicador[] = [];
@@ -339,7 +374,7 @@ export function construirEventosIndicadoresTreinamento(
 }
 
 function dentroDoPeriodo(evento: EventoIndicador, inicio: Date, fim: Date): boolean {
-  if (!isDiaUtil(evento.data)) return false;
+  if (!evento.incluirFimDeSemana && !isDiaUtil(evento.data)) return false;
   const t = evento.data.getTime();
   return t >= inicio.getTime() && t <= fim.getTime();
 }
@@ -413,14 +448,15 @@ const LIMITE_PERIODOS = 180;
 
 /**
  * Períodos (dias úteis ou semanas) entre duas datas, inclusive, para montar o eixo X do
- * gráfico e as colunas do painel analítico. Dias de fim de semana nunca entram como
- * categoria própria. Em "semana", os limites de cada período são sempre segunda a domingo
+ * gráfico e as colunas do painel analítico. `incluirFinsDeSemana` inclui sábado e domingo
+ * para indicadores baseados nos treinamentos. Em "semana", os limites são segunda a domingo
  * (a primeira e a última semana podem extrapolar o intervalo pedido).
  */
 export function gerarPeriodosIndicadoresEntreDatas(
   dataInicio: Date,
   dataFim: Date,
   granularidade: "dia" | "semana",
+  incluirFinsDeSemana = false,
 ): PeriodoIndicador[] {
   const periodos: PeriodoIndicador[] = [];
   const inicio = inicioDoDia(dataInicio);
@@ -430,7 +466,7 @@ export function gerarPeriodosIndicadoresEntreDatas(
   if (granularidade === "dia") {
     const cursor = new Date(inicio);
     while (cursor.getTime() <= fim.getTime()) {
-      if (isDiaUtil(cursor)) {
+      if (incluirFinsDeSemana || isDiaUtil(cursor)) {
         const diaInicio = new Date(cursor);
         const diaFim = new Date(cursor);
         diaFim.setHours(23, 59, 59, 999);

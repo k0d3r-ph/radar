@@ -1,5 +1,6 @@
-import type { Empresa, LancamentoPonto, Ocorrencia } from "../types";
+import type { Empresa, LancamentoPonto, Ocorrencia, MotivoEsperaTreinamento } from "../types";
 import { obterCategoriaContatoSuporte } from "./contatosSuporte";
+import { calcularDiasEsperaTreinamento, LIMITE_ESPERA_LONGA_TREINAMENTO, motivoEsperaValido } from "./esperaTreinamento";
 
 const DIACRITICOS = new RegExp("[\\u0300-\\u036f]", "g");
 
@@ -49,6 +50,9 @@ export interface EventoIndicador {
 
 export interface EventoEspera extends EventoIndicador {
   dias: number;
+  motivo?: MotivoEsperaTreinamento | null;
+  empresa?: string;
+  ocorrenciaId?: string;
 }
 
 export interface EventosIndicadoresTreinamento {
@@ -134,7 +138,7 @@ export const KPIS_TREINAMENTO: ConfigKpiTreinamento[] = [
   {
     chave: "tempoMedioEspera",
     titulo: "Tempo médio de espera",
-    descricao: "Média de dias entre a solicitação e a realização do treinamento, incluindo clientes suspensos e cancelados; exclui ongoing.",
+    descricao: "Média de dias úteis (segunda a sexta) entre a solicitação e a realização do treinamento, incluindo clientes suspensos e cancelados; exclui ongoing.",
     formato: "dias",
     menorEhMelhor: true,
   },
@@ -322,11 +326,13 @@ export function construirEventosIndicadoresTreinamento(
     }
 
     if (empresasSemOngoing.has(empresa)) {
-      const inicio = parseDataLocalISO(o.treinamentoDataSolicitacao ?? l?.treinamentoDataSolicitacao);
-      if (inicio) {
-        const dias = Math.round((data.getTime() - inicio.getTime()) / 86_400_000);
-        if (dias >= 0) esperas.push({ ...evento, dias });
-      }
+      const realizacao = `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}-${String(data.getDate()).padStart(2, "0")}`;
+      const dias = calcularDiasEsperaTreinamento(o.treinamentoDataSolicitacao ?? l?.treinamentoDataSolicitacao, realizacao);
+      if (dias !== null) esperas.push({
+        ...evento, dias, empresa: o.empresa, ocorrenciaId: o.id,
+        motivo: dias >= LIMITE_ESPERA_LONGA_TREINAMENTO && motivoEsperaValido(o.treinamentoMotivoEspera)
+          ? o.treinamentoMotivoEspera : null,
+      });
     }
   });
 
@@ -456,6 +462,14 @@ export interface PeriodoIndicador {
   categoria: string;
 }
 
+export function listarEsperasLongasTreinamento(
+  eventos: EventosIndicadoresTreinamento, inicio: Date, fim: Date, treinador: string | null,
+): EventoEspera[] {
+  return filtrarPorTreinador(eventos.esperas, treinador)
+    .filter((evento) => evento.dias >= LIMITE_ESPERA_LONGA_TREINAMENTO && dentroDoPeriodo(evento, inicio, fim))
+    .sort((a, b) => b.data.getTime() - a.data.getTime());
+}
+
 /** Teto de colunas geradas por {@link gerarPeriodosIndicadoresEntreDatas}, para um período
  * personalizado muito largo (ex.: vários anos em granularidade "dia") não travar a tela
  * nem virar uma tabela impraticável; mantém sempre os períodos mais recentes do intervalo. */
@@ -530,6 +544,6 @@ export function formatarValorKpiTreinamento(chave: KpiTreinamentoChave, valor: n
   if (valor === null) return "—";
   const cfg = KPI_POR_CHAVE[chave];
   if (cfg.formato === "percentual") return `${valor.toFixed(1).replace(".", ",")}%`;
-  if (cfg.formato === "dias") return `${valor.toFixed(1).replace(".", ",")} dias`;
+  if (cfg.formato === "dias") return `${valor.toFixed(1).replace(".", ",")} dias úteis`;
   return `${Math.round(valor)}`;
 }

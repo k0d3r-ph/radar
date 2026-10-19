@@ -43,8 +43,8 @@ test('tooltip apresenta realizados, CSAT e espera do dia com o mesmo filtro de t
   const detalhes = grafico.series[0].pointDetails;
   assert.equal(detalhes[0].dateLabel, '01/10/2026');
   assert.equal(detalhes[0].valueLabel, '2');
-  assert.deepEqual(detalhes[0].metrics.map(m => m.value), ['50,0%', '2,0 dias']);
-  assert.deepEqual(detalhes[1].metrics.map(m => m.value), ['—', '—']);
+  assert.deepEqual(detalhes[0].metrics.slice(0, 2).map(m => m.value), ['50,0%', '2,0 dias úteis']);
+  assert.deepEqual(detalhes[1].metrics.map(m => m.value), ['0,0%', '—']);
 });
 
 test('compara todos os períodos selecionados com cores distintas e datas reais no tooltip', () => {
@@ -56,7 +56,7 @@ test('compara todos os períodos selecionados com cores distintas e datas reais 
   assert.deepEqual(grafico.series[1].values, [1, 0, 0, 1]);
   assert.equal(grafico.series[0].pointDetails[3], null);
   assert.equal(grafico.series[1].pointDetails[0].dateLabel, '01/09/2026');
-  assert.deepEqual(grafico.series[1].pointDetails[0].metrics.map(m => m.value), ['100,0%', '2,0 dias']);
+  assert.deepEqual(grafico.series[1].pointDetails[0].metrics.slice(0, 2).map(m => m.value), ['100,0%', '2,0 dias úteis']);
   assert.equal(construir({ ...opcoes, comparacoes: [] }).series.length, 1);
 });
 
@@ -71,11 +71,33 @@ test('semanas respeitam os limites do período e agregam CSAT e espera do interv
   const grafico = construir({ ...opcoes, granularidade: 'semana', atual: intervalo('2026-09-30', '2026-10-06') });
   assert.deepEqual(grafico.series[0].values, [2, 0]);
   assert.equal(grafico.series[0].pointDetails[0].dateLabel, '30/09/2026 a 04/10/2026');
-  assert.deepEqual(grafico.series[0].pointDetails[0].metrics.map(m => m.value), ['50,0%', '2,0 dias']);
+  assert.deepEqual(grafico.series[0].pointDetails[0].metrics.slice(0, 2).map(m => m.value), ['50,0%', '2,0 dias úteis']);
 });
 
-test('CSAT sem amostra permanece lacuna e não zero de desempenho', () => {
+test('CSAT sem amostra aparece como zero no gráfico, mantendo lacunas apenas para datas inexistentes', () => {
   const grafico = construir({ ...opcoes, kpi: 'taxaCsat' });
-  assert.deepEqual(grafico.series[0].values, [50, null, null]);
+  assert.deepEqual(grafico.series[0].values, [50, 0, 0]);
+  assert.equal(grafico.series[0].pointDetails[1].valueLabel, '0,0%');
   assert.deepEqual(grafico.series[0].pointDetails[0].metrics, []);
+});
+
+test('tooltip identifica a espera longa a pedido do cliente sem retirar dias da média', () => {
+  const eventos = indicadores.construirEventosIndicadoresTreinamento([{ nomeEmpresa: 'Cliente' }], [
+    ocorrencia('2026-10-01', { treinamentoDataSolicitacao: '2026-09-24', treinamentoMotivoEspera: 'cliente' }),
+  ], [], []);
+  const grafico = construir({ ...opcoes, eventos });
+  const metrics = grafico.series[0].pointDetails[0].metrics;
+  assert.equal(metrics.find(m => m.label === 'Tempo médio de espera').value, '5,0 dias úteis');
+  assert.equal(metrics.find(m => m.label === 'Espera longa a pedido do cliente').value, '1');
+});
+
+test('registros antigos continuam na média sem categoria de espera sem motivo no tooltip', () => {
+  const eventos = indicadores.construirEventosIndicadoresTreinamento([{ nomeEmpresa: 'Cliente' }], [
+    ocorrencia('2026-10-01', { treinamentoDataSolicitacao: '2026-09-24' }),
+  ], [], []);
+  for (const kpi of ['treinamentosRealizados', 'tempoMedioEspera']) {
+    const serie = construir({ ...opcoes, eventos, kpi }).series[0];
+    assert.equal(serie.values[0], kpi === 'treinamentosRealizados' ? 1 : 5);
+    assert.equal(serie.pointDetails[0].metrics.some(m => /sem motivo|não informado/i.test(m.label)), false);
+  }
 });

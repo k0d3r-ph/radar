@@ -5,6 +5,7 @@ import {
   formatarValorKpiTreinamento,
   gerarPeriodosIndicadoresEntreDatas,
   KPI_POR_CHAVE,
+  listarEsperasLongasTreinamento,
   type EventosIndicadoresTreinamento,
   type KpiTreinamentoChave,
 } from "./indicadoresTreinamento";
@@ -46,7 +47,11 @@ export function construirGraficoIndicadoresTreinamento(opcoes: OpcoesGrafico): {
   const series = periodos.map((lista, indice): LineChartSeries => {
     const intervalo = intervalos[indice];
     const rotulo = `${dataCompleta(intervalo.inicio)} a ${dataCompleta(intervalo.fim)}`;
-    const valores = lista.map((p) => calcularValorKpiTreinamento(kpi, eventos, p.inicio, p.fim, treinador));
+    const valorGrafico = (chave: KpiTreinamentoChave, inicio: Date, fim: Date) => {
+      const valor = calcularValorKpiTreinamento(chave, eventos, inicio, fim, treinador);
+      return chave === "taxaCsat" ? valor ?? 0 : valor;
+    };
+    const valores = lista.map((p) => valorGrafico(kpi, p.inicio, p.fim));
     return {
       label: comparando ? `${indice === 0 ? "Principal" : "Comparação"}: ${rotulo}` : KPI_POR_CHAVE[kpi].titulo,
       color: indice === 0 ? cor : CORES_COMPARACAO[indice - 1] ?? `hsl(${(indice * 137.5) % 360} 75% 65%)`,
@@ -54,15 +59,20 @@ export function construirGraficoIndicadoresTreinamento(opcoes: OpcoesGrafico): {
       pointDetails: Array.from({ length: quantidade }, (_, i) => {
         const p = lista[i];
         if (!p) return null;
+        const esperas = listarEsperasLongasTreinamento(eventos, p.inicio, p.fim, treinador);
+        const motivos = [
+          { label: "Espera longa a pedido do cliente", value: String(esperas.filter((e) => e.motivo === "cliente").length) },
+          { label: "Espera longa por agenda do treinador", value: String(esperas.filter((e) => e.motivo === "agenda_treinador").length) },
+        ];
         return {
           dateLabel: granularidade === "dia" ? dataCompleta(p.inicio)
             : `${dataCompleta(p.inicio)} a ${dataCompleta(p.fim)}`,
           valueLabel: formatarValorKpiTreinamento(kpi, valores[i]),
-          metrics: kpi === "treinamentosRealizados" ? (["taxaCsat", "tempoMedioEspera"] as const).map((chave) => ({
+          metrics: kpi === "treinamentosRealizados" ? [...(["taxaCsat", "tempoMedioEspera"] as const).map((chave) => ({
             label: KPI_POR_CHAVE[chave].titulo,
             value: formatarValorKpiTreinamento(chave,
-              calcularValorKpiTreinamento(chave, eventos, p.inicio, p.fim, treinador)),
-          })) : [],
+              valorGrafico(chave, p.inicio, p.fim)),
+          })), ...(esperas.length > 0 ? motivos : [])] : kpi === "tempoMedioEspera" && esperas.length > 0 ? motivos : [],
         };
       }),
     };

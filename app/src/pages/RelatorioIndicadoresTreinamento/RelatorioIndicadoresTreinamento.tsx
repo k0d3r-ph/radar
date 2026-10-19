@@ -17,6 +17,7 @@ import {
 import { LineChart } from "../../components/LineChart";
 import { SelectCustomizado } from "../../components/SelectCustomizado";
 import { ComparativoTreinamento } from "./ComparativoTreinamento";
+import { DetalhamentoEsperaTreinamento } from "./DetalhamentoEsperaTreinamento";
 import { intervaloAnteriorTreinamento, lerDataComparacao, type IntervaloComparacaoTreinamento } from "../../utils/comparativoTreinamento";
 import { construirGraficoIndicadoresTreinamento } from "../../utils/graficoIndicadoresTreinamento";
 import { listarEmpresas, isEmpresaInterna } from "../../services/empresas";
@@ -418,7 +419,11 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
             title={tituloGrafico}
             categorias={grafico.categorias}
             series={grafico.series}
+            exibirZerados={kpiSelecionado === "taxaCsat"}
           />
+          {(kpiSelecionado === "treinamentosRealizados" || kpiSelecionado === "tempoMedioEspera") && (
+            <DetalhamentoEsperaTreinamento eventos={eventos} inicio={rangeAtivo.inicio} fim={rangeAtivo.fim} treinador={treinadorAtivo} />
+          )}
 
           {/* Painel analítico — parte inferior: o mesmo KPI, detalhado por treinador e período */}
           <div className="relatorio-detalhe-section indicadores-tabela-card">

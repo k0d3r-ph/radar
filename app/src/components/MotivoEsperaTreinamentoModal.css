@@ -1,0 +1,41 @@
+.espera-treinamento-dialog {
+  --espera-fundo: #ffffff;
+  --espera-texto: #172554;
+  --espera-suave: #475569;
+  --espera-borda: #cbd5e1;
+  --espera-opcao: #f8fafc;
+  margin: auto;
+  width: min(540px, calc(100% - 32px));
+  max-height: calc(100dvh - 32px);
+  box-sizing: border-box;
+  padding: 0;
+  border: 1px solid var(--espera-borda);
+  border-radius: 18px;
+  background: var(--espera-fundo);
+  color: var(--espera-texto);
+  font-family: inherit;
+  overflow-y: auto;
+  box-shadow: 0 24px 70px rgb(15 23 42 / 25%);
+}
+body.dark-theme .espera-treinamento-dialog {
+  --espera-fundo: #151d2d;
+  --espera-texto: #f1f5f9;
+  --espera-suave: #b4c0d2;
+  --espera-borda: #475569;
+  --espera-opcao: #1e293b;
+}
+.espera-treinamento-dialog::backdrop { background: rgb(15 23 42 / 55%); }
+.espera-treinamento-conteudo { padding: 26px; }
+.espera-treinamento-conteudo > svg { color: #60a5fa; }
+.espera-treinamento-dialog h2 { margin: 14px 0 10px; font-size: 1.2rem; color: inherit; }
+body .espera-treinamento-dialog p { color: var(--espera-suave); line-height: 1.6; font-size: 0.9rem; }
+.espera-treinamento-dialog fieldset { border: 0; margin: 20px 0; padding: 0; min-width: 0; }
+.espera-treinamento-dialog legend { font-size: 0.85rem; font-weight: 600; margin-bottom: 8px; }
+.espera-treinamento-dialog label { display: flex; align-items: flex-start; gap: 10px; padding: 14px; margin-bottom: 10px; border: 1px solid var(--espera-borda); border-radius: 10px; background: var(--espera-opcao); cursor: pointer; line-height: 1.5; font-size: 0.9rem; }
+.espera-treinamento-dialog label:has(input:checked) { border-color: #60a5fa; }
+.espera-treinamento-dialog input { margin-top: 4px; accent-color: #3b82f6; flex-shrink: 0; }
+.espera-treinamento-acoes { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+.espera-treinamento-acoes button { flex: 1 1 170px; min-height: 44px; border-radius: 9px; border: 1px solid var(--espera-borda); padding: 10px 12px; background: var(--espera-opcao); color: var(--espera-texto); font: inherit; font-size: 0.85rem; cursor: pointer; }
+.espera-treinamento-acoes button:last-child { background: #2563eb; color: #fff; border-color: #2563eb; }
+.espera-treinamento-acoes button:disabled { opacity: 0.5; cursor: default; }
+.espera-treinamento-dialog :focus-visible { outline: 3px solid #60a5fa; outline-offset: 3px; }

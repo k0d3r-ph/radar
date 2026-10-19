@@ -16,7 +16,8 @@ async function carregar(nome) {
 const module = await carregar('indicadoresTreinamento');
 await module.evaluate();
 const { construirEventosIndicadoresTreinamento: construir, calcularValorKpiTreinamento: calcular,
-  listarTreinadoresIndicadoresTreinamento: listar, gerarPeriodosIndicadoresEntreDatas: periodos } = module.namespace;
+  listarTreinadoresIndicadoresTreinamento: listar, gerarPeriodosIndicadoresEntreDatas: periodos,
+  listarEsperasLongasTreinamento: listarEsperas } = module.namespace;
 
 const lancamento = (empresa, tema = 'Cadastro', treinador = 'Natália Teixeira') => ({
   tipoAcao: 'treinamento', treinadorNome: treinador, treinamentoEmpresa: empresa,
@@ -174,4 +175,18 @@ test('preserva pessoas com o mesmo primeiro nome e sobrenomes diferentes', () =>
   const eventos = construir([], ocorrencias, [], nomes.map(nome => ({ nome })));
   assert.equal(calcular('treinamentosRealizados', eventos, inicio, fim, 'Jeff Costa'), 1);
   assert.equal(calcular('treinamentosRealizados', eventos, inicio, fim, 'Jeff Silva'), 1);
+});
+
+test('mantém todos os motivos na média e detalha esperas longas respeitando período e treinador', () => {
+  const eventos = construir([{ nomeEmpresa: 'Cliente' }], [
+    ocorrencia('Cliente', ['Cadastro'], { id: 'cliente', treinamentoDataSolicitacao: '2026-10-08', treinamentoMotivoEspera: 'cliente' }),
+    ocorrencia('Cliente', ['Cadastro'], { id: 'agenda', treinamentoDataSolicitacao: '2026-10-12', treinamentoMotivoEspera: 'agenda_treinador' }),
+    ocorrencia('Cliente', ['Cadastro'], { id: 'legado', treinamentoDataSolicitacao: '2026-10-11' }),
+    ocorrencia('Cliente', ['Cadastro'], { id: 'outro', treinamentoDataSolicitacao: '2026-10-08', responsavel: 'Outro treinador', treinamentoMotivoEspera: 'cliente' }),
+  ], [], []);
+  assert.equal(calcular('tempoMedioEspera', eventos, inicio, fim, 'Natália Teixeira'), 4);
+  const esperas = listarEsperas(eventos, inicio, fim, 'Natália Teixeira');
+  assert.deepEqual(esperas.map(e => e.motivo), ['cliente', 'agenda_treinador', null]);
+  assert.deepEqual(esperas.map(e => e.ocorrenciaId), ['cliente', 'agenda', 'legado']);
+  assert.equal(listarEsperas(eventos, new Date(2026, 10, 1), new Date(2026, 10, 30), null).length, 0);
 });

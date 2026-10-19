@@ -46,9 +46,11 @@ import {
   TIPOS_PADRAO_SISTEMA,
 } from "../../services/temasOcorrencia";
 import { generateEsteiraImage } from "../../utils/generateEsteiraImage";
-import { obterDataRealizacaoTreinamento } from "../../utils/dataTreinamento";
+import { obterDataRealizacaoTreinamento, obterInstanteRealizacaoTreinamento } from "../../utils/dataTreinamento";
 import { GestaoNotificacaoModal } from "../../components/GestaoNotificacaoModal";
 import { ConfirmarDescarteModal } from "../../components/ConfirmarDescarteModal";
+import { MotivoEsperaTreinamentoModal } from "../../components/MotivoEsperaTreinamentoModal";
+import { avaliarMotivoEsperaTreinamento, descreverMotivoEsperaTreinamento, motivoEsperaValido } from "../../utils/esperaTreinamento";
 import { camposResultadoConclusao } from "../../utils/notificacaoConclusao";
 
 import {
@@ -61,6 +63,7 @@ import type {
   Empresa,
   OcorrenciaForm,
   ContadorPerdasScore,
+  MotivoEsperaTreinamento,
 } from "../../types";
 import "./Historico.css";
 import "./Favoritos.css";
@@ -345,6 +348,7 @@ const EMPTY: OcorrenciaForm = {
   alertaOriginalId: "",
   gamificacaoPontoId: "",
   treinamentoDataSolicitacao: "",
+  treinamentoMotivoEspera: null,
   treinamentoTempoAgenda: "",
   treinamentoSolicitante: "CS",
   treinamentoNotas: [],
@@ -782,6 +786,28 @@ export function Historico() {
   const [ordenacaoData, setOrdenacaoData] = useState<"desc" | "asc">("desc");
   const [loading, setLoading] = useState(true);
   const [salvando, setSalvando] = useState(false);
+  const salvarEmAndamentoRef = useRef(false);
+  const [diasConfirmacaoEspera, setDiasConfirmacaoEspera] = useState<number | null>(null);
+  const respostaEsperaRef = useRef<((motivo: MotivoEsperaTreinamento | null) => void) | null>(null);
+  useEffect(() => () => {
+    respostaEsperaRef.current?.(null);
+    respostaEsperaRef.current = null;
+  }, []);
+
+  function perguntarMotivoEspera(dias: number): Promise<MotivoEsperaTreinamento | null> {
+    if (respostaEsperaRef.current) return Promise.resolve(null);
+    return new Promise((resolve) => {
+      respostaEsperaRef.current = resolve;
+      setDiasConfirmacaoEspera(dias);
+    });
+  }
+
+  function responderMotivoEspera(motivo: MotivoEsperaTreinamento | null) {
+    const resolver = respostaEsperaRef.current;
+    respostaEsperaRef.current = null;
+    setDiasConfirmacaoEspera(null);
+    resolver?.(motivo);
+  }
   const [painelAberto, setPainelAberto] = useState(false);
   const [usarTemplate, setUsarTemplate] = useState(true);
   const [temaOcorrenciaOngoingText, setTemaOcorrenciaOngoingText] =
@@ -1220,10 +1246,10 @@ export function Historico() {
     }
 
     const copy = [...(selecionada!.atualizacoes ?? [])];
+    // Corrigir o texto não muda a data nem o autor do comentário original.
     copy[index] = {
       ...copy[index],
       descricao: editingUpdateText.trim(),
-      updatedAt: Date.now(),
     };
 
     const atualizado = {
@@ -1475,6 +1501,7 @@ export function Historico() {
       alertaOriginalId: o.alertaOriginalId || "",
       gamificacaoPontoId: o.gamificacaoPontoId || "",
       treinamentoDataSolicitacao: o.treinamentoDataSolicitacao || "",
+      treinamentoMotivoEspera: motivoEsperaValido(o.treinamentoMotivoEspera) ? o.treinamentoMotivoEspera : null,
       treinamentoTempoAgenda: o.treinamentoTempoAgenda || "",
       treinamentoSolicitante: o.treinamentoSolicitante || "CS",
       treinamentoNotas: o.treinamentoNotas
@@ -1537,6 +1564,20 @@ export function Historico() {
   }
 
   async function salvar() {
+    if (salvando || salvarEmAndamentoRef.current) return;
+    salvarEmAndamentoRef.current = true;
+    try {
+      await salvarFormulario();
+    } catch (error) {
+      console.error("Erro ao salvar ocorrência:", error);
+      toast.error(error instanceof Error ? error.message : "Não foi possível salvar a ocorrência. Tente novamente.");
+    } finally {
+      salvarEmAndamentoRef.current = false;
+      setSalvando(false);
+    }
+  }
+
+  async function salvarFormulario() {
     if (
       reservaEditando &&
       (form.empresa !== reservaEditando.empresa ||
@@ -1709,12 +1750,31 @@ export function Historico() {
       ).getTime();
     } else if (ocorrenciaOriginal?.createdAt) {
       finalCreatedAt = ocorrenciaOriginal.createdAt;
+    } else if (form.tipo === "Treinamento") {
+      // Mantém a realização consistente com a pergunta, inclusive se o modal atravessar a meia-noite.
+      finalCreatedAt = obterInstanteRealizacaoTreinamento({});
     }
 
     const dataRealizacaoStr =
       form.tipo === "Treinamento"
         ? obterDataRealizacaoTreinamento({ createdAt: finalCreatedAt })
         : "";
+
+    const avaliacaoEspera = avaliarMotivoEsperaTreinamento({
+      tipo: form.tipo, temas: form.temaOcorrencia,
+      solicitacao: form.treinamentoDataSolicitacao, realizacao: dataRealizacaoStr,
+      motivo: form.treinamentoMotivoEspera,
+    });
+    if (form.tipo === "Treinamento" && !CanceladoOuAusente && avaliacaoEspera.dias === null) {
+      toast.error("Confira as datas: a solicitação deve ser válida e não pode ser posterior à realização do treinamento.");
+      return;
+    }
+    let motivoEspera = avaliacaoEspera.motivo;
+    if (avaliacaoEspera.precisaConfirmar && avaliacaoEspera.dias !== null) {
+      motivoEspera = await perguntarMotivoEspera(avaliacaoEspera.dias);
+      if (!motivoEsperaValido(motivoEspera)) return;
+      setForm((anterior) => ({ ...anterior, treinamentoMotivoEspera: motivoEspera }));
+    }
 
     const base: Ocorrencia = {
       ...form,
@@ -1723,6 +1783,7 @@ export function Historico() {
       descricao: novaDescricao,
       responsavel: responsavelFinal,
       dataOcorrencia: timestamp,
+      treinamentoMotivoEspera: motivoEspera,
       atualizacoes: ocorrenciaOriginal?.atualizacoes ?? [],
       scoreCalculado: calculoScoreResult
         ? calculoScoreResult.isNeutro
@@ -1945,6 +2006,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         treinamentoEmpresa: form.empresa.trim(),
         treinamentoTema: (form.temaOcorrencia ?? []).join(", "),
         treinamentoDataSolicitacao: form.treinamentoDataSolicitacao || "",
+        treinamentoMotivoEspera: motivoEspera,
         treinamentoDataRealizacao: dataRealizacaoStr,
         treinamentoTempoAgenda: (form.treinamentoTempoAgenda || "").trim(),
         treinamentoSolicitante: form.treinamentoSolicitante || "",
@@ -4405,6 +4467,12 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                         <strong>{selecionada.treinamentoTempoAgenda}</strong>
                       </div>
                     )}
+                    {motivoEsperaValido(selecionada.treinamentoMotivoEspera) && (
+                      <div>
+                        <span>Motivo da espera</span>
+                        <strong>{descreverMotivoEsperaTreinamento(selecionada.treinamentoMotivoEspera)}</strong>
+                      </div>
+                    )}
                     {selecionada.treinamentoSolicitante && (
                       <div>
                         <span>Solicitante</span>
@@ -5126,6 +5194,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       setForm({
                         ...form,
                         createdAt: e.target.value,
+                        treinamentoMotivoEspera: null,
                       })
                     }
                   />
@@ -5635,6 +5704,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                         setForm({
                           ...form,
                           treinamentoDataSolicitacao: e.target.value,
+                          treinamentoMotivoEspera: null,
                         })
                       }
                       required
@@ -5671,6 +5741,20 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                     />
                   </div>
                 </div>
+
+                {motivoEsperaValido(form.treinamentoMotivoEspera) && (
+                  <div className="hist-campo">
+                    <label htmlFor="hist-motivo-espera">Motivo da espera</label>
+                    <select id="hist-motivo-espera" value={form.treinamentoMotivoEspera}
+                      onChange={(event) => {
+                        if (motivoEsperaValido(event.target.value)) setForm({ ...form, treinamentoMotivoEspera: event.target.value });
+                      }}>
+                      <option value="cliente">Data distante a pedido do cliente</option>
+                      <option value="agenda_treinador">Disponibilidade da agenda do treinador</option>
+                    </select>
+                    <small>A espera continua na média geral do relatório. Ao alterar as datas, o motivo será solicitado novamente.</small>
+                  </div>
+                )}
 
                 <div className="hist-campo">
                   <label>Quem solicitou *</label>
@@ -5911,6 +5995,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
           onContinuar={() => setConfirmarDescarteAberto(false)}
           onDescartar={() => cancelar({ skipConfirmacao: true })}
         />
+      )}
+      {diasConfirmacaoEspera !== null && (
+        <MotivoEsperaTreinamentoModal dias={diasConfirmacaoEspera}
+          onConfirmar={responderMotivoEspera} onCancelar={() => responderMotivoEspera(null)} />
       )}
       {modalScoreAberto && (
         <div className="score-modal-overlay">

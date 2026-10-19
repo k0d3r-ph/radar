@@ -18,6 +18,7 @@ interface LineChartProps {
   title: string;
   categorias: string[];
   series: LineChartSeries[];
+  exibirZerados?: boolean;
 }
 
 const WIDTH = 720;
@@ -27,11 +28,11 @@ const PADDING_RIGHT = 16;
 const PADDING_TOP = 16;
 const PADDING_BOTTOM = 32;
 
-export const LineChart: React.FC<LineChartProps> = ({ title, categorias, series }) => {
+export const LineChart: React.FC<LineChartProps> = ({ title, categorias, series, exibirZerados = false }) => {
   const [indiceHover, setHover] = useState<number | null>(null);
   const tooltipId = useId();
 
-  const temDados = series.some((s) => s.values.some((v) => v !== null && v > 0));
+  const temDados = series.some((s) => s.values.some((v) => v !== null && (exibirZerados || v > 0)));
   const escalaY = calcularEscalaEixoY(series.flatMap((s) => s.values.filter((v): v is number => v !== null)));
   const n = categorias.length;
   const hover = indiceHover !== null && indiceHover < n ? indiceHover : null;

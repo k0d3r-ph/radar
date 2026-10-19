@@ -106,6 +106,10 @@ export function registrarCsat(app: Express, db: Firestore | null, auth: Auth | n
       if (!reserva || reserva.criadoPor !== user.uid) throw new CsatError(404, 'Reserva não encontrada.');
       if (reserva.status === 'concluida') return { id: ref.id };
       const dados = req.body;
+      if (dados.treinamentoMotivoEspera != null && dados.treinamentoMotivoEspera !== 'cliente'
+        && dados.treinamentoMotivoEspera !== 'agenda_treinador') {
+        throw new CsatError(400, 'Motivo de espera do treinamento inválido.');
+      }
       if (dados.empresa !== reserva.empresa || dados.tipo !== 'Treinamento' || dados.departamento !== 'Treinamento'
         || typeof dados.descricao !== 'string' || !dados.descricao.trim() || !Number.isFinite(dados.dataOcorrencia)) {
         throw new CsatError(400, 'Preencha uma ocorrência de treinamento do cliente reservado.');

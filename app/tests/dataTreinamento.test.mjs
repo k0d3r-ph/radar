@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { obterDataRealizacaoTreinamento } from "../src/utils/dataTreinamento.ts";
+import { obterDataRealizacaoTreinamento, obterInstanteRealizacaoTreinamento } from "../src/utils/dataTreinamento.ts";
 
 test("envio e reenvio usam a realização editada, independentemente do próximo agendamento", () => {
   const ocorrencia = {
@@ -17,4 +17,11 @@ test("registros antigos sem criação usam a data disponível e novos usam hoje"
   const hoje = new Date(2026, 9, 1, 12).getTime();
   assert.equal(obterDataRealizacaoTreinamento({ dataOcorrencia: new Date(2026, 8, 30, 12).getTime() }, hoje), "2026-09-30");
   assert.equal(obterDataRealizacaoTreinamento({}, hoje), "2026-10-01");
+});
+
+test("captura uma realização estável mesmo se a confirmação passar da meia-noite", () => {
+  const antesDaMeiaNoite = new Date(2026, 9, 1, 23, 59).getTime();
+  const diaSeguinte = new Date(2026, 9, 2, 0, 5).getTime();
+  const createdAt = obterInstanteRealizacaoTreinamento({}, antesDaMeiaNoite);
+  assert.equal(obterDataRealizacaoTreinamento({ createdAt }, diaSeguinte), "2026-10-01");
 });

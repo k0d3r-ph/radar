@@ -164,6 +164,8 @@ export type Empresa = {
   whatsappDestinatariosConclusao?: WhatsappDestinatarioEnvio[];
 };
 
+export type MotivoEsperaTreinamento = "cliente" | "agenda_treinador";
+
 export type Ocorrencia = {
   id?: string;
   empresa: string;
@@ -220,6 +222,8 @@ export type Ocorrencia = {
   avisoTreinamentoContatoRealizadoPorId?: string;
   avisoTreinamentoContatoRealizadoEm?: number;
   treinamentoDataSolicitacao?: string;
+  /** Contexto da espera longa; null remove uma classificação anterior após alterar as datas. */
+  treinamentoMotivoEspera?: MotivoEsperaTreinamento | null;
   treinamentoTempoAgenda?: string;
   treinamentoSolicitante?: string;
   /** @deprecated Modelo antigo (nota 1 a 5). Mantido só para exibir/alimentar médias de registros antigos. */
@@ -265,6 +269,7 @@ export type OcorrenciaForm = {
   alertaOriginalId?: string;
   gamificacaoPontoId?: string;
   treinamentoDataSolicitacao?: string;
+  treinamentoMotivoEspera?: MotivoEsperaTreinamento | null;
   treinamentoTempoAgenda?: string;
   treinamentoSolicitante?: string;
   /** @deprecated Modelo antigo (nota 1 a 5). Não é mais preenchido pelo formulário. */
@@ -284,6 +289,7 @@ export type OcorrenciaForm = {
 
 export type Atualizacao = {
   descricao: string;
+  /** Instante original da atualização; preservado ao corrigir seu texto. */
   updatedAt: number;
   responsavel?: string;
 };
@@ -326,6 +332,7 @@ export interface LancamentoPonto {
   treinamentoEmpresa?: string;
   treinamentoTema?: string;
   treinamentoDataSolicitacao?: string;
+  treinamentoMotivoEspera?: MotivoEsperaTreinamento | null;
   treinamentoDataRealizacao?: string;
   treinamentoTempoAgenda?: string;
   treinamentoSolicitante?: string;

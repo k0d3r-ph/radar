@@ -20,6 +20,18 @@
   min-width: 0;
 }
 
+.indicadores-esperas { padding: 1.25rem; }
+.indicadores-esperas h3 { margin: 0 0 0.5rem; font-size: 1rem; }
+.indicadores-esperas p { font-size: 0.85rem; color: var(--comparativo-suave); line-height: 1.6; }
+.indicadores-esperas-resumo { display: flex; flex-wrap: wrap; gap: 0.75rem 1.5rem; list-style: none; padding: 0; font-size: 0.85rem; }
+.indicadores-esperas summary { cursor: pointer; font-size: 0.85rem; padding: 0.75rem 0; }
+.indicadores-esperas caption { padding: 0.5rem 0; text-align: left; color: var(--comparativo-suave); font-size: 0.8rem; }
+.indicadores-esperas td:last-child { white-space: normal; min-width: 200px; }
+.indicadores-esperas .relatorios-table td { color: var(--comparativo-texto); }
+.indicadores-esperas .relatorios-table th { color: var(--comparativo-suave); }
+.indicadores-esperas .relatorios-table th,
+.indicadores-esperas .relatorios-table td { border-color: var(--comparativo-borda); }
+
 .indicadores-secao-header h2 { margin: 0 0 0.35rem; font-size: 1rem; }
 .indicadores-secao-header p { margin: 0; font-size: 0.85rem; color: #94a3b8; }
 body.light-theme .indicadores-secao-header p { color: #526277; }

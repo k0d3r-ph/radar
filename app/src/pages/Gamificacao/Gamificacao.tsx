@@ -25,6 +25,7 @@ import { useTheme } from "../../context/ThemeContext";
 import { formatarNome } from "../../utils/formatarNome";
 import { atuaComoTreinador } from "../../utils/perfis";
 import { calcularScoreEfetivo } from "../../utils/score";
+import { calcularDiasEsperaTreinamento } from "../../utils/esperaTreinamento";
 import { listarUsuarios } from "../../services/auth";
 import type { UsuarioDocument } from "../../services/auth";
 import {
@@ -151,8 +152,6 @@ const normalizarNomeComparacao = (s: string) =>
 const primeiroNomeResponsavel = (responsavel: string) =>
   normalizarNomeComparacao(responsavel.trim().split(/\s+/)[0] || "");
 
-const MS_POR_DIA = 24 * 60 * 60 * 1000;
-
 /** Temas de um lançamento de treinamento, normalizados para comparação. */
 const temasDoLancamento = (entry: LancamentoPonto) =>
   (entry.treinamentoTema || "")
@@ -174,18 +173,6 @@ const formatarDuracaoMinutos = (totalMinutos: number) => {
   if (horas === 0) return `${minutos}min`;
   if (minutos === 0) return `${horas}h`;
   return `${horas}h ${minutos}min`;
-};
-
-/** Diferença em dias entre duas datas "yyyy-mm-dd", lidas no fuso local. */
-const diasEntreDatas = (inicio?: string, fim?: string): number | null => {
-  if (!inicio || !fim) return null;
-  const [ay, am, ad] = inicio.split("-").map(Number);
-  const [by, bm, bd] = fim.split("-").map(Number);
-  const dataInicio = new Date(ay, am - 1, ad);
-  const dataFim = new Date(by, bm - 1, bd);
-  if (isNaN(dataInicio.getTime()) || isNaN(dataFim.getTime())) return null;
-  const dias = (dataFim.getTime() - dataInicio.getTime()) / MS_POR_DIA;
-  return dias < 0 ? null : dias;
 };
 
 const media = (valores: number[]) =>
@@ -262,11 +249,11 @@ const COLUNAS_INDICADORES = [
   {
     chave: "tempoMedioEspera",
     titulo: "Tempo médio de espera",
-    unidade: "dias",
+    unidade: "dias úteis",
     menorEhMelhor: true,
     passo: 0.1,
     ajuda:
-      "Média de dias entre a solicitação e a realização do treinamento, considerando apenas clientes ativos na esteira",
+      "Média de dias úteis (segunda a sexta) entre a solicitação e a realização do treinamento, considerando apenas clientes ativos na esteira",
   },
   {
     chave: "horasEmTreinamento",
@@ -1241,7 +1228,7 @@ export const Gamificacao: React.FC = () => {
             ),
           )
           .map((e) =>
-            diasEntreDatas(
+            calcularDiasEsperaTreinamento(
               e.treinamentoDataSolicitacao,
               e.treinamentoDataRealizacao,
             ),
@@ -1447,7 +1434,7 @@ export const Gamificacao: React.FC = () => {
     String(linha.treinamentosCancelados),
     linha.tempoMedioEspera === null
       ? "—"
-      : `${linha.tempoMedioEspera.toFixed(1)} dias`,
+      : `${linha.tempoMedioEspera.toFixed(1)} dias úteis`,
     formatarDuracaoMinutos(linha.minutosEmTreinamento),
     String(linha.contatosSuporte),
     String(linha.atendimentosWhatsApp),

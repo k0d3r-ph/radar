@@ -78,6 +78,18 @@ test('link inválido não permite ler ou escrever avaliações', async () => {
   const { call } = setup();
   assert.equal((await call('GET /api/csat/publico/:token', undefined, { token: 'x'.repeat(64) }, '')).status, 404);
 });
+
+test('conclusão preserva motivo de espera e rejeita valores não previstos', async () => {
+  for (const motivo of ['cliente', 'agenda_treinador', null]) {
+    const { call, data } = setup();
+    const reserva = (await call('POST /api/csat/reservas', { empresaId: 'e1' })).result;
+    const body = { empresa: 'Cliente', tipo: 'Treinamento', departamento: 'Treinamento', descricao: 'Realizado', dataOcorrencia: Date.now(), treinamentoMotivoEspera: motivo };
+    assert.equal((await call('POST /api/csat/reservas/:id/concluir', { ...body, treinamentoMotivoEspera: 'outro' }, { id: reserva.id })).status, 400);
+    assert.equal(data.has(`ocorrencias/${reserva.id}`), false);
+    assert.equal((await call('POST /api/csat/reservas/:id/concluir', body, { id: reserva.id })).status, 200);
+    assert.equal(data.get(`ocorrencias/${reserva.id}`).treinamentoMotivoEspera, motivo);
+  }
+});
 test('reserva o próximo número do cliente e preserva números reservados e concluídos', async () => {
   const { call, data } = setup();
   for (let i = 1; i <= 5; i++) data.set(`ocorrencias/antiga${i}`, { empresa: 'Cliente', createdAt: i });

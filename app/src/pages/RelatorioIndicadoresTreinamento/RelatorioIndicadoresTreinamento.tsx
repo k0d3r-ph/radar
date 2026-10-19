@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import { LineChart } from "../../components/LineChart";
 import { SelectCustomizado } from "../../components/SelectCustomizado";
+import { ComparativoTreinamento } from "./ComparativoTreinamento";
+import { lerDataComparacao } from "../../utils/comparativoTreinamento";
 import { listarEmpresas, isEmpresaInterna } from "../../services/empresas";
 import { listarOcorrencias } from "../../services/ocorrencias";
 import { listarLancamentosPontos } from "../../services/gamificacao";
@@ -47,11 +49,6 @@ const ICONE_KPI: Record<KpiTreinamentoChave, React.ReactNode> = {
   clientesSuspensos: <PauseCircle size={22} color="#f59e0b" />,
   clientesCancelados: <XCircle size={22} color="#ef4444" />,
 };
-
-function dataISOParaDataLocal(iso: string): Date {
-  const [y, m, d] = iso.split("-").map(Number);
-  return new Date(y, (m || 1) - 1, d || 1);
-}
 
 function formatarDataISOLocal(d: Date): string {
   const y = d.getFullYear();
@@ -152,8 +149,9 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
       return { inicio, fim: fimMes.getTime() > fimHojeInclusive.getTime() ? fimHojeInclusive : fimMes };
     }
 
-    const inicio = dataISOParaDataLocal(dataInicioPersonalizada);
-    const fim = dataISOParaDataLocal(dataFimPersonalizada);
+    const inicio = lerDataComparacao(dataInicioPersonalizada);
+    const fim = lerDataComparacao(dataFimPersonalizada);
+    if (!inicio || !fim) return null;
     fim.setHours(23, 59, 59, 999);
     if (inicio.getTime() > fim.getTime()) return null;
     return { inicio, fim };
@@ -225,7 +223,7 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
 
   return (
     <div className="indicadores-treinamento-container">
-      <div className="relatorios-filtros">
+      <div className="relatorios-filtros indicadores-filtros">
         <div className="indicadores-periodo-filtro">
           <div className="indicadores-periodo-toggle" role="group" aria-label="Período do relatório">
             <button
@@ -282,7 +280,7 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
           )}
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+        <div className="indicadores-treinador-filtro">
           <label id="indicadores-treinador-label">Treinador:</label>
           <SelectCustomizado
             className="w-auto"
@@ -308,11 +306,15 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
           <span className="relatorio-empty-icon">
             <Calendar size={28} />
           </span>
-          <p>A data inicial não pode ser depois da data final. Ajuste o período personalizado.</p>
+          <p>Informe datas válidas, com a data inicial anterior ou igual à final.</p>
         </div>
       ) : (
         <>
           {/* Grid de KPIs — clicar num card seleciona o KPI exibido no gráfico e no painel abaixo */}
+          <div className="indicadores-secao-header">
+            <h2>Visão dos indicadores</h2>
+            <p>Selecione um indicador para explorar a evolução e comparar períodos.</p>
+          </div>
           <div className="relatorios-grid">
             {KPIS_TREINAMENTO.map((kpi) => (
               <div
@@ -320,9 +322,13 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
                 className={`relatorio-kpi-card ${kpiSelecionado === kpi.chave ? "active" : ""}`}
                 onClick={() => setKpiSelecionado(kpi.chave)}
                 role="button"
+                aria-pressed={kpiSelecionado === kpi.chave}
                 tabIndex={0}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") setKpiSelecionado(kpi.chave);
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setKpiSelecionado(kpi.chave);
+                  }
                 }}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -338,6 +344,16 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
               </div>
             ))}
           </div>
+
+          <ComparativoTreinamento
+            key={`${modoPeriodo}-${dataInicioPersonalizada}-${dataFimPersonalizada}`}
+            modo={modoPeriodo}
+            atual={rangeAtivo}
+            eventos={eventos}
+            kpi={kpiSelecionado}
+            treinador={treinadorAtivo}
+            treinadores={treinadoresEquipe}
+          />
 
           {/* Filtros do gráfico */}
           <div className="line-chart-filtro-semanas">

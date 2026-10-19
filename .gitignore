@@ -33,3 +33,11 @@ lerna-debug.log*
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Firebase Emulator Suite (dados locais de seed/sessão, nunca produção)
+.emulator-data/*
+!.emulator-data/.gitkeep
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log

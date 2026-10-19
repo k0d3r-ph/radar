@@ -26,6 +26,7 @@ Leia a documentação correspondente quando a tarefa envolver essas funcionalida
 - `server/SINCRONIZACAO.md`: índice de versões, caches e consumo do Firestore.
 - `server/CSAT.md`: reservas, sequências, respostas e acesso público.
 - `server/SSX_DESK.md`: importação, vínculos e deduplicação.
+- `server/EMULADOR.md`: Firebase Emulator Suite local, para desenvolver sem consumir a cota do Firestore de produção.
 
 Confirme o comportamento no código e nos testes. Se houver divergência com a documentação, identifique-a e resolva conforme o objetivo solicitado; não trate um comportamento acidental como requisito.
 

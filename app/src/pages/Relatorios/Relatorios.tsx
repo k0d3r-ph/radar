@@ -45,6 +45,7 @@ import "./Relatorios.css";
 import { RelatorioScore } from "../RelatorioScore/RelatorioScore";
 import { RelatorioJornadaCliente } from "../RelatorioJornadaCliente/RelatorioJornadaCliente";
 import { RelatorioAging } from "../RelatorioAging/RelatorioAging";
+import { RelatorioIndicadoresTreinamento } from "../RelatorioIndicadoresTreinamento/RelatorioIndicadoresTreinamento";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { usePendenciasClock } from "../../hooks/usePendenciasClock";
@@ -117,7 +118,9 @@ function formatarDataISO(d: Date): string {
 export const Relatorios: React.FC = () => {
   const navigate = useNavigate();
   const { role } = useAuth();
-  const [activeTab, setActiveTab] = useState<"esteira" | "score" | "jornada" | "executiva" | "aging">("esteira");
+  const [activeTab, setActiveTab] = useState<
+    "esteira" | "score" | "jornada" | "executiva" | "aging" | "indicadores"
+  >("esteira");
 
   useEffect(() => {
     if (role === "painel" && activeTab !== "esteira") {
@@ -1313,7 +1316,9 @@ ${riscoChurn.length > 0
                 ? "Visão Executiva"
                 : activeTab === "aging"
                   ? "Aging da Esteira"
-                  : "Relatório Geral de Scores"}
+                  : activeTab === "indicadores"
+                    ? "Indicadores de Treinamento"
+                    : "Relatório Geral de Scores"}
         </h1>
         <p>
           {activeTab === "esteira"
@@ -1324,7 +1329,9 @@ ${riscoChurn.length > 0
                 ? "Panorama consolidado para tomada de decisão estratégica."
                 : activeTab === "aging"
                   ? "Tempo de permanência dos clientes na esteira de capacitação, por faixa de dias e treinador."
-                  : "Estatísticas consolidadas e listagem de clientes baseadas no último cálculo de score."}
+                  : activeTab === "indicadores"
+                    ? "KPIs de treinamentos, CSAT, suporte e carteira de clientes, por treinador, dia ou semana."
+                    : "Estatísticas consolidadas e listagem de clientes baseadas no último cálculo de score."}
         </p>
       </header>
 
@@ -1361,6 +1368,12 @@ ${riscoChurn.length > 0
               onClick={() => setActiveTab("aging")}
             >
               Aging da Esteira
+            </button>
+            <button
+              className={`relatorios-tab-btn ${activeTab === "indicadores" ? "active" : ""}`}
+              onClick={() => setActiveTab("indicadores")}
+            >
+              Indicadores de Treinamento
             </button>
           </>
         )}
@@ -2015,6 +2028,8 @@ ${riscoChurn.length > 0
         </div>
       ) : activeTab === "aging" ? (
         <RelatorioAging />
+      ) : activeTab === "indicadores" ? (
+        <RelatorioIndicadoresTreinamento />
       ) : (
         <RelatorioJornadaCliente empresas={empresas} ocorrencias={ocorrencias} />
       )}

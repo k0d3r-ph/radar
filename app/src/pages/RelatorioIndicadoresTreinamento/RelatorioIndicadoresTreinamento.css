@@ -1,0 +1,173 @@
+.indicadores-treinamento-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.indicadores-tabela-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.indicadores-periodo-filtro {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.indicadores-periodo-toggle {
+  display: inline-flex;
+  padding: 3px;
+  background: #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+}
+
+.indicadores-periodo-btn {
+  padding: 0.45rem 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #94a3b8;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.indicadores-periodo-btn:hover {
+  color: #e2e8f0;
+}
+
+.indicadores-periodo-btn.active {
+  background: #3b82f6;
+  color: #ffffff;
+}
+
+.indicadores-periodo-personalizado {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.indicadores-periodo-personalizado label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
+.indicadores-tabela-header h3 {
+  margin: 0 0 0.25rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #e2e8f0;
+}
+
+.indicadores-tabela-header p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #94a3b8;
+}
+
+/* A tabela tem uma coluna por dia/semana do período — facilmente mais larga que o
+   cartão. O wrapper rola na horizontal e a tabela nunca encolhe abaixo do conteúdo
+   (min-width: 100% + nowrap), senão o navegador espreme cada coluna até quebrar o
+   texto letra a letra em vez de mostrar a barra de rolagem. */
+.indicadores-tabela-card .relatorios-table-wrapper {
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #3b82f6 #0f172a;
+}
+
+.indicadores-tabela-card .relatorios-table-wrapper::-webkit-scrollbar {
+  height: 10px;
+}
+
+.indicadores-tabela-card .relatorios-table-wrapper::-webkit-scrollbar-track {
+  background: #0f172a;
+  border-radius: 999px;
+}
+
+.indicadores-tabela-card .relatorios-table-wrapper::-webkit-scrollbar-thumb {
+  background: #3b82f6;
+  border-radius: 999px;
+}
+
+.indicadores-tabela-card .relatorios-table-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #60a5fa;
+}
+
+.indicadores-tabela {
+  width: auto;
+  min-width: 100%;
+}
+
+.indicadores-tabela th,
+.indicadores-tabela td {
+  white-space: nowrap;
+  text-align: center;
+  padding: 0.6rem 0.85rem;
+  min-width: 56px;
+}
+
+/* Zebra striping ajuda a acompanhar uma linha em 30+ colunas sem perder a posição. */
+.indicadores-tabela tbody tr:nth-child(even) td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.indicadores-tabela tbody tr:hover td {
+  background: rgba(59, 130, 246, 0.08);
+}
+
+/* Nome do treinador e Total ficam fixos nas bordas ao rolar, para nunca perder a
+   referência de "de quem" é a linha nem o resultado consolidado do período. */
+.indicadores-col-treinador {
+  text-align: left !important;
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  min-width: 170px;
+  background: #1e293b;
+  box-shadow: 2px 0 6px rgba(0, 0, 0, 0.35);
+}
+
+.indicadores-col-total {
+  font-weight: 700;
+  color: #e2e8f0;
+  position: sticky;
+  right: 0;
+  z-index: 2;
+  background: #1e293b;
+  box-shadow: -2px 0 6px rgba(0, 0, 0, 0.35);
+}
+
+.indicadores-tabela tbody tr:nth-child(even) .indicadores-col-treinador,
+.indicadores-tabela tbody tr:nth-child(even) .indicadores-col-total {
+  background: #223047;
+}
+
+.indicadores-tabela tbody tr:hover .indicadores-col-treinador,
+.indicadores-tabela tbody tr:hover .indicadores-col-total {
+  background: #243a5c;
+}
+
+.indicadores-linha-equipe td {
+  font-weight: 700;
+  color: #e2e8f0;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.indicadores-linha-equipe .indicadores-col-treinador,
+.indicadores-linha-equipe .indicadores-col-total {
+  background: #1e293b;
+}
+
+.indicadores-linha-equipe:hover .indicadores-col-treinador,
+.indicadores-linha-equipe:hover .indicadores-col-total {
+  background: #243a5c;
+}

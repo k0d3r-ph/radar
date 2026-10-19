@@ -146,3 +146,32 @@ test('indicadores de atendimento preservam exclusão dos fins de semana', () => 
   assert.equal(eventos.atendimentosWhatsApp.length, 1);
   assert.equal(calcular('atendimentosWhatsApp', eventos, inicio, fim, null), 0);
 });
+
+test('unifica Jeff Borges da Costa e Jeff Costa no filtro e em todos os eventos do relatório', () => {
+  const ocorrencias = [
+    ocorrencia('Cliente', ['Cadastro'], { responsavel: 'Jeff Borges da Costa' }),
+    ocorrencia('Cliente', ['Cadastro'], { responsavel: 'Jeff Costa' }),
+    ocorrencia('Cliente', ['Cadastro'], { responsavel: 'Jeff' }),
+    { tipo: 'Dúvida', departamento: 'Treinamento', responsavel: 'Jeff Borges da Costa', dataOcorrencia: new Date(2026, 9, 15).getTime() },
+    { tipo: 'Dúvida', departamento: 'Suporte', empresa: 'Cliente', dataOcorrencia: new Date(2026, 9, 15).getTime() },
+  ];
+  const nomes = listar(['Jeff Costa'], [lancamento('Cliente', 'Cadastro', ' JEFF BORGES DA COSTA ')], ocorrencias);
+  assert.deepEqual(nomes, ['Jeff Costa']);
+  const eventos = construir([{ nomeEmpresa: 'Cliente', responsavel: 'Jeff Borges da Costa', isSuspended: true, dataSuspensao: '2026-10-15' }],
+    ocorrencias, [], nomes.map(nome => ({ nome })));
+  assert.equal(calcular('treinamentosRealizados', eventos, inicio, fim, 'Jeff Costa'), 3);
+  assert.equal(calcular('treinamentosRealizados', eventos, inicio, fim, 'Jeff Borges da Costa'), 3);
+  for (const chave of ['contatosSuporte', 'atendimentosWhatsApp', 'clientesSuspensos']) {
+    assert.equal(calcular(chave, eventos, inicio, fim, 'Jeff Costa'), 1, chave);
+  }
+  assert.equal(calcular('treinamentosRealizados', eventos, inicio, fim, null), 3);
+});
+
+test('preserva pessoas com o mesmo primeiro nome e sobrenomes diferentes', () => {
+  const ocorrencias = [ocorrencia('A', [], { responsavel: 'Jeff Costa' }), ocorrencia('B', [], { responsavel: 'Jeff Silva' })];
+  const nomes = listar(['Jeff Costa', 'Jeff Silva'], [], ocorrencias);
+  assert.deepEqual(nomes, ['Jeff Costa', 'Jeff Silva']);
+  const eventos = construir([], ocorrencias, [], nomes.map(nome => ({ nome })));
+  assert.equal(calcular('treinamentosRealizados', eventos, inicio, fim, 'Jeff Costa'), 1);
+  assert.equal(calcular('treinamentosRealizados', eventos, inicio, fim, 'Jeff Silva'), 1);
+});

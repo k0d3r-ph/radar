@@ -8,6 +8,16 @@ const normalizarNome = (s?: string) =>
 
 const primeiroNome = (s?: string) => normalizarNome((s || "").trim().split(/\s+/)[0] || "");
 
+/** Variações históricas confirmadas da mesma pessoa; não agrupa homônimos por aproximação. */
+const ALIASES_TREINADORES: Record<string, string> = {
+  "jeff borges da costa": "Jeff Costa",
+  "jeff costa": "Jeff Costa",
+};
+
+function padronizarNomeTreinador(nome?: string): string {
+  return ALIASES_TREINADORES[normalizarNome(nome)] ?? nome?.trim() ?? "";
+}
+
 /** Indicadores de atendimento e de status de clientes mantêm o filtro de dias úteis. */
 export function isDiaUtil(data: Date): boolean {
   const dia = data.getDay();
@@ -174,9 +184,10 @@ export function listarTreinadoresIndicadoresTreinamento(
 ): string[] {
   const nomes = new Map<string, string>();
   const adicionar = (nome?: string) => {
-    const chave = normalizarNome(nome);
-    if (nome && chave && !chave.includes("painel") && !nomes.has(chave)) {
-      nomes.set(chave, nome.trim());
+    const padronizado = padronizarNomeTreinador(nome);
+    const chave = normalizarNome(padronizado);
+    if (chave && !chave.includes("painel") && !nomes.has(chave)) {
+      nomes.set(chave, padronizado);
     }
   };
   treinadoresAtuais.forEach(adicionar);
@@ -208,7 +219,7 @@ export function construirEventosIndicadoresTreinamento(
   const nomePorPrimeiroNome = new Map<string, string>();
   treinadores.forEach((t) => {
     const chave = primeiroNome(t.nome);
-    if (chave && !nomePorPrimeiroNome.has(chave)) nomePorPrimeiroNome.set(chave, t.nome.trim());
+    if (chave && !nomePorPrimeiroNome.has(chave)) nomePorPrimeiroNome.set(chave, padronizarNomeTreinador(t.nome));
   });
 
   // A empresa guarda o responsável pelo primeiro nome (às vezes com sobrenome), então
@@ -216,7 +227,7 @@ export function construirEventosIndicadoresTreinamento(
   const resolverTreinador = (responsavel?: string): string | null => {
     const chave = primeiroNome(responsavel);
     if (!chave) return null;
-    return nomePorPrimeiroNome.get(chave) || responsavel?.trim() || null;
+    return nomePorPrimeiroNome.get(chave) || padronizarNomeTreinador(responsavel) || null;
   };
 
   const responsavelPorEmpresa = new Map<string, string>();
@@ -252,9 +263,13 @@ export function construirEventosIndicadoresTreinamento(
     }
   });
 
-  const nomesCanonicos = new Map(treinadores.map((t) => [normalizarNome(t.nome), t.nome.trim()]));
+  const nomesCanonicos = new Map(treinadores.map((t) => {
+    const nome = padronizarNomeTreinador(t.nome);
+    return [normalizarNome(nome), nome];
+  }));
   const resolverAutorTreinamento = (nome?: string): string => {
-    const chave = normalizarNome(nome);
+    const padronizado = padronizarNomeTreinador(nome);
+    const chave = normalizarNome(padronizado);
     if (!chave) return "Não informado";
     const exato = nomesCanonicos.get(chave);
     if (exato) return exato;
@@ -262,7 +277,7 @@ export function construirEventosIndicadoresTreinamento(
       const candidatos = [...nomesCanonicos.values()].filter((n) => primeiroNome(n) === chave);
       if (candidatos.length === 1) return candidatos[0];
     }
-    return nome?.trim() || "Não informado";
+    return padronizado || "Não informado";
   };
   const ocorrenciasProcessadas = new Set<string>();
   ocorrencias.filter((o) => o.tipo === "Treinamento").forEach((o) => {
@@ -381,8 +396,8 @@ function dentroDoPeriodo(evento: EventoIndicador, inicio: Date, fim: Date): bool
 
 function filtrarPorTreinador<T extends EventoIndicador>(lista: T[], treinador: string | null): T[] {
   if (!treinador) return lista;
-  const chave = normalizarNome(treinador);
-  return lista.filter((e) => normalizarNome(e.treinador) === chave);
+  const chave = normalizarNome(padronizarNomeTreinador(treinador));
+  return lista.filter((e) => normalizarNome(padronizarNomeTreinador(e.treinador)) === chave);
 }
 
 /**

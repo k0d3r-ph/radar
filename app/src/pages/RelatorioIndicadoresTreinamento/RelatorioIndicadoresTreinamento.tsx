@@ -17,7 +17,8 @@ import {
 import { LineChart } from "../../components/LineChart";
 import { SelectCustomizado } from "../../components/SelectCustomizado";
 import { ComparativoTreinamento } from "./ComparativoTreinamento";
-import { lerDataComparacao } from "../../utils/comparativoTreinamento";
+import { intervaloAnteriorTreinamento, lerDataComparacao, type IntervaloComparacaoTreinamento } from "../../utils/comparativoTreinamento";
+import { construirGraficoIndicadoresTreinamento } from "../../utils/graficoIndicadoresTreinamento";
 import { listarEmpresas, isEmpresaInterna } from "../../services/empresas";
 import { listarOcorrencias } from "../../services/ocorrencias";
 import { listarLancamentosPontos } from "../../services/gamificacao";
@@ -71,6 +72,11 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
   const [treinadorFiltro, setTreinadorFiltro] = useState<string>("");
   const [granularidade, setGranularidade] = useState<"dia" | "semana">("dia");
   const [modoPeriodo, setModoPeriodo] = useState<ModoPeriodo>("semana");
+  const [comparacao, setComparacao] = useState<{
+    chave: string;
+    ativo: boolean;
+    selecionados: IntervaloComparacaoTreinamento[];
+  } | null>(null);
   const [dataInicioPersonalizada, setDataInicioPersonalizada] = useState<string>(() => {
     const d = new Date();
     d.setDate(d.getDate() - 6);
@@ -79,6 +85,11 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
   const [dataFimPersonalizada, setDataFimPersonalizada] = useState<string>(() =>
     formatarDataISOLocal(new Date()),
   );
+
+  function alterarModoPeriodo(modo: ModoPeriodo) {
+    if (modo !== modoPeriodo) setComparacao(null);
+    setModoPeriodo(modo);
+  }
 
   useEffect(() => {
     Promise.all([
@@ -167,25 +178,38 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
   const periodos = useMemo(
     () => (rangeAtivo ? gerarPeriodosIndicadoresEntreDatas(
       rangeAtivo.inicio, rangeAtivo.fim, granularidade, incluirFinsDeSemana,
-    ) : []),
+    ).map((p) => ({
+      ...p,
+      inicio: new Date(Math.max(p.inicio.getTime(), rangeAtivo.inicio.getTime())),
+      fim: new Date(Math.min(p.fim.getTime(), rangeAtivo.fim.getTime())),
+    })) : []),
     [rangeAtivo, granularidade, incluirFinsDeSemana],
   );
 
   const periodoTotal = rangeAtivo;
 
   const treinadorAtivo = treinadorFiltro || null;
-
-  const serieGrafico = useMemo(
-    () =>
-      periodos.map(
-        (p) => calcularValorKpiTreinamento(kpiSelecionado, eventos, p.inicio, p.fim, treinadorAtivo) ?? 0,
-      ),
-    [periodos, kpiSelecionado, eventos, treinadorAtivo],
-  );
+  const chaveComparacao = `${modoPeriodo}-${dataInicioPersonalizada}-${dataFimPersonalizada}`;
+  const comparacaoAtual = useMemo(() => comparacao?.chave === chaveComparacao ? comparacao : {
+    chave: chaveComparacao,
+    ativo: false,
+    selecionados: rangeAtivo ? [intervaloAnteriorTreinamento(modoPeriodo, rangeAtivo)] : [],
+  }, [comparacao, chaveComparacao, rangeAtivo, modoPeriodo]);
 
   const kpiConfigSelecionado = KPIS_TREINAMENTO.find((k) => k.chave === kpiSelecionado)!;
 
   const corKpi = kpiConfigSelecionado.menorEhMelhor ? "#ef4444" : "#3b82f6";
+  const grafico = useMemo(() => rangeAtivo ? construirGraficoIndicadoresTreinamento({
+    atual: rangeAtivo,
+    comparacoes: comparacaoAtual.ativo ? comparacaoAtual.selecionados : [],
+    granularidade,
+    incluirFinsDeSemana,
+    eventos,
+    kpi: kpiSelecionado,
+    treinador: treinadorAtivo,
+    cor: corKpi,
+  }) : { categorias: [], series: [] }, [rangeAtivo, comparacaoAtual, granularidade,
+    incluirFinsDeSemana, eventos, kpiSelecionado, treinadorAtivo, corKpi]);
 
   const valoresCards = useMemo(() => {
     if (!periodoTotal) return {} as Record<KpiTreinamentoChave, number | null>;
@@ -238,21 +262,21 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
             <button
               type="button"
               className={`indicadores-periodo-btn ${modoPeriodo === "semana" ? "active" : ""}`}
-              onClick={() => setModoPeriodo("semana")}
+              onClick={() => alterarModoPeriodo("semana")}
             >
               Semana atual
             </button>
             <button
               type="button"
               className={`indicadores-periodo-btn ${modoPeriodo === "mes" ? "active" : ""}`}
-              onClick={() => setModoPeriodo("mes")}
+              onClick={() => alterarModoPeriodo("mes")}
             >
               Mês atual
             </button>
             <button
               type="button"
               className={`indicadores-periodo-btn ${modoPeriodo === "personalizado" ? "active" : ""}`}
-              onClick={() => setModoPeriodo("personalizado")}
+              onClick={() => alterarModoPeriodo("personalizado")}
             >
               Personalizado
             </button>
@@ -266,7 +290,7 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
                 type="date"
                 value={dataInicioPersonalizada}
                 max={dataFimPersonalizada}
-                onChange={(e) => setDataInicioPersonalizada(e.target.value)}
+                onChange={(e) => { setDataInicioPersonalizada(e.target.value); setComparacao(null); }}
               />
               <label htmlFor="indicadores-data-fim">Até:</label>
               <input
@@ -275,7 +299,7 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
                 value={dataFimPersonalizada}
                 min={dataInicioPersonalizada}
                 max={formatarDataISOLocal(new Date())}
-                onChange={(e) => setDataFimPersonalizada(e.target.value)}
+                onChange={(e) => { setDataFimPersonalizada(e.target.value); setComparacao(null); }}
               />
             </div>
           )}
@@ -355,13 +379,17 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
           </div>
 
           <ComparativoTreinamento
-            key={`${modoPeriodo}-${dataInicioPersonalizada}-${dataFimPersonalizada}`}
+            key={chaveComparacao}
             modo={modoPeriodo}
             atual={rangeAtivo}
             eventos={eventos}
             kpi={kpiSelecionado}
             treinador={treinadorAtivo}
             treinadores={treinadoresEquipe}
+            ativo={comparacaoAtual.ativo}
+            selecionados={comparacaoAtual.selecionados}
+            onAtivoChange={(ativo) => setComparacao({ ...comparacaoAtual, ativo })}
+            onSelecionadosChange={(selecionados) => setComparacao({ ...comparacaoAtual, selecionados })}
           />
 
           {/* Filtros do gráfico */}
@@ -380,10 +408,16 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
           </div>
 
           {/* Gráfico — parte superior */}
+          {comparacaoAtual.ativo && comparacaoAtual.selecionados.length > 0 && (
+            <p className="aging-legenda">
+              As linhas são alinhadas pela posição de cada {granularidade === "dia" ? "dia" : "semana"} no período.
+              Passe o mouse ou navegue pelos pontos com Tab para consultar as datas e os indicadores.
+            </p>
+          )}
           <LineChart
             title={tituloGrafico}
-            categorias={categorias}
-            series={[{ label: kpiConfigSelecionado.titulo, color: corKpi, values: serieGrafico }]}
+            categorias={grafico.categorias}
+            series={grafico.series}
           />
 
           {/* Painel analítico — parte inferior: o mesmo KPI, detalhado por treinador e período */}

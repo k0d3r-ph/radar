@@ -10,7 +10,6 @@ import {
 import {
   criarIntervaloComparacao,
   formatarVariacaoTreinamento,
-  intervaloAnteriorTreinamento,
   lerDataComparacao,
   type IntervaloComparacaoTreinamento,
   type ModoPeriodoTreinamento,
@@ -24,6 +23,10 @@ interface Props {
   kpi: KpiTreinamentoChave;
   treinador: string | null;
   treinadores: string[];
+  ativo: boolean;
+  selecionados: IntervaloComparacaoTreinamento[];
+  onAtivoChange: (ativo: boolean) => void;
+  onSelecionadosChange: (intervalos: IntervaloComparacaoTreinamento[]) => void;
 }
 
 function dataISO(data: Date): string {
@@ -46,9 +49,8 @@ function tituloPeriodo(modo: ModoPeriodoTreinamento, intervalo: IntervaloCompara
   return modo === "semana" ? `Semana de ${intervalo.inicio.toLocaleDateString("pt-BR")}` : rotulo(intervalo);
 }
 
-export function ComparativoTreinamento({ modo, atual, eventos, kpi, treinador, treinadores }: Props) {
-  const [ativo, setAtivo] = useState(false);
-  const [selecionados, setSelecionados] = useState<IntervaloComparacaoTreinamento[]>(() => [intervaloAnteriorTreinamento(modo, atual)]);
+export function ComparativoTreinamento({ modo, atual, eventos, kpi, treinador, treinadores,
+  ativo, selecionados, onAtivoChange, onSelecionadosChange }: Props) {
   const [referencia, setReferencia] = useState("");
   const [erro, setErro] = useState("");
   const referenciaRef = useRef<HTMLInputElement>(null);
@@ -82,7 +84,7 @@ export function ComparativoTreinamento({ modo, atual, eventos, kpi, treinador, t
       setErro("Esse período já está selecionado.");
       return;
     }
-    setSelecionados((anteriores) => [...anteriores, intervalo].sort((a, b) => b.inicio.getTime() - a.inicio.getTime()));
+    onSelecionadosChange([...selecionados, intervalo].sort((a, b) => b.inicio.getTime() - a.inicio.getTime()));
     setReferencia("");
     setErro("");
     referenciaRef.current?.focus();
@@ -97,7 +99,7 @@ export function ComparativoTreinamento({ modo, atual, eventos, kpi, treinador, t
         </div>
         <label className="indicadores-comparar-toggle">
           <input type="checkbox" checked={ativo} aria-controls="indicadores-comparativo-conteudo"
-            onChange={(event) => setAtivo(event.target.checked)} />
+            onChange={(event) => onAtivoChange(event.target.checked)} />
           Comparar períodos
         </label>
       </header>
@@ -125,7 +127,7 @@ export function ComparativoTreinamento({ modo, atual, eventos, kpi, treinador, t
                 <span>{tituloPeriodo(modo, intervalo)}</span>
                 <button type="button" aria-label={`Remover comparação: ${tituloPeriodo(modo, intervalo)}`}
                   onClick={() => {
-                    setSelecionados((itens) => itens.filter((item) => chave(item) !== chave(intervalo)));
+                    onSelecionadosChange(selecionados.filter((item) => chave(item) !== chave(intervalo)));
                     setErro("");
                     referenciaRef.current?.focus();
                   }}><X size={14} aria-hidden="true" /></button>
@@ -137,7 +139,7 @@ export function ComparativoTreinamento({ modo, atual, eventos, kpi, treinador, t
           {modo === "mes" ? "Meses anteriores completos. O mês atual considera até hoje."
             : modo === "semana" ? "Escolha qualquer dia da semana desejada. Semanas anteriores completas; a atual considera até hoje."
               : "Cada comparação terá a mesma quantidade de dias corridos do período principal."}
-          {" "}Fins de semana não entram nos indicadores.
+          {" "}Treinamentos incluem fins de semana; indicadores de atendimento e status consideram dias úteis.
         </p>
         {selecionados.length === 0 ? <p role="status" className="indicadores-comparativo-vazio">Adicione um período acima para visualizar a comparação.</p> : <>
           <div className="indicadores-comparativo-resultado-header">

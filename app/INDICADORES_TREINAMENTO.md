@@ -1,5 +1,9 @@
 # Comparação de indicadores de treinamento
 
+Os treinamentos consideram clientes de todos os status, incluindo suspensos e cancelados, e excluem clientes atualmente marcados como ongoing (pelo nome da empresa no lançamento, normalizado sem acentos e sem diferença entre maiúsculas e minúsculas). Lançamentos antigos sem vínculo com um cadastro atual continuam contabilizados. O tempo médio de espera também inclui suspensos e cancelados com cadastro e datas de solicitação/realização válidas. Os indicadores de ocorrências e de suspensão/cancelamento mantêm suas regras próprias.
+
+O filtro e os detalhamentos incluem treinadores ativos e os nomes registrados nos lançamentos de treinamento, mesmo após mudança de perfil ou inativação. Assim, o histórico de **Natália Teixeira** permanece disponível após sua mudança para CS. A atribuição dos treinamentos usa o nome salvo no lançamento, sem transferir o histórico ao responsável atual pelo cliente. Nenhuma dessas regras exige novas consultas ao Firebase.
+
 Em **Relatórios → Indicadores de Treinamento**, marque **Comparar períodos** abaixo dos cartões de indicadores. O período anterior já vem selecionado. Adicione quantos meses, semanas ou intervalos anteriores precisar; use o botão de remover em cada período selecionado para excluí-lo da comparação.
 
 - **Mês atual:** compara com meses completos escolhidos pelo usuário, incluindo outros anos.
@@ -13,3 +17,5 @@ O comparativo agrupa a configuração dos períodos no topo. O resultado princip
 As regras de cálculo dos indicadores são preservadas, incluindo a exclusão dos fins de semana. A variação é `(principal - comparação) / comparação × 100`; para CSAT, exibe a diferença em pontos percentuais. Base anterior zero não gera percentual quando o principal é diferente de zero; falta de amostra mantém `—` e informa que não há dados para comparar. A linha da equipe recalcula o indicador sobre os eventos, sem somar médias ou taxas individuais.
 
 Regressões das datas e variações: `node --test app/tests/comparativoTreinamento.test.mjs` a partir da raiz, com Node que suporte os imports TypeScript usados pelos testes existentes.
+
+Regressões dos status dos clientes e dos treinadores históricos: `node --experimental-vm-modules --test app/tests/indicadoresTreinamento.test.mjs`.

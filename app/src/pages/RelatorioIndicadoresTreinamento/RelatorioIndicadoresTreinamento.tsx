@@ -28,6 +28,7 @@ import type { Empresa, Ocorrencia, LancamentoPonto } from "../../types";
 import {
   KPIS_TREINAMENTO,
   construirEventosIndicadoresTreinamento,
+  listarTreinadoresIndicadoresTreinamento,
   calcularValorKpiTreinamento,
   gerarPeriodosIndicadoresEntreDatas,
   formatarValorKpiTreinamento,
@@ -91,8 +92,8 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
         setOcorrencias(ocorrenciasLista);
         setLancamentos(lancamentosLista);
         setTreinadoresEquipe(
-          usuariosLista
-            .filter(
+          listarTreinadoresIndicadoresTreinamento(
+            usuariosLista.filter(
               (u) =>
                 atuaComoTreinador(u.role) &&
                 !u.inativo &&
@@ -100,7 +101,9 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
                 u.nome.trim().toLowerCase() !== "painel" &&
                 !u.email?.toLowerCase().includes("painel"),
             )
-            .map((u) => u.nome.trim())
+            .map((u) => u.nome.trim()),
+            lancamentosLista,
+          )
             .sort((a, b) => formatarNome(a).localeCompare(formatarNome(b), "pt-BR")),
         );
       })
@@ -389,7 +392,7 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
                 <span className="relatorio-empty-icon">
                   <GraduationCap size={28} />
                 </span>
-                <p>Nenhum treinador ativo cadastrado para exibir o detalhamento.</p>
+                <p>Nenhum treinador cadastrado ou com histórico de treinamento para exibir o detalhamento.</p>
               </div>
             ) : (
               <div
@@ -438,6 +441,8 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
           </div>
 
           <p className="aging-legenda">
+            Os treinamentos incluem clientes de todos os status, inclusive suspensos e cancelados,
+            exceto ongoing. Treinadores com histórico permanecem disponíveis mesmo após mudança de perfil.
             Os dias de fim de semana não entram no gráfico nem no painel — não há expediente de
             treinamento nesses dias. "Clientes Suspensos" usa a data de suspensão registrada e
             "Clientes cancelados" usa a data de envio do aviso de cancelamento por WhatsApp, por

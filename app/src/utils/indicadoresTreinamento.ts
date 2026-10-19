@@ -122,7 +122,7 @@ export const KPIS_TREINAMENTO: ConfigKpiTreinamento[] = [
   {
     chave: "tempoMedioEspera",
     titulo: "Tempo médio de espera",
-    descricao: "Média de dias entre a solicitação e a realização do treinamento (clientes ativos na esteira).",
+    descricao: "Média de dias entre a solicitação e a realização do treinamento, incluindo clientes suspensos e cancelados; exclui ongoing.",
     formato: "dias",
     menorEhMelhor: true,
   },
@@ -167,6 +167,25 @@ export const KPI_POR_CHAVE: Record<KpiTreinamentoChave, ConfigKpiTreinamento> = 
 const temasDoLancamento = (l: LancamentoPonto) =>
   (l.treinamentoTema || "").split(",").map((t) => t.trim().toLowerCase());
 
+/** Preserva no relatório quem realizou treinamentos, mesmo após mudar de perfil ou sair da equipe. */
+export function listarTreinadoresIndicadoresTreinamento(
+  treinadoresAtuais: string[],
+  lancamentos: LancamentoPonto[],
+): string[] {
+  const nomes = new Map<string, string>();
+  const adicionar = (nome?: string) => {
+    const chave = normalizarNome(nome);
+    if (nome && chave && !chave.includes("painel") && !nomes.has(chave)) {
+      nomes.set(chave, nome.trim());
+    }
+  };
+  treinadoresAtuais.forEach(adicionar);
+  lancamentos.forEach((l) => {
+    if (l.tipoAcao === "treinamento" && l.treinamentoTema) adicionar(l.treinadorNome);
+  });
+  return Array.from(nomes.values()).sort((a, b) => a.localeCompare(b, "pt-BR"));
+}
+
 /**
  * Constrói os eventos datados de todos os indicadores de treinamento a partir das
  * três fontes já usadas no modal de Indicadores da Gamificação (lançamentos de
@@ -201,11 +220,13 @@ export function construirEventosIndicadoresTreinamento(
     if (dono) responsavelPorEmpresa.set(chaveEmpresa, dono);
   });
 
-  const empresasAtivasNaEsteira = new Set<string>();
+  const empresasOngoing = new Set<string>();
+  const empresasSemOngoing = new Set<string>();
   empresas.forEach((e) => {
-    if (e.isCancelled || e.isSuspended || e.isOngoing) return;
     const chave = normalizarNome(e.nomeEmpresa);
-    if (chave) empresasAtivasNaEsteira.add(chave);
+    if (!chave) return;
+    if (e.isOngoing) empresasOngoing.add(chave);
+    else empresasSemOngoing.add(chave);
   });
 
   const treinamentosRealizados: EventoIndicador[] = [];
@@ -219,6 +240,8 @@ export function construirEventosIndicadoresTreinamento(
   lancamentos
     .filter((l) => l.tipoAcao === "treinamento" && l.treinamentoTema)
     .forEach((l) => {
+      const empresa = normalizarNome(l.treinamentoEmpresa);
+      if (empresasOngoing.has(empresa)) return;
       const treinador = l.treinadorNome?.trim();
       if (!treinador) return;
 
@@ -247,7 +270,7 @@ export function construirEventosIndicadoresTreinamento(
         });
       }
 
-      if (empresasAtivasNaEsteira.has(normalizarNome(l.treinamentoEmpresa))) {
+      if (empresasSemOngoing.has(empresa)) {
         const inicio = parseDataLocalISO(l.treinamentoDataSolicitacao);
         const fim = parseDataLocalISO(l.treinamentoDataRealizacao);
         if (inicio && fim) {

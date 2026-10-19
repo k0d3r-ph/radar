@@ -87,14 +87,19 @@ export function pontosDeducaoTreinador(
   return { pontos, dentroDoExpediente };
 }
 
-/** Acha o treinador responsável pelo primeiro nome gravado em `Empresa.responsavel` (ver Gamificacao.tsx). */
+/**
+ * Acha o treinador responsável pelo primeiro nome gravado em `Empresa.responsavel`
+ * (ver Gamificacao.tsx). O cadastro deveria guardar só o primeiro nome, mas às
+ * vezes salva o nome completo selecionado no seletor — por isso extraímos a
+ * primeira palavra de `responsavel` também, em vez de comparar o valor bruto.
+ */
 export function encontrarTreinadorPorResponsavel(
   responsavel: string,
   usuarios: { uid: string; nome: string }[],
 ): { uid: string; nome: string } | undefined {
   const normalizar = (s: string) =>
     (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase();
-  const alvo = normalizar(responsavel);
+  const alvo = normalizar((responsavel || '').trim().split(/\s+/)[0] || '');
   if (!alvo) return undefined;
   return usuarios.find((u) => normalizar(u.nome.trim().split(/\s+/)[0] || '') === alvo);
 }

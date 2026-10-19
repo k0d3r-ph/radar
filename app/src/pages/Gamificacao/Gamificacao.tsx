@@ -139,6 +139,18 @@ const DIACRITICOS = new RegExp("[\\u0300-\\u036f]", "g");
 const normalizarNomeComparacao = (s: string) =>
   s.trim().toLowerCase().normalize("NFD").replace(DIACRITICOS, "");
 
+/**
+ * Primeiro nome normalizado de `Empresa.responsavel`. A convenção é guardar só
+ * o primeiro nome, mas o cadastro em Home.tsx oferece o nome completo do
+ * treinador no seletor — se alguém salvar com sobrenome (ex.: "Thayna
+ * Santos"), a comparação direta com o primeiro nome do treinador nunca bate e
+ * o cliente some de tudo que depende desse vínculo (Próximo Cliente,
+ * indicadores, dedução de pontos). Extrair sempre a primeira palavra cobre os
+ * dois formatos sem exigir correção manual dos registros já salvos.
+ */
+const primeiroNomeResponsavel = (responsavel: string) =>
+  normalizarNomeComparacao(responsavel.trim().split(/\s+/)[0] || "");
+
 const MS_POR_DIA = 24 * 60 * 60 * 1000;
 
 /** Temas de um lançamento de treinamento, normalizados para comparação. */
@@ -992,7 +1004,7 @@ export const Gamificacao: React.FC = () => {
 
         const clientesDoTreinador = clientesAtivos.filter(
           (emp) =>
-            normalizarNomeComparacao(emp.responsavel) ===
+            primeiroNomeResponsavel(emp.responsavel) ===
             normalizarNomeComparacao(primeiroNome),
         );
         const clientesEsteira = clientesDoTreinador.length;
@@ -1143,7 +1155,7 @@ export const Gamificacao: React.FC = () => {
     empresasCompletas.forEach((emp) => {
       const chave = normalizarNomeComparacao(emp.nomeEmpresa || "");
       if (chave)
-        mapa.set(chave, normalizarNomeComparacao(emp.responsavel || ""));
+        mapa.set(chave, primeiroNomeResponsavel(emp.responsavel || ""));
     });
     return mapa;
   }, [empresasCompletas]);
@@ -1263,10 +1275,11 @@ export const Gamificacao: React.FC = () => {
         ).length;
 
         // ── Carteira de clientes ──
-        // A empresa guarda só o primeiro nome do responsável.
+        // A empresa deveria guardar só o primeiro nome do responsável, mas o
+        // cadastro salva o que foi selecionado no seletor (que lista o nome
+        // completo) — ver primeiroNomeResponsavel.
         const clientes = empresasCompletas.filter(
-          (emp) =>
-            normalizarNomeComparacao(emp.responsavel || "") === primeiroNome,
+          (emp) => primeiroNomeResponsavel(emp.responsavel || "") === primeiroNome,
         );
         const clientesAtivos = clientes.filter((emp) => !emp.isCancelled);
         const clientesCancelados = clientes.filter(

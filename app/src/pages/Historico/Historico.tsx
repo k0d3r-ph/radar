@@ -2269,14 +2269,18 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         ? config?.dentroExpediente
         : config?.foraExpediente;
 
-      // A empresa guarda só o primeiro nome do responsável (ver Gamificacao.tsx),
-      // então a comparação precisa ser pelo primeiro nome do treinador, não pelo
-      // nome completo — senão nunca casa para treinadores com sobrenome.
+      // A empresa deveria guardar só o primeiro nome do responsável (ver
+      // Gamificacao.tsx), mas o cadastro em Home.tsx às vezes salva o nome
+      // completo selecionado no seletor — por isso comparamos pelo primeiro
+      // nome dos dois lados, não pelo nome completo do treinador nem pelo
+      // valor bruto salvo na empresa.
       const treinadorObj = usuariosList.find((u) => {
         const primeiroNomeTreinador = formatarNome(u.nome).split(" ")[0] || "";
+        const primeiroNomeResponsavel =
+          (empresaObjeto.responsavel || "").trim().split(/\s+/)[0] || "";
         return (
           normalizar(primeiroNomeTreinador) ===
-          normalizar(empresaObjeto.responsavel || "")
+          normalizar(primeiroNomeResponsavel)
         );
       });
 

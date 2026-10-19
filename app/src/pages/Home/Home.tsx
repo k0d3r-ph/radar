@@ -22,6 +22,7 @@ import {
 
 import {
   calcularDiasNaEsteira,
+  calcularDiasSuspenso,
   calcularDiasCongeladosPorCheckpoint,
   calcularFarol,
   calcularProgressoPorFases,
@@ -65,12 +66,21 @@ import {
   montarMensagemConclusaoEsteiraGestao,
 } from "../../services/notificacoes";
 import type { DestinatarioGestao } from "../../services/notificacoes";
-import { podeNotificarConclusao, camposResultadoConclusao } from "../../utils/notificacaoConclusao";
+import {
+  podeNotificarConclusao,
+  camposResultadoConclusao,
+} from "../../utils/notificacaoConclusao";
 import { GestaoNotificacaoModal } from "../../components/GestaoNotificacaoModal";
 import { ColumnSelector } from "../../components/ColumnSelector";
-import { buscarDadosCentral, preencherDadosCentral } from "../../services/centrais";
+import {
+  buscarDadosCentral,
+  preencherDadosCentral,
+} from "../../services/centrais";
 import { useCentralPlanilha } from "../../hooks/useCentralPlanilha";
-import { listarTemas, temaDisponivelParaPerfil } from "../../services/temasOcorrencia";
+import {
+  listarTemas,
+  temaDisponivelParaPerfil,
+} from "../../services/temasOcorrencia";
 import type { TemaOcorrencia } from "../../services/temasOcorrencia";
 import { usePendenciasClock } from "../../hooks/usePendenciasClock";
 import { vencimentoPendencia } from "../../utils/pendencias";
@@ -287,10 +297,6 @@ export default function Home() {
   const [filtroElegivelDeducao, setFiltroElegivelDeducao] = useState<boolean>(
     () => sessionStorage.getItem("filtroElegivelDeducao") === "true",
   );
-  // Mostra só clientes com data de follow up final preenchida (ver Empresa.dataFollowUpFinal).
-  const [filtroComFollowUpFinal, setFiltroComFollowUpFinal] = useState<boolean>(
-    () => sessionStorage.getItem("filtroComFollowUpFinal") === "true",
-  );
   // Mostra só clientes dentro do prazo do Gol (até o 30º dia na esteira).
   const [filtroDia30, setFiltroDia30] = useState<boolean>(
     () => sessionStorage.getItem("filtroDia30") === "true",
@@ -311,9 +317,9 @@ export default function Home() {
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
 
   const [historico, setHistorico] = useState<Ocorrencia[]>([]);
-  const [nomesUsuariosPorId, setNomesUsuariosPorId] = useState<Map<string, string>>(
-    () => new Map(),
-  );
+  const [nomesUsuariosPorId, setNomesUsuariosPorId] = useState<
+    Map<string, string>
+  >(() => new Map());
   const agora = usePendenciasClock(empresas);
 
   const historicoComIds = useMemo(
@@ -389,7 +395,9 @@ export default function Home() {
   function comOpcaoAtual(ativos: string[], atual?: string): string[] {
     const atualFormatado = atual?.trim();
     if (!atualFormatado || ativos.includes(atualFormatado)) return ativos;
-    return [...ativos, atualFormatado].sort((a, b) => a.localeCompare(b, "pt-BR"));
+    return [...ativos, atualFormatado].sort((a, b) =>
+      a.localeCompare(b, "pt-BR"),
+    );
   }
 
   const listaResponsaveisCadastro = useMemo(
@@ -403,9 +411,8 @@ export default function Home() {
   );
 
   const [modalClienteAberto, setModalClienteAberto] = useState(false);
-  const { buscando: buscandoDadosCentral, aviso: avisoPlanilha } = useCentralPlanilha(
-    modalClienteAberto, clienteForm, setClienteForm,
-  );
+  const { buscando: buscandoDadosCentral, aviso: avisoPlanilha } =
+    useCentralPlanilha(modalClienteAberto, clienteForm, setClienteForm);
   const [tiposPendencia, setTiposPendencia] = useState<TemaOcorrencia[]>([]);
   const [carregandoPendencias, setCarregandoPendencias] = useState(true);
   useEffect(() => {
@@ -413,7 +420,10 @@ export default function Home() {
     setCarregandoPendencias(true);
     listarTemas("pendencia")
       .then((lista) => {
-        if (ativo) setTiposPendencia(lista.filter((tema) => temaDisponivelParaPerfil(tema, role)));
+        if (ativo)
+          setTiposPendencia(
+            lista.filter((tema) => temaDisponivelParaPerfil(tema, role)),
+          );
       })
       .catch(() => {
         if (ativo)
@@ -447,10 +457,18 @@ export default function Home() {
   const [carregandoConclusao, setCarregandoConclusao] = useState(false);
 
   async function abrirNotificacaoConclusao(empresa: Empresa) {
-    if (!empresa.id || !podeNotificarConclusao(empresa, role) || carregandoConclusao) return;
+    if (
+      !empresa.id ||
+      !podeNotificarConclusao(empresa, role) ||
+      carregandoConclusao
+    )
+      return;
     setCarregandoConclusao(true);
     try {
-      const { destinatarios, avisos } = await obterDestinatariosGestao(empresa, "conclusao");
+      const { destinatarios, avisos } = await obterDestinatariosGestao(
+        empresa,
+        "conclusao",
+      );
       setGestaoDestinatarios(destinatarios);
       setGestaoAvisos(avisos);
       setGestaoMensagem(montarMensagemConclusaoEsteiraGestao(empresa));
@@ -459,7 +477,9 @@ export default function Home() {
       setGestaoConfirmModalOpen(true);
     } catch (error) {
       console.error("Erro ao preparar aviso de conclusão:", error);
-      toast.error("Não foi possível preparar o aviso de conclusão. Tente novamente.");
+      toast.error(
+        "Não foi possível preparar o aviso de conclusão. Tente novamente.",
+      );
     } finally {
       setCarregandoConclusao(false);
     }
@@ -468,6 +488,7 @@ export default function Home() {
   const [tabelaAtivaAberta, setTabelaAtivaAberta] = useState(false);
   const [tabelaOngoingAberta, setTabelaOngoingAberta] = useState(false);
   const [tabelaSuspensaAberta, setTabelaSuspensaAberta] = useState(false);
+  const [tabelaConcluidosAberta, setTabelaConcluidosAberta] = useState(false);
   const [tabelaCanceladosAberta, setTabelaCanceladosAberta] = useState(false);
 
   async function excluirCliente(id: string) {
@@ -543,8 +564,10 @@ export default function Home() {
     try {
       await persistirCliente();
     } catch (erro) {
-      console.error('Erro ao salvar cliente:', erro);
-      toast.error('Não foi possível concluir a operação. Confira se o cliente foi salvo antes de tentar novamente.');
+      console.error("Erro ao salvar cliente:", erro);
+      toast.error(
+        "Não foi possível concluir a operação. Confira se o cliente foi salvo antes de tentar novamente.",
+      );
     } finally {
       salvandoClienteRef.current = false;
       setSalvandoCliente(false);
@@ -578,7 +601,10 @@ export default function Home() {
     let clienteComDadosCentral = clienteForm;
     if (!clienteForm.idCentral?.trim() || clienteForm.valorContrato == null) {
       try {
-        const central = await buscarDadosCentral(clienteForm.nomeEmpresa, clienteForm.idCentral);
+        const central = await buscarDadosCentral(
+          clienteForm.nomeEmpresa,
+          clienteForm.idCentral,
+        );
         if (central) {
           clienteComDadosCentral = preencherDadosCentral(clienteForm, central);
         } else {
@@ -587,7 +613,9 @@ export default function Home() {
           );
         }
       } catch {
-        toast.warning('A planilha do CS está indisponível. O cliente será salvo com os dados informados manualmente.');
+        toast.warning(
+          "A planilha do CS está indisponível. O cliente será salvo com os dados informados manualmente.",
+        );
       }
     }
 
@@ -701,13 +729,20 @@ export default function Home() {
       dataEntrada: dataEntradaFinal,
       dataSuspensao,
       diasSuspensoAcumulado,
-      gamificacaoDeducaoSuporte: role === "master" ? clienteForm.gamificacaoDeducaoSuporte : empresaExistente?.gamificacaoDeducaoSuporte,
+      gamificacaoDeducaoSuporte:
+        role === "master"
+          ? clienteForm.gamificacaoDeducaoSuporte
+          : empresaExistente?.gamificacaoDeducaoSuporte,
     };
 
     empresaSalva.id = await salvarEmpresas(empresaSalva);
 
-    if (!empresaSalva.isSuspended && !empresaSalva.isCancelled && podeNotificarConclusao(empresaSalva, role) &&
-      (!empresaExistente || !podeNotificarConclusao(empresaExistente, role))) {
+    if (
+      !empresaSalva.isSuspended &&
+      !empresaSalva.isCancelled &&
+      podeNotificarConclusao(empresaSalva, role) &&
+      (!empresaExistente || !podeNotificarConclusao(empresaExistente, role))
+    ) {
       await abrirNotificacaoConclusao(empresaSalva);
     }
 
@@ -832,7 +867,9 @@ export default function Home() {
       ]);
 
       setNomesUsuariosPorId(
-        new Map(usersList.map((usuario) => [usuario.uid, formatarNome(usuario.nome)])),
+        new Map(
+          usersList.map((usuario) => [usuario.uid, formatarNome(usuario.nome)]),
+        ),
       );
 
       const csRoleMatch = (u: (typeof usersList)[number]) =>
@@ -871,7 +908,9 @@ export default function Home() {
         .map((u) => formatarNome(u.nome.trim()));
 
       const treinadorFromUsersAtivos = usersList
-        .filter((u) => atuaComoTreinador(u.role) && !u.inativo && u.nome?.trim())
+        .filter(
+          (u) => atuaComoTreinador(u.role) && !u.inativo && u.nome?.trim(),
+        )
         .map((u) => formatarNome(u.nome.trim()));
 
       setTreinadoresUsuarios(treinadorFromUsers);
@@ -1025,10 +1064,14 @@ export default function Home() {
       setLoading(false);
     }
 
-    carregarDados().catch(error => {
-      console.error('Erro ao sincronizar os dados da Home:', error);
-      toast.error('Não foi possível sincronizar os dados. Tente atualizar a página.');
-    }).finally(() => setLoading(false));
+    carregarDados()
+      .catch((error) => {
+        console.error("Erro ao sincronizar os dados da Home:", error);
+        toast.error(
+          "Não foi possível sincronizar os dados. Tente atualizar a página.",
+        );
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   // A Home carrega o histórico só uma vez, no mount — sem isto, o painel de
@@ -1060,10 +1103,6 @@ export default function Home() {
       "filtroElegivelDeducao",
       String(filtroElegivelDeducao),
     );
-    sessionStorage.setItem(
-      "filtroComFollowUpFinal",
-      String(filtroComFollowUpFinal),
-    );
     sessionStorage.setItem("filtroDia30", String(filtroDia30));
     sessionStorage.setItem("ordenacaoContrato", ordenacaoContrato);
     sessionStorage.setItem("ordenacaoScore", ordenacaoScore);
@@ -1079,7 +1118,6 @@ export default function Home() {
     filtroCardTipo,
     filtroCardAlerta,
     filtroElegivelDeducao,
-    filtroComFollowUpFinal,
     filtroDia30,
     ordenacaoContrato,
     ordenacaoScore,
@@ -1188,15 +1226,36 @@ export default function Home() {
             empresa.diasSuspensoAcumulado,
             calcularDiasCongeladosPorCheckpoint(historico, empresa.nomeEmpresa),
           ),
+          diasSuspenso: calcularDiasSuspenso(
+            empresa.isSuspended,
+            empresa.dataSuspensao,
+            empresa.diasSuspensoAcumulado,
+          ),
         };
       });
   }, [empresas, historico, agora]);
 
   type LinhaEsteira = (typeof dados)[number];
 
+  // Concluído: já tem data de finalização da esteira e o follow up final foi
+  // registrado — vira sua própria esteira em vez de continuar entre os ativos.
+  function clienteConcluido(e: LinhaEsteira) {
+    return (
+      !!e.dataFinalizacao?.trim() && !!e.dataFollowUpFinal?.trim()
+    );
+  }
+
   const dadosAtivos = useMemo(() => {
     return dados.filter(
-      (e) => !e.isOngoing && !e.isSuspended && !e.isCancelled,
+      (e) =>
+        !e.isOngoing && !e.isSuspended && !e.isCancelled && !clienteConcluido(e),
+    );
+  }, [dados]);
+
+  const dadosConcluidos = useMemo(() => {
+    return dados.filter(
+      (e) =>
+        !e.isOngoing && !e.isSuspended && !e.isCancelled && clienteConcluido(e),
     );
   }, [dados]);
 
@@ -1215,7 +1274,10 @@ export default function Home() {
     const limite = agora - HORAS_AVISO_SUPORTE_TREINAMENTO * 60 * 60 * 1000;
     const empresasPorNome = new Map(
       dados
-        .filter((e) => !e.isOngoing && !e.isCancelled && e.exibirAvisosSuporte !== false)
+        .filter(
+          (e) =>
+            !e.isOngoing && !e.isCancelled && e.exibirAvisosSuporte !== false,
+        )
         .map((e) => [e.nomeEmpresa.trim().toLowerCase(), e]),
     );
     return historico
@@ -1227,9 +1289,7 @@ export default function Home() {
           o.dataOcorrencia >= limite,
       )
       .map((o) => {
-        const empresa = empresasPorNome.get(
-          o.empresa.trim().toLowerCase(),
-        );
+        const empresa = empresasPorNome.get(o.empresa.trim().toLowerCase());
         return empresa ? { ocorrencia: o, empresa } : null;
       })
       .filter(
@@ -1301,7 +1361,10 @@ export default function Home() {
         ),
       );
     } catch (error) {
-      console.error("Erro ao atualizar contato realizado no aviso de Suporte:", error);
+      console.error(
+        "Erro ao atualizar contato realizado no aviso de Suporte:",
+        error,
+      );
       toast.error("Não foi possível atualizar o status de contato.");
     }
   }
@@ -1363,7 +1426,6 @@ export default function Home() {
     ordenacaoContrato,
     ordenacaoScore,
     filtroElegivelDeducao,
-    filtroComFollowUpFinal,
     filtroDia30,
   ].filter(Boolean).length;
 
@@ -1464,10 +1526,6 @@ export default function Home() {
         const elegivelDeducaoOk =
           !filtroElegivelDeducao || e.gamificacaoDeducaoSuporte?.ativo === true;
 
-        const comFollowUpFinalOk =
-          !filtroComFollowUpFinal ||
-          (!!e.dataFollowUpFinal && e.dataFollowUpFinal.trim() !== "");
-
         const dia30Ok = !filtroDia30 || e.dias <= 30;
 
         return (
@@ -1481,7 +1539,6 @@ export default function Home() {
           tipoCardOk &&
           alertaCardOk &&
           elegivelDeducaoOk &&
-          comFollowUpFinalOk &&
           dia30Ok
         );
       })
@@ -1523,7 +1580,6 @@ export default function Home() {
     filtroCardTipo,
     filtroCardAlerta,
     filtroElegivelDeducao,
-    filtroComFollowUpFinal,
     filtroDia30,
     ordenacaoContrato,
     ordenacaoScore,
@@ -1642,6 +1698,61 @@ export default function Home() {
     mapaResponsaveis,
   ]);
 
+  const dadosConcluidosFiltrados = useMemo(() => {
+    return dadosConcluidos
+      .filter((e) => {
+        const clienteOk =
+          !filtroCliente ||
+          e.nomeEmpresa.toLowerCase().includes(filtroCliente.toLowerCase());
+        const csOk =
+          !filtroCs ||
+          compararCS(e.csResponsavel, filtroCs) ||
+          e.csResponsavel === filtroCs;
+        const comercialOk =
+          !filtroComercial ||
+          compararComercial(
+            e.comercialResponsavel,
+            filtroComercial,
+            mapaComerciais,
+          );
+        const responsavelOk =
+          !filtroResponsavel ||
+          compararComercial(e.responsavel, filtroResponsavel, mapaResponsaveis);
+        const produtoOk = !filtroProduto || e.produto === filtroProduto;
+
+        return clienteOk && csOk && comercialOk && responsavelOk && produtoOk;
+      })
+      .sort((a, b) => {
+        let prim = 0;
+        let sec = 0;
+
+        if (ordenacaoPrincipal === "score") {
+          prim = compararScore(a, b);
+          sec = compararContrato(a, b);
+        } else {
+          prim = compararContrato(a, b);
+          sec = compararScore(a, b);
+        }
+
+        if (prim !== 0) return prim;
+        if (sec !== 0) return sec;
+
+        return a.nomeEmpresa.localeCompare(b.nomeEmpresa, "pt-BR");
+      });
+  }, [
+    dadosConcluidos,
+    filtroCliente,
+    filtroCs,
+    filtroComercial,
+    filtroResponsavel,
+    filtroProduto,
+    ordenacaoContrato,
+    ordenacaoScore,
+    ordenacaoPrincipal,
+    mapaComerciais,
+    mapaResponsaveis,
+  ]);
+
   const dadosCanceladosFiltrados = useMemo(() => {
     return dadosCancelados
       .filter((e) => {
@@ -1701,16 +1812,32 @@ export default function Home() {
   // sozinha conforme tem ou não resultado — sem isso ele precisaria abrir cada
   // uma manualmente pra achar o cliente. Ao apagar a busca, todas voltam ao
   // estado natural (fechadas).
+  // O gatilho é só a mudança de `filtroCliente`: os dados filtrados também
+  // entram nas deps (pra usar o resultado já atualizado da mesma busca), mas
+  // a atualização em segundo plano do histórico (a cada 1 minuto) muda a
+  // referência desses dados sem o usuário tocar na busca — sem a guarda do
+  // ref, isso fecharia de volta uma esteira que o usuário abriu manualmente.
+  const filtroClienteAnteriorRef = useRef<string | null>(null);
   useEffect(() => {
+    if (filtroClienteAnteriorRef.current === filtroCliente) return;
+    filtroClienteAnteriorRef.current = filtroCliente;
     setTabelaAtivaAberta(!!filtroCliente && dadosAtivosFiltrados.length > 0);
     setTabelaOngoingAberta(!!filtroCliente && dadosOngoingFiltrados.length > 0);
-    setTabelaSuspensaAberta(!!filtroCliente && dadosSuspensosFiltrados.length > 0);
-    setTabelaCanceladosAberta(!!filtroCliente && dadosCanceladosFiltrados.length > 0);
+    setTabelaSuspensaAberta(
+      !!filtroCliente && dadosSuspensosFiltrados.length > 0,
+    );
+    setTabelaConcluidosAberta(
+      !!filtroCliente && dadosConcluidosFiltrados.length > 0,
+    );
+    setTabelaCanceladosAberta(
+      !!filtroCliente && dadosCanceladosFiltrados.length > 0,
+    );
   }, [
     filtroCliente,
     dadosAtivosFiltrados,
     dadosOngoingFiltrados,
     dadosSuspensosFiltrados,
+    dadosConcluidosFiltrados,
     dadosCanceladosFiltrados,
   ]);
 
@@ -1771,6 +1898,17 @@ export default function Home() {
       ),
       "Clientes Suspensos",
       "clientes-suspensos",
+    );
+  }
+
+  function exportarConcluidosExcel() {
+    exportarEsteiraExcel(
+      exportarColunasVisiveis(
+        dadosConcluidosFiltrados,
+        colunasConcluidosPrefs.colunasVisiveis,
+      ),
+      "Clientes Concluídos",
+      "clientes-concluidos",
     );
   }
 
@@ -1845,7 +1983,9 @@ export default function Home() {
   }
 
   function renderResponsavel(empresa: LinhaEsteira) {
-    return normalizarNomeComercial(empresa.responsavel, mapaResponsaveis) || "-";
+    return (
+      normalizarNomeComercial(empresa.responsavel, mapaResponsaveis) || "-"
+    );
   }
 
   const colunasEsteiraAtual: ColumnDef<LinhaEsteira>[] = [
@@ -1966,6 +2106,13 @@ export default function Home() {
       exportValue: (empresa) => empresa.dias,
     },
     {
+      key: "diasSuspenso",
+      label: "Dias suspenso",
+      defaultWidth: 110,
+      render: (empresa) => empresa.diasSuspenso,
+      exportValue: (empresa) => empresa.diasSuspenso,
+    },
+    {
       key: "agendamento",
       label: "Agendamento",
       defaultWidth: 120,
@@ -2077,6 +2224,13 @@ export default function Home() {
       exportValue: (empresa) => empresa.dias,
     },
     {
+      key: "diasSuspenso",
+      label: "Dias suspenso",
+      defaultWidth: 110,
+      render: (empresa) => empresa.diasSuspenso,
+      exportValue: (empresa) => empresa.diasSuspenso,
+    },
+    {
       key: "progresso",
       label: "Progresso",
       defaultWidth: 170,
@@ -2091,6 +2245,60 @@ export default function Home() {
       defaultWidth: 220,
       render: (empresa) => empresa.motivoSuspensao || "—",
       exportValue: (empresa) => empresa.motivoSuspensao || "",
+    },
+    {
+      key: "valorContrato",
+      label: "Valor Contrato",
+      defaultWidth: 150,
+      align: "right",
+      render: renderValorContrato,
+      exportValue: (empresa) => empresa.valorContrato ?? "",
+    },
+  ];
+
+  const colunasConcluidos: ColumnDef<LinhaEsteira>[] = [
+    {
+      key: "cliente",
+      label: "Cliente",
+      defaultWidth: 220,
+      locked: true,
+      render: (empresa) => empresa.nomeEmpresa,
+      exportValue: (empresa) => empresa.nomeEmpresa,
+    },
+    {
+      key: "contato",
+      label: "Contato",
+      defaultWidth: 200,
+      render: renderContato,
+      exportValue: renderContato,
+    },
+    {
+      key: "cs",
+      label: "CS Responsável",
+      defaultWidth: 160,
+      render: renderCsResponsavel,
+      exportValue: renderCsResponsavel,
+    },
+    {
+      key: "comercial",
+      label: "Comercial Responsável",
+      defaultWidth: 180,
+      render: renderComercialResponsavel,
+      exportValue: renderComercialResponsavel,
+    },
+    {
+      key: "dataFinalizacao",
+      label: "Data de finalização",
+      defaultWidth: 150,
+      render: (empresa) => formatarData(empresa.dataFinalizacao),
+      exportValue: (empresa) => formatarData(empresa.dataFinalizacao),
+    },
+    {
+      key: "dataFollowUpFinal",
+      label: "Follow up final",
+      defaultWidth: 150,
+      render: (empresa) => formatarData(empresa.dataFollowUpFinal),
+      exportValue: (empresa) => formatarData(empresa.dataFollowUpFinal),
     },
     {
       key: "valorContrato",
@@ -2154,6 +2362,10 @@ export default function Home() {
     "radar:colunas:suspensos",
     colunasSuspensos,
   );
+  const colunasConcluidosPrefs = useColumnPreferences(
+    "radar:colunas:concluidos",
+    colunasConcluidos,
+  );
   const colunasCanceladosPrefs = useColumnPreferences(
     "radar:colunas:cancelados",
     colunasCancelados,
@@ -2166,6 +2378,9 @@ export default function Home() {
     string | null
   >(null);
   const [colunaArrastadaSuspensos, setColunaArrastadaSuspensos] = useState<
+    string | null
+  >(null);
+  const [colunaArrastadaConcluidos, setColunaArrastadaConcluidos] = useState<
     string | null
   >(null);
   const [colunaArrastadaCancelados, setColunaArrastadaCancelados] = useState<
@@ -2214,7 +2429,7 @@ export default function Home() {
           <div className="stat-card-texto">
             <div className="stat-value-row">
               <h3 className="stat-value">{stats.total}</h3>
-              <p className="stat-label">Clientes na esteira</p>
+              <p className="stat-label">Clientes no Radar</p>
             </div>
             <p className="stat-sub">Total de clientes</p>
           </div>
@@ -2352,8 +2567,9 @@ export default function Home() {
                         {ocorrencia.avisoTreinamentoContatoRealizadoPorId && (
                           <span className="aviso-suporte-contato-realizado">
                             Contato realizado
-                            {analistaContato ? ` por ${analistaContato}` : ""},
-                            {" "}aguardando retorno do cliente
+                            {analistaContato
+                              ? ` por ${analistaContato}`
+                              : ""}, aguardando retorno do cliente
                           </span>
                         )}
                         <p className="aviso-suporte-motivo">
@@ -2472,7 +2688,8 @@ export default function Home() {
                 type="button"
                 className="modal-filtros-fechar"
                 onClick={() => setModalFiltrosAberto(false)}
-                title="Fechar" aria-label="Fechar"
+                title="Fechar"
+                aria-label="Fechar"
               >
                 ×
               </button>
@@ -2596,18 +2813,6 @@ export default function Home() {
 
               <label
                 className="checkbox-label"
-                title="Mostra apenas clientes com data de follow up final preenchida."
-              >
-                <input
-                  type="checkbox"
-                  checked={filtroComFollowUpFinal}
-                  onChange={(e) => setFiltroComFollowUpFinal(e.target.checked)}
-                />
-                Com follow up final realizado
-              </label>
-
-              <label
-                className="checkbox-label"
                 title="Mostra apenas clientes dentro do prazo do Gol: até o 30º dia na esteira."
               >
                 <input
@@ -2635,7 +2840,6 @@ export default function Home() {
                     filtroCardTipo ||
                     filtroCardAlerta ||
                     filtroElegivelDeducao ||
-                    filtroComFollowUpFinal ||
                     ordenacaoContrato ||
                     ordenacaoScore
                   )
@@ -2651,7 +2855,6 @@ export default function Home() {
                   setFiltroCardTipo("");
                   setFiltroCardAlerta("");
                   setFiltroElegivelDeducao(false);
-                  setFiltroComFollowUpFinal(false);
                   setOrdenacaoContrato("");
                   setOrdenacaoScore("");
                   setOrdenacaoPrincipal("");
@@ -3160,6 +3363,171 @@ export default function Home() {
         )}
       </div>
 
+      {/* Tabela de Clientes Concluídos */}
+      <div className="collapsible-section" style={{ marginTop: "2rem" }}>
+        <div
+          className="collapsible-header"
+          onClick={() => setTabelaConcluidosAberta((prev) => !prev)}
+        >
+          <div className="collapsible-title-wrapper">
+            <h2>Clientes Concluídos ✅</h2>
+            <span
+              className="collapsible-count-badge"
+              style={{
+                background: "rgba(59, 130, 246, 0.2)",
+                color: "#60a5fa",
+              }}
+            >
+              {dadosConcluidosFiltrados.length}
+            </span>
+          </div>
+          <div className="collapsible-header-actions">
+            <div onClick={(e) => e.stopPropagation()}>
+              <ColumnSelector
+                columns={colunasConcluidos}
+                order={colunasConcluidosPrefs.order}
+                hidden={colunasConcluidosPrefs.hidden}
+                onChangeOrder={colunasConcluidosPrefs.setOrder}
+                onChangeHidden={colunasConcluidosPrefs.setHidden}
+                onRestaurarPadrao={colunasConcluidosPrefs.restaurarPadrao}
+              />
+            </div>
+            {role === "master" && (
+              <button
+                className="btn-exportar-excel"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  exportarConcluidosExcel();
+                }}
+                title="Exportar Clientes Concluídos para Excel"
+              >
+                📥 Exportar Excel
+              </button>
+            )}
+            <span className="collapsible-arrow">
+              {tabelaConcluidosAberta ? "▼" : "▶"}
+            </span>
+          </div>
+        </div>
+
+        {!loading && tabelaConcluidosAberta && (
+          <div className="table-wrapper">
+            <table>
+              <colgroup>
+                {colunasConcluidosPrefs.colunasVisiveis.map((col) => (
+                  <col
+                    key={col.key}
+                    style={{
+                      width: `${colunasConcluidosPrefs.widths[col.key] ?? col.defaultWidth}px`,
+                    }}
+                  />
+                ))}
+              </colgroup>
+              <thead>
+                <tr>
+                  {colunasConcluidosPrefs.colunasVisiveis.map((col) => (
+                    <th
+                      key={col.key}
+                      className={`${col.className || ""} ${colunaArrastadaConcluidos === col.key ? "th-arrastando" : ""}`.trim()}
+                      style={
+                        col.align === "right"
+                          ? { textAlign: "right" }
+                          : undefined
+                      }
+                      draggable
+                      onDragStart={() => setColunaArrastadaConcluidos(col.key)}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={() => {
+                        if (colunaArrastadaConcluidos) {
+                          colunasConcluidosPrefs.setOrder(
+                            reordenarColunaPorArraste(
+                              colunasConcluidosPrefs.order,
+                              colunaArrastadaConcluidos,
+                              col.key,
+                            ),
+                          );
+                        }
+                        setColunaArrastadaConcluidos(null);
+                      }}
+                      onDragEnd={() => setColunaArrastadaConcluidos(null)}
+                      title="Arraste para reordenar a coluna"
+                    >
+                      <span className="col-drag-handle" aria-hidden="true">
+                        ⠿
+                      </span>
+                      {col.label}
+                      <span
+                        className="col-resize-handle"
+                        draggable
+                        onDragStart={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }}
+                        onMouseDown={(e) =>
+                          iniciarRedimensionamentoColuna(
+                            e,
+                            col.key,
+                            colunasConcluidosPrefs.widths[col.key] ??
+                              col.defaultWidth,
+                            colunasConcluidosPrefs.alterarLargura,
+                          )
+                        }
+                      />
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+
+              <tbody>
+                {dadosConcluidosFiltrados.map((empresa) => (
+                  <tr
+                    key={empresa.id}
+                    className="linha-cliente"
+                    onClick={() => abrirCliente(empresa)}
+                  >
+                    {colunasConcluidosPrefs.colunasVisiveis.map((col) => (
+                      <td
+                        key={col.key}
+                        className={col.className}
+                        style={
+                          col.align === "right"
+                            ? { textAlign: "right", fontWeight: 600 }
+                            : undefined
+                        }
+                      >
+                        {col.render(empresa)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+                {dadosConcluidosFiltrados.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={colunasConcluidosPrefs.colunasVisiveis.length}
+                      style={{
+                        textAlign: "center",
+                        color: "#64748b",
+                        padding: "2rem",
+                      }}
+                    >
+                      Nenhum cliente concluído.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+
+            <div className="table-footer">
+              <span>
+                Mostrando <strong>{dadosConcluidosFiltrados.length}</strong> de{" "}
+                <strong>{dadosConcluidos.length}</strong>{" "}
+                {dadosConcluidos.length === 1 ? "cliente" : "clientes"}
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Tabela de Clientes Cancelados */}
       <div className="collapsible-section" style={{ marginTop: "2rem" }}>
         <div
@@ -3351,7 +3719,8 @@ export default function Home() {
                   transition: "background 0.2s, color 0.2s",
                 }}
                 className="btn-fechar-modal"
-                title="Fechar" aria-label="Fechar"
+                title="Fechar"
+                aria-label="Fechar"
               >
                 ✕
               </button>
@@ -3693,24 +4062,39 @@ export default function Home() {
                         </span>
                         {podeNotificarConclusao(clienteSelecionado, role) && (
                           <div className="conclusao-notificacao">
-                            <span className="conclusao-notificacao-destino">Aviso ao CS e Comercial</span>
-                            <span className={`conclusao-notificacao-status conclusao-notificacao-status--${clienteSelecionado.whatsappStatusConclusao || "pendente"}`}>
-                              {clienteSelecionado.whatsappStatusConclusao === "enviado"
+                            <span className="conclusao-notificacao-destino">
+                              Aviso ao CS e Comercial
+                            </span>
+                            <span
+                              className={`conclusao-notificacao-status conclusao-notificacao-status--${clienteSelecionado.whatsappStatusConclusao || "pendente"}`}
+                            >
+                              {clienteSelecionado.whatsappStatusConclusao ===
+                              "enviado"
                                 ? "Enviado"
-                                : clienteSelecionado.whatsappStatusConclusao === "parcial"
+                                : clienteSelecionado.whatsappStatusConclusao ===
+                                    "parcial"
                                   ? "Enviado parcialmente"
-                                  : clienteSelecionado.whatsappStatusConclusao === "falhou"
+                                  : clienteSelecionado.whatsappStatusConclusao ===
+                                      "falhou"
                                     ? "Falha no envio"
-                                    : clienteSelecionado.whatsappStatusConclusao === "sem_destinatario"
+                                    : clienteSelecionado.whatsappStatusConclusao ===
+                                        "sem_destinatario"
                                       ? "Sem destinatários"
                                       : "Envio não confirmado"}
                             </span>
-                            <button type="button" className="conclusao-notificacao-reenviar"
+                            <button
+                              type="button"
+                              className="conclusao-notificacao-reenviar"
                               disabled={carregandoConclusao}
                               title="Reenviar aviso de finalização ao CS e Comercial"
-                              onClick={() => abrirNotificacaoConclusao(clienteSelecionado)}>
+                              onClick={() =>
+                                abrirNotificacaoConclusao(clienteSelecionado)
+                              }
+                            >
                               <RotateCw size={13} aria-hidden="true" />
-                              {carregandoConclusao ? "Preparando..." : "Reenviar aviso"}
+                              {carregandoConclusao
+                                ? "Preparando..."
+                                : "Reenviar aviso"}
                             </button>
                           </div>
                         )}
@@ -3788,9 +4172,9 @@ export default function Home() {
             <p className="confirm-modal-text">
               Deseja realmente excluir o cliente{" "}
               <strong>{clienteSelecionado.nomeEmpresa}</strong>? Esta ação não
-              poderá ser desfeita. O histórico de ocorrências já registrado
-              para este cliente não é apagado e continuará aparecendo no
-              Histórico sob este nome.
+              poderá ser desfeita. O histórico de ocorrências já registrado para
+              este cliente não é apagado e continuará aparecendo no Histórico
+              sob este nome.
             </p>
             <div className="confirm-modal-actions">
               <button
@@ -3821,7 +4205,11 @@ export default function Home() {
 
       {modalClienteAberto && (
         <div className="cliente-overlay">
-          <fieldset className="cliente-modal" disabled={salvandoCliente} aria-label="Cadastro do cliente">
+          <fieldset
+            className="cliente-modal"
+            disabled={salvandoCliente}
+            aria-label="Cadastro do cliente"
+          >
             <div
               className="cliente-modal-header"
               style={{ position: "relative" }}
@@ -3848,7 +4236,8 @@ export default function Home() {
                   transition: "background 0.2s, color 0.2s",
                 }}
                 className="btn-fechar-modal"
-                title="Fechar" aria-label="Fechar"
+                title="Fechar"
+                aria-label="Fechar"
               >
                 ✕
               </button>
@@ -3890,7 +4279,11 @@ export default function Home() {
                     : "Preenchido automaticamente pelo nome da empresa"
                 }
               />
-              {buscandoDadosCentral && <small role="status">Consultando ID e valor de contrato na planilha do CS...</small>}
+              {buscandoDadosCentral && (
+                <small role="status">
+                  Consultando ID e valor de contrato na planilha do CS...
+                </small>
+              )}
               {avisoPlanilha && <small role="status">{avisoPlanilha}</small>}
             </div>
 
@@ -4411,7 +4804,9 @@ export default function Home() {
               </div>
 
               <div className="form-group">
-                <label htmlFor="cliente-valor-contrato">Valor do contrato (R$)</label>
+                <label htmlFor="cliente-valor-contrato">
+                  Valor do contrato (R$)
+                </label>
                 <input
                   id="cliente-valor-contrato"
                   type="number"
@@ -4428,7 +4823,10 @@ export default function Home() {
                     })
                   }
                 />
-                <small>Preenchido pela planilha do CS quando vazio. Você pode ajustar o valor manualmente.</small>
+                <small>
+                  Preenchido pela planilha do CS quando vazio. Você pode ajustar
+                  o valor manualmente.
+                </small>
               </div>
             </div>
 
@@ -4656,9 +5054,7 @@ export default function Home() {
                 disabled={salvandoCliente}
                 style={{ flex: 1, marginTop: 0 }}
               >
-                {salvandoCliente
-                  ? "Salvando cliente..."
-                  : "Salvar cliente"}
+                {salvandoCliente ? "Salvando cliente..." : "Salvar cliente"}
               </button>
             </div>
           </fieldset>
@@ -5221,10 +5617,10 @@ export default function Home() {
           gestaoEmpresaEvento === "conclusao"
             ? "Notificar Supervisor, CS e Comercial sobre a conclusão da esteira?"
             : gestaoEmpresaEvento === "cancelado"
-            ? "🚫 Notificar Supervisor, CS e Comercial sobre o cancelamento?"
-            : gestaoEmpresaEvento === "retorno"
-              ? "🔄 Notificar Supervisor, CS e Comercial sobre o retorno à esteira?"
-              : "⏸️ Notificar Supervisor, CS e Comercial sobre a suspensão?"
+              ? "🚫 Notificar Supervisor, CS e Comercial sobre o cancelamento?"
+              : gestaoEmpresaEvento === "retorno"
+                ? "🔄 Notificar Supervisor, CS e Comercial sobre o retorno à esteira?"
+                : "⏸️ Notificar Supervisor, CS e Comercial sobre a suspensão?"
         }
         destinatarios={gestaoDestinatarios}
         avisos={gestaoAvisos}
@@ -5236,12 +5632,24 @@ export default function Home() {
           if (!gestaoEmpresaId || gestaoEmpresaEvento === "retorno") return;
           try {
             if (gestaoEmpresaEvento === "conclusao") {
-              const campos = camposResultadoConclusao({ status, enviadoEm, destinatarios });
+              const campos = camposResultadoConclusao({
+                status,
+                enviadoEm,
+                destinatarios,
+              });
               await salvarEmpresas({ id: gestaoEmpresaId, ...campos });
-              setEmpresas((lista) => lista.map((empresa) => empresa.id === gestaoEmpresaId
-                ? { ...empresa, ...campos } : empresa));
-              setClienteSelecionado((empresa) => empresa?.id === gestaoEmpresaId
-                ? { ...empresa, ...campos } : empresa);
+              setEmpresas((lista) =>
+                lista.map((empresa) =>
+                  empresa.id === gestaoEmpresaId
+                    ? { ...empresa, ...campos }
+                    : empresa,
+                ),
+              );
+              setClienteSelecionado((empresa) =>
+                empresa?.id === gestaoEmpresaId
+                  ? { ...empresa, ...campos }
+                  : empresa,
+              );
             } else if (gestaoEmpresaEvento === "cancelado") {
               await salvarEmpresas({
                 id: gestaoEmpresaId,

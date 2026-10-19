@@ -291,6 +291,10 @@ export default function Home() {
   const [filtroComFollowUpFinal, setFiltroComFollowUpFinal] = useState<boolean>(
     () => sessionStorage.getItem("filtroComFollowUpFinal") === "true",
   );
+  // Mostra só clientes dentro do prazo do Gol (até o 30º dia na esteira).
+  const [filtroDia30, setFiltroDia30] = useState<boolean>(
+    () => sessionStorage.getItem("filtroDia30") === "true",
+  );
   const [modalFiltrosAberto, setModalFiltrosAberto] = useState(false);
   const botaoFiltrosRef = useRef<HTMLButtonElement>(null);
   const modalFiltrosRef = useRef<HTMLDivElement>(null);
@@ -1060,6 +1064,7 @@ export default function Home() {
       "filtroComFollowUpFinal",
       String(filtroComFollowUpFinal),
     );
+    sessionStorage.setItem("filtroDia30", String(filtroDia30));
     sessionStorage.setItem("ordenacaoContrato", ordenacaoContrato);
     sessionStorage.setItem("ordenacaoScore", ordenacaoScore);
     sessionStorage.setItem("ordenacaoPrincipal", ordenacaoPrincipal);
@@ -1075,6 +1080,7 @@ export default function Home() {
     filtroCardAlerta,
     filtroElegivelDeducao,
     filtroComFollowUpFinal,
+    filtroDia30,
     ordenacaoContrato,
     ordenacaoScore,
     ordenacaoPrincipal,
@@ -1145,6 +1151,15 @@ export default function Home() {
           temAlerta = !!empresa.alerta;
         }
 
+        // Motivo da suspensão: descrição da ocorrência de suspensão mais recente
+        // (uma empresa pode ter sido suspensa mais de uma vez ao longo do tempo).
+        const motivoSuspensao = empresa.isSuspended
+          ? historicoEmpresa
+              .filter((o) => o.suspenderCliente === true)
+              .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0]
+              ?.descricao || ""
+          : "";
+
         const farol = calcularFarol({
           progresso,
           tme,
@@ -1162,6 +1177,7 @@ export default function Home() {
           tme,
           progresso,
           farol,
+          motivoSuspensao,
           dias: calcularDiasNaEsteira(
             empresa.dataEntrada,
             progresso,
@@ -1348,6 +1364,7 @@ export default function Home() {
     ordenacaoScore,
     filtroElegivelDeducao,
     filtroComFollowUpFinal,
+    filtroDia30,
   ].filter(Boolean).length;
 
   // Esc fecha o modal, clique fora fecha, e o foco volta pro botão "Filtros" ao
@@ -1451,6 +1468,8 @@ export default function Home() {
           !filtroComFollowUpFinal ||
           (!!e.dataFollowUpFinal && e.dataFollowUpFinal.trim() !== "");
 
+        const dia30Ok = !filtroDia30 || e.dias <= 30;
+
         return (
           clienteOk &&
           responsavelOk &&
@@ -1462,7 +1481,8 @@ export default function Home() {
           tipoCardOk &&
           alertaCardOk &&
           elegivelDeducaoOk &&
-          comFollowUpFinalOk
+          comFollowUpFinalOk &&
+          dia30Ok
         );
       })
       .sort((a, b) => {
@@ -1504,6 +1524,7 @@ export default function Home() {
     filtroCardAlerta,
     filtroElegivelDeducao,
     filtroComFollowUpFinal,
+    filtroDia30,
     ordenacaoContrato,
     ordenacaoScore,
     ordenacaoPrincipal,
@@ -2042,6 +2063,13 @@ export default function Home() {
       exportValue: renderComercialResponsavel,
     },
     {
+      key: "dataEntrada",
+      label: "Data de entrada",
+      defaultWidth: 140,
+      render: (empresa) => formatarData(empresa.dataEntrada),
+      exportValue: (empresa) => formatarData(empresa.dataEntrada),
+    },
+    {
       key: "dias",
       label: "Dias",
       defaultWidth: 70,
@@ -2056,6 +2084,13 @@ export default function Home() {
       render: (empresa) => <ProgressBar value={empresa.progresso} />,
       exportLabel: "Progresso (%)",
       exportValue: (empresa) => empresa.progresso,
+    },
+    {
+      key: "motivoSuspensao",
+      label: "Motivo da Suspensão",
+      defaultWidth: 220,
+      render: (empresa) => empresa.motivoSuspensao || "—",
+      exportValue: (empresa) => empresa.motivoSuspensao || "",
     },
     {
       key: "valorContrato",
@@ -2569,6 +2604,18 @@ export default function Home() {
                   onChange={(e) => setFiltroComFollowUpFinal(e.target.checked)}
                 />
                 Com follow up final realizado
+              </label>
+
+              <label
+                className="checkbox-label"
+                title="Mostra apenas clientes dentro do prazo do Gol: até o 30º dia na esteira."
+              >
+                <input
+                  type="checkbox"
+                  checked={filtroDia30}
+                  onChange={(e) => setFiltroDia30(e.target.checked)}
+                />
+                Dentro do prazo do Gol (até o dia 30)
               </label>
             </div>
 

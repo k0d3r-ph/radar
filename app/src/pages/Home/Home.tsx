@@ -1240,15 +1240,16 @@ export default function Home() {
   // Concluído: já tem data de finalização da esteira e o follow up final foi
   // registrado — vira sua própria esteira em vez de continuar entre os ativos.
   function clienteConcluido(e: LinhaEsteira) {
-    return (
-      !!e.dataFinalizacao?.trim() && !!e.dataFollowUpFinal?.trim()
-    );
+    return !!e.dataFinalizacao?.trim() && !!e.dataFollowUpFinal?.trim();
   }
 
   const dadosAtivos = useMemo(() => {
     return dados.filter(
       (e) =>
-        !e.isOngoing && !e.isSuspended && !e.isCancelled && !clienteConcluido(e),
+        !e.isOngoing &&
+        !e.isSuspended &&
+        !e.isCancelled &&
+        !clienteConcluido(e),
     );
   }, [dados]);
 
@@ -2429,7 +2430,7 @@ export default function Home() {
           <div className="stat-card-texto">
             <div className="stat-value-row">
               <h3 className="stat-value">{stats.total}</h3>
-              <p className="stat-label">Clientes no Radar</p>
+              <p className="stat-label">Clientes na esteira</p>
             </div>
             <p className="stat-sub">Total de clientes</p>
           </div>
@@ -2567,9 +2568,8 @@ export default function Home() {
                         {ocorrencia.avisoTreinamentoContatoRealizadoPorId && (
                           <span className="aviso-suporte-contato-realizado">
                             Contato realizado
-                            {analistaContato
-                              ? ` por ${analistaContato}`
-                              : ""}, aguardando retorno do cliente
+                            {analistaContato ? ` por ${analistaContato}` : ""},
+                            aguardando retorno do cliente
                           </span>
                         )}
                         <p className="aviso-suporte-motivo">

@@ -72,6 +72,7 @@ import {
 } from "../../utils/notificacaoConclusao";
 import { GestaoNotificacaoModal } from "../../components/GestaoNotificacaoModal";
 import { ColumnSelector } from "../../components/ColumnSelector";
+import { Recolhivel } from "../../components/Recolhivel";
 import {
   buscarDadosCentral,
   preencherDadosCentral,
@@ -1434,8 +1435,13 @@ export default function Home() {
     ordenacaoScore,
     filtroElegivelDeducao,
     filtroDia30,
-    filtroLoboSolitario,
   ].filter(Boolean).length;
+
+  // O filtro vale para todas as esteiras, então o total também considera todas.
+  const totalLobosSolitarios = useMemo(
+    () => dados.filter((e) => e.loboSolitario).length,
+    [dados],
+  );
 
   // Esc fecha o modal, clique fora fecha, e o foco volta pro botão "Filtros" ao
   // fechar — mesmo contrato dos outros modais do app (ver CLAUDE.md do usuário).
@@ -2155,8 +2161,8 @@ export default function Home() {
               borderRadius: "999px",
               fontSize: "0.8rem",
               fontWeight: 600,
-              background: CORES_PRODUTO[empresa.produto] || "#64748b",
-              color: "white",
+              background: CORES_PRODUTO[empresa.produto] || "var(--lt-fundo-64748b, #64748b)",
+              color: "var(--lt-texto-ffffff, white)",
             }}
           >
             {empresa.produto}
@@ -2176,7 +2182,7 @@ export default function Home() {
             style={{
               fontWeight: 600,
               color:
-                obterTipoEfetivo(empresa) === "Fast" ? "#16a34a" : "#dc2626",
+                obterTipoEfetivo(empresa) === "Fast" ? "var(--lt-texto-16a34a, #16a34a)" : "#dc2626",
             }}
             title={
               (calcularScoreEfetivo(empresa) ?? empresa.score) !== empresa.score
@@ -2530,7 +2536,7 @@ export default function Home() {
 
       <div className="home-stats">
         <div
-          className={`stat-card clickable ${filtroCardStatus === "" && filtroCardAlerta === "" && !filtroSomenteSuspensos ? "active-total" : ""}`}
+          className={`stat-card clickable ${filtroCardStatus === "" && filtroCardAlerta === "" && !filtroSomenteSuspensos && !filtroLoboSolitario ? "active-total" : ""}`}
           onClick={() => {
             setFiltroCardStatus("");
             setFiltroCardAlerta("");
@@ -2595,6 +2601,26 @@ export default function Home() {
             </span>
             <span className="stat-sub">
               {filtroSomenteSuspensos ? "Filtro ativo · clique para remover" : "Exibir somente suspensos"}
+            </span>
+          </span>
+        </button>
+
+        <button
+          type="button"
+          className={`stat-card clickable stat-card-suspensos ${filtroLoboSolitario ? "active-lobo" : ""}`}
+          aria-pressed={filtroLoboSolitario}
+          title="Mostra apenas clientes com o carimbo Lobo Solitário, em todas as esteiras."
+          onClick={() => setFiltroLoboSolitario((anterior) => !anterior)}
+        >
+          <span className="stat-card-texto">
+            <span className="stat-value-row">
+              <span className="stat-value">{totalLobosSolitarios}</span>
+              <span className="stat-label">
+                <span aria-hidden="true">🐺</span> Lobos Solitários
+              </span>
+            </span>
+            <span className="stat-sub">
+              {filtroLoboSolitario ? "Filtro ativo · clique para remover" : "Exibir somente lobos solitários"}
             </span>
           </span>
         </button>
@@ -2926,17 +2952,6 @@ export default function Home() {
                 Dentro do prazo do Gol (até o dia 30)
               </label>
 
-              <label
-                className="checkbox-label"
-                title="Mostra apenas clientes com o carimbo Lobo Solitário, em todas as esteiras."
-              >
-                <input
-                  type="checkbox"
-                  checked={filtroLoboSolitario}
-                  onChange={(e) => setFiltroLoboSolitario(e.target.checked)}
-                />
-                <span aria-hidden="true">🐺</span> Somente Lobo Solitário
-              </label>
             </div>
 
             <div className="modal-filtros-footer">
@@ -3028,13 +3043,13 @@ export default function Home() {
                 📥 Exportar Excel
               </button>
             )}
-            <span className="collapsible-arrow">
-              {tabelaAtivaAberta ? "▼" : "▶"}
+            <span className={`collapsible-arrow ${tabelaAtivaAberta ? "aberta" : ""}`} aria-hidden="true">
+              ▶
             </span>
           </div>
         </div>
 
-        {!loading && tabelaAtivaAberta && (
+        <Recolhivel aberta={!loading && tabelaAtivaAberta}>
           <div className="table-wrapper">
             <table>
               <colgroup>
@@ -3149,7 +3164,7 @@ export default function Home() {
               </span>
             </div>
           </div>
-        )}
+        </Recolhivel>
       </div>
 
       {/* Tabela de Clientes Ongoing */}
@@ -3164,7 +3179,7 @@ export default function Home() {
               className="collapsible-count-badge"
               style={{
                 background: "rgba(16, 185, 129, 0.2)",
-                color: "#34d399",
+                color: "var(--lt-texto-34d399, #34d399)",
               }}
             >
               {dadosOngoingFiltrados.length}
@@ -3193,13 +3208,13 @@ export default function Home() {
                 📥 Exportar Excel
               </button>
             )}
-            <span className="collapsible-arrow">
-              {tabelaOngoingAberta ? "▼" : "▶"}
+            <span className={`collapsible-arrow ${tabelaOngoingAberta ? "aberta" : ""}`} aria-hidden="true">
+              ▶
             </span>
           </div>
         </div>
 
-        {!loading && tabelaOngoingAberta && (
+        <Recolhivel aberta={!loading && tabelaOngoingAberta}>
           <div className="table-wrapper">
             <table>
               <colgroup>
@@ -3314,7 +3329,7 @@ export default function Home() {
               </span>
             </div>
           </div>
-        )}
+        </Recolhivel>
       </div>
 
       {/* Tabela de Clientes Suspensos */}
@@ -3329,7 +3344,7 @@ export default function Home() {
               className="collapsible-count-badge"
               style={{
                 background: "rgba(245, 158, 11, 0.2)",
-                color: "#f59e0b",
+                color: "var(--lt-texto-f59e0b, #f59e0b)",
               }}
             >
               {dadosSuspensosFiltrados.length}
@@ -3358,13 +3373,13 @@ export default function Home() {
                 📥 Exportar Excel
               </button>
             )}
-            <span className="collapsible-arrow">
-              {tabelaSuspensaAberta ? "▼" : "▶"}
+            <span className={`collapsible-arrow ${tabelaSuspensaAberta ? "aberta" : ""}`} aria-hidden="true">
+              ▶
             </span>
           </div>
         </div>
 
-        {!loading && tabelaSuspensaAberta && (
+        <Recolhivel aberta={!loading && tabelaSuspensaAberta}>
           <div className="table-wrapper">
             <table>
               <colgroup>
@@ -3479,7 +3494,7 @@ export default function Home() {
               </span>
             </div>
           </div>
-        )}
+        </Recolhivel>
       </div>
 
       {/* Tabela de Clientes Concluídos */}
@@ -3494,7 +3509,7 @@ export default function Home() {
               className="collapsible-count-badge"
               style={{
                 background: "rgba(59, 130, 246, 0.2)",
-                color: "#60a5fa",
+                color: "var(--lt-texto-60a5fa, #60a5fa)",
               }}
             >
               {dadosConcluidosFiltrados.length}
@@ -3523,13 +3538,13 @@ export default function Home() {
                 📥 Exportar Excel
               </button>
             )}
-            <span className="collapsible-arrow">
-              {tabelaConcluidosAberta ? "▼" : "▶"}
+            <span className={`collapsible-arrow ${tabelaConcluidosAberta ? "aberta" : ""}`} aria-hidden="true">
+              ▶
             </span>
           </div>
         </div>
 
-        {!loading && tabelaConcluidosAberta && (
+        <Recolhivel aberta={!loading && tabelaConcluidosAberta}>
           <div className="table-wrapper">
             <table>
               <colgroup>
@@ -3644,7 +3659,7 @@ export default function Home() {
               </span>
             </div>
           </div>
-        )}
+        </Recolhivel>
       </div>
 
       {/* Tabela de Clientes Cancelados */}
@@ -3657,7 +3672,7 @@ export default function Home() {
             <h2>Clientes Cancelados ❌</h2>
             <span
               className="collapsible-count-badge"
-              style={{ background: "rgba(220, 38, 38, 0.2)", color: "#f87171" }}
+              style={{ background: "rgba(220, 38, 38, 0.2)", color: "var(--lt-texto-f87171, #f87171)" }}
             >
               {dadosCanceladosFiltrados.length}
             </span>
@@ -3685,13 +3700,13 @@ export default function Home() {
                 📥 Exportar Excel
               </button>
             )}
-            <span className="collapsible-arrow">
-              {tabelaCanceladosAberta ? "▼" : "▶"}
+            <span className={`collapsible-arrow ${tabelaCanceladosAberta ? "aberta" : ""}`} aria-hidden="true">
+              ▶
             </span>
           </div>
         </div>
 
-        {!loading && tabelaCanceladosAberta && (
+        <Recolhivel aberta={!loading && tabelaCanceladosAberta}>
           <div className="table-wrapper">
             <table>
               <colgroup>
@@ -3806,7 +3821,7 @@ export default function Home() {
               </span>
             </div>
           </div>
-        )}
+        </Recolhivel>
       </div>
 
       {clienteSelecionado && (
@@ -3825,7 +3840,7 @@ export default function Home() {
                   background: "none",
                   border: "none",
                   fontSize: "1.1rem",
-                  color: "#94a3b8",
+                  color: "var(--lt-texto-94a3b8, #94a3b8)",
                   cursor: "pointer",
                   padding: "4px",
                   lineHeight: 1,
@@ -3866,7 +3881,7 @@ export default function Home() {
                 <span className="info-label">ID do Cliente</span>
                 <span
                   className="info-value"
-                  style={{ fontWeight: "bold", color: "#1e90ff" }}
+                  style={{ fontWeight: "bold", color: "var(--lt-texto-1e90ff, #1e90ff)" }}
                 >
                   {clienteSelecionado.idNumeric
                     ? `#${clienteSelecionado.idNumeric}`
@@ -3969,11 +3984,11 @@ export default function Home() {
                       ❌ Cancelado
                     </span>
                   ) : clienteSelecionado.isSuspended ? (
-                    <span style={{ color: "#f59e0b", fontWeight: "bold" }}>
+                    <span style={{ color: "var(--lt-texto-f59e0b, #f59e0b)", fontWeight: "bold" }}>
                       ⏸️ Suspenso Temporariamente
                     </span>
                   ) : (
-                    <span style={{ color: "#10b981", fontWeight: "bold" }}>
+                    <span style={{ color: "var(--lt-texto-10b981, #10b981)", fontWeight: "bold" }}>
                       ▶️ Ativo
                     </span>
                   )}
@@ -3988,7 +4003,7 @@ export default function Home() {
                     {clienteSelecionado.whatsappStatusSuspensao ===
                       "enviado" && (
                       <span
-                        style={{ color: "#16a34a", fontWeight: "bold" }}
+                        style={{ color: "var(--lt-texto-16a34a, #16a34a)", fontWeight: "bold" }}
                         title={
                           clienteSelecionado.whatsappEnviadoEmSuspensao
                             ? "Enviado em " +
@@ -4004,7 +4019,7 @@ export default function Home() {
                     {clienteSelecionado.whatsappStatusSuspensao ===
                       "parcial" && (
                       <span
-                        style={{ color: "#d97706", fontWeight: "bold" }}
+                        style={{ color: "var(--lt-texto-d97706, #d97706)", fontWeight: "bold" }}
                         title={(
                           clienteSelecionado.whatsappDestinatariosSuspensao ||
                           []
@@ -4057,7 +4072,7 @@ export default function Home() {
                     {clienteSelecionado.whatsappStatusCancelamento ===
                       "enviado" && (
                       <span
-                        style={{ color: "#16a34a", fontWeight: "bold" }}
+                        style={{ color: "var(--lt-texto-16a34a, #16a34a)", fontWeight: "bold" }}
                         title={
                           clienteSelecionado.whatsappEnviadoEmCancelamento
                             ? "Enviado em " +
@@ -4073,7 +4088,7 @@ export default function Home() {
                     {clienteSelecionado.whatsappStatusCancelamento ===
                       "parcial" && (
                       <span
-                        style={{ color: "#d97706", fontWeight: "bold" }}
+                        style={{ color: "var(--lt-texto-d97706, #d97706)", fontWeight: "bold" }}
                         title={(
                           clienteSelecionado.whatsappDestinatariosCancelamento ||
                           []
@@ -4130,8 +4145,8 @@ export default function Home() {
                         fontWeight: "bold",
                         color:
                           obterTipoEfetivo(clienteSelecionado) === "Fast"
-                            ? "#10b981"
-                            : "#ef4444",
+                            ? "var(--lt-texto-10b981, #10b981)"
+                            : "var(--lt-texto-ef4444, #ef4444)",
                       }}
                       title={
                         (calcularScoreEfetivo(clienteSelecionado) ??
@@ -4155,7 +4170,7 @@ export default function Home() {
                       style={{
                         background: "rgba(59, 130, 246, 0.15)",
                         border: "1px solid rgba(59, 130, 246, 0.25)",
-                        color: "#60a5fa",
+                        color: "var(--lt-texto-60a5fa, #60a5fa)",
                         padding: "2px 8px",
                         borderRadius: "6px",
                         fontSize: "0.75rem",
@@ -4356,7 +4371,7 @@ export default function Home() {
                   background: "none",
                   border: "none",
                   fontSize: "1.1rem",
-                  color: "#94a3b8",
+                  color: "var(--lt-texto-94a3b8, #94a3b8)",
                   cursor: "pointer",
                   padding: "4px",
                   lineHeight: 1,
@@ -5195,9 +5210,9 @@ export default function Home() {
                   borderRadius: "10px",
                   fontWeight: "600",
                   cursor: "pointer",
-                  border: "1px solid rgba(255, 255, 255, 0.08)",
-                  background: "#1e293b",
-                  color: "#cbd5e1",
+                  border: "1px solid var(--lt-borda-ffffff14, rgba(255, 255, 255, 0.08))",
+                  background: "var(--lt-fundo-1e293b, #1e293b)",
+                  color: "var(--lt-texto-cbd5e1, #cbd5e1)",
                   fontSize: "0.95rem",
                   transition: "0.2s ease",
                 }}

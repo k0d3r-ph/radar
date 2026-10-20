@@ -1,0 +1,51 @@
+.recolhivel {
+  display: grid;
+  grid-template-rows: 1fr;
+}
+
+.recolhivel-conteudo {
+  min-height: 0;
+}
+
+/* Durante a animação o conteúdo é cortado; aberto, volta a poder transbordar (tooltips, menus). */
+.recolhivel--abrindo .recolhivel-conteudo,
+.recolhivel--fechando .recolhivel-conteudo {
+  overflow: hidden;
+}
+
+.recolhivel--abrindo {
+  animation: recolhivel-abrir 0.3s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.recolhivel--fechando {
+  animation: recolhivel-fechar 0.25s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+@keyframes recolhivel-abrir {
+  from {
+    grid-template-rows: 0fr;
+    opacity: 0;
+  }
+  to {
+    grid-template-rows: 1fr;
+    opacity: 1;
+  }
+}
+
+@keyframes recolhivel-fechar {
+  from {
+    grid-template-rows: 1fr;
+    opacity: 1;
+  }
+  to {
+    grid-template-rows: 0fr;
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recolhivel--abrindo,
+  .recolhivel--fechando {
+    animation-duration: 1ms;
+  }
+}

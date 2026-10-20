@@ -19,7 +19,7 @@ function padronizarNomeTreinador(nome?: string): string {
   return ALIASES_TREINADORES[normalizarNome(nome)] ?? nome?.trim() ?? "";
 }
 
-/** Indicadores de atendimento e de status de clientes mantêm o filtro de dias úteis. */
+/** Todos os indicadores consideram somente dias úteis (segunda a sexta). */
 export function isDiaUtil(data: Date): boolean {
   const dia = data.getDay();
   return dia !== 0 && dia !== 6;
@@ -42,8 +42,6 @@ function inicioDoDia(data: Date): Date {
 
 export interface EventoIndicador {
   data: Date;
-  /** Treinamentos registrados são contabilizados também fora dos dias úteis. */
-  incluirFimDeSemana?: boolean;
   /** Nome completo do treinador responsável pelo evento (já resolvido quando possível). */
   treinador: string;
 }
@@ -299,7 +297,7 @@ export function construirEventosIndicadoresTreinamento(
       ?? (o.id ? lancamentosPorOcorrencia.get(o.id) : undefined);
     const l = vinculado?.tipoAcao === "treinamento" ? vinculado : undefined;
     const treinador = resolverAutorTreinamento(o.responsavel || l?.treinadorNome);
-    const evento: EventoIndicador = { data, treinador, incluirFimDeSemana: true };
+    const evento: EventoIndicador = { data, treinador };
     // Mesmo critério do filtro "Treinamento (Rea.)" do Histórico, inclusive tema vazio.
     const temas = (o.temaOcorrencia || []).map((t) => t.trim().toLowerCase());
 
@@ -395,7 +393,7 @@ export function construirEventosIndicadoresTreinamento(
 }
 
 function dentroDoPeriodo(evento: EventoIndicador, inicio: Date, fim: Date): boolean {
-  if (!evento.incluirFimDeSemana && !isDiaUtil(evento.data)) return false;
+  if (!isDiaUtil(evento.data)) return false;
   const t = evento.data.getTime();
   return t >= inicio.getTime() && t <= fim.getTime();
 }
@@ -476,16 +474,15 @@ export function listarEsperasLongasTreinamento(
 const LIMITE_PERIODOS = 180;
 
 /**
- * Períodos (dias úteis ou semanas) entre duas datas, inclusive, para montar o eixo X do
- * gráfico e as colunas do painel analítico. `incluirFinsDeSemana` inclui sábado e domingo
- * para indicadores baseados nos treinamentos. Em "semana", os limites são segunda a domingo
- * (a primeira e a última semana podem extrapolar o intervalo pedido).
+ * Períodos (dias úteis ou semanas úteis) entre duas datas, inclusive, para montar o eixo X
+ * do gráfico e as colunas do painel analítico. Sábado e domingo nunca entram. Em "semana",
+ * os limites são segunda a sexta (a primeira e a última semana podem extrapolar o intervalo
+ * pedido).
  */
 export function gerarPeriodosIndicadoresEntreDatas(
   dataInicio: Date,
   dataFim: Date,
   granularidade: "dia" | "semana",
-  incluirFinsDeSemana = false,
 ): PeriodoIndicador[] {
   const periodos: PeriodoIndicador[] = [];
   const inicio = inicioDoDia(dataInicio);
@@ -495,7 +492,7 @@ export function gerarPeriodosIndicadoresEntreDatas(
   if (granularidade === "dia") {
     const cursor = new Date(inicio);
     while (cursor.getTime() <= fim.getTime()) {
-      if (incluirFinsDeSemana || isDiaUtil(cursor)) {
+      if (isDiaUtil(cursor)) {
         const diaInicio = new Date(cursor);
         const diaFim = new Date(cursor);
         diaFim.setHours(23, 59, 59, 999);
@@ -510,7 +507,7 @@ export function gerarPeriodosIndicadoresEntreDatas(
     return periodos.length > LIMITE_PERIODOS ? periodos.slice(-LIMITE_PERIODOS) : periodos;
   }
 
-  // Semana: segunda a domingo, começando na semana de `inicio` até a semana de `fim`.
+  // Semana: segunda a sexta, começando na semana de `inicio` até a semana de `fim`.
   const diaDaSemanaInicio = inicio.getDay();
   const deslocamentoAteSegunda = diaDaSemanaInicio === 0 ? 6 : diaDaSemanaInicio - 1;
   const cursor = new Date(inicio);
@@ -519,7 +516,7 @@ export function gerarPeriodosIndicadoresEntreDatas(
   while (cursor.getTime() <= fim.getTime()) {
     const semanaInicio = new Date(cursor);
     const semanaFim = new Date(cursor);
-    semanaFim.setDate(semanaFim.getDate() + 6);
+    semanaFim.setDate(semanaFim.getDate() + 4);
     semanaFim.setHours(23, 59, 59, 999);
     periodos.push({
       inicio: semanaInicio,
@@ -529,6 +526,23 @@ export function gerarPeriodosIndicadoresEntreDatas(
     cursor.setDate(cursor.getDate() + 7);
   }
   return periodos.length > LIMITE_PERIODOS ? periodos.slice(-LIMITE_PERIODOS) : periodos;
+}
+
+/**
+ * Limita os períodos ao intervalo pedido. Semanas que, após o recorte, ficam só com
+ * sábado/domingo (ex.: intervalo começando num sábado) são descartadas.
+ */
+export function recortarPeriodosIndicadores(
+  periodos: PeriodoIndicador[],
+  intervalo: { inicio: Date; fim: Date },
+): PeriodoIndicador[] {
+  return periodos
+    .map((p) => ({
+      ...p,
+      inicio: new Date(Math.max(p.inicio.getTime(), intervalo.inicio.getTime())),
+      fim: new Date(Math.min(p.fim.getTime(), intervalo.fim.getTime())),
+    }))
+    .filter((p) => p.inicio.getTime() <= p.fim.getTime());
 }
 
 /** Nomes distintos de treinadores com algum evento registrado, para o filtro da tela. */

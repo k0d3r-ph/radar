@@ -67,6 +67,14 @@
   transition: r 0.15s ease;
 }
 
+.line-chart-hover-band {
+  fill: rgba(100, 116, 139, 0.12);
+}
+
+.line-chart-bar {
+  transition: fill-opacity 0.15s ease;
+}
+
 .line-chart-hover-line {
   stroke: rgba(100, 116, 139, 0.4);
   stroke-width: 1;

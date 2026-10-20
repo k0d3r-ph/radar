@@ -19,6 +19,8 @@ interface LineChartProps {
   categorias: string[];
   series: LineChartSeries[];
   exibirZerados?: boolean;
+  /** "colunas" desenha barras agrupadas por categoria, com os mesmos tooltips e séries. */
+  variante?: "linha" | "colunas";
 }
 
 const WIDTH = 720;
@@ -28,7 +30,10 @@ const PADDING_RIGHT = 16;
 const PADDING_TOP = 16;
 const PADDING_BOTTOM = 32;
 
-export const LineChart: React.FC<LineChartProps> = ({ title, categorias, series, exibirZerados = false }) => {
+export const LineChart: React.FC<LineChartProps> = ({
+  title, categorias, series, exibirZerados = false, variante = "linha",
+}) => {
+  const colunas = variante === "colunas";
   const [indiceHover, setHover] = useState<number | null>(null);
   const tooltipId = useId();
 
@@ -40,7 +45,13 @@ export const LineChart: React.FC<LineChartProps> = ({ title, categorias, series,
   const plotWidth = WIDTH - PADDING_LEFT - PADDING_RIGHT;
   const plotHeight = HEIGHT - PADDING_TOP - PADDING_BOTTOM;
 
-  const xFor = (idx: number) => PADDING_LEFT + (n <= 1 ? plotWidth / 2 : (idx / (n - 1)) * plotWidth);
+  const larguraFaixa = plotWidth / Math.max(1, n);
+  // Em colunas, cada categoria ocupa uma faixa e o ponto fica no centro dela.
+  const xFor = (idx: number) => colunas
+    ? PADDING_LEFT + (idx + 0.5) * larguraFaixa
+    : PADDING_LEFT + (n <= 1 ? plotWidth / 2 : (idx / (n - 1)) * plotWidth);
+  const larguraGrupo = larguraFaixa * 0.7;
+  const larguraBarra = larguraGrupo / Math.max(1, series.length);
   const yFor = (valor: number) => PADDING_TOP + plotHeight - (valor / escalaY.maximo) * plotHeight;
 
   const resumoAcessivel = `${title}. ${series
@@ -102,7 +113,34 @@ export const LineChart: React.FC<LineChartProps> = ({ title, categorias, series,
                 </text>
               ))}
 
-              {series.map((s, serieIdx) => {
+              {colunas && hover !== null && (
+                <rect
+                  x={xFor(hover) - larguraFaixa / 2}
+                  y={PADDING_TOP}
+                  width={larguraFaixa}
+                  height={plotHeight}
+                  className="line-chart-hover-band"
+                />
+              )}
+
+              {colunas && series.map((s, serieIdx) =>
+                s.values.map((v, idx) => v === null ? null : (
+                  <rect
+                    key={`${s.label}-${idx}`}
+                    x={xFor(idx) - larguraGrupo / 2 + serieIdx * larguraBarra + larguraBarra * 0.08}
+                    y={yFor(v)}
+                    width={larguraBarra * 0.84}
+                    height={Math.max(0, yFor(0) - yFor(v))}
+                    rx={2}
+                    fill={s.color}
+                    // Comparações ficam mais claras, para não depender só da cor.
+                    fillOpacity={serieIdx > 0 ? 0.55 : 1}
+                    className="line-chart-bar"
+                  />
+                ))
+              )}
+
+              {!colunas && series.map((s, serieIdx) => {
                 const caminho = construirCurvaComLacunas(
                   s.values.map((v, idx) => v === null ? null : ({ x: xFor(idx), y: yFor(v) })),
                   yFor(0),
@@ -125,7 +163,7 @@ export const LineChart: React.FC<LineChartProps> = ({ title, categorias, series,
                 );
               })}
 
-              {series.map((s) =>
+              {!colunas && series.map((s) =>
                 s.values.map((v, idx) => v === null ? null : (
                   <circle
                     key={`${s.label}-${idx}`}
@@ -159,7 +197,7 @@ export const LineChart: React.FC<LineChartProps> = ({ title, categorias, series,
                 />
               ))}
 
-              {hover !== null && (
+              {!colunas && hover !== null && (
                 <line
                   x1={xFor(hover)}
                   x2={xFor(hover)}

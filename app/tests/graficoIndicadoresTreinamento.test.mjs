@@ -33,13 +33,15 @@ const eventos = indicadores.construirEventosIndicadoresTreinamento([{ nomeEmpres
   ocorrencia('2026-09-04'),
 ], [], []);
 const opcoes = {
-  atual: intervalo('2026-10-01', '2026-10-03'), comparacoes: [], granularidade: 'dia', incluirFinsDeSemana: true,
+  atual: intervalo('2026-10-01', '2026-10-03'), comparacoes: [], granularidade: 'dia',
   eventos, kpi: 'treinamentosRealizados', treinador: 'Natália Teixeira', cor: '#3b82f6',
 };
 
 test('tooltip apresenta realizados, CSAT e espera do dia com o mesmo filtro de treinador', () => {
   const grafico = construir(opcoes);
-  assert.deepEqual(grafico.series[0].values, [2, 0, 0]);
+  // 01/10/2026 é quinta; o sábado 03/10 não vira coluna.
+  assert.deepEqual(grafico.categorias, ['01/10', '02/10']);
+  assert.deepEqual(grafico.series[0].values, [2, 0]);
   const detalhes = grafico.series[0].pointDetails;
   assert.equal(detalhes[0].dateLabel, '01/10/2026');
   assert.equal(detalhes[0].valueLabel, '2');
@@ -52,31 +54,36 @@ test('compara todos os períodos selecionados com cores distintas e datas reais 
   assert.deepEqual(grafico.categorias, ['Dia 1', 'Dia 2', 'Dia 3', 'Dia 4']);
   assert.equal(grafico.series.length, 3);
   assert.equal(new Set(grafico.series.map(s => s.color)).size, 3);
-  assert.deepEqual(grafico.series[0].values, [2, 0, 0, null]);
+  // Alinha por dia útil: 01-02/10 (qui-sex), 01-04/09 (ter-sex) e 03-04/08 (seg-ter).
+  assert.deepEqual(grafico.series[0].values, [2, 0, null, null]);
   assert.deepEqual(grafico.series[1].values, [1, 0, 0, 1]);
+  assert.deepEqual(grafico.series[2].values, [0, 0, null, null]);
   assert.equal(grafico.series[0].pointDetails[3], null);
+  assert.equal(grafico.series[2].pointDetails[0].dateLabel, '03/08/2026');
   assert.equal(grafico.series[1].pointDetails[0].dateLabel, '01/09/2026');
   assert.deepEqual(grafico.series[1].pointDetails[0].metrics.slice(0, 2).map(m => m.value), ['100,0%', '2,0 dias úteis']);
   assert.equal(construir({ ...opcoes, comparacoes: [] }).series.length, 1);
 });
 
-test('mês curto não inventa registros para os dias 30 e 31', () => {
-  const grafico = construir({ ...opcoes, atual: intervalo('2024-03-01', '2024-03-31'), comparacoes: [intervalo('2024-02-01', '2024-02-29')] });
-  assert.equal(grafico.categorias.length, 31);
-  assert.equal(grafico.series[1].values[28], 0);
-  assert.deepEqual(grafico.series[1].values.slice(29), [null, null]);
+test('período com menos dias úteis não inventa registros no fim', () => {
+  // Março/2024 tem 21 dias úteis; fevereiro/2023, 20.
+  const grafico = construir({ ...opcoes, atual: intervalo('2024-03-01', '2024-03-31'), comparacoes: [intervalo('2023-02-01', '2023-02-28')] });
+  assert.equal(grafico.categorias.length, 21);
+  assert.equal(grafico.series[1].values[19], 0);
+  assert.deepEqual(grafico.series[1].values.slice(20), [null]);
 });
 
 test('semanas respeitam os limites do período e agregam CSAT e espera do intervalo', () => {
   const grafico = construir({ ...opcoes, granularidade: 'semana', atual: intervalo('2026-09-30', '2026-10-06') });
   assert.deepEqual(grafico.series[0].values, [2, 0]);
-  assert.equal(grafico.series[0].pointDetails[0].dateLabel, '30/09/2026 a 04/10/2026');
+  assert.equal(grafico.series[0].pointDetails[0].dateLabel, '30/09/2026 a 02/10/2026');
+  assert.equal(grafico.series[0].pointDetails[1].dateLabel, '05/10/2026 a 06/10/2026');
   assert.deepEqual(grafico.series[0].pointDetails[0].metrics.slice(0, 2).map(m => m.value), ['50,0%', '2,0 dias úteis']);
 });
 
 test('CSAT sem amostra aparece como zero no gráfico, mantendo lacunas apenas para datas inexistentes', () => {
   const grafico = construir({ ...opcoes, kpi: 'taxaCsat' });
-  assert.deepEqual(grafico.series[0].values, [50, 0, 0]);
+  assert.deepEqual(grafico.series[0].values, [50, 0]);
   assert.equal(grafico.series[0].pointDetails[1].valueLabel, '0,0%');
   assert.deepEqual(grafico.series[0].pointDetails[0].metrics, []);
 });

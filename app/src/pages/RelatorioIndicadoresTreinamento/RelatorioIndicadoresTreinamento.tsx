@@ -33,6 +33,7 @@ import {
   listarTreinadoresIndicadoresTreinamento,
   calcularValorKpiTreinamento,
   gerarPeriodosIndicadoresEntreDatas,
+  recortarPeriodosIndicadores,
   formatarValorKpiTreinamento,
   type KpiTreinamentoChave,
 } from "../../utils/indicadoresTreinamento";
@@ -173,18 +174,12 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
     return { inicio, fim };
   }, [modoPeriodo, dataInicioPersonalizada, dataFimPersonalizada]);
 
-  const incluirFinsDeSemana = ![
-    "contatosSuporte", "atendimentosWhatsApp", "clientesSuspensos", "clientesCancelados",
-  ].includes(kpiSelecionado);
   const periodos = useMemo(
-    () => (rangeAtivo ? gerarPeriodosIndicadoresEntreDatas(
-      rangeAtivo.inicio, rangeAtivo.fim, granularidade, incluirFinsDeSemana,
-    ).map((p) => ({
-      ...p,
-      inicio: new Date(Math.max(p.inicio.getTime(), rangeAtivo.inicio.getTime())),
-      fim: new Date(Math.min(p.fim.getTime(), rangeAtivo.fim.getTime())),
-    })) : []),
-    [rangeAtivo, granularidade, incluirFinsDeSemana],
+    () => (rangeAtivo ? recortarPeriodosIndicadores(
+      gerarPeriodosIndicadoresEntreDatas(rangeAtivo.inicio, rangeAtivo.fim, granularidade),
+      rangeAtivo,
+    ) : []),
+    [rangeAtivo, granularidade],
   );
 
   const periodoTotal = rangeAtivo;
@@ -204,13 +199,12 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
     atual: rangeAtivo,
     comparacoes: comparacaoAtual.ativo ? comparacaoAtual.selecionados : [],
     granularidade,
-    incluirFinsDeSemana,
     eventos,
     kpi: kpiSelecionado,
     treinador: treinadorAtivo,
     cor: corKpi,
   }) : { categorias: [], series: [] }, [rangeAtivo, comparacaoAtual, granularidade,
-    incluirFinsDeSemana, eventos, kpiSelecionado, treinadorAtivo, corKpi]);
+    eventos, kpiSelecionado, treinadorAtivo, corKpi]);
 
   const valoresCards = useMemo(() => {
     if (!periodoTotal) return {} as Record<KpiTreinamentoChave, number | null>;
@@ -411,7 +405,8 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
           {/* Gráfico — parte superior */}
           {comparacaoAtual.ativo && comparacaoAtual.selecionados.length > 0 && (
             <p className="aging-legenda">
-              As linhas são alinhadas pela posição de cada {granularidade === "dia" ? "dia" : "semana"} no período.
+              {kpiSelecionado === "taxaCsat" ? "As colunas" : "As linhas"} são alinhadas pela posição de cada{" "}
+              {granularidade === "dia" ? "dia útil" : "semana"} no período.
               Passe o mouse ou navegue pelos pontos com Tab para consultar as datas e os indicadores.
             </p>
           )}
@@ -420,6 +415,7 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
             categorias={grafico.categorias}
             series={grafico.series}
             exibirZerados={kpiSelecionado === "taxaCsat"}
+            variante={kpiSelecionado === "taxaCsat" ? "colunas" : "linha"}
           />
           {(kpiSelecionado === "treinamentosRealizados" || kpiSelecionado === "tempoMedioEspera") && (
             <DetalhamentoEsperaTreinamento eventos={eventos} inicio={rangeAtivo.inicio} fim={rangeAtivo.fim} treinador={treinadorAtivo} />
@@ -488,9 +484,10 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
           <p className="aging-legenda">
             Os treinamentos incluem clientes de todos os status, inclusive suspensos e cancelados,
             exceto ongoing. Treinadores com histórico permanecem disponíveis mesmo após mudança de perfil.
-            A contagem usa as ocorrências e a mesma data do Histórico, inclusive registros sem tema
-            e treinamentos em fins de semana. Lançamentos da gamificação complementam dados sem gerar
-            contagens extras. Indicadores de atendimento e de status de clientes consideram dias úteis.
+            A contagem usa as ocorrências e a mesma data do Histórico, inclusive registros sem tema.
+            Lançamentos da gamificação complementam dados sem gerar contagens extras. Todos os
+            indicadores consideram somente dias úteis (segunda a sexta): registros feitos em sábado
+            ou domingo não entram nos cartões, no gráfico, nas comparações nem na tabela.
             "Clientes Suspensos" usa a data de suspensão registrada e
             "Clientes cancelados" usa a data de envio do aviso de cancelamento por WhatsApp, por
             serem as únicas datas disponíveis para essas duas situações; clientes suspensos ou

@@ -17,7 +17,7 @@ const module = await carregar('indicadoresTreinamento');
 await module.evaluate();
 const { construirEventosIndicadoresTreinamento: construir, calcularValorKpiTreinamento: calcular,
   listarTreinadoresIndicadoresTreinamento: listar, gerarPeriodosIndicadoresEntreDatas: periodos,
-  listarEsperasLongasTreinamento: listarEsperas } = module.namespace;
+  listarEsperasLongasTreinamento: listarEsperas, recortarPeriodosIndicadores: recortar } = module.namespace;
 
 const lancamento = (empresa, tema = 'Cadastro', treinador = 'Natália Teixeira') => ({
   tipoAcao: 'treinamento', treinadorNome: treinador, treinamentoEmpresa: empresa,
@@ -95,17 +95,23 @@ test('empresa, data e autor da ocorrência prevalecem sobre o lançamento diverg
   assert.equal(calcular('treinamentosRealizados', eventos, inicio, fim, 'Natália Teixeira'), 1);
 });
 
-test('usa data do Histórico e inclui treinamentos reais em sábado no cartão e nas colunas', () => {
+test('usa data do Histórico e exclui treinamentos de fim de semana do cartão e das colunas', () => {
   const sexta = ocorrencia('Bezecom', ['Cadastro'], {
     id: 'sexta', gamificacaoPontoId: 'p1', createdAt: new Date(2026, 9, 16, 12).getTime(),
   });
   const sabado = ocorrencia('Cliente', ['Cadastro'], { createdAt: new Date(2026, 9, 17, 12).getTime() });
   const eventos = construir([], [sexta, sabado], [{ ...lancamento('Bezecom'), id: 'p1', treinamentoDataRealizacao: '2026-10-17' }], []);
-  assert.equal(calcular('treinamentosRealizados', eventos, inicio, fim, null), 2);
-  const dias = periodos(new Date(2026, 9, 16), new Date(2026, 9, 18), 'dia', true);
-  assert.equal(dias.length, 3);
-  assert.deepEqual(dias.map(d => calcular('treinamentosRealizados', eventos, d.inicio, d.fim, null)), [1, 1, 0]);
-  assert.equal(periodos(new Date(2026, 9, 16), new Date(2026, 9, 18), 'dia').length, 1);
+  assert.equal(calcular('treinamentosRealizados', eventos, inicio, fim, null), 1);
+  const dias = periodos(new Date(2026, 9, 16), new Date(2026, 9, 18), 'dia');
+  assert.equal(dias.length, 1);
+  assert.deepEqual(dias.map(d => calcular('treinamentosRealizados', eventos, d.inicio, d.fim, null)), [1]);
+});
+
+test('semanas vão de segunda a sexta e descartam recortes só com fim de semana', () => {
+  const semanas = periodos(new Date(2026, 9, 17), new Date(2026, 9, 25), 'semana');
+  assert.deepEqual(semanas.map(s => [s.inicio.getDate(), s.fim.getDate()]), [[12, 16], [19, 23]]);
+  const recortadas = recortar(semanas, { inicio: new Date(2026, 9, 17), fim: new Date(2026, 9, 25, 23, 59) });
+  assert.deepEqual(recortadas.map(s => [s.inicio.getDate(), s.fim.getDate()]), [[19, 23]]);
 });
 
 test('usa resultados e solicitação da ocorrência e só complementa campos ausentes por vínculo explícito', () => {

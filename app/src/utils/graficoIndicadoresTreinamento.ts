@@ -6,6 +6,7 @@ import {
   gerarPeriodosIndicadoresEntreDatas,
   KPI_POR_CHAVE,
   listarEsperasLongasTreinamento,
+  recortarPeriodosIndicadores,
   type EventosIndicadoresTreinamento,
   type KpiTreinamentoChave,
 } from "./indicadoresTreinamento";
@@ -14,7 +15,6 @@ interface OpcoesGrafico {
   atual: IntervaloComparacaoTreinamento;
   comparacoes: IntervaloComparacaoTreinamento[];
   granularidade: "dia" | "semana";
-  incluirFinsDeSemana: boolean;
   eventos: EventosIndicadoresTreinamento;
   kpi: KpiTreinamentoChave;
   treinador: string | null;
@@ -29,16 +29,14 @@ export function construirGraficoIndicadoresTreinamento(opcoes: OpcoesGrafico): {
   categorias: string[];
   series: LineChartSeries[];
 } {
-  const { atual, comparacoes, granularidade, incluirFinsDeSemana, eventos, kpi, treinador, cor } = opcoes;
+  const { atual, comparacoes, granularidade, eventos, kpi, treinador, cor } = opcoes;
   const comparando = comparacoes.length > 0;
-  // Ao comparar dias, preserva a posição de cada dia do calendário, inclusive fins de semana.
+  // Ao comparar, cada período é alinhado pela posição do dia útil (ou semana) no período.
   const periodos = [atual, ...comparacoes].map((intervalo) =>
-    gerarPeriodosIndicadoresEntreDatas(intervalo.inicio, intervalo.fim, granularidade,
-      comparando || incluirFinsDeSemana).map((p) => ({
-        ...p,
-        inicio: new Date(Math.max(p.inicio.getTime(), intervalo.inicio.getTime())),
-        fim: new Date(Math.min(p.fim.getTime(), intervalo.fim.getTime())),
-      })),
+    recortarPeriodosIndicadores(
+      gerarPeriodosIndicadoresEntreDatas(intervalo.inicio, intervalo.fim, granularidade),
+      intervalo,
+    ),
   );
   const quantidade = Math.max(0, ...periodos.map((lista) => lista.length));
   const categorias = Array.from({ length: quantidade }, (_, i) => comparando

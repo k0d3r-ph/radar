@@ -139,7 +139,7 @@ export function ComparativoTreinamento({ modo, atual, eventos, kpi, treinador, t
           {modo === "mes" ? "Meses anteriores completos. O mês atual considera até hoje."
             : modo === "semana" ? "Escolha qualquer dia da semana desejada. Semanas anteriores completas; a atual considera até hoje."
               : "Cada comparação terá a mesma quantidade de dias corridos do período principal."}
-          {" "}Treinamentos incluem fins de semana; indicadores de atendimento e status consideram dias úteis.
+          {" "}Todos os indicadores consideram somente dias úteis (segunda a sexta).
         </p>
         {selecionados.length === 0 ? <p role="status" className="indicadores-comparativo-vazio">Adicione um período acima para visualizar a comparação.</p> : <>
           <div className="indicadores-comparativo-resultado-header">

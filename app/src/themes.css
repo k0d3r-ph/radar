@@ -459,26 +459,26 @@ body.light-theme .monitoramento-page p {
   color: #334155 !important; /* Mais escuro */
 }
 
-body.light-theme .stat-card:not(.active-total):not(.active-concluidos):not(.active-andamento):not(.active-safety):not(.active-fast):not(.active-alerta) {
+body.light-theme .stat-card:not(.active-total):not(.active-concluidos):not(.active-andamento):not(.active-safety):not(.active-fast):not(.active-alerta):not(.active-suspensos) {
   background: #ffffff !important;
   border-color: #eaedfa !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03) !important;
 }
 
-body.light-theme .stat-card:not(.active-total):not(.active-concluidos):not(.active-andamento):not(.active-safety):not(.active-fast):not(.active-alerta):hover {
+body.light-theme .stat-card:not(.active-total):not(.active-concluidos):not(.active-andamento):not(.active-safety):not(.active-fast):not(.active-alerta):not(.active-suspensos):hover {
   background: #f8fafc !important;
   border-color: #cbd5e1 !important;
 }
 
-body.light-theme .stat-card:not(.active-total):not(.active-concluidos):not(.active-andamento):not(.active-safety):not(.active-fast):not(.active-alerta) .stat-value {
+body.light-theme .stat-card:not(.active-total):not(.active-concluidos):not(.active-andamento):not(.active-safety):not(.active-fast):not(.active-alerta):not(.active-suspensos) .stat-value {
   color: #0f2a5e !important;
 }
 
-body.light-theme .stat-card:not(.active-total):not(.active-concluidos):not(.active-andamento):not(.active-safety):not(.active-fast):not(.active-alerta) .stat-label {
+body.light-theme .stat-card:not(.active-total):not(.active-concluidos):not(.active-andamento):not(.active-safety):not(.active-fast):not(.active-alerta):not(.active-suspensos) .stat-label {
   color: #334155 !important; /* Mais escuro */
 }
 
-body.light-theme .stat-card:not(.active-total):not(.active-concluidos):not(.active-andamento):not(.active-safety):not(.active-fast):not(.active-alerta) .stat-sub {
+body.light-theme .stat-card:not(.active-total):not(.active-concluidos):not(.active-andamento):not(.active-safety):not(.active-fast):not(.active-alerta):not(.active-suspensos) .stat-sub {
   color: #475569 !important; /* Mais escuro */
 }
 
@@ -1483,6 +1483,7 @@ body.light-theme .relatorio-kpi-card.active svg {
 body.light-theme .stat-card.active-total .stat-value,
 body.light-theme .stat-card.active-concluidos .stat-value,
 body.light-theme .stat-card.active-andamento .stat-value,
+body.light-theme .stat-card.active-suspensos .stat-value,
 body.light-theme .stat-card.active-safety .stat-value,
 body.light-theme .stat-card.active-fast .stat-value,
 body.light-theme .stat-card.active-alerta .stat-value {
@@ -1492,6 +1493,7 @@ body.light-theme .stat-card.active-alerta .stat-value {
 body.light-theme .stat-card.active-total .stat-label,
 body.light-theme .stat-card.active-concluidos .stat-label,
 body.light-theme .stat-card.active-andamento .stat-label,
+body.light-theme .stat-card.active-suspensos .stat-label,
 body.light-theme .stat-card.active-safety .stat-label,
 body.light-theme .stat-card.active-fast .stat-label,
 body.light-theme .stat-card.active-alerta .stat-label {
@@ -1501,6 +1503,7 @@ body.light-theme .stat-card.active-alerta .stat-label {
 body.light-theme .stat-card.active-total .stat-sub,
 body.light-theme .stat-card.active-concluidos .stat-sub,
 body.light-theme .stat-card.active-andamento .stat-sub,
+body.light-theme .stat-card.active-suspensos .stat-sub,
 body.light-theme .stat-card.active-safety .stat-sub,
 body.light-theme .stat-card.active-fast .stat-sub,
 body.light-theme .stat-card.active-alerta .stat-sub {
@@ -1510,6 +1513,7 @@ body.light-theme .stat-card.active-alerta .stat-sub {
 body.light-theme .stat-card.active-total svg,
 body.light-theme .stat-card.active-concluidos svg,
 body.light-theme .stat-card.active-andamento svg,
+body.light-theme .stat-card.active-suspensos svg,
 body.light-theme .stat-card.active-safety svg,
 body.light-theme .stat-card.active-fast svg,
 body.light-theme .stat-card.active-alerta svg {

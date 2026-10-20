@@ -1434,7 +1434,6 @@ export default function Home() {
     filtroElegivelDeducao,
     filtroDia30,
     filtroLoboSolitario,
-    filtroSomenteSuspensos,
   ].filter(Boolean).length;
 
   // Esc fecha o modal, clique fora fecha, e o foco volta pro botão "Filtros" ao
@@ -2520,7 +2519,7 @@ export default function Home() {
 
       <div className="home-stats">
         <div
-          className={`stat-card clickable ${filtroCardStatus === "" && filtroCardAlerta === "" ? "active-total" : ""}`}
+          className={`stat-card clickable ${filtroCardStatus === "" && filtroCardAlerta === "" && !filtroSomenteSuspensos ? "active-total" : ""}`}
           onClick={() => {
             setFiltroCardStatus("");
             setFiltroCardAlerta("");
@@ -2570,6 +2569,24 @@ export default function Home() {
             </p>
           </div>
         </div>
+
+        <button
+          type="button"
+          className={`stat-card clickable stat-card-suspensos ${filtroSomenteSuspensos ? "active-suspensos" : ""}`}
+          aria-pressed={filtroSomenteSuspensos}
+          title="Mostra apenas a esteira de Clientes Suspensos, já aberta, mantendo os demais filtros."
+          onClick={() => setFiltroSomenteSuspensos((anterior) => !anterior)}
+        >
+          <span className="stat-card-texto">
+            <span className="stat-value-row">
+              <span className="stat-value">{dadosSuspensos.length}</span>
+              <span className="stat-label">Suspensos</span>
+            </span>
+            <span className="stat-sub">
+              {filtroSomenteSuspensos ? "Filtro ativo · clique para remover" : "Exibir somente suspensos"}
+            </span>
+          </span>
+        </button>
 
         <div
           className={`stat-card clickable ${filtroCardAlerta === "alerta" ? "active-alerta" : ""}`}
@@ -2908,18 +2925,6 @@ export default function Home() {
                   onChange={(e) => setFiltroLoboSolitario(e.target.checked)}
                 />
                 <span aria-hidden="true">🐺</span> Somente Lobo Solitário
-              </label>
-
-              <label
-                className="checkbox-label"
-                title="Esvazia as demais esteiras e mostra apenas a de Clientes Suspensos, já aberta."
-              >
-                <input
-                  type="checkbox"
-                  checked={filtroSomenteSuspensos}
-                  onChange={(e) => setFiltroSomenteSuspensos(e.target.checked)}
-                />
-                <span aria-hidden="true">⏸️</span> Somente clientes suspensos
               </label>
             </div>
 

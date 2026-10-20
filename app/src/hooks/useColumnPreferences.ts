@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
+import { resolverPreferenciasColunas } from "../utils/preferenciasColunas";
 
 export interface ColumnDef<T> {
   key: string;
@@ -10,6 +11,8 @@ export interface ColumnDef<T> {
   className?: string;
   /** Coluna essencial: pode ser reordenada, mas não pode ser ocultada. */
   locked?: boolean;
+  /** Disponível no seletor, mas não visível no primeiro acesso ou ao restaurar o padrão. */
+  hiddenByDefault?: boolean;
   render: (item: T) => ReactNode;
   /** Cabeçalho usado na exportação para Excel, quando diferente de `label`. */
   exportLabel?: string;
@@ -17,27 +20,11 @@ export interface ColumnDef<T> {
   exportValue?: (item: T) => string | number;
 }
 
-interface ColumnPrefsStored {
-  order: string[];
-  hidden: string[];
-  widths: Record<string, number>;
-}
-
-function carregarPrefs(storageKey: string): ColumnPrefsStored | null {
+function carregarPrefs(storageKey: string): unknown {
   try {
     const raw = localStorage.getItem(storageKey);
     if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (
-      parsed &&
-      Array.isArray(parsed.order) &&
-      Array.isArray(parsed.hidden) &&
-      parsed.widths &&
-      typeof parsed.widths === "object"
-    ) {
-      return parsed as ColumnPrefsStored;
-    }
-    return null;
+    return JSON.parse(raw);
   } catch {
     // localStorage indisponível (modo privativo, cota cheia) ou JSON corrompido
     return null;
@@ -50,25 +37,15 @@ export function useColumnPreferences<T>(
   columns: ColumnDef<T>[],
 ) {
   const defaultOrder = useMemo(() => columns.map((c) => c.key), [columns]);
+  const defaultHidden = useMemo(() => columns.filter((c) => c.hiddenByDefault && !c.locked).map((c) => c.key), [columns]);
 
-  const [order, setOrder] = useState<string[]>(() => {
-    const salvo = carregarPrefs(storageKey);
-    if (!salvo) return defaultOrder;
-    const validas = salvo.order.filter((k) => defaultOrder.includes(k));
-    const faltantes = defaultOrder.filter((k) => !validas.includes(k));
-    return [...validas, ...faltantes];
-  });
+  const [iniciais] = useState(() => resolverPreferenciasColunas(columns, carregarPrefs(storageKey)));
 
-  const [hidden, setHidden] = useState<string[]>(() => {
-    const salvo = carregarPrefs(storageKey);
-    if (!salvo) return [];
-    return salvo.hidden.filter((k) => defaultOrder.includes(k));
-  });
+  const [order, setOrder] = useState<string[]>(iniciais.order);
 
-  const [widths, setWidths] = useState<Record<string, number>>(() => {
-    const salvo = carregarPrefs(storageKey);
-    return salvo?.widths || {};
-  });
+  const [hidden, setHidden] = useState<string[]>(iniciais.hidden);
+
+  const [widths, setWidths] = useState<Record<string, number>>(iniciais.widths);
 
   useEffect(() => {
     try {
@@ -95,7 +72,7 @@ export function useColumnPreferences<T>(
 
   function restaurarPadrao() {
     setOrder(defaultOrder);
-    setHidden([]);
+    setHidden(defaultHidden);
     setWidths({});
   }
 

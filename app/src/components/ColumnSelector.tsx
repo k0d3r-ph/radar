@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import "./ColumnSelector.css";
 
@@ -31,15 +31,17 @@ export function ColumnSelector({
   const [aberto, setAberto] = useState(false);
   const [arrastandoIndex, setArrastandoIndex] = useState<number | null>(null);
   const [posicao, setPosicao] = useState({ top: 0, left: 0 });
+  const painelId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const painelRef = useRef<HTMLDivElement>(null);
 
   function recalcularPosicao() {
     const rect = triggerRef.current?.getBoundingClientRect();
     if (!rect) return;
+    const altura = painelRef.current?.getBoundingClientRect().height ?? 0;
     setPosicao({
-      top: rect.bottom + 6,
-      left: Math.max(8, rect.right - LARGURA_PAINEL),
+      top: Math.max(8, Math.min(rect.bottom + 6, window.innerHeight - altura - 8)),
+      left: Math.max(8, Math.min(rect.right - LARGURA_PAINEL, window.innerWidth - LARGURA_PAINEL - 8)),
     });
   }
 
@@ -62,7 +64,10 @@ export function ColumnSelector({
     }
 
     function handleEsc(e: KeyboardEvent) {
-      if (e.key === "Escape") setAberto(false);
+      if (e.key === "Escape") {
+        setAberto(false);
+        triggerRef.current?.focus();
+      }
     }
 
     function handleReposicionar() {
@@ -118,6 +123,7 @@ export function ColumnSelector({
         onClick={() => setAberto((prev) => !prev)}
         title="Escolher e reorganizar colunas"
         aria-expanded={aberto}
+        aria-controls={aberto ? painelId : undefined}
       >
         ⚙️ Colunas
       </button>
@@ -126,13 +132,15 @@ export function ColumnSelector({
         createPortal(
           <div
             ref={painelRef}
+            id={painelId}
             className="column-selector-painel"
-            role="menu"
+            role="group"
+            aria-label="Escolher colunas desta esteira"
             style={{ top: posicao.top, left: posicao.left, width: LARGURA_PAINEL }}
           >
             <div className="column-selector-painel-header">
-              <span>Colunas visíveis</span>
-              <span className="column-selector-dica">arraste para reordenar</span>
+              <span>Colunas desta esteira</span>
+              <span className="column-selector-dica">Inclua ou oculte colunas de qualquer esteira. Arraste para reordenar.</span>
             </div>
 
             <ul className="column-selector-lista">

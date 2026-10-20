@@ -84,6 +84,7 @@ import {
 import type { TemaOcorrencia } from "../../services/temasOcorrencia";
 import { usePendenciasClock } from "../../hooks/usePendenciasClock";
 import { vencimentoPendencia } from "../../utils/pendencias";
+import { ampliarCatalogoColunas } from "../../utils/preferenciasColunas";
 import {
   useColumnPreferences,
   iniciarRedimensionamentoColuna,
@@ -2450,25 +2451,35 @@ export default function Home() {
     },
   ];
 
+  // Cada esteira mantém suas definições e seu padrão; as demais colunas são opcionais.
+  const catalogoColunas = [...colunasEsteiraAtual, ...colunasOngoing, ...colunasSuspensos, ...colunasConcluidos, ...colunasCancelados];
+  const colunasDisponiveis = {
+    ativas: ampliarCatalogoColunas(colunasEsteiraAtual, catalogoColunas),
+    ongoing: ampliarCatalogoColunas(colunasOngoing, catalogoColunas),
+    suspensos: ampliarCatalogoColunas(colunasSuspensos, catalogoColunas),
+    concluidos: ampliarCatalogoColunas(colunasConcluidos, catalogoColunas),
+    cancelados: ampliarCatalogoColunas(colunasCancelados, catalogoColunas),
+  };
+
   const colunasAtivasPrefs = useColumnPreferences(
     "radar:colunas:esteira-atual",
-    colunasEsteiraAtual,
+    colunasDisponiveis.ativas,
   );
   const colunasOngoingPrefs = useColumnPreferences(
     "radar:colunas:ongoing",
-    colunasOngoing,
+    colunasDisponiveis.ongoing,
   );
   const colunasSuspensosPrefs = useColumnPreferences(
     "radar:colunas:suspensos",
-    colunasSuspensos,
+    colunasDisponiveis.suspensos,
   );
   const colunasConcluidosPrefs = useColumnPreferences(
     "radar:colunas:concluidos",
-    colunasConcluidos,
+    colunasDisponiveis.concluidos,
   );
   const colunasCanceladosPrefs = useColumnPreferences(
     "radar:colunas:cancelados",
-    colunasCancelados,
+    colunasDisponiveis.cancelados,
   );
 
   const [colunaArrastadaAtivos, setColunaArrastadaAtivos] = useState<
@@ -2997,7 +3008,7 @@ export default function Home() {
           <div className="collapsible-header-actions">
             <div onClick={(e) => e.stopPropagation()}>
               <ColumnSelector
-                columns={colunasEsteiraAtual}
+                columns={colunasDisponiveis.ativas}
                 order={colunasAtivasPrefs.order}
                 hidden={colunasAtivasPrefs.hidden}
                 onChangeOrder={colunasAtivasPrefs.setOrder}
@@ -3162,7 +3173,7 @@ export default function Home() {
           <div className="collapsible-header-actions">
             <div onClick={(e) => e.stopPropagation()}>
               <ColumnSelector
-                columns={colunasOngoing}
+                columns={colunasDisponiveis.ongoing}
                 order={colunasOngoingPrefs.order}
                 hidden={colunasOngoingPrefs.hidden}
                 onChangeOrder={colunasOngoingPrefs.setOrder}
@@ -3327,7 +3338,7 @@ export default function Home() {
           <div className="collapsible-header-actions">
             <div onClick={(e) => e.stopPropagation()}>
               <ColumnSelector
-                columns={colunasSuspensos}
+                columns={colunasDisponiveis.suspensos}
                 order={colunasSuspensosPrefs.order}
                 hidden={colunasSuspensosPrefs.hidden}
                 onChangeOrder={colunasSuspensosPrefs.setOrder}
@@ -3492,7 +3503,7 @@ export default function Home() {
           <div className="collapsible-header-actions">
             <div onClick={(e) => e.stopPropagation()}>
               <ColumnSelector
-                columns={colunasConcluidos}
+                columns={colunasDisponiveis.concluidos}
                 order={colunasConcluidosPrefs.order}
                 hidden={colunasConcluidosPrefs.hidden}
                 onChangeOrder={colunasConcluidosPrefs.setOrder}
@@ -3654,7 +3665,7 @@ export default function Home() {
           <div className="collapsible-header-actions">
             <div onClick={(e) => e.stopPropagation()}>
               <ColumnSelector
-                columns={colunasCancelados}
+                columns={colunasDisponiveis.cancelados}
                 order={colunasCanceladosPrefs.order}
                 hidden={colunasCanceladosPrefs.hidden}
                 onChangeOrder={colunasCanceladosPrefs.setOrder}

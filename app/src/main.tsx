@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { Toaster } from "sonner";
 import "sonner/dist/styles.css";
 import "./index.css";
+import "./themes.light.generated.css";
 import "./themes.css";
 import App from "./App.tsx";
 import { BrowserRouter } from "react-router-dom";

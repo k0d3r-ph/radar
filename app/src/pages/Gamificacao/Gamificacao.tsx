@@ -590,7 +590,7 @@ const SearchableSingleSelect: React.FC<SearchableSingleSelectProps> = ({
       >
         <div className="searchable-select-selected-wrapper">
           {value ? (
-            <span style={{ color: "#cbd5e1" }}>{value}</span>
+            <span style={{ color: "var(--lt-texto-cbd5e1, #cbd5e1)" }}>{value}</span>
           ) : (
             <span className="placeholder-value">{placeholder}</span>
           )}
@@ -2145,7 +2145,7 @@ export const Gamificacao: React.FC = () => {
                   <div
                     style={{
                       padding: "16px",
-                      color: "var(--text-secondary, #a0aec0)",
+                      color: "var(--text-secondary, var(--lt-texto-a0aec0, #a0aec0))",
                       fontSize: "14px",
                       lineHeight: "1.6",
                     }}

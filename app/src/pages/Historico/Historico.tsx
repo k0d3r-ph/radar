@@ -310,7 +310,7 @@ const renderMarkdown = (text: string) => {
             alignItems: "flex-start",
           }}
         >
-          <span style={{ color: "#a5b4fc" }}>•</span>
+          <span style={{ color: "var(--lt-texto-a5b4fc, #a5b4fc)" }}>•</span>
           <span>{content}</span>
         </div>
       );
@@ -3471,7 +3471,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               className={`btn-secondary btn-dashboard-toggle ${dashboardAberto ? "active" : ""}`}
               onClick={() => setDashboardAberto((prev) => !prev)}
               style={{
-                background: dashboardAberto ? "#475569" : "#0f2a5e",
+                background: dashboardAberto ? "var(--lt-fundo-475569, #475569)" : "var(--lt-fundo-0f2a5e, #0f2a5e)",
               }}
             >
               📊 {dashboardAberto ? "Ocultar Dashboard" : "Mostrar Dashboard"}
@@ -3485,7 +3485,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 }
               }}
               style={{
-                background: painelIaAberto ? "#4c1d95" : "#2e1065",
+                background: painelIaAberto ? "var(--lt-fundo-4c1d95, #4c1d95)" : "var(--lt-fundo-2e1065, #2e1065)",
               }}
             >
               ✨ {painelIaAberto ? "Fechar Resumo IA" : "Resumir com IA"}
@@ -3494,7 +3494,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               className="btn-secondary btn-dashboard-toggle"
               onClick={exportarParaExcel}
               title="Exportar ocorrências filtradas para Excel"
-              style={{ background: "#107c41" }}
+              style={{ background: "#107c41", color: "#ffffff" }}
             >
               📥 Exportar Excel
             </button>
@@ -3963,7 +3963,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                         (o.alertaResolvidoPorId ? (
                           <span
                             style={{
-                              color: "#16a34a",
+                              color: "var(--lt-texto-16a34a, #16a34a)",
                               fontWeight: "bold",
                               marginLeft: "6px",
                             }}
@@ -3986,7 +3986,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       {o.retirarAlerta && (
                         <span
                           style={{
-                            color: "#16a34a",
+                            color: "var(--lt-texto-16a34a, #16a34a)",
                             fontWeight: "bold",
                             marginLeft: "6px",
                           }}
@@ -4066,7 +4066,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       <td>
                         {o.whatsappStatus === "enviado" && (
                           <span
-                            style={{ color: "#16a34a", fontWeight: "bold" }}
+                            style={{ color: "var(--lt-texto-16a34a, #16a34a)", fontWeight: "bold" }}
                             title={`Enviado${o.whatsappEnviadoEm ? " em " + new Date(o.whatsappEnviadoEm).toLocaleString("pt-BR") : ""}`}
                           >
                             ✅ Enviado
@@ -4074,7 +4074,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                         )}
                         {o.whatsappStatus === "parcial" && (
                           <span
-                            style={{ color: "#d97706", fontWeight: "bold" }}
+                            style={{ color: "var(--lt-texto-d97706, #d97706)", fontWeight: "bold" }}
                             title={(o.whatsappDestinatarios || [])
                               .map(
                                 (d) =>
@@ -4106,7 +4106,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                         )}
                         {o.whatsappStatus === "sem_destinatario" && (
                           <span
-                            style={{ color: "#d97706", fontWeight: "bold" }}
+                            style={{ color: "var(--lt-texto-d97706, #d97706)", fontWeight: "bold" }}
                             title="Nenhum destinatário encontrado (telefone do cliente ou destinatário de gestão não cadastrado)"
                           >
                             📵 Sem destinatário
@@ -4245,7 +4245,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                         >
                           <span
                             style={{
-                              color: "#16a34a",
+                              color: "var(--lt-texto-16a34a, #16a34a)",
                               fontWeight: "bold",
                               fontSize: "0.85rem",
                               display: "flex",
@@ -4311,7 +4311,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       >
                         <span
                           style={{
-                            color: "#16a34a",
+                            color: "var(--lt-texto-16a34a, #16a34a)",
                             fontWeight: "bold",
                             fontSize: "0.85rem",
                             display: "flex",
@@ -4854,19 +4854,19 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                     marginTop: "16px",
                     padding: "14px 16px",
                     borderRadius: "10px",
-                    background: "rgba(255,255,255,0.03)",
+                    background: "var(--lt-fundo-ffffff08, rgba(255,255,255,0.03))",
                     border:
                       selecionada.whatsappStatus === "enviado"
                         ? "1px solid rgba(34,197,94,0.25)"
                         : selecionada.whatsappStatus === "falhou"
                           ? "1px solid rgba(239,68,68,0.3)"
                           : selecionada.whatsappStatus === "nao_enviado"
-                            ? "1px solid rgba(100,116,139,0.3)"
+                            ? "1px solid var(--lt-borda-64748b4d, rgba(100,116,139,0.3))"
                             : selecionada.whatsappStatus === "sem_destinatario"
                               ? "1px solid rgba(217,119,6,0.3)"
                               : selecionada.whatsappStatus === "parcial"
                                 ? "1px solid rgba(251,191,36,0.3)"
-                                : "1px solid rgba(100,116,139,0.3)",
+                                : "1px solid var(--lt-borda-64748b4d, rgba(100,116,139,0.3))",
                   }}
                 >
                   <div
@@ -4887,17 +4887,17 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                         fontWeight: 700,
                         color:
                           selecionada.whatsappStatus === "enviado"
-                            ? "#22c55e"
+                            ? "var(--lt-texto-22c55e, #22c55e)"
                             : selecionada.whatsappStatus === "falhou"
-                              ? "#ef4444"
+                              ? "var(--lt-texto-ef4444, #ef4444)"
                               : selecionada.whatsappStatus === "nao_enviado"
-                                ? "#94a3b8"
+                                ? "var(--lt-texto-94a3b8, #94a3b8)"
                                 : selecionada.whatsappStatus ===
                                     "sem_destinatario"
-                                  ? "#d97706"
+                                  ? "var(--lt-texto-d97706, #d97706)"
                                   : selecionada.whatsappStatus === "parcial"
-                                    ? "#fbbf24"
-                                    : "#94a3b8",
+                                    ? "var(--lt-texto-fbbf24, #fbbf24)"
+                                    : "var(--lt-texto-94a3b8, #94a3b8)",
                       }}
                     >
                       {selecionada.whatsappStatus === "enviado"
@@ -4915,7 +4915,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                         <span
                           style={{
                             fontWeight: 400,
-                            color: "var(--text-muted, #94a3b8)",
+                            color: "var(--text-muted, var(--lt-texto-94a3b8, #94a3b8))",
                             marginLeft: "6px",
                           }}
                         >
@@ -4956,7 +4956,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                             : "var(--warning-color, #f59e0b)",
                         border:
                           selecionada.whatsappStatus === "enviado"
-                            ? "1px solid rgba(255,255,255,0.15)"
+                            ? "1px solid var(--lt-borda-ffffff26, rgba(255,255,255,0.15))"
                             : "1px solid transparent",
                         whiteSpace: "nowrap",
                         flexShrink: 0,
@@ -5009,7 +5009,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                             <span
                               style={{
                                 fontSize: "0.82rem",
-                                color: "var(--text-color, #fff)",
+                                color: "var(--text-color, var(--lt-texto-ffffff, #fff))",
                                 fontWeight: 500,
                               }}
                             >
@@ -5020,8 +5020,8 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                                 fontSize: "0.78rem",
                                 color:
                                   d.status === "enviado"
-                                    ? "#22c55e"
-                                    : "#ef4444",
+                                    ? "var(--lt-texto-22c55e, #22c55e)"
+                                    : "var(--lt-texto-ef4444, #ef4444)",
                                 fontWeight: 600,
                               }}
                             >
@@ -5035,7 +5035,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                               style={{
                                 marginTop: "4px",
                                 fontSize: "0.76rem",
-                                color: "#fca5a5",
+                                color: "var(--lt-texto-fca5a5, #fca5a5)",
                                 lineHeight: 1.4,
                               }}
                             >
@@ -5468,10 +5468,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       borderRadius: "8px",
                       background: isRevisao
                         ? "rgba(99,102,241,0.12)"
-                        : "rgba(255,255,255,0.04)",
+                        : "var(--lt-fundo-ffffff0a, rgba(255,255,255,0.04))",
                       border: isRevisao
                         ? "1px solid rgba(99,102,241,0.4)"
-                        : "1px solid rgba(255,255,255,0.08)",
+                        : "1px solid var(--lt-borda-ffffff14, rgba(255,255,255,0.08))",
                       cursor: "pointer",
                       transition: "all 0.2s ease",
                       fontWeight: isRevisao ? 600 : 400,
@@ -5489,7 +5489,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       style={{ cursor: "pointer" }}
                     />
                     <span>📝 Todos os temas são revisão</span>
-                    <small style={{ color: "#94a3b8", fontWeight: 400 }}>
+                    <small style={{ color: "var(--lt-texto-94a3b8, #94a3b8)", fontWeight: 400 }}>
                       {isRevisao
                         ? '(não avança a esteira — tags: "Revisão de...")'
                         : "(para revisão parcial, selecione os temas abaixo)"}
@@ -5511,10 +5511,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       borderRadius: "8px",
                       background: temaForaEsteira
                         ? "rgba(16,185,129,0.12)"
-                        : "rgba(255,255,255,0.04)",
+                        : "var(--lt-fundo-ffffff0a, rgba(255,255,255,0.04))",
                       border: temaForaEsteira
                         ? "1px solid rgba(16,185,129,0.4)"
-                        : "1px solid rgba(255,255,255,0.08)",
+                        : "1px solid var(--lt-borda-ffffff14, rgba(255,255,255,0.08))",
                       cursor: "pointer",
                       transition: "all 0.2s ease",
                       fontWeight: temaForaEsteira ? 600 : 400,
@@ -5536,7 +5536,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       style={{ cursor: "pointer" }}
                     />
                     <span>🆕 Tema fora da esteira</span>
-                    <small style={{ color: "#94a3b8", fontWeight: 400 }}>
+                    <small style={{ color: "var(--lt-texto-94a3b8, #94a3b8)", fontWeight: 400 }}>
                       {temaForaEsteira
                         ? "(não avança a esteira — digite o tema livremente)"
                         : "(marque para treinar um tema que não está previsto na esteira)"}
@@ -5887,7 +5887,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   <div className="hist-campo hist-campo-row">
                     <label
                       className="checkbox-label"
-                      style={{ fontWeight: 600, color: "#6366f1" }}
+                      style={{ fontWeight: 600, color: "var(--lt-texto-6366f1, #6366f1)" }}
                     >
                       <input
                         type="checkbox"
@@ -5910,7 +5910,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 <div className="hist-campo hist-campo-row">
                   <label
                     className="checkbox-label"
-                    style={{ fontWeight: 600, color: "#ef4444" }}
+                    style={{ fontWeight: 600, color: "var(--lt-texto-ef4444, #ef4444)" }}
                   >
                     <input
                       type="checkbox"
@@ -6633,7 +6633,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 style={{
                   margin: 0,
                   fontSize: "1.25rem",
-                  color: "var(--text-color, #ffffff)",
+                  color: "var(--text-color, var(--lt-texto-ffffff, #ffffff))",
                   fontWeight: "700",
                 }}
               >
@@ -6642,13 +6642,13 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             </div>
             <div
               className="score-modal-body"
-              style={{ color: "var(--text-color, #ffffff)" }}
+              style={{ color: "var(--text-color, var(--lt-texto-ffffff, #ffffff))" }}
             >
               <p
                 style={{
                   fontSize: "0.9rem",
                   marginBottom: "16px",
-                  color: "var(--text-muted, #94a3b8)",
+                  color: "var(--text-muted, var(--lt-texto-94a3b8, #94a3b8))",
                   lineHeight: "1.4",
                 }}
               >
@@ -6737,7 +6737,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                     fontSize: "0.8rem",
                     fontWeight: "600",
                     marginBottom: "6px",
-                    color: "var(--text-color, #ffffff)",
+                    color: "var(--text-color, var(--lt-texto-ffffff, #ffffff))",
                   }}
                 >
                   Texto da Mensagem (Você pode personalizar antes de enviar)
@@ -6751,11 +6751,11 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   style={{
                     width: "100%",
                     boxSizing: "border-box",
-                    background: "rgba(255, 255, 255, 0.03)",
+                    background: "var(--lt-fundo-ffffff08, rgba(255, 255, 255, 0.03))",
                     border:
-                      "1px solid var(--border-color, rgba(255,255,255,0.08))",
+                      "1px solid var(--border-color, var(--lt-borda-ffffff14, rgba(255,255,255,0.08)))",
                     borderRadius: "8px",
-                    color: "var(--text-color, #ffffff)",
+                    color: "var(--text-color, var(--lt-texto-ffffff, #ffffff))",
                     padding: "10px 14px",
                   }}
                 />
@@ -6763,14 +6763,14 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   style={{
                     margin: "6px 0 0",
                     fontSize: "0.75rem",
-                    color: "var(--text-muted, #94a3b8)",
+                    color: "var(--text-muted, var(--lt-texto-94a3b8, #94a3b8))",
                     lineHeight: "1.4",
                   }}
                 >
                   Use{" "}
                   <code
                     style={{
-                      background: "rgba(255,255,255,0.07)",
+                      background: "var(--lt-fundo-ffffff12, rgba(255,255,255,0.07))",
                       padding: "1px 5px",
                       borderRadius: "4px",
                     }}
@@ -6791,7 +6791,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                         fontSize: "0.8rem",
                         fontWeight: "600",
                         marginBottom: "6px",
-                        color: "var(--text-color, #ffffff)",
+                        color: "var(--text-color, var(--lt-texto-ffffff, #ffffff))",
                       }}
                     >
                       Prévia — {destinatariosWhatsAppSelecionados.length}{" "}
@@ -6808,9 +6808,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                         <div
                           key={`${d.telefone}-${idx}`}
                           style={{
-                            background: "rgba(255, 255, 255, 0.03)",
+                            background: "var(--lt-fundo-ffffff08, rgba(255, 255, 255, 0.03))",
                             border:
-                              "1px solid var(--border-color, rgba(255,255,255,0.08))",
+                              "1px solid var(--border-color, var(--lt-borda-ffffff14, rgba(255,255,255,0.08)))",
                             borderRadius: "8px",
                             padding: "8px 12px",
                           }}
@@ -6819,7 +6819,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                             style={{
                               fontSize: "0.7rem",
                               fontWeight: 600,
-                              color: "var(--text-muted, #94a3b8)",
+                              color: "var(--text-muted, var(--lt-texto-94a3b8, #94a3b8))",
                               textTransform: "uppercase",
                               letterSpacing: "0.05em",
                               marginBottom: "4px",
@@ -6831,7 +6831,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                           <div
                             style={{
                               fontSize: "0.8rem",
-                              color: "var(--text-color, #ffffff)",
+                              color: "var(--text-color, var(--lt-texto-ffffff, #ffffff))",
                               whiteSpace: "pre-wrap",
                               lineHeight: "1.4",
                             }}

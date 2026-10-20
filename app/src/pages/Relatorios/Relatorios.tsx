@@ -1797,7 +1797,7 @@ ${riscoChurn.length > 0
                                     title="Clique para ver a ocorrência de alerta"
                                     style={{
                                       background: "rgba(239, 68, 68, 0.2)",
-                                      color: "#f87171",
+                                      color: "var(--lt-texto-f87171, #f87171)",
                                       border: "1px solid rgba(239, 68, 68, 0.4)",
                                       borderRadius: "6px",
                                       padding: "2px 6px",
@@ -1824,7 +1824,7 @@ ${riscoChurn.length > 0
                                     <span style={{ fontWeight: 700, fontSize: "0.95rem" }}>
                                       {(e as any).dentroExpediente.total}
                                     </span>
-                                    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", fontSize: "0.75rem", color: "#a1a1aa" }}>
+                                    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", fontSize: "0.75rem", color: "var(--lt-texto-a1a1aa, #a1a1aa)" }}>
                                       {(e as any).dentroExpediente.semClassificacao > 0 && (
                                         <button
                                           className="btn-secondary btn-small"
@@ -1841,7 +1841,7 @@ ${riscoChurn.length > 0
                                             onClick={() => navigate(`/historico?empresa=${encodeURIComponent(e.nomeEmpresa)}&tipo=Dúvida&dataInicio=${dataInicioSemanaStr}&dataFim=${dataFimSemanaStr}&expediente=dentro`)}
                                             style={{
                                               background: "rgba(59, 130, 246, 0.15)",
-                                              color: "#60a5fa",
+                                              color: "var(--lt-texto-60a5fa, #60a5fa)",
                                               border: "1px solid rgba(59, 130, 246, 0.25)",
                                               borderRadius: "4px",
                                               padding: "1px 4px",
@@ -1862,7 +1862,7 @@ ${riscoChurn.length > 0
                                             onClick={() => navigate(`/historico?empresa=${encodeURIComponent(e.nomeEmpresa)}&tipo=Problema&dataInicio=${dataInicioSemanaStr}&dataFim=${dataFimSemanaStr}&expediente=dentro`)}
                                             style={{
                                               background: "rgba(239, 68, 68, 0.15)",
-                                              color: "#f87171",
+                                              color: "var(--lt-texto-f87171, #f87171)",
                                               border: "1px solid rgba(239, 68, 68, 0.25)",
                                               borderRadius: "4px",
                                               padding: "1px 4px",
@@ -1883,7 +1883,7 @@ ${riscoChurn.length > 0
                                             onClick={() => navigate(`/historico?empresa=${encodeURIComponent(e.nomeEmpresa)}&tipo=Solicitação&dataInicio=${dataInicioSemanaStr}&dataFim=${dataFimSemanaStr}&expediente=dentro`)}
                                             style={{
                                               background: "rgba(16, 185, 129, 0.15)",
-                                              color: "#34d399",
+                                              color: "var(--lt-texto-34d399, #34d399)",
                                               border: "1px solid rgba(16, 185, 129, 0.25)",
                                               borderRadius: "4px",
                                               padding: "1px 4px",
@@ -1905,7 +1905,7 @@ ${riscoChurn.length > 0
                                     <span style={{ fontWeight: 700, fontSize: "0.95rem" }}>
                                       {(e as any).foraExpediente.total}
                                     </span>
-                                    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", fontSize: "0.75rem", color: "#a1a1aa" }}>
+                                    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", fontSize: "0.75rem", color: "var(--lt-texto-a1a1aa, #a1a1aa)" }}>
                                       {(e as any).foraExpediente.semClassificacao > 0 && (
                                         <button
                                           className="btn-secondary btn-small"
@@ -1922,7 +1922,7 @@ ${riscoChurn.length > 0
                                             onClick={() => navigate(`/historico?empresa=${encodeURIComponent(e.nomeEmpresa)}&tipo=Dúvida&dataInicio=${dataInicioSemanaStr}&dataFim=${dataFimSemanaStr}&expediente=fora`)}
                                             style={{
                                               background: "rgba(59, 130, 246, 0.15)",
-                                              color: "#60a5fa",
+                                              color: "var(--lt-texto-60a5fa, #60a5fa)",
                                               border: "1px solid rgba(59, 130, 246, 0.25)",
                                               borderRadius: "4px",
                                               padding: "1px 4px",
@@ -1943,7 +1943,7 @@ ${riscoChurn.length > 0
                                             onClick={() => navigate(`/historico?empresa=${encodeURIComponent(e.nomeEmpresa)}&tipo=Problema&dataInicio=${dataInicioSemanaStr}&dataFim=${dataFimSemanaStr}&expediente=fora`)}
                                             style={{
                                               background: "rgba(239, 68, 68, 0.15)",
-                                              color: "#f87171",
+                                              color: "var(--lt-texto-f87171, #f87171)",
                                               border: "1px solid rgba(239, 68, 68, 0.25)",
                                               borderRadius: "4px",
                                               padding: "1px 4px",
@@ -1964,7 +1964,7 @@ ${riscoChurn.length > 0
                                             onClick={() => navigate(`/historico?empresa=${encodeURIComponent(e.nomeEmpresa)}&tipo=Solicitação&dataInicio=${dataInicioSemanaStr}&dataFim=${dataFimSemanaStr}&expediente=fora`)}
                                             style={{
                                               background: "rgba(16, 185, 129, 0.15)",
-                                              color: "#34d399",
+                                              color: "var(--lt-texto-34d399, #34d399)",
                                               border: "1px solid rgba(16, 185, 129, 0.25)",
                                               borderRadius: "4px",
                                               padding: "1px 4px",
@@ -1988,7 +1988,7 @@ ${riscoChurn.length > 0
                             ) : (
                               <>
                                 <td>
-                                  <span style={{ fontWeight: 600, color: e.progresso >= 100 ? "#10b981" : "#f59e0b" }}>
+                                  <span style={{ fontWeight: 600, color: e.progresso >= 100 ? "var(--lt-texto-10b981, #10b981)" : "var(--lt-texto-f59e0b, #f59e0b)" }}>
                                     {e.progresso}%
                                   </span>
                                 </td>
@@ -2049,7 +2049,7 @@ ${riscoChurn.length > 0
                     const resDoc = ocorrencias.find((o) => o.id === ocorrenciaSelecionada.alertaResolvidoPorId);
                     return (
                       <div style={{ gridColumn: "span 2", marginBottom: "10px" }}>
-                        <span style={{ color: "#16a34a", fontWeight: "bold", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                        <span style={{ color: "var(--lt-texto-16a34a, #16a34a)", fontWeight: "bold", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
                           ✅🚨 Alerta Solucionado {resDoc ? `em ${new Date(getOcorrenciaTimestamp(resDoc)).toLocaleDateString("pt-BR")}` : ""}.
                           {resDoc && (
                             <button
@@ -2086,7 +2086,7 @@ ${riscoChurn.length > 0
                   const origDoc = ocorrencias.find((o) => o.id === ocorrenciaSelecionada.alertaOriginalId);
                   return (
                     <div style={{ gridColumn: "span 2", marginBottom: "10px" }}>
-                      <span style={{ color: "#16a34a", fontWeight: "bold", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                      <span style={{ color: "var(--lt-texto-16a34a, #16a34a)", fontWeight: "bold", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
                         ✅ Ocorrência marcada como Resolução de Alerta.
                         {origDoc && (
                           <span style={{ color: "#475569", display: "flex", alignItems: "center", gap: "5px", flexWrap: "wrap" }}>

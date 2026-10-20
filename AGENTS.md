@@ -27,6 +27,7 @@ Leia a documentação correspondente quando a tarefa envolver essas funcionalida
 - `server/CSAT.md`: reservas, sequências, respostas e acesso público.
 - `server/SSX_DESK.md`: importação, vínculos e deduplicação.
 - `server/EMULADOR.md`: Firebase Emulator Suite local, para desenvolver sem consumir a cota do Firestore de produção.
+- `app/TEMA_CLARO.md`: modo claro gerado a partir do CSS escuro; rode `npm run tema:claro` em `app/` após alterar cores.
 
 Confirme o comportamento no código e nos testes. Se houver divergência com a documentação, identifique-a e resolva conforme o objetivo solicitado; não trate um comportamento acidental como requisito.
 
@@ -60,7 +61,7 @@ Confirme o comportamento no código e nos testes. Se houver divergência com a d
 ## UX e interface
 
 - Projete a partir da tarefa do usuário e do seu perfil. Reduza passos desnecessários, torne a ação principal clara e preserve contexto, filtros e preferências quando fizer sentido.
-- Mantenha a identidade visual e os padrões existentes. Verifique o impacto de estilos locais em `app/src/themes.css` e a legibilidade nos temas claro e escuro.
+- Mantenha a identidade visual e os padrões existentes. Verifique o impacto de estilos locais em `app/src/themes.css` e a legibilidade nos temas claro e escuro. O modo claro é gerado (`npm run tema:claro`, ver `app/TEMA_CLARO.md`); não escreva overrides claros regra por regra.
 - Em telas de gestão, priorize leitura rápida, hierarquia de informação, alinhamento de tabelas, busca e filtros compreensíveis. Não esconda informações essenciais atrás de ícones sem identificação ou ações pouco descobríveis.
 - Preveja carregamento, lista vazia, busca sem resultado, erro recuperável, sucesso e falta de permissão. Use mensagens em português que expliquem o ocorrido e a próxima ação possível.
 - Use HTML semântico, rótulos nos campos e nomes acessíveis em botões de ícone. Garanta navegação por teclado e foco visível. Em modais, trate entrada e retorno do foco, contenção do foco e fechamento apropriado.

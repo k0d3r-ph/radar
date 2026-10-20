@@ -152,12 +152,3 @@
 .column-selector-trigger:focus-visible,
 .column-selector-checkbox-label input:focus-visible,
 .column-selector-restaurar:focus-visible { outline: 2px solid #60a5fa; outline-offset: 3px; }
-
-body.light-theme .column-selector-trigger { background: #ffffff; border-color: #cbd5e1; color: #334155; }
-body.light-theme .column-selector-trigger:hover { background: #f1f5f9; border-color: #94a3b8; }
-body.light-theme .column-selector-painel { background: #ffffff; border-color: #cbd5e1; color: #1e293b; box-shadow: 0 12px 36px rgba(15, 23, 42, 0.18); }
-body.light-theme .column-selector-painel-header,
-body.light-theme .column-selector-painel-footer { border-color: #e2e8f0; }
-body.light-theme .column-selector-dica { color: #475569; }
-body.light-theme .column-selector-item:hover { background: #eff6ff; }
-body.light-theme .column-selector-restaurar { color: #1d4ed8; }

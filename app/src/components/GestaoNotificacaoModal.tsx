@@ -174,7 +174,7 @@ export function GestaoNotificacaoModal({
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(0, 0, 0, 0.6)",
+        background: "var(--lt-fundo-00000099, rgba(0, 0, 0, 0.6))",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -185,15 +185,15 @@ export function GestaoNotificacaoModal({
         style={{
           maxWidth: "560px",
           width: "90%",
-          background: "var(--card-bg, #1a1f2e)",
+          background: "var(--card-bg, var(--lt-fundo-1a1f2e, #1a1f2e))",
           borderRadius: "14px",
           padding: "24px",
-          boxShadow: "0 20px 60px rgba(0,0,0,0.4)",
+          boxShadow: "0 20px 60px var(--lt-sombra-00000066, rgba(0,0,0,0.4))",
           maxHeight: "90vh",
           overflowY: "auto",
         }}
       >
-        <h3 style={{ margin: "0 0 16px", fontSize: "1.2rem", color: "var(--text-color, #ffffff)", fontWeight: 700 }}>
+        <h3 style={{ margin: "0 0 16px", fontSize: "1.2rem", color: "var(--text-color, var(--lt-texto-ffffff, #ffffff))", fontWeight: 700 }}>
           {titulo}
         </h3>
 
@@ -206,7 +206,7 @@ export function GestaoNotificacaoModal({
               borderRadius: "8px",
               border: "1px solid rgba(251, 191, 36, 0.3)",
               background: "rgba(251, 191, 36, 0.08)",
-              color: "#fbbf24",
+              color: "var(--lt-texto-fbbf24, #fbbf24)",
               fontSize: "0.8rem",
               lineHeight: 1.5,
             }}
@@ -219,11 +219,11 @@ export function GestaoNotificacaoModal({
 
         {/* Destinatários com status de envio */}
         <div style={{ marginBottom: "16px" }}>
-          <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, marginBottom: "8px", color: "var(--text-color, #ffffff)" }}>
+          <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, marginBottom: "8px", color: "var(--text-color, var(--lt-texto-ffffff, #ffffff))" }}>
             Destinatários
           </label>
           {destinatarios.length === 0 ? (
-            <div style={{ fontSize: "0.85rem", color: "var(--text-muted, #94a3b8)" }}>
+            <div style={{ fontSize: "0.85rem", color: "var(--text-muted, var(--lt-texto-94a3b8, #94a3b8))" }}>
               Nenhum destinatário encontrado.
             </div>
           ) : (
@@ -236,23 +236,23 @@ export function GestaoNotificacaoModal({
                     style={{
                       borderRadius: "8px",
                       padding: "8px 12px",
-                      background: "rgba(255,255,255,0.04)",
+                      background: "var(--lt-fundo-ffffff0a, rgba(255,255,255,0.04))",
                       border: res?.status === "falhou"
                         ? "1px solid rgba(239,68,68,0.35)"
                         : res?.status === "enviado"
                         ? "1px solid rgba(34,197,94,0.25)"
-                        : "1px solid rgba(255,255,255,0.07)",
+                        : "1px solid var(--lt-borda-ffffff12, rgba(255,255,255,0.07))",
                     }}
                   >
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
-                      <span style={{ fontSize: "0.87rem", color: "var(--text-color, #fff)", fontWeight: 500 }}>
+                      <span style={{ fontSize: "0.87rem", color: "var(--text-color, var(--lt-texto-ffffff, #fff))", fontWeight: 500 }}>
                         {d.nome}
                       </span>
                       {res && (
                         <span style={{ fontSize: "0.8rem", flexShrink: 0 }}>
                           {statusIcon(res.status)}{" "}
                           <span style={{
-                            color: res.status === "enviado" ? "#22c55e" : res.status === "falhou" ? "#ef4444" : "#94a3b8",
+                            color: res.status === "enviado" ? "var(--lt-texto-22c55e, #22c55e)" : res.status === "falhou" ? "var(--lt-texto-ef4444, #ef4444)" : "var(--lt-texto-94a3b8, #94a3b8)",
                             fontWeight: 600,
                           }}>
                             {res.status === "enviado" ? "Enviado" : res.status === "falhou" ? "Falhou" : "Enviando..."}
@@ -265,7 +265,7 @@ export function GestaoNotificacaoModal({
                         style={{
                           marginTop: "6px",
                           fontSize: "0.78rem",
-                          color: "#fca5a5",
+                          color: "var(--lt-texto-fca5a5, #fca5a5)",
                           lineHeight: 1.45,
                           padding: "6px 8px",
                           background: "rgba(239,68,68,0.1)",
@@ -285,7 +285,7 @@ export function GestaoNotificacaoModal({
         {/* Texto da mensagem (oculto após envio bem-sucedido de todos) */}
         {!algumaSucesso || falhasAtuais.length > 0 ? (
           <div style={{ marginBottom: "8px" }}>
-            <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, marginBottom: "6px", color: "var(--text-color, #ffffff)" }}>
+            <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, marginBottom: "6px", color: "var(--text-color, var(--lt-texto-ffffff, #ffffff))" }}>
               Texto da mensagem {!jaEnviou && "(você pode personalizar antes de enviar)"}
             </label>
             <textarea
@@ -296,10 +296,10 @@ export function GestaoNotificacaoModal({
               style={{
                 width: "100%",
                 boxSizing: "border-box",
-                background: "rgba(255, 255, 255, 0.03)",
-                border: "1px solid rgba(255, 255, 255, 0.08)",
+                background: "var(--lt-fundo-ffffff08, rgba(255, 255, 255, 0.03))",
+                border: "1px solid var(--lt-borda-ffffff14, rgba(255, 255, 255, 0.08))",
                 borderRadius: "8px",
-                color: "var(--text-color, #ffffff)",
+                color: "var(--text-color, var(--lt-texto-ffffff, #ffffff))",
                 padding: "10px 14px",
                 fontFamily: "inherit",
                 resize: "vertical",

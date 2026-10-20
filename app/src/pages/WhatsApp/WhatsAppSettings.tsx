@@ -375,7 +375,7 @@ export const WhatsAppSettings: React.FC = () => {
 
         <section className="whatsapp-card-section" style={{ marginTop: "24px" }}>
           <div className="card-header">
-            <RefreshCw size={18} style={{ color: "#128c7e" }} />
+            <RefreshCw size={18} style={{ color: "var(--lt-texto-128c7e, #128c7e)" }} />
             <h2>Manutenção de Dados</h2>
           </div>
           <div className="card-body">

@@ -671,7 +671,7 @@ export const Usuarios: React.FC = () => {
                           <span style={{ color: "#64748b", fontSize: "12px" }}>—</span>
                         )}
                       </td>
-                      <td style={{ fontSize: "12px", color: u.telefone ? "#a5b4fc" : "#64748b" }}>
+                      <td style={{ fontSize: "12px", color: u.telefone ? "var(--lt-texto-a5b4fc, #a5b4fc)" : "#64748b" }}>
                         {u.telefone || "—"}
                       </td>
                       <td style={{ fontSize: "12px", color: "#64748b" }}>
@@ -817,21 +817,21 @@ export const Usuarios: React.FC = () => {
             <KeyRound size={22} className="card-icon" /> 
             Consolidação de Pontos (Gamificação)
           </h2>
-          <p className="admin-tool-description" style={{ color: "#9ca3af", fontSize: "14px", marginBottom: "20px", lineHeight: "1.5" }}>
+          <p className="admin-tool-description" style={{ color: "var(--lt-texto-9ca3af, #9ca3af)", fontSize: "14px", marginBottom: "20px", lineHeight: "1.5" }}>
             Se você excluiu um usuário e o cadastrou novamente, os pontos históricos dele continuam vinculados ao ID de usuário antigo.
             Use esta ferramenta para reassociar todos os lançamentos de pontos desse ID antigo para a nova conta do usuário.
           </p>
           
           <div className="admin-tool-grid">
             <div className="input-group">
-              <label style={{ fontSize: "13px", fontWeight: "600", color: "#d1d5db" }}>Selecione os Lançamentos Órfãos (ID Antigo)</label>
+              <label style={{ fontSize: "13px", fontWeight: "600", color: "var(--lt-texto-d1d5db, #d1d5db)" }}>Selecione os Lançamentos Órfãos (ID Antigo)</label>
               <div className="input-wrapper" style={{ marginTop: "8px" }}>
                 <Shield className="input-icon" size={18} />
                 <select
                   value={selectedOrphanId}
                   onChange={(e) => setSelectedOrphanId(e.target.value)}
                   className="role-edit-select"
-                  style={{ width: "100%", paddingLeft: "45px", height: "48px", borderRadius: "12px", background: "rgba(31, 41, 55, 0.5)", border: "1px solid rgba(255, 255, 255, 0.1)", color: "white" }}
+                  style={{ width: "100%", paddingLeft: "45px", height: "48px", borderRadius: "12px", background: "var(--lt-fundo-1f293780, rgba(31, 41, 55, 0.5))", border: "1px solid var(--lt-borda-ffffff1a, rgba(255, 255, 255, 0.1))", color: "var(--lt-texto-ffffff, white)" }}
                 >
                   <option value="">-- Selecione o ID Antigo --</option>
                   {orphanedTrainers.length === 0 ? (
@@ -848,14 +848,14 @@ export const Usuarios: React.FC = () => {
             </div>
             
             <div className="input-group">
-              <label style={{ fontSize: "13px", fontWeight: "600", color: "#d1d5db" }}>Selecione o Novo Cadastro (Usuário Atual)</label>
+              <label style={{ fontSize: "13px", fontWeight: "600", color: "var(--lt-texto-d1d5db, #d1d5db)" }}>Selecione o Novo Cadastro (Usuário Atual)</label>
               <div className="input-wrapper" style={{ marginTop: "8px" }}>
                 <UserCheck className="input-icon" size={18} />
                 <select
                   value={selectedNewUserUid}
                   onChange={(e) => setSelectedNewUserUid(e.target.value)}
                   className="role-edit-select"
-                  style={{ width: "100%", paddingLeft: "45px", height: "48px", borderRadius: "12px", background: "rgba(31, 41, 55, 0.5)", border: "1px solid rgba(255, 255, 255, 0.1)", color: "white" }}
+                  style={{ width: "100%", paddingLeft: "45px", height: "48px", borderRadius: "12px", background: "var(--lt-fundo-1f293780, rgba(31, 41, 55, 0.5))", border: "1px solid var(--lt-borda-ffffff1a, rgba(255, 255, 255, 0.1))", color: "var(--lt-texto-ffffff, white)" }}
                 >
                   <option value="">-- Selecione o Usuário Atual --</option>
                   {users.map((u) => (
@@ -884,7 +884,7 @@ export const Usuarios: React.FC = () => {
               alignItems: "center",
               justifyContent: "center",
               gap: "8px",
-              boxShadow: "0 4px 12px rgba(16, 185, 129, 0.2)",
+              boxShadow: "0 4px 12px var(--lt-sombra-10b98133, rgba(16, 185, 129, 0.2))",
               marginTop: "16px"
             }}
           >
@@ -897,14 +897,14 @@ export const Usuarios: React.FC = () => {
         <div className="confirm-overlay" onClick={() => setEditingUser(null)}>
           <div className="confirm-modal" onClick={(e) => e.stopPropagation()}>
             <div className="confirm-modal-header">
-              <Shield className="confirm-modal-icon" size={24} style={{ color: "#818cf8" }} />
+              <Shield className="confirm-modal-icon" size={24} style={{ color: "var(--lt-texto-818cf8, #818cf8)" }} />
               <h2>Editar Perfil e Dados</h2>
             </div>
             <p className="confirm-modal-text">
               Edite os dados do usuário <strong>{formatarNome(editingUser.nome) || editingUser.email}</strong>:
             </p>
             <div className="input-group" style={{ marginTop: "10px" }}>
-              <label style={{ fontSize: "12px", fontWeight: 600, color: "#9ca3af", marginBottom: "6px", display: "block" }}>Perfil de Acesso</label>
+              <label style={{ fontSize: "12px", fontWeight: 600, color: "var(--lt-texto-9ca3af, #9ca3af)", marginBottom: "6px", display: "block" }}>Perfil de Acesso</label>
               <div className="input-wrapper">
                 <Shield className="input-icon" size={18} />
                 <select
@@ -927,7 +927,7 @@ export const Usuarios: React.FC = () => {
               </div>
             </div>
             <div className="input-group" style={{ marginTop: "12px" }}>
-              <label style={{ fontSize: "12px", fontWeight: 600, color: "#9ca3af", marginBottom: "6px", display: "block" }}>Cargo</label>
+              <label style={{ fontSize: "12px", fontWeight: 600, color: "var(--lt-texto-9ca3af, #9ca3af)", marginBottom: "6px", display: "block" }}>Cargo</label>
               <div className="input-wrapper">
                 <Briefcase className="input-icon" size={18} />
                 <select
@@ -944,7 +944,7 @@ export const Usuarios: React.FC = () => {
               </div>
             </div>
             <div className="input-group" style={{ marginTop: "12px" }}>
-              <label style={{ fontSize: "12px", fontWeight: 600, color: "#9ca3af", marginBottom: "6px", display: "block" }}>Telefone WhatsApp</label>
+              <label style={{ fontSize: "12px", fontWeight: 600, color: "var(--lt-texto-9ca3af, #9ca3af)", marginBottom: "6px", display: "block" }}>Telefone WhatsApp</label>
               <div className="input-wrapper">
                 <Phone className="input-icon" size={18} />
                 <input
@@ -959,7 +959,7 @@ export const Usuarios: React.FC = () => {
             </div>
             {atuaComoTreinador(editingUserRole) && (
               <div className="input-group" style={{ marginTop: "12px" }}>
-                <label style={{ fontSize: "12px", fontWeight: 600, color: "#9ca3af", marginBottom: "6px", display: "block" }}>
+                <label style={{ fontSize: "12px", fontWeight: 600, color: "var(--lt-texto-9ca3af, #9ca3af)", marginBottom: "6px", display: "block" }}>
                   Fator de Capacidade
                 </label>
                 <div className="input-wrapper">
@@ -979,7 +979,7 @@ export const Usuarios: React.FC = () => {
             )}
             {atuaComoTreinador(editingUserRole) && (
               <div className="input-group" style={{ marginTop: "12px" }}>
-                <label style={{ fontSize: "13px", fontWeight: 600, color: "#e5e7eb", display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
+                <label style={{ fontSize: "13px", fontWeight: 600, color: "var(--lt-texto-e5e7eb, #e5e7eb)", display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
                   <input
                     type="checkbox"
                     checked={editingUserSuspenso}
@@ -994,11 +994,11 @@ export const Usuarios: React.FC = () => {
               cargo: editingUserCargo,
             } as UsuarioDocument) && (
               <div className="input-group" style={{ marginTop: "12px" }}>
-                <label style={{ fontSize: "13px", fontWeight: 600, color: "#e5e7eb", marginBottom: "6px", display: "block" }}>
+                <label style={{ fontSize: "13px", fontWeight: 600, color: "var(--lt-texto-e5e7eb, #e5e7eb)", marginBottom: "6px", display: "block" }}>
                   Mensagens automáticas de gestão (WhatsApp) que deseja receber
                 </label>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "12px" }}>
-                  <label style={{ fontSize: "13px", color: "#e5e7eb", display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+                  <label style={{ fontSize: "13px", color: "var(--lt-texto-e5e7eb, #e5e7eb)", display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
                     <input
                       type="checkbox"
                       checked={editingUserNotificarSuspenso}
@@ -1006,7 +1006,7 @@ export const Usuarios: React.FC = () => {
                     />
                     Suspenso
                   </label>
-                  <label style={{ fontSize: "13px", color: "#e5e7eb", display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+                  <label style={{ fontSize: "13px", color: "var(--lt-texto-e5e7eb, #e5e7eb)", display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
                     <input
                       type="checkbox"
                       checked={editingUserNotificarAlerta}
@@ -1014,7 +1014,7 @@ export const Usuarios: React.FC = () => {
                     />
                     Alerta
                   </label>
-                  <label style={{ fontSize: "13px", color: "#e5e7eb", display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+                  <label style={{ fontSize: "13px", color: "var(--lt-texto-e5e7eb, #e5e7eb)", display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
                     <input
                       type="checkbox"
                       checked={editingUserNotificarCancelado}
@@ -1022,7 +1022,7 @@ export const Usuarios: React.FC = () => {
                     />
                     Cancelado
                   </label>
-                  <label style={{ fontSize: "13px", color: "#e5e7eb", display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+                  <label style={{ fontSize: "13px", color: "var(--lt-texto-e5e7eb, #e5e7eb)", display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
                     <input
                       type="checkbox"
                       checked={editingUserNotificarConclusao}
@@ -1058,7 +1058,7 @@ export const Usuarios: React.FC = () => {
         <div className="confirm-overlay" onClick={() => setResetPasswordUser(null)}>
           <div className="confirm-modal" onClick={(e) => e.stopPropagation()}>
             <div className="confirm-modal-header">
-              <KeyRound className="confirm-modal-icon" size={24} style={{ color: "#fbbf24" }} />
+              <KeyRound className="confirm-modal-icon" size={24} style={{ color: "var(--lt-texto-fbbf24, #fbbf24)" }} />
               <h2>Redefinir Senha</h2>
             </div>
             <p className="confirm-modal-text">

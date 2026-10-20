@@ -1195,10 +1195,10 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
                   <span>Status da Esteira</span>
                   <strong style={{
                     color: empresaSelecionadaObj.isCancelled
-                      ? "#ef4444"
+                      ? "var(--lt-texto-ef4444, #ef4444)"
                       : empresaSelecionadaObj.isFinalizado
-                      ? "#10b981"
-                      : "#3b82f6"
+                      ? "var(--lt-texto-10b981, #10b981)"
+                      : "var(--lt-texto-3b82f6, #3b82f6)"
                   }}>
                     {empresaSelecionadaObj.isCancelled
                       ? "Cancelado"
@@ -1221,7 +1221,7 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
                 {empresaSelecionadaObj.totalEstourosSLA > 0 && (
                   <div className="jornada-detail-info-item">
                     <span>Estouros de SLA</span>
-                    <strong style={{ color: "#ef4444" }}>
+                    <strong style={{ color: "var(--lt-texto-ef4444, #ef4444)" }}>
                       {empresaSelecionadaObj.totalEstourosSLA} {empresaSelecionadaObj.totalEstourosSLA === 1 ? "vez" : "vezes"}
                     </strong>
                   </div>
@@ -1629,13 +1629,13 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
                           </span>
                         )}
                         {etapaSelecionada.stage === "Em treinamento" && focusStatus === "cancelado" && (
-                          <span className="jornada-stage-badge cancelado" style={{ background: "rgba(239,68,68,0.15)", color: "#f87171", borderColor: "rgba(239,68,68,0.3)" }}>
+                          <span className="jornada-stage-badge cancelado" style={{ background: "rgba(239,68,68,0.15)", color: "var(--lt-texto-f87171, #f87171)", borderColor: "rgba(239,68,68,0.3)" }}>
                             <AlertCircle size={12} style={{ marginRight: 5 }} />
                             Cancelado
                           </span>
                         )}
                         {etapaSelecionada.stage === "Em treinamento" && focusStatus === "ausente" && (
-                          <span className="jornada-stage-badge ausente" style={{ background: "rgba(245,158,11,0.15)", color: "#fbbf24", borderColor: "rgba(245,158,11,0.3)" }}>
+                          <span className="jornada-stage-badge ausente" style={{ background: "rgba(245,158,11,0.15)", color: "var(--lt-texto-fbbf24, #fbbf24)", borderColor: "rgba(245,158,11,0.3)" }}>
                             <AlertCircle size={12} style={{ marginRight: 5 }} />
                             Ausente
                           </span>
@@ -1650,7 +1650,7 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
                           </span>
                         )}
                         {etapaSelecionada.stage === "Suspenso" && !etapaSelecionada.active && (
-                          <span className="jornada-stage-badge concluido" style={{ background: "rgba(245,158,11,0.12)", color: "#fbbf24", borderColor: "rgba(245,158,11,0.3)" }}>
+                          <span className="jornada-stage-badge concluido" style={{ background: "rgba(245,158,11,0.12)", color: "var(--lt-texto-fbbf24, #fbbf24)", borderColor: "rgba(245,158,11,0.3)" }}>
                             <CheckCircle size={12} style={{ marginRight: 5 }} />
                             Reativado
                           </span>
@@ -1738,7 +1738,7 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
 
                   {/* Dúvidas/Problemas registrados durante o período desta etapa */}
                   {etapaSelecionada.problemasDuvidas && etapaSelecionada.problemasDuvidas.length > 0 && (
-                    <div className="jornada-focus-ocorrencia-section" style={{ borderTop: "1px solid rgba(255, 255, 255, 0.05)", paddingTop: "1.25rem" }}>
+                    <div className="jornada-focus-ocorrencia-section" style={{ borderTop: "1px solid var(--lt-borda-ffffff0d, rgba(255, 255, 255, 0.05))", paddingTop: "1.25rem" }}>
                       <h5 className="jornada-focus-oc-header">
                         <AlertCircle size={14} style={{ marginRight: 6, verticalAlign: "middle" }} />
                         Dúvidas / Problemas no Período ({etapaSelecionada.problemasDuvidas.length})
@@ -1759,7 +1759,7 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
                                   {obterInfoTipoOcorrencia(oc).label} ·{" "}
                                   {new Date(oc.createdAt ?? oc.dataOcorrencia ?? 0).toLocaleDateString("pt-BR")}
                                 </span>
-                                <span style={{ textTransform: "none", fontWeight: 600, color: "#94a3b8" }}>
+                                <span style={{ textTransform: "none", fontWeight: 600, color: "var(--lt-texto-94a3b8, #94a3b8)" }}>
                                   {formatarNome(oc.responsavel)}
                                 </span>
                               </h5>
@@ -1789,16 +1789,16 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
                       </h5>
 
                       <div className="jornada-focus-grid" style={{ background: "none", padding: 0, border: "none" }}>
-                        <div className="jornada-focus-item" style={{ background: "rgba(15,23,42,0.15)" }}>
+                        <div className="jornada-focus-item" style={{ background: "var(--lt-fundo-0f172a26, rgba(15,23,42,0.15))" }}>
                           <span>Tipo de Registro</span>
                           <strong>{obterInfoTipoOcorrencia(etapaSelecionada.ocorrencia).label}</strong>
                         </div>
-                        <div className="jornada-focus-item" style={{ background: "rgba(15,23,42,0.15)" }}>
+                        <div className="jornada-focus-item" style={{ background: "var(--lt-fundo-0f172a26, rgba(15,23,42,0.15))" }}>
                           <span>Responsável pelo Registro</span>
                           <strong>{formatarNome(etapaSelecionada.ocorrencia.responsavel)}</strong>
                         </div>
                         {etapaSelecionada.ocorrencia.idSeqFormatted && (
-                          <div className="jornada-focus-item" style={{ background: "rgba(15,23,42,0.15)" }}>
+                          <div className="jornada-focus-item" style={{ background: "var(--lt-fundo-0f172a26, rgba(15,23,42,0.15))" }}>
                             <span>Código Sequencial</span>
                             <strong>{etapaSelecionada.ocorrencia.idSeqFormatted}</strong>
                           </div>
@@ -1900,26 +1900,26 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
 
                   {/* Detalhes da ocorrência que finalizou a etapa (se aplicável, exceto para Sem próximo passo definido para evitar duplicidade com a etapa seguinte) */}
                   {etapaSelecionada.ocorrenciaFinalizadora && etapaSelecionada.stage !== "Sem próximo passo definido" && (
-                    <div className="jornada-focus-ocorrencia-section" style={{ borderTop: "1px solid rgba(255, 255, 255, 0.05)", paddingTop: "1.25rem", marginTop: "1.25rem" }}>
+                    <div className="jornada-focus-ocorrencia-section" style={{ borderTop: "1px solid var(--lt-borda-ffffff0d, rgba(255, 255, 255, 0.05))", paddingTop: "1.25rem", marginTop: "1.25rem" }}>
                       <h5 className="jornada-focus-oc-header">
                         <FileText size={14} style={{ marginRight: 6, verticalAlign: "middle" }} />
                         Ocorrência de Conclusão / Finalização
                       </h5>
-                      <p style={{ fontSize: "0.85rem", color: "#94a3b8", marginBottom: "0.75rem", marginTop: "-0.25rem" }}>
+                      <p style={{ fontSize: "0.85rem", color: "var(--lt-texto-94a3b8, #94a3b8)", marginBottom: "0.75rem", marginTop: "-0.25rem" }}>
                         Esta etapa foi encerrada/concluída pela seguinte ocorrência:
                       </p>
 
                       <div className="jornada-focus-grid" style={{ background: "none", padding: 0, border: "none" }}>
-                        <div className="jornada-focus-item" style={{ background: "rgba(15,23,42,0.15)" }}>
+                        <div className="jornada-focus-item" style={{ background: "var(--lt-fundo-0f172a26, rgba(15,23,42,0.15))" }}>
                           <span>Tipo de Registro</span>
                           <strong>{obterInfoTipoOcorrencia(etapaSelecionada.ocorrenciaFinalizadora).label}</strong>
                         </div>
-                        <div className="jornada-focus-item" style={{ background: "rgba(15,23,42,0.15)" }}>
+                        <div className="jornada-focus-item" style={{ background: "var(--lt-fundo-0f172a26, rgba(15,23,42,0.15))" }}>
                           <span>Responsável pelo Registro</span>
                           <strong>{formatarNome(etapaSelecionada.ocorrenciaFinalizadora.responsavel)}</strong>
                         </div>
                         {etapaSelecionada.ocorrenciaFinalizadora.idSeqFormatted && (
-                          <div className="jornada-focus-item" style={{ background: "rgba(15,23,42,0.15)" }}>
+                          <div className="jornada-focus-item" style={{ background: "var(--lt-fundo-0f172a26, rgba(15,23,42,0.15))" }}>
                             <span>Código Sequencial</span>
                             <strong>{etapaSelecionada.ocorrenciaFinalizadora.idSeqFormatted}</strong>
                           </div>

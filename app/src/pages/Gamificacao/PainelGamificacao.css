@@ -10,18 +10,6 @@
   --gp-negative: #fca5a5;
 }
 
-body.light-theme .gamificacao-page {
-  --gp-surface: #ffffff;
-  --gp-raised: #f1f5f9;
-  --gp-text: #172554;
-  --gp-muted: #475569;
-  --gp-border: #dbe3ef;
-  --gp-accent: #4338ca;
-  --gp-selected: #eef2ff;
-  --gp-gold: #855400;
-  --gp-negative: #b91c1c;
-}
-
 .gp-painel { position: relative; display: grid; gap: 24px; margin-bottom: 30px; color: var(--gp-text); }
 .gp-painel *, .gp-painel *::before, .gp-painel *::after { min-width: 0; }
 .gp-pessoal, .gp-podio, .gp-ranking, .gp-composicao {
@@ -53,8 +41,6 @@ body.light-theme .gamificacao-page {
 .gp-lugar-3 { grid-column: 3; grid-row: 1; }
 .gp-lugar-2 button > svg { color: #b8c4d5; }
 .gp-lugar-3 button > svg { color: #e9a96e; }
-body.light-theme .gp-lugar-2 button > svg { color: #596b83; }
-body.light-theme .gp-lugar-3 button > svg { color: #975323; }
 .gp-iniciais { width: 58px; height: 58px; border-radius: 50%; background: var(--gp-raised); border: 2px solid var(--gp-border); display: grid; place-items: center; font-size: 18px; font-weight: 800; flex-shrink: 0; }
 .gp-lugar-1 .gp-iniciais { width: 70px; height: 70px; border-color: var(--gp-gold); }
 .gp-nome { font-weight: 700; overflow-wrap: anywhere; line-height: 1.5; }
@@ -113,11 +99,8 @@ body.light-theme .gp-lugar-3 button > svg { color: #975323; }
 .gamificacao-page .filtros-data-grupo select,
 .gamificacao-page .filtros-data-grupo select option { background: var(--gp-raised); color: var(--gp-text); border-color: var(--gp-border); }
 .gamificacao-page .filtros-data-grupo input[type="date"] { color-scheme: dark; }
-body.light-theme .gamificacao-page .filtros-data-grupo input[type="date"] { color-scheme: light; }
 .gp-carregamento-erro { position: relative; border: 1px solid var(--gp-negative); background: var(--gp-surface); color: var(--gp-text); padding: 24px; border-radius: 16px; }
 /* O tema global aplica !important a spans; estes valores têm significado no placar. */
-body.light-theme .gamificacao-page .gp-painel .gp-podio span.gp-podio-pontos { color: var(--gp-gold) !important; }
-body.light-theme .gamificacao-page .gp-painel .gp-ranking span.gp-negativo { color: var(--gp-negative) !important; }
 
 @media (max-width: 1100px) {
   .gp-pessoal { grid-template-columns: 1fr; }

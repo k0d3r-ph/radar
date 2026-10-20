@@ -428,10 +428,6 @@ button.jornada-kpi-card:focus-visible,
   transition: stroke 0.2s ease;
 }
 
-body.light-theme .jornada-stepper-line {
-  stroke: #cbd5e1;
-}
-
 .jornada-step-node:hover {
   transform: translateY(-2px);
 }
@@ -631,10 +627,6 @@ body.light-theme .jornada-stepper-line {
   left: -6px;
   background: #06b6d4;
   box-shadow: 0 0 6px rgba(6, 182, 212, 0.6);
-}
-
-body.light-theme .jornada-step-issue-badge {
-  border-color: #ffffff;
 }
 
 /* Nomes e Datas dos Nós */
@@ -1011,290 +1003,12 @@ body.light-theme .jornada-step-issue-badge {
 }
 
 /* Custom styles for light theme compatibility */
-body.light-theme .jornada-kpi-card {
-  background: #ffffff;
-  border-color: #e2e8f0;
-}
-
-body.light-theme .jornada-kpi-card:hover {
-  background: #f8fafc;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
-}
-
-body.light-theme .jornada-kpi-value {
-  color: #0f172a;
-}
-
-body.light-theme .jornada-kpi-label {
-  color: #64748b;
-}
-
-body.light-theme .jornada-section-card {
-  background: #ffffff;
-  border-color: #e2e8f0;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
-}
-
-body.light-theme .jornada-section-title {
-  color: #0f172a;
-}
-
-body.light-theme .jornada-search-input {
-  background: #f1f5f9;
-  color: #0f172a;
-  border-color: #cbd5e1;
-}
-
-body.light-theme .jornada-search-input:focus {
-  border-color: #3b82f6;
-  background: #ffffff;
-}
-
-body.light-theme .jornada-client-item {
-  background: #f8fafc;
-  border-color: #e2e8f0;
-}
-
-body.light-theme .jornada-client-item:hover {
-  background: #f1f5f9;
-}
-
-body.light-theme .jornada-client-item.selected {
-  background: linear-gradient(135deg, #eff6ff, #dbeafe);
-  border-color: #3b82f6;
-}
-
-body.light-theme .jornada-client-name {
-  color: #0f172a;
-}
-
-body.light-theme .jornada-client-meta {
-  color: #64748b;
-}
-
-body.light-theme .jornada-detail-info-grid {
-  background: #f8fafc;
-  border-color: #e2e8f0;
-}
-
-body.light-theme .jornada-detail-info-item strong {
-  color: #1e293b;
-}
 
 /* Stepper Light mode */
-body.light-theme .jornada-stepper-container {
-  background: #f8fafc;
-  border-color: #e2e8f0;
-}
-
-body.light-theme .jornada-step-node::before {
-  background: #cbd5e1;
-}
-
-body.light-theme .jornada-step-name {
-  color: #475569;
-}
-
-body.light-theme .jornada-step-node:hover .jornada-step-name {
-  color: #0f172a;
-}
-
-body.light-theme .jornada-step-node.selected-node .jornada-step-name {
-  color: #0f172a;
-}
 
 /* Ícones da Régua no Light Theme com cores semânticas distintas */
-body.light-theme .jornada-step-node.treinamento .jornada-step-circle {
-  border-color: #c084fc;
-  color: #7e22ce;
-  background: #f3e8ff;
-}
-body.light-theme .jornada-step-node.treinamento.selected-node .jornada-step-circle {
-  background: #e9d5ff;
-  border-color: #a855f7;
-  box-shadow: 0 0 12px rgba(168, 85, 247, 0.45);
-}
-
-body.light-theme .jornada-step-node.treinamento.cancelado .jornada-step-circle {
-  border-color: #fca5a5;
-  color: #b91c1c;
-  background: #fef2f2;
-}
-body.light-theme .jornada-step-node.treinamento.cancelado.selected-node .jornada-step-circle {
-  background: #fee2e2;
-  border-color: #ef4444;
-  box-shadow: 0 0 12px rgba(239, 68, 68, 0.45);
-}
-
-body.light-theme .jornada-step-node.treinamento.ausente .jornada-step-circle {
-  border-color: #fde047;
-  color: #b45309;
-  background: #fffbeb;
-}
-body.light-theme .jornada-step-node.treinamento.ausente.selected-node .jornada-step-circle {
-  background: #fef3c7;
-  border-color: #f59e0b;
-  box-shadow: 0 0 12px rgba(245, 158, 11, 0.45);
-}
-
-body.light-theme .jornada-step-node.checkpoint .jornada-step-circle {
-  border-color: #60a5fa;
-  color: #1d4ed8;
-  background: #eff6ff;
-}
-body.light-theme .jornada-step-node.checkpoint.selected-node .jornada-step-circle {
-  background: #dbeafe;
-  border-color: #3b82f6;
-  box-shadow: 0 0 12px rgba(59, 130, 246, 0.45);
-}
-
-body.light-theme .jornada-step-node.sem-passo .jornada-step-circle {
-  border-color: #fbbf24;
-  color: #b45309;
-  background: #fffbeb;
-}
-body.light-theme .jornada-step-node.sem-passo.selected-node .jornada-step-circle {
-  background: #fef3c7;
-  border-color: #f59e0b;
-  box-shadow: 0 0 12px rgba(245, 158, 11, 0.45);
-}
-
-body.light-theme .jornada-step-node.sem-passo.sla-violated .jornada-step-circle {
-  border-color: #fca5a5;
-  color: #b91c1c;
-  background: #fef2f2;
-}
-body.light-theme .jornada-step-node.sem-passo.sla-violated.selected-node .jornada-step-circle {
-  background: #fee2e2;
-  border-color: #ef4444;
-  box-shadow: 0 0 12px rgba(239, 68, 68, 0.45);
-}
-
-body.light-theme .jornada-step-node.finalizado .jornada-step-circle {
-  border-color: #34d399;
-  color: #047857;
-  background: #ecfdf5;
-}
-body.light-theme .jornada-step-node.finalizado.selected-node .jornada-step-circle {
-  background: #d1fae5;
-  border-color: #10b981;
-  box-shadow: 0 0 12px rgba(16, 185, 129, 0.45);
-}
-
-body.light-theme .jornada-step-node.ciente-cancelado .jornada-step-circle {
-  border-color: #ef4444;
-  color: #dc2626;
-  background: #fef2f2;
-}
-body.light-theme .jornada-step-node.ciente-cancelado.selected-node .jornada-step-circle {
-  background: #fee2e2;
-  border-color: #dc2626;
-  box-shadow: 0 0 12px rgba(220, 38, 38, 0.45);
-}
-body.light-theme .jornada-step-node.ciente-cancelado .jornada-step-name {
-  color: #dc2626;
-}
-
-body.light-theme .jornada-focus-card {
-  background: #ffffff;
-  border-color: #e2e8f0;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
-}
-
-body.light-theme .jornada-focus-title {
-  color: #0f172a;
-}
-
-body.light-theme .jornada-focus-item {
-  background: #f8fafc;
-  border-color: #e2e8f0;
-}
-
-body.light-theme .jornada-focus-item strong {
-  color: #1e293b;
-}
-
-body.light-theme .jornada-focus-desc {
-  background: #f8fafc;
-  border-color: #e2e8f0;
-}
-
-body.light-theme .jornada-detail-company-title {
-  color: #0f172a;
-}
-
-body.light-theme .jornada-focus-desc p {
-  color: #334155;
-}
-
-body.light-theme .jornada-container .tema-tag {
-  background: #f8fafc !important;
-  border: 1px solid #e2e8f0 !important;
-  color: #475569 !important;
-  font-weight: 600;
-  border-radius: 9999px !important;
-}
-
-body.light-theme .jornada-container .tema-tag:hover {
-  background: #e2e8f0 !important;
-  border-color: #cbd5e1 !important;
-  color: #0f172a !important;
-}
-
-body.light-theme .jornada-container .tema-tag-alerta {
-  background: #fff5f5 !important;
-  border-color: #feb2b2 !important;
-  color: #c53030 !important;
-}
-
-body.light-theme .csat-nota-badge {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
-  color: #334155;
-}
-
-body.light-theme .jornada-empty-state {
-  background: #f8fafc;
-  border-color: #cbd5e1;
-  color: #64748b;
-}
 
 /* Overrides de Light Theme para badges */
-body.light-theme .jornada-stage-badge.concluido {
-  background: rgba(16, 185, 129, 0.1);
-  color: #065f46;
-  border-color: rgba(16, 185, 129, 0.2);
-}
-
-body.light-theme .jornada-stage-badge.em-andamento {
-  background: rgba(59, 130, 246, 0.1);
-  color: #1e3a8a;
-  border-color: rgba(59, 130, 246, 0.2);
-}
-
-body.light-theme .jornada-stage-badge.sla-status-breached {
-  background: rgba(239, 68, 68, 0.1);
-  color: #991b1b;
-  border-color: rgba(239, 68, 68, 0.2);
-}
-
-body.light-theme .jornada-stage-badge.sla-status-ok {
-  background: rgba(16, 185, 129, 0.1);
-  color: #065f46;
-  border-color: rgba(16, 185, 129, 0.2);
-}
-
-body.light-theme .jornada-client-stage-badge.treinamento-cancelado {
-  background: #fff5f5;
-  color: #c53030;
-  border-color: #feb2b2;
-}
-
-body.light-theme .jornada-client-stage-badge.treinamento-ausente {
-  background: #fffbeb;
-  color: #92400e;
-  border-color: #fde047;
-}
 
 /* ========================================================
    DIAGNÓSTICO AUTOMÁTICO DA JORNADA
@@ -1390,38 +1104,6 @@ body.light-theme .jornada-client-stage-badge.treinamento-ausente {
 }
 
 /* Light theme overrides */
-body.light-theme .jornada-diagnostico {
-  background: #f8fafc;
-  border-color: #e2e8f0;
-}
-
-body.light-theme .jornada-diagnostico-item.diag-critico {
-  background: #fef2f2;
-  border-color: #fecaca;
-}
-
-body.light-theme .jornada-diagnostico-item.diag-alerta {
-  background: #fffbeb;
-  border-color: #fde68a;
-}
-
-body.light-theme .jornada-diagnostico-item.diag-ok {
-  background: #ecfdf5;
-  border-color: #a7f3d0;
-}
-
-body.light-theme .jornada-diagnostico-item.diag-info {
-  background: #eff6ff;
-  border-color: #bfdbfe;
-}
-
-body.light-theme .jornada-diagnostico-item.diag-critico .diag-titulo { color: #b91c1c; }
-body.light-theme .jornada-diagnostico-item.diag-alerta  .diag-titulo { color: #92400e; }
-body.light-theme .jornada-diagnostico-item.diag-ok      .diag-titulo { color: #065f46; }
-body.light-theme .jornada-diagnostico-item.diag-info    .diag-titulo { color: #1e40af; }
-
-body.light-theme .diag-desc { color: #475569; }
-body.light-theme .jornada-diagnostico-title { color: #94a3b8; }
 
 /* ========================================================
    REPAGINAÇÃO GERENCIAL — FILTROS, CLASSIFICAÇÃO E MUDANÇAS
@@ -1838,29 +1520,6 @@ body.light-theme .jornada-diagnostico-title { color: #94a3b8; }
 }
 
 /* Light theme da repaginação */
-body.light-theme .jornada-kpi-card.ativo { background: #eff6ff; }
-body.light-theme .jornada-filtro-chip { background: #f8fafc; border-color: #cbd5e1; color: #334155; }
-body.light-theme .jornada-filtro-chip.ativo { background: #1d4ed8; border-color: #1d4ed8; color: #ffffff; }
-body.light-theme .jornada-filtro-qtd { background: rgba(15, 23, 42, 0.08); }
-body.light-theme .jornada-filtro-chip.ativo .jornada-filtro-qtd { background: rgba(255, 255, 255, 0.25); color: #ffffff; }
-body.light-theme .jornada-tipo-pill.fast { background: #ecfdf5; color: #047857; border-color: #6ee7b7; }
-body.light-theme .jornada-tipo-pill.safety { background: #fef2f2; color: #b91c1c; border-color: #fca5a5; }
-body.light-theme .jornada-tipo-pill.sem-score { background: #f8fafc; color: #475569; border-color: #94a3b8; }
-body.light-theme .jornada-faixa,
-body.light-theme .jornada-mudanca-score,
-body.light-theme .jornada-causa { background: #f8fafc; border-color: #e2e8f0; }
-body.light-theme .jornada-faixa-barra { background: #e2e8f0; }
-body.light-theme .jornada-mudanca-marcador { background: #ffffff; box-shadow: 0 0 0 2px #ffffff; }
-body.light-theme .jornada-mudanca-marcador.safety { border-color: #dc2626; }
-body.light-theme .jornada-mudanca-marcador.fast { border-color: #059669; }
-body.light-theme .jornada-mudanca-marcador.ativo { background: #0f172a; }
-body.light-theme .jornada-causa-linha { color: #0f172a; }
-body.light-theme .jornada-causa-detalhes { color: #334155; }
-body.light-theme .jornada-mudanca-score strong.fast { color: #047857; }
-body.light-theme .jornada-mudanca-score strong.safety { color: #b91c1c; }
-body.light-theme .jornada-link-btn,
-body.light-theme .jornada-causa-link { color: #1d4ed8; }
-body.light-theme .jornada-stage-badge.estimado { background: #f1f5f9; color: #334155; border-color: #94a3b8; }
 
 .jornada-introducao h2 { margin: 0 0 0.5rem; font-size: 1.4rem; }
 .jornada-introducao p { margin: 0; color: #94a3b8; line-height: 1.5; }
@@ -1886,22 +1545,6 @@ body.light-theme .jornada-stage-badge.estimado { background: #f1f5f9; color: #33
 .jornada-mudanca-icone.fast { border-color: #10b981; }
 .jornada-mudanca-icone.safety { border-color: #ef4444; }
 .jornada-ver-motivo { margin-left: auto; font-size: 0.75rem; color: #60a5fa; white-space: nowrap; }
-body.light-theme .jornada-introducao p, body.light-theme .jornada-lista-mudancas small { color: #475569; }
-body.light-theme .jornada-introducao h2, body.light-theme .jornada-lista-mudancas summary { color: #0f172a; }
-body.light-theme .jornada-bloco-titulo,
-body.light-theme .jornada-legenda,
-body.light-theme .jornada-faixa-nota,
-body.light-theme .jornada-stepper-ajuda,
-body.light-theme .jornada-diagnostico-title,
-body.light-theme .jornada-focus-oc-header,
-body.light-theme .jornada-causa-descricao,
-body.light-theme .jornada-faixa-eixo,
-body.light-theme .jornada-mudanca-score p,
-body.light-theme .jornada-mudanca-score span { color: #475569; }
-body.light-theme .jornada-causa-linha b.negativo { color: #b91c1c; }
-body.light-theme .jornada-causa-linha b.positivo { color: #047857; }
-body.light-theme .jornada-lista-mudancas button { border-color: #cbd5e1; }
-body.light-theme .jornada-ver-motivo { color: #1d4ed8; }
 @media (max-width: 600px) {
   .jornada-section-card { padding: 1rem; }
   .jornada-ver-motivo { display: none; }

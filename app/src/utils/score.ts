@@ -177,11 +177,10 @@ export function criarAjusteTemporarioScore(
  * dentro do prazo (ex.: reduções por contato recente com o Suporte). Ajustes vencidos
  * são ignorados, sem precisar de uma limpeza ativa dos dados salvos.
  */
-export function calcularScoreEfetivo(empresa: Pick<Empresa, "score" | "scoreAjustesTemporarios">): number | undefined {
+export function calcularScoreEfetivo(empresa: Pick<Empresa, "score" | "scoreAjustesTemporarios">, agora = Date.now()): number | undefined {
   if (typeof empresa.score !== "number") return undefined;
-  const agora = Date.now();
   const reducaoAtiva = (empresa.scoreAjustesTemporarios || [])
-    .filter((a) => a.expiraEm > agora)
+    .filter((a) => a.criadoEm <= agora && a.expiraEm > agora)
     .reduce((soma, a) => soma + a.valor, 0);
   return empresa.score - reducaoAtiva;
 }
@@ -195,10 +194,35 @@ export function calcularScoreEfetivo(empresa: Pick<Empresa, "score" | "scoreAjus
  */
 export function obterTipoEfetivo(
   empresa: Pick<Empresa, "score" | "scoreAjustesTemporarios" | "tipo">,
+  agora = Date.now(),
 ): "Fast" | "Safety" | "" {
-  const scoreEfetivo = calcularScoreEfetivo(empresa);
+  const scoreEfetivo = calcularScoreEfetivo(empresa, agora);
   if (typeof scoreEfetivo !== "number") return empresa.tipo;
   return scoreEfetivo >= 6 ? "Fast" : "Safety";
+}
+
+const formatarPontos = (valor: number) => valor.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
+
+/**
+ * Descrição da ocorrência "Mudança de score" a registrar quando uma nova redução temporária
+ * derruba o tipo efetivo de Fast para Safety; `null` quando a redução não muda o tipo.
+ * O texto não usa "Score atual:" de propósito: é o score efetivo, não um novo cálculo.
+ */
+export function descreverQuedaParaSafetyPorReducao(
+  empresa: Pick<Empresa, "score" | "scoreAjustesTemporarios" | "tipo">,
+  ajustesNovos: NonNullable<Empresa["scoreAjustesTemporarios"]>,
+  motivo: string,
+): string | null {
+  const depois = { ...empresa, scoreAjustesTemporarios: ajustesNovos };
+  if (obterTipoEfetivo(empresa) !== "Fast" || obterTipoEfetivo(depois) !== "Safety") return null;
+  const efetivo = calcularScoreEfetivo(depois) as number;
+  const base = empresa.score as number;
+  return `Mudança automática de Fast para Safety
+
+Motivo: ${motivo}
+Score base: ${formatarPontos(base)}
+Reduções temporárias ativas: −${formatarPontos(base - efetivo)}
+Score efetivo: ${formatarPontos(efetivo)}`;
 }
 
 /** Rótulo curto exibido no resumo do score para cada motivo de redução temporária. */

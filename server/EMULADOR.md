@@ -38,6 +38,18 @@ rodando só na sua máquina, com dados de exemplo, sem tocar em produção.
 Com `USE_FIREBASE_EMULATOR=true`, o backend ignora `serviceAccountKey.json` — não
 precisa dele para rodar contra o emulador.
 
+## Exemplos para a jornada do cliente
+
+Com o Firestore local já rodando, execute em `server/`:
+
+```powershell
+npm run seed:jornada
+```
+
+Acrescenta 8 clientes e 95 ocorrências sintéticas, identificados por `[Demo Jornada]`, sem apagar os dados ou usuários existentes. Os IDs começam com `demo-jornada-`; repetir o comando atualiza apenas esses exemplos com datas relativas ao dia atual. O script fixa o destino em `127.0.0.1:8080`, ignora `.env` e não lê credenciais de produção.
+
+No Radar, abra Relatórios > Jornada do cliente e busque `Demo Jornada`. Use Todos para incluir a jornada concluída. Há exemplos de queda por suporte, recuperação após 15 dias, mudança pelas respostas do questionário, Fast estável e ausência de score. O comando não cria logins; use os usuários locais já cadastrados. Detalhes das regras em `app/JORNADA_CLIENTE.md`.
+
 ## O que NÃO depende do emulador
 
 A sincronização do SSX Desk ainda faz chamadas HTTP reais ao vendor (`SSX_DESK_API_KEY`)

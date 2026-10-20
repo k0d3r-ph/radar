@@ -16,6 +16,7 @@ import {
 import {
   listarEmpresas,
   salvarEmpresas,
+  aplicarReducaoScoreEmpresa,
   isEmpresaInterna,
 } from "../../services/empresas";
 import {
@@ -2204,24 +2205,30 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       const regra = regraPorDepartamento[form.departamento];
       if (regra) {
         try {
-          const agora = Date.now();
-          const ajustesAtivos = (
-            empresaObjeto.scoreAjustesTemporarios || []
-          ).filter((a) => a.expiraEm > agora);
-          await salvarEmpresas({
-            id: empresaObjeto.id,
-            scoreAjustesTemporarios: [
-              ...ajustesAtivos,
-              criarAjusteTemporarioScore(
-                regra.motivo,
-                regra.valor,
-                regra.dias,
-                savedId,
-              ),
-            ],
-          });
+          if (!empresaObjeto.id) throw new Error("Cliente sem identificador.");
+          const quedaParaSafety = await aplicarReducaoScoreEmpresa(
+            empresaObjeto.id,
+            criarAjusteTemporarioScore(
+              regra.motivo,
+              regra.valor,
+              regra.dias,
+              savedId,
+            ),
+            `dúvida registrada com o ${form.departamento} reduziu o score em ${regra.valor} ponto por ${regra.dias} dias.`,
+          );
+          if (quedaParaSafety) {
+            await salvarOcorrencia({
+              empresa: form.empresa,
+              tipo: "Mudança de score",
+              descricao: quedaParaSafety,
+              responsavel: responsavelFinal,
+              departamento: form.departamento || "CS",
+              dataOcorrencia: 0,
+            });
+          }
         } catch (error) {
           console.error("Erro ao aplicar redução temporária de score:", error);
+          toast.warning("Ocorrência salva, mas não foi possível atualizar a redução de score. Confira o score do cliente.");
         }
       }
     }
@@ -2254,27 +2261,33 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
           (24 * 60 * 60 * 1000);
         if (diffDias > LIMITE_DIAS_GAP_AGENDA) {
           try {
-            const agora = Date.now();
-            const ajustesAtivos = (
-              empresaObjeto.scoreAjustesTemporarios || []
-            ).filter((a) => a.expiraEm > agora);
-            await salvarEmpresas({
-              id: empresaObjeto.id,
-              scoreAjustesTemporarios: [
-                ...ajustesAtivos,
-                criarAjusteTemporarioScore(
-                  MOTIVO_REDUCAO_SCORE_GAP_AGENDA,
-                  VALOR_REDUCAO_SCORE_GAP_AGENDA,
-                  DIAS_REDUCAO_SCORE_GAP_AGENDA,
-                  savedId,
-                ),
-              ],
-            });
+            if (!empresaObjeto.id) throw new Error("Cliente sem identificador.");
+            const quedaParaSafety = await aplicarReducaoScoreEmpresa(
+              empresaObjeto.id,
+              criarAjusteTemporarioScore(
+                MOTIVO_REDUCAO_SCORE_GAP_AGENDA,
+                VALOR_REDUCAO_SCORE_GAP_AGENDA,
+                DIAS_REDUCAO_SCORE_GAP_AGENDA,
+                savedId,
+              ),
+              `intervalo de ${Math.floor(diffDias)} dias entre agendas reduziu o score em ${VALOR_REDUCAO_SCORE_GAP_AGENDA} ponto por ${DIAS_REDUCAO_SCORE_GAP_AGENDA} dias.`,
+            );
+            if (quedaParaSafety) {
+              await salvarOcorrencia({
+                empresa: form.empresa,
+                tipo: "Mudança de score",
+                descricao: quedaParaSafety,
+                responsavel: responsavelFinal,
+                departamento: form.departamento || "CS",
+                dataOcorrencia: 0,
+              });
+            }
           } catch (error) {
             console.error(
               "Erro ao aplicar redução temporária de score (gap de agenda):",
               error,
             );
+            toast.warning("Ocorrência salva, mas não foi possível atualizar a redução de score pelo intervalo entre agendas. Confira o score do cliente.");
           }
         }
       }

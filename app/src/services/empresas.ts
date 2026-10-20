@@ -14,6 +14,7 @@ import { auth, db } from "./firebase";
 import type { Empresa } from "../types";
 import { normalizarTelefoneWhatsApp } from "../utils/telefone";
 import { sincronizarColecao } from "./sincronizacaoIncremental";
+import { descreverQuedaParaSafetyPorReducao, obterTipoEfetivo } from "../utils/score";
 
 const COLLECTION = "empresas";
 
@@ -48,6 +49,32 @@ let cachedEmpresas: Empresa[] | null = null;
 let lastFetchEmpresas = 0;
 let cachedUsuario: string | undefined;
 const CACHE_TTL = 300000; // 5 minutos (300.000 ms)
+
+/** Lê o score mais recente e aplica cada redução uma única vez, inclusive com gravações concorrentes. */
+export async function aplicarReducaoScoreEmpresa(
+  empresaId: string,
+  ajuste: NonNullable<Empresa["scoreAjustesTemporarios"]>[number],
+  motivo: string,
+): Promise<string | null> {
+  const ref = doc(db, COLLECTION, empresaId);
+  const resultado = await runTransaction(db, async (transaction) => {
+    const documento = await transaction.get(ref);
+    if (!documento.exists()) throw new Error("Cliente não encontrado ao aplicar redução de score.");
+    const atual = documento.data() as Empresa;
+    const anteriores = atual.scoreAjustesTemporarios ?? [];
+    if (ajuste.ocorrenciaId && anteriores.some((a) => a.ocorrenciaId === ajuste.ocorrenciaId && a.motivo === ajuste.motivo)) return null;
+    const agora = Date.now();
+    const ajustes = [...anteriores.filter((a) => a.expiraEm > agora), ajuste];
+    const descricao = descreverQuedaParaSafetyPorReducao(atual, ajustes, motivo);
+    const dados = { scoreAjustesTemporarios: ajustes, tipo: obterTipoEfetivo({ ...atual, scoreAjustesTemporarios: ajustes }), updatedAt: agora };
+    transaction.update(ref, dados);
+    return { dados, descricao };
+  });
+  if (resultado && cachedEmpresas) {
+    cachedEmpresas = cachedEmpresas.map((e) => e.id === empresaId ? { ...e, ...resultado.dados } : e);
+  }
+  return resultado?.descricao ?? null;
+}
 
 export async function salvarEmpresas(
   empresa: Partial<Empresa>,

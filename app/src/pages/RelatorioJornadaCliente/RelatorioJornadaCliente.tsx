@@ -1,10 +1,10 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
+import { Link } from "react-router-dom";
 import {
   Calendar,
   Clock,
   AlertCircle,
   CheckCircle,
-  PlayCircle,
   Search,
   Building,
   GraduationCap,
@@ -19,12 +19,118 @@ import {
   Star,
   XCircle,
   UserX,
-  HelpCircle
+  HelpCircle,
+  ShieldAlert,
+  TrendingDown,
+  TrendingUp,
+  ArrowLeft,
 } from "lucide-react";
 import type { Empresa, Ocorrencia } from "../../types";
 import { formatarNome } from "../../utils/formatarNome";
 import { obterInfoTipoOcorrencia } from "../../utils/empresaUtils";
+import { calcularScoreEfetivo, obterTipoEfetivo } from "../../utils/score";
+import {
+  construirLinhaTempoScore,
+  fatiarIntervaloPorTipo,
+  formatarScore,
+  type CausaMudanca,
+  type MudancaTipoScore,
+  type TipoScore,
+} from "../../utils/historicoScore";
 import "./RelatorioJornadaCliente.css";
+
+const DIA_MS = 24 * 60 * 60 * 1000;
+
+type FiltroLista = "abertos" | "semPasso" | "sla" | "safety" | "viraramSafety" | "todos";
+
+type Selecao = { tipo: "etapa"; indice: number } | { tipo: "mudanca"; indice: number } | null;
+
+const COR_TIPO: Record<"Fast" | "Safety" | "nulo", string> = {
+  Fast: "#10b981",
+  Safety: "#ef4444",
+  nulo: "rgba(148, 163, 184, 0.55)",
+};
+
+const classeTipo = (tipo: TipoScore | null) => (tipo === "Fast" ? "fast" : tipo === "Safety" ? "safety" : "sem-score");
+const rotuloTipo = (tipo: TipoScore | null) => tipo ?? "Sem score";
+
+function tituloMudanca(m: MudancaTipoScore): string {
+  if (m.de === null) return `Primeira classificação: ${rotuloTipo(m.para)}`;
+  if (m.para === null) return "Score marcado como Neutro";
+  return m.para === "Safety" ? "Virou Safety" : "Voltou para Fast";
+}
+
+interface ResumoCliente {
+  isFinalizado: boolean;
+  isCancelled?: boolean;
+  etapaAtual: string;
+  slaEstouradoAtual: boolean;
+  tipoAtual: TipoScore | null;
+  virouSafetyRecente: boolean;
+}
+
+const emAberto = (c: ResumoCliente) => !c.isFinalizado && !c.isCancelled;
+const semPassoAgora = (c: ResumoCliente) => emAberto(c) && c.etapaAtual === "Sem próximo passo definido";
+const foraDoSla = (c: ResumoCliente) => semPassoAgora(c) && c.slaEstouradoAtual;
+
+const CRITERIOS_LISTA: Record<FiltroLista, (c: ResumoCliente) => boolean> = {
+  abertos: emAberto,
+  semPasso: semPassoAgora,
+  sla: foraDoSla,
+  safety: (c) => emAberto(c) && c.tipoAtual === "Safety",
+  viraramSafety: (c) => emAberto(c) && c.virouSafetyRecente,
+  todos: () => true,
+};
+
+/** Mais críticos primeiro: fora do SLA, sem próximo passo, Safety, demais em aberto e encerrados. */
+function prioridadeCliente(c: ResumoCliente): number {
+  if (foraDoSla(c)) return 0;
+  if (semPassoAgora(c)) return 1;
+  if (emAberto(c)) return c.tipoAtual === "Safety" ? 2 : 3;
+  return c.isFinalizado ? 4 : 5;
+}
+
+type Ponto = { x: number; y: number };
+
+/**
+ * Caminho de uma linha da régua entre dois nós: reta na mesma fileira (ou em telas
+ * estreitas) e curva em "U" na virada de fileira. `pontoEm` devolve a posição a uma
+ * fração do caminho, para posicionar os marcadores de mudança de tipo.
+ */
+function geometriaConector(a: Ponto, b: Ponto, larguraTrilha: number) {
+  const reta = Math.abs(b.y - a.y) < 15 || larguraTrilha < 680;
+  if (reta) {
+    return {
+      d: `M ${a.x} ${a.y} L ${b.x} ${b.y}`,
+      pontoEm: (p: number) => ({ x: a.x + (b.x - a.x) * p, y: a.y + (b.y - a.y) * p }),
+    };
+  }
+  const ladoDireito = a.x > larguraTrilha / 2;
+  const deslocamento = 60;
+  const cx = ladoDireito ? Math.max(a.x, b.x) + deslocamento : Math.min(a.x, b.x) - deslocamento;
+  const pontoBezier = (p: number) => {
+    const q = 1 - p;
+    return {
+      x: q * q * q * a.x + 3 * q * q * p * cx + 3 * q * p * p * cx + p * p * p * b.x,
+      y: q * q * q * a.y + 3 * q * q * p * a.y + 3 * q * p * p * b.y + p * p * p * b.y,
+    };
+  };
+  // As cores SVG usam comprimento do caminho; a posição do quadrado usa a mesma medida.
+  const amostras = Array.from({ length: 81 }, (_, i) => pontoBezier(i / 80));
+  const distancias = [0];
+  for (let i = 1; i < amostras.length; i++) {
+    distancias.push(distancias[i - 1] + Math.hypot(amostras[i].x - amostras[i - 1].x, amostras[i].y - amostras[i - 1].y));
+  }
+  return {
+    d: `M ${a.x} ${a.y} C ${cx} ${a.y}, ${cx} ${b.y}, ${b.x} ${b.y}`,
+    pontoEm: (p: number) => {
+      const alvo = Math.max(0, Math.min(1, p)) * distancias[80];
+      const indice = Math.max(1, distancias.findIndex((d) => d >= alvo));
+      const fracao = (alvo - distancias[indice - 1]) / (distancias[indice] - distancias[indice - 1] || 1);
+      return pontoBezier((indice - 1 + fracao) / 80);
+    },
+  };
+}
 
 interface RelatorioJornadaClienteProps {
   empresas: Empresa[];
@@ -49,7 +155,21 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
 }) => {
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [manualStageIndex, setManualStageIndex] = useState<number | null>(null);
+  const [filtroLista, setFiltroLista] = useState<FiltroLista>("abertos");
+  const [selecao, setSelecao] = useState<Selecao>(null);
+  const detalheMudancaRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (selecao?.tipo === "mudanca") {
+      detalheMudancaRef.current?.focus({ preventScroll: true });
+      detalheMudancaRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [selecao]);
+  // Reavalia a expiração das reduções mesmo enquanto o relatório permanece aberto.
+  const [agoraRelatorio, setAgoraRelatorio] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setAgoraRelatorio(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   // Auxiliar para converter "yyyy-mm-dd" em Date
   const parseDataLocal = (dataStr: string): Date | null => {
@@ -438,6 +558,7 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
 
   // 2. Filtra e processa os dados de todas as empresas para a visão consolidada
   const dadosGeraisClientes = useMemo(() => {
+    const agora = Math.max(agoraRelatorio, Date.now());
     return empresas
       .filter((emp) => !emp.isOngoing)
       .map((emp) => {
@@ -463,6 +584,14 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
       // Conta o total de estouros de SLA na jornada inteira
       const totalEstourosSLA = jornada.filter((s) => s.stage === "Sem próximo passo definido" && s.slaBreached).length;
 
+      // Linha Fast/Safety cobre da entrada até hoje (ou até o último marco, se encerrada).
+      const inicioLinha = jornada[0]?.startDate.getTime() ?? parseDataLocal(emp.dataEntrada)?.getTime() ?? agora;
+      const fimLinha = isFinalizado || isCancelado
+        ? Math.max(inicioLinha, ...jornada.map((s) => s.endDate.getTime()))
+        : agora;
+      const linhaScore = construirLinhaTempoScore(emp, ocorrencias, inicioLinha, fimLinha, agora);
+      const limiteRecente = agora - 30 * DIA_MS;
+
       return {
         ...emp,
         jornada,
@@ -471,34 +600,36 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
         slaEstouradoAtual,
         totalEstourosSLA,
         isFinalizado,
+        linhaScore,
+        tipoAtual: (obterTipoEfetivo(emp, agora) || null) as TipoScore | null,
+        scoreAtual: calcularScoreEfetivo(emp, agora) ?? null,
+        virouSafetyRecente: linhaScore.mudancas.some(
+          (m) => m.de === "Fast" && m.para === "Safety" && m.data >= limiteRecente,
+        ),
       };
     });
-  }, [empresas, ocorrencias]);
+  }, [empresas, ocorrencias, agoraRelatorio]);
 
-  // 3. Clientes ativos (esteira em aberto)
-  const clientesAtivos = useMemo(() => {
-    return dadosGeraisClientes.filter((c) => !c.isFinalizado && !c.isOngoing);
+  const contagens = useMemo(() => {
+    const resultado = {} as Record<FiltroLista, number>;
+    (Object.keys(CRITERIOS_LISTA) as FiltroLista[]).forEach((chave) => {
+      resultado[chave] = dadosGeraisClientes.filter(CRITERIOS_LISTA[chave]).length;
+    });
+    return resultado;
   }, [dadosGeraisClientes]);
 
-  // 4. Contagem de KPIs
-  const kpiTotalAtivos = clientesAtivos.length;
-
-  const kpiSemProximoPasso = useMemo(() => {
-    return clientesAtivos.filter((c) => c.etapaAtual === "Sem próximo passo definido").length;
-  }, [clientesAtivos]);
-
-  const kpiForaSla = useMemo(() => {
-    return clientesAtivos.filter((c) => c.etapaAtual === "Sem próximo passo definido" && c.slaEstouradoAtual).length;
-  }, [clientesAtivos]);
-
-  // 5. Filtro de pesquisa na lista (todos os clientes, incluindo finalizados)
   const clientesFiltrados = useMemo(() => {
-    return dadosGeraisClientes.filter(
-      (c) =>
-        c.nomeEmpresa.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (c.responsavel && c.responsavel.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
-  }, [dadosGeraisClientes, searchQuery]);
+    const termo = searchQuery.trim().toLowerCase();
+    return dadosGeraisClientes
+      .filter(CRITERIOS_LISTA[filtroLista])
+      .filter(
+        (c) =>
+          !termo ||
+          c.nomeEmpresa.toLowerCase().includes(termo) ||
+          (c.responsavel || "").toLowerCase().includes(termo),
+      )
+      .sort((a, b) => prioridadeCliente(a) - prioridadeCliente(b) || a.nomeEmpresa.localeCompare(b.nomeEmpresa, "pt-BR"));
+  }, [dadosGeraisClientes, searchQuery, filtroLista]);
 
   // 6. Dados da empresa selecionada (pode ser ativa ou concluída)
   const empresaSelecionadaObj = useMemo(() => {
@@ -507,7 +638,9 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
   }, [selectedCompanyId, dadosGeraisClientes]);
 
   // Define a jornada da empresa selecionada
-  const jornadaSelecionada = empresaSelecionadaObj ? empresaSelecionadaObj.jornada : [];
+  const jornadaSelecionada = useMemo(() => empresaSelecionadaObj?.jornada ?? [], [empresaSelecionadaObj]);
+  const mostrarMarcoAtual = !!empresaSelecionadaObj && !empresaSelecionadaObj.isFinalizado && !empresaSelecionadaObj.isCancelled &&
+    (jornadaSelecionada.at(-1)?.startDate.getTime() ?? Infinity) < empresaSelecionadaObj.linhaScore.fim;
 
   const trackRef = useRef<HTMLDivElement>(null);
   const [points, setPoints] = useState<{ x: number; y: number }[]>([]);
@@ -533,7 +666,7 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
       setPoints(newPoints);
     };
 
-    let rAFId = window.requestAnimationFrame(updatePoints);
+    const rAFId = window.requestAnimationFrame(updatePoints);
 
     const observer = new ResizeObserver(() => {
       updatePoints();
@@ -550,56 +683,43 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
     };
   }, [jornadaSelecionada, selectedCompanyId]);
 
-  const pathD = useMemo(() => {
-    return points.reduce((acc, ponto, index, arr) => {
-      if (index === 0) {
-        return `M ${ponto.x} ${ponto.y}`;
-      }
+  const linhaSelecionada = empresaSelecionadaObj?.linhaScore ?? null;
 
-      const anterior = arr[index - 1];
-      const mesmaLinha = Math.abs(ponto.y - anterior.y) < 15;
-
-      if (mesmaLinha) {
-        return `${acc} L ${ponto.x} ${ponto.y}`;
-      }
-
-      // Se a largura do track for pequena (celular), as etapas se empilham e usamos linha reta vertical simples
-      if (trackWidth < 550) {
-        return `${acc} L ${ponto.x} ${ponto.y}`;
-      }
-
-      // Caso contrário, desenha a curva suave (U-turn) conectando as linhas
-      const isRightSide = anterior.x > trackWidth / 2;
-      const curvaOffset = 60; // Raio/offset do arco da curva
-
-      let c1x, c2x;
-      if (isRightSide) {
-        const maxX = Math.max(anterior.x, ponto.x);
-        c1x = maxX + curvaOffset;
-        c2x = maxX + curvaOffset;
-      } else {
-        const minX = Math.min(anterior.x, ponto.x);
-        c1x = minX - curvaOffset;
-        c2x = minX - curvaOffset;
-      }
-
-      const c1y = anterior.y;
-      const c2y = ponto.y;
-
-      return `${acc} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${ponto.x} ${ponto.y}`;
-    }, "");
-  }, [points, trackWidth]);
+  // Cada linha entre duas etapas representa o período da etapa de origem e é pintada com
+  // a classificação (Fast/Safety) vigente em cada parte desse período.
+  const conectores = useMemo(() => {
+    if (!linhaSelecionada || points.length < 2) return [];
+    return points.slice(0, -1).map((origem, i) => {
+      const geometria = geometriaConector(origem, points[i + 1], trackWidth);
+      const de = jornadaSelecionada[i]?.startDate.getTime() ?? 0;
+      const ate = jornadaSelecionada[i + 1]?.startDate.getTime() ?? linhaSelecionada.fim;
+      const marcadores = ate > de
+        ? linhaSelecionada.mudancas
+            .map((mudanca, indice) => ({ mudanca, indice }))
+            .filter(({ mudanca }) => mudanca.data > de && mudanca.data <= ate)
+            .map(({ mudanca, indice }) => ({
+              indice,
+              mudanca,
+              ...geometria.pontoEm((mudanca.data - de) / (ate - de)),
+            }))
+        : [];
+      return { d: geometria.d, fatias: fatiarIntervaloPorTipo(linhaSelecionada, de, ate), marcadores };
+    });
+  }, [linhaSelecionada, points, trackWidth, jornadaSelecionada]);
 
   // Define o índice selecionado de etapa de forma dinâmica
   const selectedStageIndex = useMemo(() => {
-    if (jornadaSelecionada.length === 0) return null;
-    if (manualStageIndex !== null && manualStageIndex < jornadaSelecionada.length) {
-      return manualStageIndex;
+    if (jornadaSelecionada.length === 0 || selecao?.tipo === "mudanca") return null;
+    if (selecao?.tipo === "etapa" && selecao.indice < jornadaSelecionada.length) {
+      return selecao.indice;
     }
     // Por padrão, seleciona a última etapa (ou a ativa se houver)
     const activeIdx = jornadaSelecionada.findIndex((s) => s.active);
     return activeIdx !== -1 ? activeIdx : jornadaSelecionada.length - 1;
-  }, [jornadaSelecionada, manualStageIndex]);
+  }, [jornadaSelecionada, selecao]);
+
+  const mudancaSelecionada =
+    selecao?.tipo === "mudanca" ? linhaSelecionada?.mudancas[selecao.indice] ?? null : null;
 
   // Etapa selecionada para exibição no card de foco
   const etapaSelecionada = useMemo(() => {
@@ -711,7 +831,7 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
       itens.push({
         tipo: "alerta",
         emoji: "🟠",
-        titulo: `${semPassoSLAViolados.length} violação${semPassoSLAViolados.length > 1 ? "ões" : ""} de SLA (> 4 dias sem passo)`,
+        titulo: `${semPassoSLAViolados.length} ${semPassoSLAViolados.length === 1 ? "violação" : "violações"} de SLA (> 4 dias sem passo)`,
         descricao: `Em ${semPassoSLAViolados.length} momento${semPassoSLAViolados.length > 1 ? "s" : ""} o cliente ficou sem agendamento por mais de 4 dias.`,
       });
     }
@@ -739,7 +859,7 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
     // ─── 4. Cadência de treinamentos realizados ─────────────────────
     const treinamentosRealizados = treinamentos.filter((t) => {
       const s = obterStatusTreinamento(t);
-      return s === "realizado" || s === "agendado";
+      return s === "realizado";
     });
 
     if (treinamentosRealizados.length >= 1) {
@@ -772,7 +892,26 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
       }
     }
 
-    // ─── 6. Jornada saudável (sem alertas) ─────────────────────────
+    // ─── 6. Classificação Fast/Safety ───────────────────────────────
+    const quedasSafety = empresaSelecionadaObj.linhaScore.mudancas.filter((m) => m.de === "Fast" && m.para === "Safety");
+    if (empresaSelecionadaObj.tipoAtual === "Safety" && !empresaSelecionadaObj.isFinalizado && !empresaSelecionadaObj.isCancelled) {
+      itens.push({
+        tipo: "alerta",
+        emoji: "🛡️",
+        titulo: `Atualmente Safety (score ${formatarScore(empresaSelecionadaObj.scoreAtual)})`,
+        descricao: "O cliente está abaixo de 6 pontos. Clique nos quadrados da régua para ver o que derrubou o score.",
+      });
+    }
+    if (quedasSafety.length >= 2) {
+      itens.push({
+        tipo: "alerta",
+        emoji: "📉",
+        titulo: `Caiu para Safety ${quedasSafety.length} vezes`,
+        descricao: "A classificação oscilou ao longo da jornada; vale verificar o padrão de dúvidas e as respostas do score.",
+      });
+    }
+
+    // ─── 7. Jornada saudável (sem alertas) ─────────────────────────
     const temProblema = itens.some((i) => i.tipo === "critico" || i.tipo === "alerta");
     if (!temProblema && treinamentosRealizados.length > 0) {
       itens.push({
@@ -789,7 +928,7 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
   // Handler para quando seleciona da lista rápida
   const selecionarEmpresa = (id: string) => {
     setSelectedCompanyId(id);
-    setManualStageIndex(null); // Reseta a seleção manual do stepper
+    setSelecao(null);
   };
 
   const getStageClass = (stage: string) => {
@@ -864,57 +1003,84 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
 
   return (
     <div className="jornada-container">
-      {/* 1. KPIs Consolidados */}
-      <div className="jornada-kpis-grid">
-        <div className="jornada-kpi-card info-card">
-          <div className="jornada-kpi-header">
-            <span className="jornada-kpi-label">Ativos na Esteira</span>
-            <Activity className="jornada-kpi-icon" size={20} />
-          </div>
-          <span className="jornada-kpi-value">{kpiTotalAtivos}</span>
-          <span className="jornada-kpi-desc">Implantações em aberto</span>
-        </div>
-
-        <div className="jornada-kpi-card info-card" style={{ borderLeftColor: "#f59e0b" }}>
-          <div className="jornada-kpi-header">
-            <span className="jornada-kpi-label">Sem Próximo Passo</span>
-            <Clock className="jornada-kpi-icon" size={20} style={{ color: "#fbbf24" }} />
-          </div>
-          <span className="jornada-kpi-value">{kpiSemProximoPasso}</span>
-          <span className="jornada-kpi-desc">Clientes aguardando agendamento</span>
-        </div>
-
-        <div className={`jornada-kpi-card alert-card ${kpiForaSla > 0 ? "glowing-alert" : ""}`}>
-          <div className="jornada-kpi-header">
-            <span className="jornada-kpi-label">Fora do SLA (&gt; 4 dias)</span>
-            <Flame className="jornada-kpi-icon" size={20} />
-          </div>
-          <span className="jornada-kpi-value" style={{ color: kpiForaSla > 0 ? "#f87171" : "#f1f5f9" }}>
-            {kpiForaSla}
-          </span>
-          <span className="jornada-kpi-desc">Sem passo definido há mais de 4 dias</span>
-        </div>
+      <header className="jornada-introducao">
+        <h2>Jornada do cliente</h2>
+        <p>Identifique clientes que precisam de atenção e entenda o que mudou durante a capacitação.</p>
+      </header>
+      {/* 1. Indicadores — cada um filtra a lista de clientes */}
+      <div className="jornada-kpis-grid" role="group" aria-label="Indicadores da esteira (clique para filtrar a lista)">
+        {(
+          [
+            { chave: "abertos", rotulo: "Em aberto", desc: "Implantações em andamento", icone: <Activity size={20} />, tom: "info" },
+            { chave: "semPasso", rotulo: "Sem próximo passo", desc: "Aguardando agendamento", icone: <Clock size={20} />, tom: "aviso" },
+            { chave: "sla", rotulo: "Fora do SLA", desc: "Sem passo há mais de 4 dias úteis", icone: <Flame size={20} />, tom: "critico" },
+            { chave: "safety", rotulo: "Safety agora", desc: "Em aberto com score abaixo de 6", icone: <ShieldAlert size={20} />, tom: "critico" },
+            { chave: "viraramSafety", rotulo: "Viraram Safety", desc: "Caíram de Fast nos últimos 30 dias", icone: <TrendingDown size={20} />, tom: "aviso" },
+          ] as { chave: FiltroLista; rotulo: string; desc: string; icone: React.ReactNode; tom: string }[]
+        ).map((kpi) => (
+          <button
+            key={kpi.chave}
+            type="button"
+            className={`jornada-kpi-card tom-${kpi.tom} ${filtroLista === kpi.chave ? "ativo" : ""} ${
+              kpi.tom === "critico" && contagens[kpi.chave] > 0 ? "com-ocorrencias" : ""
+            }`}
+            aria-pressed={filtroLista === kpi.chave}
+            onClick={() => setFiltroLista(filtroLista === kpi.chave ? "abertos" : kpi.chave)}
+          >
+            <span className="jornada-kpi-header">
+              <span className="jornada-kpi-label">{kpi.rotulo}</span>
+              <span className="jornada-kpi-icon" aria-hidden="true">{kpi.icone}</span>
+            </span>
+            <span className="jornada-kpi-value">{contagens[kpi.chave]}</span>
+            <span className="jornada-kpi-desc">{kpi.desc}</span>
+          </button>
+        ))}
       </div>
 
       {/* 2. Área principal */}
       <div className="jornada-main-layout">
-        {/* Lado Esquerdo: Lista de Clientes Ativos */}
+        {/* Lado Esquerdo: Lista de Clientes */}
         <div className="jornada-section-card">
           <h3 className="jornada-section-title">
             <Building size={18} />
-            Clientes na Esteira
+            Clientes
           </h3>
 
           <div className="jornada-search-wrapper">
             <input
               type="text"
               placeholder="Buscar cliente ou treinador..."
+              aria-label="Buscar cliente ou treinador"
               className="jornada-search-input"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
             <Search className="jornada-search-icon" size={16} />
           </div>
+
+          <div className="jornada-filtros-lista" role="group" aria-label="Filtrar lista de clientes">
+            {(
+              [
+                ["abertos", "Em aberto"],
+                ["sla", "Fora do SLA"],
+                ["semPasso", "Sem passo"],
+                ["safety", "Safety"],
+                ["viraramSafety", "Viraram Safety"],
+                ["todos", "Todos"],
+              ] as [FiltroLista, string][]
+            ).map(([chave, rotulo]) => (
+              <button
+                key={chave}
+                type="button"
+                className={`jornada-filtro-chip ${filtroLista === chave ? "ativo" : ""}`}
+                aria-pressed={filtroLista === chave}
+                onClick={() => setFiltroLista(chave)}
+              >
+                {rotulo} <span className="jornada-filtro-qtd">{contagens[chave]}</span>
+              </button>
+            ))}
+          </div>
+          <p className="jornada-lista-ordem">Ordenado pelos mais críticos primeiro.</p>
 
           <div className="jornada-clients-list">
             {clientesFiltrados.length > 0 ? (
@@ -951,18 +1117,34 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
                     <div className="jornada-client-info">
                       <span className="jornada-client-name">{c.nomeEmpresa}</span>
                       <span className="jornada-client-meta">
-                        Treinador: {formatarNome(c.responsavel) || "Não definido"}
+                        {formatarNome(c.responsavel) || "Sem treinador"}
+                        {!c.isFinalizado && !c.isCancelled && c.etapaAtual !== "Sem informações" &&
+                          ` · ${c.diasNaEtapaAtual} ${c.diasNaEtapaAtual === 1 ? "dia" : "dias"} na etapa`}
                       </span>
                     </div>
-                    <span className={`jornada-client-stage-badge ${badgeClass}`}>
-                      {isSlaBreached ? "SLA Violado" : stageText}
-                    </span>
+                    <div className="jornada-client-badges">
+                      <span className={`jornada-tipo-pill ${classeTipo(c.tipoAtual)}`}>
+                        {rotuloTipo(c.tipoAtual)}
+                      </span>
+                      <span className={`jornada-client-stage-badge ${badgeClass}`}>
+                        {isSlaBreached ? "SLA Violado" : stageText}
+                      </span>
+                    </div>
                   </button>
                 );
               })
             ) : (
               <div className="jornada-empty-state" style={{ padding: "2rem 1rem" }}>
-                <p>Nenhum cliente ativo encontrado.</p>
+                <p>
+                  {searchQuery.trim()
+                    ? "Nenhum cliente encontrado para essa busca neste filtro."
+                    : "Nenhum cliente neste filtro."}
+                </p>
+                {filtroLista !== "todos" && (
+                  <button type="button" className="jornada-link-btn" onClick={() => setFiltroLista("todos")}>
+                    Ver todos os clientes
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -1025,6 +1207,17 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
                       : "Em aberto"}
                   </strong>
                 </div>
+                <div className="jornada-detail-info-item">
+                  <span>Classificação atual</span>
+                  <strong>
+                    <span className={`jornada-tipo-pill ${classeTipo(empresaSelecionadaObj.tipoAtual)}`}>
+                      {rotuloTipo(empresaSelecionadaObj.tipoAtual)}
+                    </span>
+                    {empresaSelecionadaObj.scoreAtual !== null && (
+                      <span className="jornada-score-valor">score {formatarScore(empresaSelecionadaObj.scoreAtual)}</span>
+                    )}
+                  </strong>
+                </div>
                 {empresaSelecionadaObj.totalEstourosSLA > 0 && (
                   <div className="jornada-detail-info-item">
                     <span>Estouros de SLA</span>
@@ -1059,12 +1252,105 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
               )}
 
               {/* ========================================================
+                 FAIXA DE CLASSIFICAÇÃO (FAST/SAFETY) AO LONGO DO TEMPO
+                 ======================================================== */}
+              {linhaSelecionada && (() => {
+                const duracao = Math.max(1, linhaSelecionada.fim - linhaSelecionada.inicio);
+                const posicao = (t: number) => `${((t - linhaSelecionada.inicio) / duracao) * 100}%`;
+                const encerrada = empresaSelecionadaObj.isFinalizado || empresaSelecionadaObj.isCancelled;
+                return (
+                  <section className="jornada-faixa" aria-labelledby="jornada-faixa-titulo">
+                    <div className="jornada-faixa-header">
+                      <h5 id="jornada-faixa-titulo" className="jornada-bloco-titulo">Classificação ao longo da jornada</h5>
+                      <ul className="jornada-legenda">
+                        <li><span className="jornada-legenda-cor fast" aria-hidden="true" />Fast (score ≥ 6)</li>
+                        <li><span className="jornada-legenda-cor safety" aria-hidden="true" />Safety (score &lt; 6)</li>
+                        <li><span className="jornada-legenda-cor sem-score" aria-hidden="true" />Sem score</li>
+                        <li><span className="jornada-legenda-marcador" aria-hidden="true" />Mudança — clique para ver o motivo</li>
+                      </ul>
+                    </div>
+                    <div className="jornada-faixa-barra">
+                      {linhaSelecionada.trechos.map((trecho) => {
+                        const largura = ((trecho.fim - trecho.inicio) / duracao) * 100;
+                        return (
+                          <div
+                            key={trecho.inicio}
+                            className={`jornada-faixa-trecho ${classeTipo(trecho.tipo)} ${trecho.estimado ? "estimado" : ""}`}
+                            style={{ left: posicao(trecho.inicio), width: `${largura}%` }}
+                            title={`${rotuloTipo(trecho.tipo)}: ${new Date(trecho.inicio).toLocaleDateString("pt-BR")} a ${new Date(trecho.fim).toLocaleDateString("pt-BR")}${trecho.estimado ? " (estimado)" : ""}`}
+                          >
+                            {largura >= 9 && <b className="jornada-faixa-rotulo">{rotuloTipo(trecho.tipo)}</b>}
+                          </div>
+                        );
+                      })}
+                      {linhaSelecionada.mudancas.map((mudanca, indice) => (
+                        <button
+                          key={mudanca.data}
+                          type="button"
+                          className={`jornada-mudanca-marcador ${classeTipo(mudanca.para)} ${
+                            mudancaSelecionada === mudanca ? "ativo" : ""
+                          }`}
+                          style={{ left: posicao(mudanca.data) }}
+                          aria-label={`${tituloMudanca(mudanca)} em ${new Date(mudanca.data).toLocaleDateString("pt-BR")}. Ver o motivo.`}
+                          title={`${tituloMudanca(mudanca)} em ${new Date(mudanca.data).toLocaleDateString("pt-BR")}`}
+                          onClick={() => setSelecao({ tipo: "mudanca", indice })}
+                        />
+                      ))}
+                    </div>
+                    <div className="jornada-faixa-eixo">
+                      <span>{new Date(linhaSelecionada.inicio).toLocaleDateString("pt-BR")}</span>
+                      <span>{encerrada ? new Date(linhaSelecionada.fim).toLocaleDateString("pt-BR") : "Hoje"}</span>
+                    </div>
+                    {linhaSelecionada.mudancas.length === 0 && (
+                      <p className="jornada-faixa-nota">
+                        {linhaSelecionada.trechos.every((t) => t.tipo === null)
+                          ? "Nenhum cálculo de score registrado para este cliente."
+                          : "A classificação não mudou ao longo da jornada."}
+                      </p>
+                    )}
+                    {linhaSelecionada.temEstimativa && (
+                      <p className="jornada-faixa-nota">
+                        Trechos hachurados são estimativas com base no score atual ou em reduções antigas deduzidas
+                        das ocorrências. O histórico disponível pode não registrar ajustes removidos ou alterados.
+                      </p>
+                    )}
+                    {linhaSelecionada.mudancas.length > 0 && (
+                      <details className="jornada-lista-mudancas" open>
+                        <summary>Mudanças de classificação ({linhaSelecionada.mudancas.length})</summary>
+                        <ol>
+                          {linhaSelecionada.mudancas.map((mudanca, indice) => (
+                            <li key={mudanca.data}>
+                              <button type="button" aria-pressed={selecao?.tipo === "mudanca" && selecao.indice === indice}
+                                onClick={() => setSelecao({ tipo: "mudanca", indice })}>
+                                <span className={`jornada-mudanca-icone ${classeTipo(mudanca.para)}`} aria-hidden="true" />
+                                <span><strong>{tituloMudanca(mudanca)}</strong>
+                                  <small>{new Date(mudanca.data).toLocaleDateString("pt-BR")} · {formatarScore(mudanca.scoreAntes)} → {formatarScore(mudanca.scoreDepois)}{mudanca.estimado ? " · Estimado" : ""}</small>
+                                  <small>{mudanca.causas.map((c) => c.texto).join("; ")}</small>
+                                </span>
+                                <span className="jornada-ver-motivo">Ver motivo</span>
+                              </button>
+                            </li>
+                          ))}
+                        </ol>
+                      </details>
+                    )}
+                  </section>
+                );
+              })()}
+
+              {/* ========================================================
                  STEPPER HORIZONTAL INTERATIVO
                  ======================================================== */}
               <div className="jornada-stepper-container">
-                <div className={`jornada-stepper-track ${trackWidth >= 550 ? "use-grid" : ""}`} ref={trackRef}>
-                  {points.length > 1 && (
+                <h5 className="jornada-bloco-titulo">Etapas da jornada</h5>
+                <p className="jornada-stepper-ajuda">
+                  A cor de cada linha mostra a classificação do cliente durante a etapa: verde Fast, vermelho Safety e
+                  cinza sem score. Os quadrados marcam quando ele mudou de classificação.
+                </p>
+                <div className={`jornada-stepper-track ${trackWidth >= 680 ? "use-grid" : ""}`} ref={trackRef}>
+                  {conectores.length > 0 && (
                     <svg
+                      aria-hidden="true"
                       style={{
                         position: "absolute",
                         top: 0,
@@ -1073,25 +1359,48 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
                         height: "100%",
                         pointerEvents: "none",
                         zIndex: 1,
+                        overflow: "visible",
                       }}
                     >
-                      <path
-                        d={pathD}
-                        fill="none"
-                        className="jornada-stepper-line"
-                        strokeWidth={3}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
+                      {conectores.map((conector, i) => (
+                        <g key={i}>
+                          <path d={conector.d} fill="none" className="jornada-stepper-line" strokeWidth={4} strokeLinecap="round" />
+                          {conector.fatias.map((fatia, j) => (
+                            <path
+                              key={j}
+                              d={conector.d}
+                              fill="none"
+                              pathLength={100}
+                              stroke={COR_TIPO[fatia.tipo ?? "nulo"]}
+                              strokeWidth={4}
+                              strokeLinecap="butt"
+                              strokeDasharray={`0 ${fatia.inicio * 100} ${(fatia.fim - fatia.inicio) * 100} 100`}
+                            />
+                          ))}
+                        </g>
+                      ))}
                     </svg>
                   )}
+                  {conectores.flatMap((conector) => conector.marcadores).map((marcador) => (
+                    <button
+                      key={marcador.indice}
+                      type="button"
+                      className={`jornada-mudanca-marcador na-regua ${classeTipo(marcador.mudanca.para)} ${
+                        mudancaSelecionada === marcador.mudanca ? "ativo" : ""
+                      }`}
+                      style={{ left: marcador.x, top: marcador.y }}
+                      aria-label={`${tituloMudanca(marcador.mudanca)} em ${new Date(marcador.mudanca.data).toLocaleDateString("pt-BR")}. Ver o motivo.`}
+                      title={`${tituloMudanca(marcador.mudanca)} em ${new Date(marcador.mudanca.data).toLocaleDateString("pt-BR")}`}
+                      onClick={() => setSelecao({ tipo: "mudanca", indice: marcador.indice })}
+                    />
+                  ))}
                   {jornadaSelecionada.map((item, idx) => {
                     const isSlaBreached = item.stage === "Sem próximo passo definido" && item.slaBreached;
                     const isSelected = selectedStageIndex === idx;
                     const statusTreinamento = obterStatusTreinamento(item);
                     const statusClass = statusTreinamento === "cancelado" ? "cancelado" : statusTreinamento === "ausente" ? "ausente" : "";
 
-                    const isUseGrid = trackWidth >= 550;
+                    const isUseGrid = trackWidth >= 680;
                     const row = Math.floor(idx / 5);
                     const col = isUseGrid && row % 2 !== 0 ? 4 - (idx % 5) : idx % 5;
                     const nodeStyle = isUseGrid ? {
@@ -1106,7 +1415,8 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
                         className={`jornada-step-node ${getStageClass(item.stage)} ${statusClass} ${
                           isSlaBreached ? "sla-violated" : ""
                         } ${isSelected ? "selected-node" : ""}`}
-                        onClick={() => setManualStageIndex(idx)}
+                        aria-pressed={isSelected}
+                        onClick={() => setSelecao({ tipo: "etapa", indice: idx })}
                       >
                         <div className="jornada-step-circle">
                           {renderStageIcon(item.stage, 16, statusTreinamento)}
@@ -1175,8 +1485,121 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
                       </button>
                     );
                   })}
+                  {mostrarMarcoAtual && (() => {
+                    const indice = jornadaSelecionada.length;
+                    const linha = Math.floor(indice / 5);
+                    return <div className="jornada-step-node jornada-step-hoje"
+                      style={trackWidth >= 680 ? { gridRow: linha + 1, gridColumn: (linha % 2 ? 4 - indice % 5 : indice % 5) + 1 } : undefined}>
+                      <div className="jornada-step-circle"><Clock size={16} aria-hidden="true" /></div>
+                      <span className="jornada-step-name">Hoje</span>
+                      <span className={`jornada-tipo-pill ${classeTipo(empresaSelecionadaObj.tipoAtual)}`}>
+                        {rotuloTipo(empresaSelecionadaObj.tipoAtual)}
+                      </span>
+                    </div>;
+                  })()}
                 </div>
               </div>
+
+              {/* ========================================================
+                 DETALHE DE UMA MUDANÇA DE CLASSIFICAÇÃO
+                 ======================================================== */}
+              {mudancaSelecionada && (
+                <div ref={detalheMudancaRef} tabIndex={-1} role="region" aria-label="Detalhes da mudança de classificação"
+                  className={`jornada-focus-card jornada-mudanca-card ${classeTipo(mudancaSelecionada.para)}`}>
+                  <div className="jornada-focus-header">
+                    <div className="jornada-focus-title-group">
+                      <h4 className="jornada-focus-title">
+                        {mudancaSelecionada.para === "Safety" ? (
+                          <TrendingDown size={20} aria-hidden="true" />
+                        ) : (
+                          <TrendingUp size={20} aria-hidden="true" />
+                        )}{" "}
+                        {tituloMudanca(mudancaSelecionada)}
+                      </h4>
+                      <div className="jornada-focus-badges">
+                        <span className="jornada-stage-badge em-andamento">
+                          <Calendar size={12} aria-hidden="true" />
+                          {new Date(mudancaSelecionada.data).toLocaleDateString("pt-BR")}
+                        </span>
+                        {mudancaSelecionada.estimado && (
+                          <span className="jornada-stage-badge estimado" title="Inclui reduções antigas deduzidas das ocorrências">
+                            Estimado
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <button type="button" className="jornada-link-btn" onClick={() => setSelecao(null)}>
+                      <ArrowLeft size={14} aria-hidden="true" /> Voltar para a etapa atual
+                    </button>
+                  </div>
+
+                  <div className="jornada-mudanca-score">
+                    <div>
+                      <span>Antes</span>
+                      <strong className={classeTipo(mudancaSelecionada.de)}>
+                        {rotuloTipo(mudancaSelecionada.de)} · {formatarScore(mudancaSelecionada.scoreAntes)}
+                      </strong>
+                    </div>
+                    <span className="jornada-mudanca-seta" aria-hidden="true">→</span>
+                    <div>
+                      <span>Depois</span>
+                      <strong className={classeTipo(mudancaSelecionada.para)}>
+                        {rotuloTipo(mudancaSelecionada.para)} · {formatarScore(mudancaSelecionada.scoreDepois)}
+                      </strong>
+                    </div>
+                    <p>Score efetivo = último cálculo de score − reduções temporárias ativas. Fast a partir de 6 pontos.</p>
+                  </div>
+
+                  <div>
+                    <h5 className="jornada-focus-oc-header">Por que mudou</h5>
+                    <ul className="jornada-causas">
+                      {mudancaSelecionada.causas.map((causa: CausaMudanca, i) => (
+                        <li key={i} className={`jornada-causa ${causa.natureza}`}>
+                          <div className="jornada-causa-linha">
+                            <span>{causa.texto}</span>
+                            {causa.pontos !== undefined && causa.pontos !== 0 && (
+                              <b className={causa.pontos < 0 ? "negativo" : "positivo"}>
+                                {causa.pontos > 0 ? "+" : "−"}
+                                {formatarScore(Math.abs(causa.pontos))} pt
+                              </b>
+                            )}
+                          </div>
+                          {causa.detalhes && (
+                            <ul className="jornada-causa-detalhes">
+                              {causa.detalhes.map((detalhe) => <li key={detalhe}>{detalhe}</li>)}
+                            </ul>
+                          )}
+                          {causa.ocorrencia?.descricao && causa.natureza !== "calculo" && (
+                            <p className="jornada-causa-descricao">“{causa.ocorrencia.descricao.slice(0, 180)}”</p>
+                          )}
+                          {causa.ocorrencia?.id && (
+                            <Link
+                              className="jornada-causa-link"
+                              to={`/historico?empresa=${encodeURIComponent(empresaSelecionadaObj.nomeEmpresa)}&ocorrencia=${causa.ocorrencia.id}`}
+                            >
+                              Ver ocorrência {causa.ocorrencia.idSeqFormatted ?? ""} no Histórico
+                            </Link>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {mudancaSelecionada.reducoesAtivas.length > 0 && (
+                    <div>
+                      <h5 className="jornada-focus-oc-header">Reduções valendo a partir desta data</h5>
+                      <ul className="jornada-causa-detalhes">
+                        {mudancaSelecionada.reducoesAtivas.map((r) => (
+                          <li key={`${r.motivo}-${r.inicio}`}>
+                            {r.motivo} — até {new Date(r.fim).toLocaleDateString("pt-BR")} (−{formatarScore(r.valor)} pt)
+                            {r.estimado ? " · estimada" : ""}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* ========================================================
                  NOVO: CARD DE FOCO DINÂMICO
@@ -1459,8 +1882,8 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
                                 <div key={i} className="hist-atualizacao-item" style={{ padding: "8px 12px" }}>
                                   <span className="hist-atualizacao-meta">
                                     Atualização em{" "}
-                                    {new Date(at.updatedAt || at.createdAt || 0).toLocaleDateString("pt-BR")}{" "}
-                                    {new Date(at.updatedAt || at.createdAt || 0).toLocaleTimeString("pt-BR", {
+                                    {new Date(at.updatedAt || 0).toLocaleDateString("pt-BR")}{" "}
+                                    {new Date(at.updatedAt || 0).toLocaleTimeString("pt-BR", {
                                       hour: "2-digit",
                                       minute: "2-digit",
                                     })}
@@ -1480,14 +1903,10 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
                     <div className="jornada-focus-ocorrencia-section" style={{ borderTop: "1px solid rgba(255, 255, 255, 0.05)", paddingTop: "1.25rem", marginTop: "1.25rem" }}>
                       <h5 className="jornada-focus-oc-header">
                         <FileText size={14} style={{ marginRight: 6, verticalAlign: "middle" }} />
-                        {etapaSelecionada.stage === "Sem próximo passo definido" 
-                          ? "Ocorrência de Resolução (Agendamento)" 
-                          : "Ocorrência de Conclusão / Finalização"}
+                        Ocorrência de Conclusão / Finalização
                       </h5>
                       <p style={{ fontSize: "0.85rem", color: "#94a3b8", marginBottom: "0.75rem", marginTop: "-0.25rem" }}>
-                        {etapaSelecionada.stage === "Sem próximo passo definido"
-                          ? 'Esta etapa "Sem próximo passo definido" foi encerrada pelo agendamento da seguinte ocorrência:'
-                          : 'Esta etapa foi encerrada/concluída pela seguinte ocorrência:'}
+                        Esta etapa foi encerrada/concluída pela seguinte ocorrência:
                       </p>
 
                       <div className="jornada-focus-grid" style={{ background: "none", padding: 0, border: "none" }}>
@@ -1543,8 +1962,8 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
                                 <div key={i} className="hist-atualizacao-item" style={{ padding: "8px 12px" }}>
                                   <span className="hist-atualizacao-meta">
                                     Atualização em{" "}
-                                    {new Date(at.updatedAt || at.createdAt || 0).toLocaleDateString("pt-BR")}{" "}
-                                    {new Date(at.updatedAt || at.createdAt || 0).toLocaleTimeString("pt-BR", {
+                                    {new Date(at.updatedAt || 0).toLocaleDateString("pt-BR")}{" "}
+                                    {new Date(at.updatedAt || 0).toLocaleTimeString("pt-BR", {
                                       hour: "2-digit",
                                       minute: "2-digit",
                                     })}

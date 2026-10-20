@@ -15,6 +15,7 @@
     "sincronizar-ssx-desk": "tsx scripts/sincronizarSsxDesk.ts",
     "emulators": "firebase emulators:start --config ../firebase.json --import ../.emulator-data --export-on-exit",
     "seed:emulador": "tsx scripts/seedEmulador.ts",
+    "seed:jornada": "tsx scripts/seedJornadaEmulador.ts",
     "test:ssx-desk": "npm run build && node --test tests/ssxDesk.test.mjs",
     "test:favoritos": "npm run build && node --test tests/favoritos.test.mjs",
     "test:sincronizacao": "npm run build && node --test tests/sincronizacao.test.mjs",

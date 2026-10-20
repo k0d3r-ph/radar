@@ -297,6 +297,13 @@ export default function Home() {
   const [filtroElegivelDeducao, setFiltroElegivelDeducao] = useState<boolean>(
     () => sessionStorage.getItem("filtroElegivelDeducao") === "true",
   );
+  const [filtroLoboSolitario, setFiltroLoboSolitario] = useState<boolean>(
+    () => sessionStorage.getItem("filtroLoboSolitario") === "true",
+  );
+  // Esvazia as demais esteiras e deixa só a de Suspensos (aberta).
+  const [filtroSomenteSuspensos, setFiltroSomenteSuspensos] = useState<boolean>(
+    () => sessionStorage.getItem("filtroSomenteSuspensos") === "true",
+  );
   // Mostra só clientes dentro do prazo do Gol (até o 30º dia na esteira).
   const [filtroDia30, setFiltroDia30] = useState<boolean>(
     () => sessionStorage.getItem("filtroDia30") === "true",
@@ -1104,6 +1111,11 @@ export default function Home() {
       String(filtroElegivelDeducao),
     );
     sessionStorage.setItem("filtroDia30", String(filtroDia30));
+    sessionStorage.setItem("filtroLoboSolitario", String(filtroLoboSolitario));
+    sessionStorage.setItem(
+      "filtroSomenteSuspensos",
+      String(filtroSomenteSuspensos),
+    );
     sessionStorage.setItem("ordenacaoContrato", ordenacaoContrato);
     sessionStorage.setItem("ordenacaoScore", ordenacaoScore);
     sessionStorage.setItem("ordenacaoPrincipal", ordenacaoPrincipal);
@@ -1119,6 +1131,8 @@ export default function Home() {
     filtroCardAlerta,
     filtroElegivelDeducao,
     filtroDia30,
+    filtroLoboSolitario,
+    filtroSomenteSuspensos,
     ordenacaoContrato,
     ordenacaoScore,
     ordenacaoPrincipal,
@@ -1390,22 +1404,13 @@ export default function Home() {
     const emAndamento = dadosAtivos.filter(
       (e) => e.progresso > 0 && e.progresso < 100,
     ).length;
-    const safety = dadosAtivos.filter(
-      (e) => obterTipoEfetivo(e) === "Safety",
-    ).length;
-    const fast = dadosAtivos.filter(
-      (e) => obterTipoEfetivo(e) === "Fast",
-    ).length;
-    const alerta = dadosAtivos.filter((e) => e.alerta).length;
-    return { total, concluidos, emAndamento, safety, fast, alerta };
-  }, [dadosAtivos]);
+    // O filtro de churn vale para todas as esteiras, então a contagem também.
+    const alerta = dados.filter((e) => e.alerta).length;
+    return { total, concluidos, emAndamento, alerta };
+  }, [dadosAtivos, dados]);
 
   const handleStatusCardClick = (status: "concluidos" | "andamento") => {
     setFiltroCardStatus((prev) => (prev === status ? "" : status));
-  };
-
-  const handleTipoCardClick = (tipo: "safety" | "fast") => {
-    setFiltroCardTipo((prev) => (prev === tipo ? "" : tipo));
   };
 
   const handleAlertaCardClick = () => {
@@ -1428,6 +1433,8 @@ export default function Home() {
     ordenacaoScore,
     filtroElegivelDeducao,
     filtroDia30,
+    filtroLoboSolitario,
+    filtroSomenteSuspensos,
   ].filter(Boolean).length;
 
   // Esc fecha o modal, clique fora fecha, e o foco volta pro botão "Filtros" ao
@@ -1473,6 +1480,7 @@ export default function Home() {
   };
 
   const dadosAtivosFiltrados = useMemo(() => {
+    if (filtroSomenteSuspensos) return [];
     return dadosAtivos
       .filter((e) => {
         const clienteOk =
@@ -1528,6 +1536,7 @@ export default function Home() {
           !filtroElegivelDeducao || e.gamificacaoDeducaoSuporte?.ativo === true;
 
         const dia30Ok = !filtroDia30 || e.dias <= 30;
+        const loboOk = !filtroLoboSolitario || !!e.loboSolitario;
 
         return (
           clienteOk &&
@@ -1540,7 +1549,8 @@ export default function Home() {
           tipoCardOk &&
           alertaCardOk &&
           elegivelDeducaoOk &&
-          dia30Ok
+          dia30Ok &&
+          loboOk
         );
       })
       .sort((a, b) => {
@@ -1582,6 +1592,8 @@ export default function Home() {
     filtroCardAlerta,
     filtroElegivelDeducao,
     filtroDia30,
+    filtroLoboSolitario,
+    filtroSomenteSuspensos,
     ordenacaoContrato,
     ordenacaoScore,
     ordenacaoPrincipal,
@@ -1590,6 +1602,7 @@ export default function Home() {
   ]);
 
   const dadosOngoingFiltrados = useMemo(() => {
+    if (filtroSomenteSuspensos) return [];
     return dadosOngoing
       .filter((e) => {
         const clienteOk =
@@ -1611,7 +1624,24 @@ export default function Home() {
           compararComercial(e.responsavel, filtroResponsavel, mapaResponsaveis);
         const produtoOk = !filtroProduto || e.produto === filtroProduto;
 
-        return clienteOk && csOk && comercialOk && responsavelOk && produtoOk;
+        const loboOk = !filtroLoboSolitario || !!e.loboSolitario;
+        const tipoEfetivo = obterTipoEfetivo(e);
+        const tipoOk =
+          !filtroCardTipo ||
+          (filtroCardTipo === "safety" && tipoEfetivo === "Safety") ||
+          (filtroCardTipo === "fast" && tipoEfetivo === "Fast");
+        const alertaOk = filtroCardAlerta !== "alerta" || e.alerta;
+
+        return (
+          clienteOk &&
+          csOk &&
+          comercialOk &&
+          responsavelOk &&
+          produtoOk &&
+          loboOk &&
+          tipoOk &&
+          alertaOk
+        );
       })
       .sort((a, b) => {
         let prim = 0;
@@ -1637,6 +1667,10 @@ export default function Home() {
     filtroComercial,
     filtroResponsavel,
     filtroProduto,
+    filtroLoboSolitario,
+    filtroCardTipo,
+    filtroCardAlerta,
+    filtroSomenteSuspensos,
     ordenacaoContrato,
     ordenacaoScore,
     ordenacaoPrincipal,
@@ -1666,7 +1700,24 @@ export default function Home() {
           compararComercial(e.responsavel, filtroResponsavel, mapaResponsaveis);
         const produtoOk = !filtroProduto || e.produto === filtroProduto;
 
-        return clienteOk && csOk && comercialOk && responsavelOk && produtoOk;
+        const loboOk = !filtroLoboSolitario || !!e.loboSolitario;
+        const tipoEfetivo = obterTipoEfetivo(e);
+        const tipoOk =
+          !filtroCardTipo ||
+          (filtroCardTipo === "safety" && tipoEfetivo === "Safety") ||
+          (filtroCardTipo === "fast" && tipoEfetivo === "Fast");
+        const alertaOk = filtroCardAlerta !== "alerta" || e.alerta;
+
+        return (
+          clienteOk &&
+          csOk &&
+          comercialOk &&
+          responsavelOk &&
+          produtoOk &&
+          loboOk &&
+          tipoOk &&
+          alertaOk
+        );
       })
       .sort((a, b) => {
         let prim = 0;
@@ -1692,6 +1743,10 @@ export default function Home() {
     filtroComercial,
     filtroResponsavel,
     filtroProduto,
+    filtroLoboSolitario,
+    filtroCardTipo,
+    filtroCardAlerta,
+    filtroSomenteSuspensos,
     ordenacaoContrato,
     ordenacaoScore,
     ordenacaoPrincipal,
@@ -1700,6 +1755,7 @@ export default function Home() {
   ]);
 
   const dadosConcluidosFiltrados = useMemo(() => {
+    if (filtroSomenteSuspensos) return [];
     return dadosConcluidos
       .filter((e) => {
         const clienteOk =
@@ -1721,7 +1777,24 @@ export default function Home() {
           compararComercial(e.responsavel, filtroResponsavel, mapaResponsaveis);
         const produtoOk = !filtroProduto || e.produto === filtroProduto;
 
-        return clienteOk && csOk && comercialOk && responsavelOk && produtoOk;
+        const loboOk = !filtroLoboSolitario || !!e.loboSolitario;
+        const tipoEfetivo = obterTipoEfetivo(e);
+        const tipoOk =
+          !filtroCardTipo ||
+          (filtroCardTipo === "safety" && tipoEfetivo === "Safety") ||
+          (filtroCardTipo === "fast" && tipoEfetivo === "Fast");
+        const alertaOk = filtroCardAlerta !== "alerta" || e.alerta;
+
+        return (
+          clienteOk &&
+          csOk &&
+          comercialOk &&
+          responsavelOk &&
+          produtoOk &&
+          loboOk &&
+          tipoOk &&
+          alertaOk
+        );
       })
       .sort((a, b) => {
         let prim = 0;
@@ -1747,6 +1820,10 @@ export default function Home() {
     filtroComercial,
     filtroResponsavel,
     filtroProduto,
+    filtroLoboSolitario,
+    filtroCardTipo,
+    filtroCardAlerta,
+    filtroSomenteSuspensos,
     ordenacaoContrato,
     ordenacaoScore,
     ordenacaoPrincipal,
@@ -1755,6 +1832,7 @@ export default function Home() {
   ]);
 
   const dadosCanceladosFiltrados = useMemo(() => {
+    if (filtroSomenteSuspensos) return [];
     return dadosCancelados
       .filter((e) => {
         const clienteOk =
@@ -1776,7 +1854,24 @@ export default function Home() {
           compararComercial(e.responsavel, filtroResponsavel, mapaResponsaveis);
         const produtoOk = !filtroProduto || e.produto === filtroProduto;
 
-        return clienteOk && csOk && comercialOk && responsavelOk && produtoOk;
+        const loboOk = !filtroLoboSolitario || !!e.loboSolitario;
+        const tipoEfetivo = obterTipoEfetivo(e);
+        const tipoOk =
+          !filtroCardTipo ||
+          (filtroCardTipo === "safety" && tipoEfetivo === "Safety") ||
+          (filtroCardTipo === "fast" && tipoEfetivo === "Fast");
+        const alertaOk = filtroCardAlerta !== "alerta" || e.alerta;
+
+        return (
+          clienteOk &&
+          csOk &&
+          comercialOk &&
+          responsavelOk &&
+          produtoOk &&
+          loboOk &&
+          tipoOk &&
+          alertaOk
+        );
       })
       .sort((a, b) => {
         let prim = 0;
@@ -1802,6 +1897,10 @@ export default function Home() {
     filtroComercial,
     filtroResponsavel,
     filtroProduto,
+    filtroLoboSolitario,
+    filtroCardTipo,
+    filtroCardAlerta,
+    filtroSomenteSuspensos,
     ordenacaoContrato,
     ordenacaoScore,
     ordenacaoPrincipal,
@@ -1809,32 +1908,33 @@ export default function Home() {
     mapaResponsaveis,
   ]);
 
-  // Enquanto o usuário digita na busca de cliente, cada esteira abre ou fecha
-  // sozinha conforme tem ou não resultado — sem isso ele precisaria abrir cada
-  // uma manualmente pra achar o cliente. Ao apagar a busca, todas voltam ao
-  // estado natural (fechadas).
-  // O gatilho é só a mudança de `filtroCliente`: os dados filtrados também
-  // entram nas deps (pra usar o resultado já atualizado da mesma busca), mas
-  // a atualização em segundo plano do histórico (a cada 1 minuto) muda a
-  // referência desses dados sem o usuário tocar na busca — sem a guarda do
-  // ref, isso fecharia de volta uma esteira que o usuário abriu manualmente.
-  const filtroClienteAnteriorRef = useRef<string | null>(null);
+  // Enquanto o usuário digita na busca de cliente (ou liga o card de risco de
+  // churn), cada esteira abre ou fecha sozinha conforme tem ou não resultado —
+  // sem isso ele precisaria abrir cada uma manualmente. Ao desfazer a busca e
+  // o card, todas voltam ao estado natural (fechadas).
+  // O gatilho é só a mudança da busca/card: os dados filtrados também entram
+  // nas deps (pra usar o resultado já atualizado), mas a atualização em
+  // segundo plano do histórico (a cada 1 minuto) muda a referência desses
+  // dados sem o usuário tocar em nada — sem a guarda do ref, isso fecharia de
+  // volta uma esteira que o usuário abriu manualmente.
+  const gatilhoAberturaAnteriorRef = useRef<string | null>(null);
   useEffect(() => {
-    if (filtroClienteAnteriorRef.current === filtroCliente) return;
-    filtroClienteAnteriorRef.current = filtroCliente;
-    setTabelaAtivaAberta(!!filtroCliente && dadosAtivosFiltrados.length > 0);
-    setTabelaOngoingAberta(!!filtroCliente && dadosOngoingFiltrados.length > 0);
+    const gatilho = `${filtroCliente}|${filtroCardAlerta}|${filtroSomenteSuspensos}`;
+    if (gatilhoAberturaAnteriorRef.current === gatilho) return;
+    gatilhoAberturaAnteriorRef.current = gatilho;
+    const abrir = !!filtroCliente || filtroCardAlerta === "alerta";
+    setTabelaAtivaAberta(abrir && dadosAtivosFiltrados.length > 0);
+    setTabelaOngoingAberta(abrir && dadosOngoingFiltrados.length > 0);
+    // Com "Somente suspensos" a esteira abre mesmo vazia, para mostrar o aviso de lista vazia.
     setTabelaSuspensaAberta(
-      !!filtroCliente && dadosSuspensosFiltrados.length > 0,
+      filtroSomenteSuspensos || (abrir && dadosSuspensosFiltrados.length > 0),
     );
-    setTabelaConcluidosAberta(
-      !!filtroCliente && dadosConcluidosFiltrados.length > 0,
-    );
-    setTabelaCanceladosAberta(
-      !!filtroCliente && dadosCanceladosFiltrados.length > 0,
-    );
+    setTabelaConcluidosAberta(abrir && dadosConcluidosFiltrados.length > 0);
+    setTabelaCanceladosAberta(abrir && dadosCanceladosFiltrados.length > 0);
   }, [
     filtroCliente,
+    filtroCardAlerta,
+    filtroSomenteSuspensos,
     dadosAtivosFiltrados,
     dadosOngoingFiltrados,
     dadosSuspensosFiltrados,
@@ -2420,10 +2520,9 @@ export default function Home() {
 
       <div className="home-stats">
         <div
-          className={`stat-card clickable ${filtroCardStatus === "" && filtroCardTipo === "" && filtroCardAlerta === "" ? "active-total" : ""}`}
+          className={`stat-card clickable ${filtroCardStatus === "" && filtroCardAlerta === "" ? "active-total" : ""}`}
           onClick={() => {
             setFiltroCardStatus("");
-            setFiltroCardTipo("");
             setFiltroCardAlerta("");
           }}
         >
@@ -2473,49 +2572,13 @@ export default function Home() {
         </div>
 
         <div
-          className={`stat-card clickable ${filtroCardTipo === "safety" ? "active-safety" : ""}`}
-          onClick={() => handleTipoCardClick("safety")}
-        >
-          <div className="stat-card-texto">
-            <div className="stat-value-row">
-              <h3 className="stat-value">{stats.safety}</h3>
-              <p className="stat-label">Clientes Safety</p>
-            </div>
-            <p className="stat-sub">
-              {stats.total > 0
-                ? ((stats.safety / stats.total) * 100).toFixed(1)
-                : "0.0"}
-              % do total
-            </p>
-          </div>
-        </div>
-
-        <div
-          className={`stat-card clickable ${filtroCardTipo === "fast" ? "active-fast" : ""}`}
-          onClick={() => handleTipoCardClick("fast")}
-        >
-          <div className="stat-card-texto">
-            <div className="stat-value-row">
-              <h3 className="stat-value">{stats.fast}</h3>
-              <p className="stat-label">Clientes Fast</p>
-            </div>
-            <p className="stat-sub">
-              {stats.total > 0
-                ? ((stats.fast / stats.total) * 100).toFixed(1)
-                : "0.0"}
-              % do total
-            </p>
-          </div>
-        </div>
-
-        <div
           className={`stat-card clickable ${filtroCardAlerta === "alerta" ? "active-alerta" : ""}`}
           onClick={handleAlertaCardClick}
         >
           <div className="stat-card-texto">
             <div className="stat-value-row">
               <h3 className="stat-value">{stats.alerta}</h3>
-              <p className="stat-label">Clientes em Alerta</p>
+              <p className="stat-label">Clientes em risco de Churn</p>
             </div>
             <p className="stat-sub">Necessitam atenção 🔥</p>
           </div>
@@ -2760,6 +2823,18 @@ export default function Home() {
               </select>
 
               <select
+                aria-label="Tipo de cliente"
+                value={filtroCardTipo}
+                onChange={(e) =>
+                  setFiltroCardTipo(e.target.value as "safety" | "fast" | "")
+                }
+              >
+                <option value="">Qualquer tipo (Safety e Fast)</option>
+                <option value="safety">Somente Safety</option>
+                <option value="fast">Somente Fast</option>
+              </select>
+
+              <select
                 value={ordenacaoContrato}
                 onChange={(e) => {
                   const val = e.target.value as any;
@@ -2822,6 +2897,30 @@ export default function Home() {
                 />
                 Dentro do prazo do Gol (até o dia 30)
               </label>
+
+              <label
+                className="checkbox-label"
+                title="Mostra apenas clientes com o carimbo Lobo Solitário, em todas as esteiras."
+              >
+                <input
+                  type="checkbox"
+                  checked={filtroLoboSolitario}
+                  onChange={(e) => setFiltroLoboSolitario(e.target.checked)}
+                />
+                <span aria-hidden="true">🐺</span> Somente Lobo Solitário
+              </label>
+
+              <label
+                className="checkbox-label"
+                title="Esvazia as demais esteiras e mostra apenas a de Clientes Suspensos, já aberta."
+              >
+                <input
+                  type="checkbox"
+                  checked={filtroSomenteSuspensos}
+                  onChange={(e) => setFiltroSomenteSuspensos(e.target.checked)}
+                />
+                <span aria-hidden="true">⏸️</span> Somente clientes suspensos
+              </label>
             </div>
 
             <div className="modal-filtros-footer">
@@ -2840,6 +2939,8 @@ export default function Home() {
                     filtroCardTipo ||
                     filtroCardAlerta ||
                     filtroElegivelDeducao ||
+                    filtroLoboSolitario ||
+                    filtroSomenteSuspensos ||
                     ordenacaoContrato ||
                     ordenacaoScore
                   )
@@ -2855,6 +2956,8 @@ export default function Home() {
                   setFiltroCardTipo("");
                   setFiltroCardAlerta("");
                   setFiltroElegivelDeducao(false);
+                  setFiltroLoboSolitario(false);
+                  setFiltroSomenteSuspensos(false);
                   setOrdenacaoContrato("");
                   setOrdenacaoScore("");
                   setOrdenacaoPrincipal("");
@@ -3724,6 +3827,20 @@ export default function Home() {
               >
                 ✕
               </button>
+              {clienteSelecionado.loboSolitario && (
+                <div
+                  className="carimbo-lobo ativo"
+                  role="img"
+                  aria-label="Cliente Lobo Solitário"
+                  title="Cliente Lobo Solitário"
+                >
+                  <span className="carimbo-lobo-emoji" aria-hidden="true">
+                    🐺
+                  </span>
+                  <strong aria-hidden="true">Lobo</strong>
+                  <strong aria-hidden="true">Solitário</strong>
+                </div>
+              )}
               <span className="cliente-modal-icon">🏢</span>
               <h2>{clienteSelecionado.nomeEmpresa}</h2>
             </div>
@@ -4240,6 +4357,29 @@ export default function Home() {
                 aria-label="Fechar"
               >
                 ✕
+              </button>
+              <button
+                type="button"
+                className={`carimbo-lobo carimbo-lobo-toggle${clienteForm.loboSolitario ? " ativo" : ""}`}
+                aria-pressed={!!clienteForm.loboSolitario}
+                aria-label="Lobo Solitário"
+                title={
+                  clienteForm.loboSolitario
+                    ? "Lobo Solitário — clique para remover o carimbo"
+                    : "Clique para marcar este cliente como Lobo Solitário"
+                }
+                onClick={() =>
+                  setClienteForm({
+                    ...clienteForm,
+                    loboSolitario: !clienteForm.loboSolitario,
+                  })
+                }
+              >
+                <span className="carimbo-lobo-emoji" aria-hidden="true">
+                  🐺
+                </span>
+                <strong aria-hidden="true">Lobo</strong>
+                <strong aria-hidden="true">Solitário</strong>
               </button>
               <span className="cliente-modal-icon">
                 {editandoClienteId ? "✏️" : "🏢"}

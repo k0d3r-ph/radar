@@ -500,6 +500,71 @@
   font-size: 2rem;
 }
 
+/* Carimbo circular "Lobo Solitário" no canto superior esquerdo do modal.
+   Seletores com .cliente-modal para vencer `.cliente-modal button` (width 100%). */
+.cliente-modal .carimbo-lobo {
+  position: absolute;
+  top: -0.25rem;
+  left: -0.25rem;
+  box-sizing: border-box;
+  width: 72px;
+  height: 72px;
+  padding: 0;
+  border: 2px solid #f59e0b;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 3px #0f172a, inset 0 0 0 4px #f59e0b;
+  background: rgba(245, 158, 11, 0.12);
+  color: #fbbf24;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  transform: rotate(-12deg);
+  font-family: inherit;
+  line-height: 1;
+}
+
+.cliente-modal .carimbo-lobo-emoji {
+  font-size: 1.45rem;
+}
+
+.cliente-modal .carimbo-lobo strong {
+  color: inherit;
+  font-size: 0.48rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cliente-modal .carimbo-lobo-toggle {
+  cursor: pointer;
+}
+
+.cliente-modal .carimbo-lobo-toggle:not(.ativo) {
+  border-style: dashed;
+  border-color: rgba(148, 163, 184, 0.55);
+  box-shadow: none;
+  background: transparent;
+  color: #94a3b8;
+}
+
+.cliente-modal .carimbo-lobo-toggle:not(.ativo) .carimbo-lobo-emoji {
+  filter: grayscale(1);
+  opacity: 0.55;
+}
+
+.cliente-modal .carimbo-lobo-toggle:hover {
+  background: rgba(245, 158, 11, 0.18);
+  border-color: #f59e0b;
+  transform: rotate(-12deg) scale(1.05);
+}
+
+.cliente-modal .carimbo-lobo-toggle:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 3px;
+}
+
 .cliente-modal h2 {
   text-align: center;
   font-size: 1.2rem;

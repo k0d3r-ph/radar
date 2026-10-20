@@ -91,6 +91,9 @@ export type Empresa = {
   dataFinalizacao?: string;
   dataFollowUpFinal?: string;
 
+  /** Carimbo "Lobo Solitário" marcado manualmente no cadastro do cliente. */
+  loboSolitario?: boolean;
+
   score?: number;
   scoreAnswers?: any;
   /**

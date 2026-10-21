@@ -3372,6 +3372,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       return;
     }
 
+    const idCentralPorEmpresa = new Map(
+      empresasList.map((e) => [normalizar(e.nomeEmpresa), e.idCentral ?? ""]),
+    );
+
     const linhas = filtradas.map((o) => {
       const timestamp = getOcorrenciaTimestamp(o);
       const data = timestamp ? new Date(timestamp) : null;
@@ -3388,7 +3392,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         "Tipo de registro": obterInfoTipoOcorrencia(o).label,
         Responsável: o.responsavel,
         ID: o.id ?? "",
-        "ID Central": o.idCentral ?? "",
+        "ID Central": idCentralPorEmpresa.get(normalizar(o.empresa)) ?? "",
         Descrição: o.descricao ?? "",
       };
     });

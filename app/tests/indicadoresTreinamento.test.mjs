@@ -32,7 +32,7 @@ const ocorrencia = (empresa, tema = ['Cadastro'], extras = {}) => ({
   treinamentoDataSolicitacao: '2026-10-13', treinamentoResultados: ['Bom'], ...extras,
 });
 
-test('inclui todos os status exceto ongoing em realizados, CSAT e espera', () => {
+test('inclui todos os status, inclusive ongoing, em realizados, CSAT e espera', () => {
   const empresas = [
     { nomeEmpresa: 'Ativo' }, { nomeEmpresa: 'Suspenso', isSuspended: true },
     { nomeEmpresa: 'Cancelado', isCancelled: true }, { nomeEmpresa: 'Concluído', progresso: 100 },
@@ -41,21 +41,21 @@ test('inclui todos os status exceto ongoing em realizados, CSAT e espera', () =>
   ];
   const eventos = construir(empresas, empresas.map(e => ocorrencia(e.nomeEmpresa)), [], []);
   for (const chave of ['treinamentosRealizados', 'treinamentosComResultado', 'treinamentosBons', 'esperas']) {
-    assert.equal(eventos[chave].length, 4, chave);
+    assert.equal(eventos[chave].length, 6, chave);
   }
-  assert.equal(calcular('treinamentosRealizados', eventos, inicio, fim, 'Natália Teixeira'), 4);
+  assert.equal(calcular('treinamentosRealizados', eventos, inicio, fim, 'Natália Teixeira'), 6);
   assert.equal(calcular('taxaCsat', eventos, inicio, fim, null), 100);
   assert.equal(calcular('tempoMedioEspera', eventos, inicio, fim, null), 2);
 });
 
-test('exclui ongoing também em ausências e cancelamentos, normalizando o nome', () => {
+test('inclui ongoing também em ausências e cancelamentos, normalizando o nome', () => {
   const empresas = [{ nomeEmpresa: 'Clínica', isOngoing: true }, { nomeEmpresa: 'Suspenso', isSuspended: true }];
   const ocorrencias = ['Ausente', 'Cancelado'].flatMap(tema => [
     ocorrencia(' CLINICA ', [tema]), ocorrencia('Suspenso', [tema]),
   ]);
   const eventos = construir(empresas, ocorrencias, [], []);
-  assert.equal(eventos.treinamentosAusentes.length, 1);
-  assert.equal(eventos.treinamentosCancelados.length, 1);
+  assert.equal(eventos.treinamentosAusentes.length, 2);
+  assert.equal(eventos.treinamentosCancelados.length, 2);
   assert.equal(eventos.treinamentosRealizados.length, 0);
   assert.equal(eventos.esperas.length, 0);
 });
@@ -90,7 +90,7 @@ test('empresa, data e autor da ocorrência prevalecem sobre o lançamento diverg
   const o = ocorrencia('Rastrek Bahia', ['Cadastro'], { id: 'o1', gamificacaoPontoId: 'p1' });
   const l = { ...lancamento('Rastrear Gestão'), id: 'p1', treinadorNome: 'Outro treinador', treinamentoDataRealizacao: '2026-11-02' };
   assert.equal(construir([{ nomeEmpresa: 'Rastrek Bahia', isOngoing: true }], [o], [l], [])
-    .treinamentosRealizados.length, 0);
+    .treinamentosRealizados.length, 1);
   const eventos = construir([], [o], [l], []);
   assert.equal(calcular('treinamentosRealizados', eventos, inicio, fim, 'Natália Teixeira'), 1);
 });

@@ -136,7 +136,7 @@ export const KPIS_TREINAMENTO: ConfigKpiTreinamento[] = [
   {
     chave: "tempoMedioEspera",
     titulo: "Tempo médio de espera",
-    descricao: "Média de dias úteis (segunda a sexta) entre a solicitação e a realização do treinamento, incluindo clientes suspensos e cancelados; exclui ongoing.",
+    descricao: "Média de dias úteis (segunda a sexta) entre a solicitação e a realização do treinamento, incluindo clientes ongoing, suspensos e cancelados.",
     formato: "dias",
     menorEhMelhor: true,
   },
@@ -240,13 +240,12 @@ export function construirEventosIndicadoresTreinamento(
     if (dono) responsavelPorEmpresa.set(chaveEmpresa, dono);
   });
 
-  const empresasOngoing = new Set<string>();
-  const empresasSemOngoing = new Set<string>();
+  // Clientes de todos os status, inclusive ongoing: o treinamento é dado da equipe
+  // independentemente da situação do cliente. A espera exige cadastro atual.
+  const empresasCadastradas = new Set<string>();
   empresas.forEach((e) => {
     const chave = normalizarNome(e.nomeEmpresa);
-    if (!chave) return;
-    if (e.isOngoing) empresasOngoing.add(chave);
-    else empresasSemOngoing.add(chave);
+    if (chave) empresasCadastradas.add(chave);
   });
 
   const treinamentosRealizados: EventoIndicador[] = [];
@@ -288,7 +287,6 @@ export function construirEventosIndicadoresTreinamento(
       ocorrenciasProcessadas.add(o.id);
     }
     const empresa = normalizarNome(o.empresa);
-    if (empresasOngoing.has(empresa)) return;
     const timestamp = o.createdAt ?? o.dataOcorrencia;
     if (!timestamp || !Number.isFinite(timestamp)) return;
     const data = inicioDoDia(new Date(timestamp));
@@ -323,7 +321,7 @@ export function construirEventosIndicadoresTreinamento(
       });
     }
 
-    if (empresasSemOngoing.has(empresa)) {
+    if (empresasCadastradas.has(empresa)) {
       const realizacao = `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}-${String(data.getDate()).padStart(2, "0")}`;
       const dias = calcularDiasEsperaTreinamento(o.treinamentoDataSolicitacao ?? l?.treinamentoDataSolicitacao, realizacao);
       if (dias !== null) esperas.push({

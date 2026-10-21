@@ -253,7 +253,7 @@ const COLUNAS_INDICADORES = [
     menorEhMelhor: true,
     passo: 0.1,
     ajuda:
-      "Média de dias úteis (segunda a sexta) entre a solicitação e a realização do treinamento, considerando apenas clientes ativos na esteira",
+      "Média de dias úteis (segunda a sexta) entre a solicitação e a realização do treinamento, considerando clientes ativos na esteira e ongoing (exclui suspensos e cancelados)",
   },
   {
     chave: "horasEmTreinamento",
@@ -1148,14 +1148,15 @@ export const Gamificacao: React.FC = () => {
   }, [empresasCompletas]);
 
   /**
-   * Clientes que ainda estão correndo na esteira. O tempo médio de espera olha
-   * só para eles: cancelado, suspenso e ongoing têm agendamentos represados por
-   * motivo alheio ao treinador e distorceriam a média.
+   * Clientes considerados no tempo médio de espera: os ativos na esteira e os
+   * ongoing, que também solicitam e recebem treinamentos. Cancelado e suspenso
+   * têm agendamentos represados por motivo alheio ao treinador e distorceriam
+   * a média.
    */
-  const empresasAtivasNaEsteira = useMemo(() => {
+  const empresasConsideradasNaEspera = useMemo(() => {
     const ativas = new Set<string>();
     empresasCompletas.forEach((emp) => {
-      if (emp.isCancelled || emp.isSuspended || emp.isOngoing) return;
+      if (emp.isCancelled || emp.isSuspended) return;
       const chave = normalizarNomeComparacao(emp.nomeEmpresa || "");
       if (chave) ativas.add(chave);
     });
@@ -1223,7 +1224,7 @@ export const Gamificacao: React.FC = () => {
 
         const esperas = realizados
           .filter((e) =>
-            empresasAtivasNaEsteira.has(
+            empresasConsideradasNaEspera.has(
               normalizarNomeComparacao(e.treinamentoEmpresa || ""),
             ),
           )
@@ -1355,7 +1356,7 @@ export const Gamificacao: React.FC = () => {
     empresasCompletas,
     empresasComAlerta,
     responsavelPorEmpresa,
-    empresasAtivasNaEsteira,
+    empresasConsideradasNaEspera,
   ]);
 
   // Colunas de treinador exibidas no modal: o Master vê a equipe inteira, o

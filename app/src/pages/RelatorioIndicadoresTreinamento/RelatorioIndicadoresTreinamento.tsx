@@ -482,8 +482,8 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
           </div>
 
           <p className="aging-legenda">
-            Os treinamentos incluem clientes de todos os status, inclusive suspensos e cancelados,
-            exceto ongoing. Treinadores com histórico permanecem disponíveis mesmo após mudança de perfil.
+            Os treinamentos incluem clientes de todos os status, inclusive ongoing, suspensos e
+            cancelados. Treinadores com histórico permanecem disponíveis mesmo após mudança de perfil.
             A contagem usa as ocorrências e a mesma data do Histórico, inclusive registros sem tema.
             Lançamentos da gamificação complementam dados sem gerar contagens extras. Todos os
             indicadores consideram somente dias úteis (segunda a sexta): registros feitos em sábado

@@ -1,4 +1,5 @@
 import { reordenarTemasEnsinados } from "../../utils/reordenarTemasEnsinados";
+import { calcularDiasSuspensaoAtual } from "../../utils/monitoramento";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -2392,20 +2393,21 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       try {
         // Ao retornar da esteira Suspensos, soma o tempo congelado ao acumulado
         // para que os dias suspensos não voltem a contar em calcularDiasNaEsteira.
-        let diasSuspensoAcumulado = empresaObjeto.diasSuspensoAcumulado || 0;
-        if (empresaObjeto.dataSuspensao) {
-          const [sYear, sMonth, sDay] = empresaObjeto.dataSuspensao
-            .split("-")
-            .map(Number);
-          const inicio = new Date(sYear, sMonth - 1, sDay);
-          const hoje = new Date();
-          diasSuspensoAcumulado += Math.max(
-            0,
-            Math.floor(
-              (hoje.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24),
+        // Mesma contagem da coluna "Dias suspenso" da Home: a partir da
+        // ocorrência de suspensão, ou da dataSuspensao quando não há ocorrência.
+        // A ocorrência de retorno que está sendo salva fica de fora, senão ela
+        // anularia a suspensão que está encerrando.
+        const nomeEmpresa = empresaObjeto.nomeEmpresa.trim().toLowerCase();
+        const diasSuspensoAcumulado =
+          (empresaObjeto.diasSuspensoAcumulado || 0) +
+          calcularDiasSuspensaoAtual(
+            empresaObjeto,
+            ocorrencias.filter(
+              (o) =>
+                o.id !== savedId &&
+                o.empresa.trim().toLowerCase() === nomeEmpresa,
             ),
           );
-        }
 
         // Grava só os campos alterados: `empresaObjeto` é o retrato do início do
         // salvar() e espalhá-lo desfaria score/reduções gravados mais acima.

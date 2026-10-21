@@ -22,7 +22,8 @@ import {
 
 import {
   calcularDiasNaEsteira,
-  calcularDiasSuspenso,
+  calcularDiasSuspensaoAtual,
+  obterOcorrenciaSuspensaoAtual,
   calcularDiasCongeladosPorCheckpoint,
   calcularFarol,
   calcularProgressoPorFases,
@@ -701,17 +702,15 @@ export default function Home() {
       const hoje = new Date();
       dataSuspensao = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-${String(hoje.getDate()).padStart(2, "0")}`;
     } else if (!clienteForm.isSuspended && empresaExistente?.isSuspended) {
-      if (dataSuspensao) {
-        const [sYear, sMonth, sDay] = dataSuspensao.split("-").map(Number);
-        const inicio = new Date(sYear, sMonth - 1, sDay);
-        const hoje = new Date();
-        diasSuspensoAcumulado += Math.max(
-          0,
-          Math.floor(
-            (hoje.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24),
-          ),
-        );
-      }
+      // Mesma contagem da coluna "Dias suspenso": a partir da ocorrência de
+      // suspensão, ou da dataSuspensao quando não há ocorrência.
+      const nomeEmpresa = empresaExistente.nomeEmpresa.trim().toLowerCase();
+      diasSuspensoAcumulado += calcularDiasSuspensaoAtual(
+        empresaExistente,
+        historico.filter(
+          (o) => o.empresa.trim().toLowerCase() === nomeEmpresa,
+        ),
+      );
       dataSuspensao = undefined;
     }
 
@@ -1205,14 +1204,12 @@ export default function Home() {
           temAlerta = !!empresa.alerta;
         }
 
-        // Motivo da suspensão: descrição da ocorrência de suspensão mais recente
-        // (uma empresa pode ter sido suspensa mais de uma vez ao longo do tempo).
-        const motivoSuspensao = empresa.isSuspended
-          ? historicoEmpresa
-              .filter((o) => o.suspenderCliente === true)
-              .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0]
-              ?.descricao || ""
-          : "";
+        // Ocorrência que registrou a suspensão em andamento (uma empresa pode ter
+        // sido suspensa mais de uma vez): fornece o motivo e o início da contagem.
+        const ocorrenciaSuspensao = empresa.isSuspended
+          ? obterOcorrenciaSuspensaoAtual(historicoEmpresa)
+          : undefined;
+        const motivoSuspensao = ocorrenciaSuspensao?.descricao || "";
 
         const farol = calcularFarol({
           progresso,
@@ -1242,11 +1239,12 @@ export default function Home() {
             empresa.diasSuspensoAcumulado,
             calcularDiasCongeladosPorCheckpoint(historico, empresa.nomeEmpresa),
           ),
-          diasSuspenso: calcularDiasSuspenso(
-            empresa.isSuspended,
-            empresa.dataSuspensao,
-            empresa.diasSuspensoAcumulado,
-          ),
+          // Suspensões anteriores (acumulado) + a atual, que conta a partir da
+          // data da ocorrência de suspensão (ou da dataSuspensao, sem ocorrência).
+          diasSuspenso:
+            (empresa.isSuspended
+              ? calcularDiasSuspensaoAtual(empresa, historicoEmpresa)
+              : 0) + (empresa.diasSuspensoAcumulado || 0),
         };
       });
   }, [empresas, historico, agora]);

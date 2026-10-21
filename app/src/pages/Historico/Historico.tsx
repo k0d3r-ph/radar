@@ -3388,6 +3388,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         "Tipo de registro": obterInfoTipoOcorrencia(o).label,
         Responsável: o.responsavel,
         ID: o.id ?? "",
+        "ID Central": o.idCentral ?? "",
         Descrição: o.descricao ?? "",
       };
     });

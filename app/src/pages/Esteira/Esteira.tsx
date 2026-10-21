@@ -22,6 +22,8 @@ import type { DestinatarioGestao } from "../../services/notificacoes";
 import { GestaoNotificacaoModal } from "../../components/GestaoNotificacaoModal";
 import { buscarIdCentralPorNome } from "../../services/centrais";
 import { camposResultadoConclusao } from "../../utils/notificacaoConclusao";
+import { normalizarTextosTema } from "../../utils/temasEsteira";
+import { TemasEsteiraEditor } from "./TemasEsteiraEditor";
 
 function normalizarNome(nome: string) {
   return nome
@@ -388,29 +390,15 @@ function Esteira() {
           />
         </div>
 
-        <div className="temas-wrapper">
-          <div className="control-row temas-box">
-            <label>Temas (um por linha)</label>
-
-            <textarea
-              value={temaText}
-              onChange={(e) => setTemaText(e.target.value)}
-              rows={12}
-              disabled={!isTreinador}
-            />
-          </div>
-
-          <div className="control-row datas-box">
-            <label>Datas</label>
-
-            <textarea
-              value={dataText}
-              onChange={(e) => setDataText(e.target.value)}
-              rows={12}
-              disabled={!isTreinador}
-            />
-          </div>
-        </div>
+        <TemasEsteiraEditor
+          temaText={temaText}
+          dataText={dataText}
+          onChange={(textos) => {
+            setTemaText(textos.temaText);
+            setDataText(textos.dataText);
+          }}
+          disabled={!isTreinador}
+        />
 
         <div className="download-row">
           {isTreinador && (
@@ -461,6 +449,9 @@ function Esteira() {
                   (e) => String(e.id) === empresaId,
                 );
                 const isFinished = currentPhase === temas.length - 1;
+                // Grava sem os campos de fase deixados em branco na tela.
+                const { temaText: temaTextFinal, dataText: dataTextFinal } =
+                  normalizarTextosTema(temaText, dataText);
 
                 const today = new Date();
                 const year = today.getFullYear();
@@ -479,8 +470,8 @@ function Esteira() {
                       ...(empresaId ? { id: empresaId } : {}),
                       nomeEmpresa,
                       idCentral: idCentralFinal || undefined,
-                      temaText,
-                      dataText,
+                      temaText: temaTextFinal,
+                      dataText: dataTextFinal,
                       currentPhase,
                       dataFinalizacao,
                       // Se o treinador esquecer de preencher a data de entrada
@@ -524,8 +515,8 @@ function Esteira() {
                     ...(empresaExistente as Empresa),
                     id: String(novoId || empresaId),
                     nomeEmpresa,
-                    temaText,
-                    dataText,
+                    temaText: temaTextFinal,
+                    dataText: dataTextFinal,
                     currentPhase,
                     dataFinalizacao,
                   };

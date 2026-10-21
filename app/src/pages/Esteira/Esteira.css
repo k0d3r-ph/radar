@@ -168,27 +168,110 @@
   font-size: 18px;
 }
 
-.temas-wrapper {
-  display: flex;
-  gap: 12px;
-  width: 100%;
+/* Temas e datas da esteira: um par de campos por fase (TemasEsteiraEditor). */
+.temas-editor-cabecalho,
+.temas-editor-linha {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 84px 32px;
+  gap: 8px;
+  align-items: center;
 }
 
-.temas-box {
-  flex: 1;
+.temas-editor-cabecalho {
+  margin-bottom: 8px;
+  font-size: 1rem;
+  font-weight: 600;
 }
 
-.temas-box label,
-.datas-box label {
+.temas-editor-cabecalho span:nth-child(2) {
   text-align: center;
 }
 
-.datas-box {
-  width: 90px;
+.temas-editor-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.datas-box textarea {
-  resize: none;
+.temas-editor-tema {
+  position: relative;
+  min-width: 0;
+}
+
+.controls .temas-editor-linha input {
+  padding: 10px 12px;
+  border-radius: 10px;
+}
+
+.controls .temas-editor-tema input {
+  padding-right: 32px;
+}
+
+.controls .temas-editor-linha input.temas-editor-data {
+  text-align: center;
+  padding: 10px 6px;
+}
+
+.temas-editor-remover,
+.temas-editor-adicionar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.65);
+  background: transparent;
+  transition: color 0.15s, background 0.15s, opacity 0.15s;
+}
+
+.temas-editor-remover {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  opacity: 0;
+}
+
+.temas-editor-linha:hover .temas-editor-remover,
+.temas-editor-linha:focus-within .temas-editor-remover {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .temas-editor-remover {
+    opacity: 1;
+  }
+}
+
+.temas-editor-remover:hover {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.12);
+}
+
+.temas-editor-adicionar {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.temas-editor-adicionar:hover {
+  color: #4ade80;
+  border-color: rgba(74, 222, 128, 0.5);
+  background: rgba(74, 222, 128, 0.1);
+}
+
+.temas-editor-remover:focus-visible,
+.temas-editor-adicionar:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 2px;
+  opacity: 1;
 }
 
 .btn-danger {

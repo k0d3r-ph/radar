@@ -607,6 +607,26 @@ body.light-theme .controls {
     box-shadow: 0 18px 60px rgba(15, 23, 42, 0.055);
     color: #0f172a
 }
+body.light-theme .temas-editor-remover,
+body.light-theme .temas-editor-adicionar {
+    color: #475569
+}
+body.light-theme .temas-editor-remover:hover {
+    background: rgba(248, 113, 113, 0.12);
+    color: #e61313
+}
+body.light-theme .temas-editor-adicionar {
+    border: 1px solid #d5dce5
+}
+body.light-theme .temas-editor-adicionar:hover {
+    border-color: rgba(74, 222, 128, 0.5);
+    background: rgba(74, 222, 128, 0.1);
+    color: #18823e
+}
+body.light-theme .temas-editor-remover:focus-visible,
+body.light-theme .temas-editor-adicionar:focus-visible {
+    outline: 2px solid #60a5fa
+}
 body.light-theme .btn-danger {
     background: #d11a2a;
     box-shadow: 0 8px 24px rgba(122, 0, 0, 0.126);

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { baixarCentrais, extrairCentrais, urlExportacaoPlanilha, parsearValorContrato, resolverCentral } from '../dist/infrastructure/planilha/PlanilhaCentraisService.js';
+import { baixarCentrais, baixarTodasCentrais, extrairCentrais, urlExportacaoPlanilha, parsearValorContrato, resolverCentral } from '../dist/infrastructure/planilha/PlanilhaCentraisService.js';
 import { AtualizarValoresContrato } from '../dist/application/use-cases/AtualizarValoresContrato.js';
 import { CentraisController } from '../dist/adapters/controllers/CentraisController.js';
 
@@ -31,6 +31,33 @@ test('CSV válido conserva acentos, aspas, vírgulas e quebras de linha em campo
     return new Response(csv, { headers: { 'content-type': 'text/csv' } });
   });
   assert.deepEqual(linhas, [{ nomeCentral: 'Atos 3', idCentral: '1055' }, { nomeCentral: 'SN Rastreamento/Farejador Rastreamento', idCentral: '1086' }]);
+});
+
+test('baixarTodasCentrais soma linhas de várias abas e resolverCentral enxerga o conjunto inteiro', async () => {
+  const csvPrincipal = 'Cliente,Id central\nCliente A,1';
+  const csvOngoing = 'Cliente,Id central\nAlltech,99';
+  const respostasPorUrl = {
+    'https://docs.google.com/spreadsheets/d/abc/export?format=csv&gid=0': csvPrincipal,
+    'https://docs.google.com/spreadsheets/d/abc/export?format=csv&gid=1': csvOngoing,
+  };
+  const linhas = await baixarTodasCentrais(
+    ['https://docs.google.com/spreadsheets/d/abc/edit#gid=0', 'https://docs.google.com/spreadsheets/d/abc/edit#gid=1'],
+    async (url) => new Response(respostasPorUrl[url], { headers: { 'content-type': 'text/csv' } }),
+  );
+  assert.deepEqual(linhas, [{ nomeCentral: 'Cliente A', idCentral: '1' }, { nomeCentral: 'Alltech', idCentral: '99' }]);
+  assert.deepEqual(resolverCentral(linhas, { nomeEmpresa: 'Alltech' }), { nomeCentral: 'Alltech', idCentral: '99' });
+});
+
+test('baixarTodasCentrais com uma falha em qualquer aba rejeita sem devolver lista parcial', async () => {
+  await assert.rejects(
+    baixarTodasCentrais(
+      ['https://docs.google.com/spreadsheets/d/abc/edit#gid=0', 'https://docs.google.com/spreadsheets/d/abc/edit#gid=1'],
+      async (url) => url.includes('gid=1')
+        ? new Response('', { status: 403 })
+        : new Response('Cliente,Id central\nCliente A,1', { headers: { 'content-type': 'text/csv' } }),
+    ),
+    /HTTP 403/,
+  );
 });
 
 test('valores monetários brasileiros, decimais e zero são convertidos sem confundir vazios com zero', () => {

@@ -2,6 +2,8 @@
 
 A integração usa `PLANILHA_CENTRAIS_CSV_URL` no backend e a mesma aba já utilizada para resolver o ID Central. Aceita CSV publicado ou link compartilhado com acesso sem login, preservando o `gid`. Não é preciso configurar outra planilha.
 
+Opcionalmente, `PLANILHA_CENTRAIS_ONGOING_CSV_URL` aponta para uma segunda aba da mesma planilha (ex.: a aba de clientes Ongoing, que usa colunas e layout próprios). Quando configurada, a resolução de ID Central busca nas duas abas juntas — útil para clientes Ongoing cujo ID Central só está cadastrado nessa aba separada. As duas abas são baixadas em paralelo e somadas antes de resolver o vínculo; um ID repetido entre as duas abas segue a mesma regra de conflito já usada dentro de uma única aba (exige nome igual, e não preenche automaticamente se os dados divergirem). Sem essa variável configurada, o comportamento é idêntico ao atual (uma única aba).
+
 Colunas: `Cliente` (ou os nomes alternativos já suportados), `Id central` e, opcionalmente, `Valor de contrato`. Cabeçalhos numerados como `15 - Valor de contrato` também são aceitos. Valores como `R$ 1.500,25`, `1500,25`, `1500.25` e zero são convertidos em números. Campos vazios, negativos ou inválidos não são importados como zero e não apagam contratos existentes. Linhas sem ID podem fornecer contrato quando o nome identifica uma única central.
 
 No cadastro e na edição de clientes, a Home consulta `GET /api/centrais/dados?nome=...&idCentral=...`. A rota exige token Firebase, cadastro ativo, senha definida e perfil master ou treinador. A autorização fica em cache por até 60 segundos. O endpoint público antigo `/api/centrais/id-central` continua retornando somente ID; não expõe valores de contrato.

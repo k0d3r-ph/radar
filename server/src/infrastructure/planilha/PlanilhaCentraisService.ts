@@ -171,6 +171,17 @@ export async function baixarCentrais(url: string, fetchCsv: typeof fetch = fetch
   return extrairCentrais(await resposta.text());
 }
 
+/**
+ * Baixa e junta várias abas (ex.: Controle de Implantação + Ongoing) em uma só
+ * lista. `resolverCentral` já lida com ID repetido entre linhas de abas
+ * diferentes do mesmo jeito que lidaria com duplicatas numa única aba — exige
+ * nome igual, e descarta o vínculo quando os dados conflitam.
+ */
+export async function baixarTodasCentrais(urls: string[], fetchCsv: typeof fetch = fetch): Promise<LinhaCentral[]> {
+  const listas = await Promise.all(urls.map(url => baixarCentrais(url, fetchCsv)));
+  return listas.flat();
+}
+
 async function buscarLinhasDaPlanilha(forceRefresh = false): Promise<LinhaCentral[]> {
   const agora = Date.now();
   if (!forceRefresh && cache && agora - cache.buscadoEm < CACHE_TTL_MS) {
@@ -183,8 +194,10 @@ async function buscarLinhasDaPlanilha(forceRefresh = false): Promise<LinhaCentra
     );
   }
 
+  const urls = [config.planilhaCentraisCsvUrl, config.planilhaCentraisOngoingCsvUrl].filter(Boolean);
+
   if (!emAndamento) {
-    emAndamento = baixarCentrais(config.planilhaCentraisCsvUrl).then(linhas => {
+    emAndamento = baixarTodasCentrais(urls).then(linhas => {
       cache = { linhas, buscadoEm: Date.now() };
       return linhas;
     }).finally(() => { emAndamento = null; });

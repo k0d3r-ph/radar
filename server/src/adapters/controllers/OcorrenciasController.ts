@@ -2,12 +2,17 @@ import type { Request, Response } from 'express';
 import type { Auth } from 'firebase-admin/auth';
 import type { Firestore } from 'firebase-admin/firestore';
 import { FavoritoError, SetOcorrenciaFavorita } from '../../application/use-cases/SetOcorrenciaFavorita.js';
+import type { IUsuariosRepository } from '../../domain/interfaces/IUsuariosRepository.js';
 
 export class OcorrenciasController {
-  constructor(private readonly db: Firestore | null, private readonly auth: Auth | null) {}
+  constructor(
+    private readonly db: Firestore | null,
+    private readonly auth: Auth | null,
+    private readonly usuariosRepo: IUsuariosRepository | null,
+  ) {}
 
   async definirFavorita(req: Request, res: Response): Promise<void> {
-    if (!this.db || !this.auth) { res.status(503).json({ error: 'Serviço de ocorrências indisponível.' }); return; }
+    if (!this.db || !this.auth || !this.usuariosRepo) { res.status(503).json({ error: 'Serviço de ocorrências indisponível.' }); return; }
     const token = req.headers.authorization?.match(/^Bearer (.+)$/i)?.[1];
     if (!token) { res.status(401).json({ error: 'Entre no Radar para alterar as estrelas.' }); return; }
     let uid: string;
@@ -17,8 +22,8 @@ export class OcorrenciasController {
       res.status(400).json({ error: 'Informe a ocorrência e a marcação da estrela.' }); return;
     }
     try {
-      const usuario = await this.db.collection('usuarios').doc(uid).get();
-      const dados = await new SetOcorrenciaFavorita(this.db).execute(req.params.id, req.body.favorita, uid, usuario.data()?.role || '');
+      const usuario = await this.usuariosRepo.buscarPorUid(uid);
+      const dados = await new SetOcorrenciaFavorita(this.db).execute(req.params.id, req.body.favorita, uid, usuario?.role || '');
       res.status(200).json(dados);
     } catch (error) {
       if (error instanceof FavoritoError) res.status(error.status).json({ error: error.message });

@@ -97,9 +97,13 @@ test('ocorrência ausente ou sem cliente único não gera marcação', async () 
 
 function response() { return { code: 0, body: undefined, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } }; }
 
+function usuariosRepoFrom(db) {
+  return { buscarPorUid: async uid => (await db.collection('usuarios').doc(uid).get()).data() };
+}
+
 test('endpoint exige autenticação e lê perfil do cadastro, ignorando papel enviado pelo navegador', async () => {
   const db = database();
-  const controller = new OcorrenciasController(db, { verifyIdToken: async () => ({ uid: 'u1' }) });
+  const controller = new OcorrenciasController(db, { verifyIdToken: async () => ({ uid: 'u1' }) }, usuariosRepoFrom(db));
   const req = { headers: {}, params: { id: 'a' }, body: { favorita: true, role: 'master' } };
   const res = response();
   await controller.definirFavorita(req, res);
@@ -116,10 +120,10 @@ test('endpoint exige autenticação e lê perfil do cadastro, ignorando papel en
 test('token inválido, entrada inválida e backend sem credenciais retornam erro', async () => {
   const db = database(), req = { headers: { authorization: 'Bearer token' }, params: { id: 'a' }, body: { favorita: 'true' } };
   const res = response();
-  await new OcorrenciasController(db, { verifyIdToken: async () => { throw Error('Invalid'); } }).definirFavorita(req, res);
+  await new OcorrenciasController(db, { verifyIdToken: async () => { throw Error('Invalid'); } }, usuariosRepoFrom(db)).definirFavorita(req, res);
   assert.equal(res.code, 401);
-  await new OcorrenciasController(db, { verifyIdToken: async () => ({ uid: 'u1' }) }).definirFavorita(req, res);
+  await new OcorrenciasController(db, { verifyIdToken: async () => ({ uid: 'u1' }) }, usuariosRepoFrom(db)).definirFavorita(req, res);
   assert.equal(res.code, 400);
-  await new OcorrenciasController(null, null).definirFavorita(req, res);
+  await new OcorrenciasController(null, null, null).definirFavorita(req, res);
   assert.equal(res.code, 503);
 });

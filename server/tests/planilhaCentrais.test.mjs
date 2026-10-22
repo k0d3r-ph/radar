@@ -160,7 +160,7 @@ test('falha parcial é relatada e não impede os demais clientes; reexecução c
 function response() { return { code: 200, body: null, set() { return this; }, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } }; }
 const request = { headers: { authorization: 'Bearer token' }, query: { nome: 'Cliente A', idCentral: '1' } };
 const auth = { verifyIdToken: async () => ({ uid: 'u1' }) };
-const userDb = cadastro => ({ collection: () => ({ doc: () => ({ get: async () => ({ data: () => cadastro }) }) }) });
+const userDb = cadastro => ({ buscarPorUid: async () => cadastro });
 
 test('consulta de contratos exige autenticação, cadastro ativo, senha definida e perfil da tela', async () => {
   for (const [cadastro, tokenAuth, req, status] of [

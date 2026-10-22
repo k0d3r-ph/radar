@@ -5,6 +5,7 @@ import { IaController } from '../../adapters/controllers/IaController.js';
 import { CentraisController } from '../../adapters/controllers/CentraisController.js';
 import { OcorrenciasController } from '../../adapters/controllers/OcorrenciasController.js';
 import { SincronizacaoController } from '../../adapters/controllers/SincronizacaoController.js';
+import { FirestoreUsuariosRepository } from '../firebase/UsuariosRepository.js';
 import { adminAuth, adminDb } from '../firebase/firebaseAdmin.js';
 
 /**
@@ -15,16 +16,18 @@ import { adminAuth, adminDb } from '../firebase/firebaseAdmin.js';
 export function createApiApp(): express.Express {
   const app = criarAppBase();
 
+  const usuariosRepo = adminDb ? new FirestoreUsuariosRepository(adminDb) : null;
+
   registrarCsat(app, adminDb, adminAuth);
-  const ocorrenciasController = new OcorrenciasController(adminDb, adminAuth);
+  const ocorrenciasController = new OcorrenciasController(adminDb, adminAuth, usuariosRepo);
   app.patch('/api/ocorrencias/:id/favorito', (req, res) => ocorrenciasController.definirFavorita(req, res));
-  const sincronizacaoController = new SincronizacaoController(adminDb, adminAuth);
+  const sincronizacaoController = new SincronizacaoController(adminDb, adminAuth, usuariosRepo);
   app.get('/api/sincronizacao/:colecao', (req, res) => sincronizacaoController.listar(req, res));
 
   const iaController = new IaController();
   app.post('/api/ia/resumir', (req, res) => iaController.resumir(req, res));
 
-  const centraisController = new CentraisController(adminDb, adminAuth);
+  const centraisController = new CentraisController(usuariosRepo, adminAuth);
   app.get('/api/centrais/id-central', (req, res) => centraisController.buscarIdCentral(req, res));
   app.get('/api/centrais/dados', (req, res) => centraisController.buscarDados(req, res));
 

@@ -1,20 +1,20 @@
 import type { Request, Response } from 'express';
 import type { Auth } from 'firebase-admin/auth';
-import type { Firestore } from 'firebase-admin/firestore';
 import { buscarDadosCentral, buscarIdCentralPorNome } from '../../infrastructure/planilha/PlanilhaCentraisService.js';
+import type { IUsuariosRepository } from '../../domain/interfaces/IUsuariosRepository.js';
 
 export class CentraisController {
   private readonly usuarios = new Map<string, { permitido: boolean; expiraEm: number }>();
 
   constructor(
-    private readonly db: Firestore | null,
+    private readonly usuariosRepo: IUsuariosRepository | null,
     private readonly auth: Auth | null,
     private readonly consultarDados = buscarDadosCentral,
   ) {}
 
   async buscarDados(req: Request, res: Response): Promise<void> {
     res.set('Cache-Control', 'no-store');
-    if (!this.db || !this.auth) { res.status(503).json({ error: 'Consulta à planilha indisponível.' }); return; }
+    if (!this.usuariosRepo || !this.auth) { res.status(503).json({ error: 'Consulta à planilha indisponível.' }); return; }
     const token = req.headers.authorization?.match(/^Bearer (.+)$/i)?.[1];
     if (!token) { res.status(401).json({ error: 'Entre no Radar para consultar a planilha.' }); return; }
     let uid: string;
@@ -24,7 +24,7 @@ export class CentraisController {
     try {
       let usuario = this.usuarios.get(uid);
       if (!usuario || usuario.expiraEm <= Date.now()) {
-        const cadastro = (await this.db.collection('usuarios').doc(uid).get()).data();
+        const cadastro = await this.usuariosRepo.buscarPorUid(uid);
         usuario = { permitido: !!cadastro && !cadastro.inativo && !cadastro.needsPasswordChange
           && ['master', 'treinador'].includes(cadastro.role), expiraEm: Date.now() + 60_000 };
         this.usuarios.set(uid, usuario);

@@ -72,6 +72,7 @@ function response() {
 }
 const req = colecao => ({ params: { colecao }, headers: { authorization: 'Bearer token' } });
 const auth = { verifyIdToken: async () => ({ uid: 'u1' }) };
+const usuariosRepoFrom = db => ({ buscarPorUid: async uid => (await db.collection('usuarios').doc(uid).get()).data() });
 
 test('API bloqueia tokens inválidos, usuários não cadastrados e coleções privadas', async () => {
   for (const [db, tokenAuth, request, status] of [
@@ -84,14 +85,14 @@ test('API bloqueia tokens inválidos, usuários não cadastrados e coleções pr
     [database(), auth, { params: { colecao: 'ocorrencias' }, headers: {} }, 401],
   ]) {
     const res = response();
-    await new SincronizacaoController(db, tokenAuth).listar(request, res);
+    await new SincronizacaoController(db, tokenAuth, usuariosRepoFrom(db)).listar(request, res);
     assert.equal(res.code, status);
     assert.equal(db.inscricoes(), 0);
   }
 });
 
 test('API retorna somente IDs e versões e desabilita cache HTTP', async () => {
-  const db = database(), controller = new SincronizacaoController(db, auth), res = response();
+  const db = database(), controller = new SincronizacaoController(db, auth, usuariosRepoFrom(db)), res = response();
   const chamada = controller.listar(req('ocorrencias'), res);
   await new Promise(resolve => setImmediate(resolve));
   db.emitir('ocorrencias', [{ id: 'a' }]);

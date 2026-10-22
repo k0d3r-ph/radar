@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import type { Auth } from 'firebase-admin/auth';
 import type { Firestore } from 'firebase-admin/firestore';
 import { COLECOES_SINCRONIZADAS, IndiceSincronizacao, type ColecaoSincronizada } from '../../infrastructure/firebase/IndiceSincronizacao.js';
+import type { IUsuariosRepository } from '../../domain/interfaces/IUsuariosRepository.js';
 
 // Cadastro do usuário por UID: evita uma leitura do Firestore a cada consulta de
 // índice (o painel dispara várias por minuto). Revogações valem em até este prazo.
@@ -11,7 +12,11 @@ export class SincronizacaoController {
   private readonly indice: IndiceSincronizacao | null;
   private readonly usuarios = new Map<string, { dados: Record<string, any> | undefined; expiraEm: number }>();
 
-  constructor(private readonly db: Firestore | null, private readonly auth: Auth | null) {
+  constructor(
+    db: Firestore | null,
+    private readonly auth: Auth | null,
+    private readonly usuariosRepo: IUsuariosRepository | null,
+  ) {
     this.indice = db ? new IndiceSincronizacao(db) : null;
   }
 
@@ -19,14 +24,14 @@ export class SincronizacaoController {
     const agora = Date.now();
     const emCache = this.usuarios.get(uid);
     if (emCache && emCache.expiraEm > agora) return emCache.dados;
-    const dados = (await this.db!.collection('usuarios').doc(uid).get()).data();
+    const dados = await this.usuariosRepo!.buscarPorUid(uid);
     this.usuarios.set(uid, { dados, expiraEm: agora + CACHE_USUARIO_MS });
     return dados;
   }
 
   async listar(req: Request, res: Response): Promise<void> {
     res.set('Cache-Control', 'no-store');
-    if (!this.db || !this.auth || !this.indice) {
+    if (!this.auth || !this.indice || !this.usuariosRepo) {
       res.status(503).json({ error: 'Sincronização indisponível.' }); return;
     }
     const colecao = req.params.colecao as ColecaoSincronizada;

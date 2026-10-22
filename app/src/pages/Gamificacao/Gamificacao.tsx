@@ -31,6 +31,7 @@ import type { UsuarioDocument } from "../../services/auth";
 import {
   listarLancamentosPontos,
   removerLancamentoPonto,
+  removerPontoTreinamentoExcedente,
   salvarLancamentoPonto,
   atualizarLancamentoPonto,
 } from "../../services/gamificacao";
@@ -788,6 +789,21 @@ export const Gamificacao: React.FC = () => {
   const [confirmarExclusaoId, setConfirmarExclusaoId] = useState<string | null>(
     null,
   );
+  const exclusaoModalRef = useRef<HTMLDivElement>(null);
+  const exclusaoEmAndamentoRef = useRef(false);
+
+  useEffect(() => {
+    if (!confirmarExclusaoId) return;
+    const origemFoco = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const overflowAnterior = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    exclusaoModalRef.current?.querySelector<HTMLButtonElement>(".btn-cancelar-confirm")?.focus();
+    return () => {
+      document.body.style.overflow = overflowAnterior;
+      if (origemFoco?.isConnected) origemFoco.focus();
+      else historicoRef.current?.focus();
+    };
+  }, [confirmarExclusaoId]);
 
   const carregarDados = async () => {
     try {
@@ -1997,18 +2013,26 @@ export const Gamificacao: React.FC = () => {
   };
 
   const handleExcluir = async (id: string) => {
+    if (exclusaoEmAndamentoRef.current) return;
+    const entry = entries.find(e => e.id === id);
+    if (!entry) return;
+    if (entry.tipoAcao === "treinamento" && (role !== "master" || pontoOcorrenciaMap[id])) {
+      toast.error("Este ponto de treinamento não pode ser removido por aqui.");
+      return;
+    }
+    exclusaoEmAndamentoRef.current = true;
     setDeletingId(id);
     try {
-      await removerLancamentoPonto(id);
+      if (entry.tipoAcao === "treinamento") await removerPontoTreinamentoExcedente(id);
+      else await removerLancamentoPonto(id);
       toast.success("Lançamento cancelado com sucesso!");
       setConfirmarExclusaoId(null);
-      // Reload points list
-      const novaLista = await listarLancamentosPontos();
-      setEntries(novaLista);
+      setEntries(atual => atual.filter(e => e.id !== id));
     } catch (error) {
       console.error("Erro ao excluir lançamento:", error);
-      toast.error("Erro ao remover o lançamento.");
+      toast.error(error instanceof Error ? error.message : "Erro ao remover o lançamento.");
     } finally {
+      exclusaoEmAndamentoRef.current = false;
       setDeletingId(null);
     }
   };
@@ -2435,11 +2459,12 @@ export const Gamificacao: React.FC = () => {
                                         <Edit2 size={14} />
                                       </button>
                                     )}
-                                  {entry.tipoAcao !== "treinamento" &&
-                                    (role === "master" ||
+                                  {(entry.tipoAcao === "treinamento"
+                                    ? role === "master" && !ocInfo
+                                    : (role === "master" ||
                                       (entry.tipoAcao !== "desconto_suporte" &&
                                         entry.tipoAcao !== "chamado_falha" &&
-                                        entry.criadoPorId === user?.uid)) && (
+                                        entry.criadoPorId === user?.uid))) && (
                                       <button
                                         className="btn-delete-entry"
                                         onClick={() =>
@@ -2447,7 +2472,8 @@ export const Gamificacao: React.FC = () => {
                                             entry.id || null,
                                           )
                                         }
-                                        title="Remover lançamento"
+                                        title={entry.tipoAcao === "treinamento" ? "Remover ponto excedente" : "Remover lançamento"}
+                                        aria-label={entry.tipoAcao === "treinamento" ? "Remover ponto excedente" : "Remover lançamento"}
                                       >
                                         <Trash2 size={14} />
                                       </button>
@@ -2471,14 +2497,23 @@ export const Gamificacao: React.FC = () => {
       {confirmarExclusaoId && entryParaExcluir && (
         <div
           className="confirm-overlay"
-          onClick={() => setConfirmarExclusaoId(null)}
+          onClick={() => { if (!exclusaoEmAndamentoRef.current) setConfirmarExclusaoId(null); }}
         >
-          <div className="confirm-modal" onClick={(e) => e.stopPropagation()}>
+          <div ref={exclusaoModalRef} className="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="exclusao-ponto-titulo" aria-describedby="exclusao-ponto-descricao" onClick={(e) => e.stopPropagation()}
+            onKeyDown={(event) => {
+              if (event.key === "Escape" && !exclusaoEmAndamentoRef.current) setConfirmarExclusaoId(null);
+              if (event.key !== "Tab") return;
+              const botoes = event.currentTarget.querySelectorAll<HTMLButtonElement>("button:not(:disabled)");
+              const primeiro = botoes[0], ultimo = botoes[botoes.length - 1];
+              if (!primeiro) { event.preventDefault(); return; }
+              if (event.shiftKey && document.activeElement === primeiro) { event.preventDefault(); ultimo.focus(); }
+              else if (!event.shiftKey && document.activeElement === ultimo) { event.preventDefault(); primeiro.focus(); }
+            }}>
             <div className="confirm-modal-header">
               <AlertTriangle className="confirm-modal-icon warning" size={24} />
-              <h2>Confirmar Cancelamento</h2>
+              <h2 id="exclusao-ponto-titulo">{entryParaExcluir.tipoAcao === "treinamento" ? "Remover ponto excedente" : "Confirmar Cancelamento"}</h2>
             </div>
-            <p className="confirm-modal-text">
+            <p id="exclusao-ponto-descricao" className="confirm-modal-text">
               Deseja realmente cancelar o lançamento de{" "}
               <strong>
                 {entryParaExcluir.pontos > 0
@@ -2489,6 +2524,12 @@ export const Gamificacao: React.FC = () => {
               para <strong>{entryParaExcluir.treinadorNome}</strong>? A
               pontuação será ajustada no ranking imediatamente.
             </p>
+            {entryParaExcluir.tipoAcao === "treinamento" && (
+              <p className="confirm-modal-text">
+                Empresa: <strong>{entryParaExcluir.treinamentoEmpresa || "—"}</strong>.
+                Apenas este lançamento de pontos será excluído. O treinamento e as respostas do CSAT serão preservados. Esta ação não pode ser desfeita.
+              </p>
+            )}
             <div className="confirm-modal-actions">
               <button
                 className="btn-excluir-confirm"

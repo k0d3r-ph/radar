@@ -138,7 +138,7 @@ interface RelatorioJornadaClienteProps {
 }
 
 interface StageInterval {
-  stage: "Em treinamento" | "Checkpoint" | "Sem próximo passo definido" | "Finalizado" | "Suspenso" | "Cliente Cancelado";
+  stage: "Agendamento realizado" | "Em treinamento" | "Checkpoint" | "Sem próximo passo definido" | "Finalizado" | "Suspenso" | "Cliente Cancelado";
   startDate: Date;
   endDate: Date;
   days: number;
@@ -220,7 +220,7 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
 
   // Verifica se a etapa de treinamento foi cancelada ou marcada como ausente
   const obterStatusTreinamento = (item: StageInterval): "cancelado" | "ausente" | "agendado" | "realizado" => {
-    if (item.stage !== "Em treinamento") return "realizado";
+    if (item.stage !== "Em treinamento" && item.stage !== "Agendamento realizado") return "realizado";
     
     const contemTema = (oc: Ocorrencia | undefined, termo: string) => {
       return oc?.temaOcorrencia?.some(t => t.trim().toLowerCase() === termo.toLowerCase()) ?? false;
@@ -342,13 +342,13 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
 
 
       // Determina o tipo de etapa
-      let stageType: "Em treinamento" | "Checkpoint" | "Sem próximo passo definido";
+      let stageType: StageInterval["stage"];
       if (oc.tipo === "Checkpoint") {
         stageType = "Checkpoint";
       } else {
         // Treinamento ou Informativa
         if (scheduledTime > 0) {
-          stageType = "Em treinamento";
+          stageType = oc.tipo === "Informativa" ? "Agendamento realizado" : "Em treinamento";
         } else {
           // Sem agendamento válido definido: normalmente é apenas o relato de
           // conclusão da etapa anterior (via ocorrenciaFinalizadora, abaixo) e não
@@ -750,7 +750,9 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
     const jornada = jornadaSelecionada.filter((s) => s.stage !== "Finalizado");
 
     // ─── 1. Treinamentos cancelados/ausentes consecutivos ───────────
-    const treinamentos = jornada.filter((s) => s.stage === "Em treinamento");
+    // Agendas só contam como sessões realizadas quando há uma ocorrência de
+    // treinamento finalizadora; o agendamento, sozinho, não comprova realização.
+    const treinamentos = jornada.filter((s) => s.stage === "Em treinamento" || s.stage === "Agendamento realizado");
     let maxConsecutivosCancelados = 0;
     let sequenciaAtualCancelados = 0;
     let maxConsecutivosAusentes = 0;
@@ -935,6 +937,8 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
     switch (stage) {
       case "Em treinamento":
         return "treinamento";
+      case "Agendamento realizado":
+        return "checkpoint";
       case "Checkpoint":
         return "checkpoint";
       case "Sem próximo passo definido":
@@ -953,6 +957,8 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
   // Ícone dinâmico baseado na etapa
   const renderStageIcon = (stage: string, size = 18, statusTreinamento?: string) => {
     switch (stage) {
+      case "Agendamento realizado":
+        return <Calendar size={size} />;
       case "Em treinamento":
         if (statusTreinamento === "cancelado") {
           return (
@@ -1815,7 +1821,7 @@ export const RelatorioJornadaCliente: React.FC<RelatorioJornadaClienteProps> = (
                       {etapaSelecionada.ocorrencia.temaOcorrencia &&
                         etapaSelecionada.ocorrencia.temaOcorrencia.length > 0 && (
                           <div className="jornada-focus-temas">
-                            <h5>Temas Abordados</h5>
+                            <h5>{etapaSelecionada.stage === "Agendamento realizado" ? "Temas Agendados" : "Temas Abordados"}</h5>
                             <div className="temas-selecionados">
                               {etapaSelecionada.ocorrencia.temaOcorrencia.map((tema) => (
                                 <span

@@ -4,6 +4,7 @@ import { registrarCsat } from './csat.js';
 import { IaController } from '../../adapters/controllers/IaController.js';
 import { CentraisController } from '../../adapters/controllers/CentraisController.js';
 import { OcorrenciasController } from '../../adapters/controllers/OcorrenciasController.js';
+import { GamificacaoController } from '../../adapters/controllers/GamificacaoController.js';
 import { SincronizacaoController } from '../../adapters/controllers/SincronizacaoController.js';
 import { FirestoreUsuariosRepository } from '../firebase/UsuariosRepository.js';
 import { adminAuth, adminDb } from '../firebase/firebaseAdmin.js';
@@ -20,6 +21,8 @@ export function createApiApp(): express.Express {
 
   registrarCsat(app, adminDb, adminAuth);
   const ocorrenciasController = new OcorrenciasController(adminDb, adminAuth, usuariosRepo);
+  const gamificacaoController = new GamificacaoController(adminDb, adminAuth, usuariosRepo);
+  app.delete('/api/gamificacao/pontos/:id/excedente', (req, res) => gamificacaoController.removerPontoExcedente(req, res));
   app.patch('/api/ocorrencias/:id/favorito', (req, res) => ocorrenciasController.definirFavorita(req, res));
   const sincronizacaoController = new SincronizacaoController(adminDb, adminAuth, usuariosRepo);
   app.get('/api/sincronizacao/:colecao', (req, res) => sincronizacaoController.listar(req, res));

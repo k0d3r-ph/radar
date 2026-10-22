@@ -453,7 +453,7 @@ body.light-theme .farol-vermelho {
 body.light-theme .farol-wrapper:focus-visible {
     outline: 2px solid #60a5fa
 }
-body.light-theme .farol-tooltip {
+body.light-theme .farol-tooltip-portal {
     background: #ffffff;
     box-shadow: 0 4px 12px rgba(15, 23, 42, 0.088);
     border: 1px solid #d5dce5;
@@ -3638,9 +3638,6 @@ body.light-theme .jornada-step-name {
 }
 body.light-theme .jornada-step-node:hover .jornada-step-name {
     color: #0f172a
-}
-body.light-theme .jornada-step-node.selected-node .jornada-step-name {
-    color: #ffffff
 }
 body.light-theme .jornada-step-date {
     color: #64748b

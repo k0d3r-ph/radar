@@ -646,7 +646,6 @@ button.jornada-kpi-card:focus-visible,
 }
 
 .jornada-step-node.selected-node .jornada-step-name {
-  color: #ffffff;
   font-weight: 700;
 }
 

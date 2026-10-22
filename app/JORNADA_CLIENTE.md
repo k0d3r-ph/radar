@@ -6,6 +6,12 @@ A faixa cronológica e os conectores entre etapas usam verde para Fast (score ef
 
 Os quadrados e a lista de mudanças abrem o detalhe com score antes/depois, respostas alteradas do questionário, reduções ativas, seus vencimentos e links para as ocorrências. Mudanças causadas pelo vencimento de reduções também aparecem. O foco vai para o detalhe e há uma ação para retornar à etapa atual.
 
+## Agendamento e treinamento
+
+Uma ocorrência **Informativa** com data agendada gera a etapa **Agendamento realizado** na lista de clientes, na régua e no detalhe, com ícone de calendário. Seus temas aparecem como **Temas Agendados**. Ocorrências informativas sem data continuam fora da régua. Um registro de tipo **Treinamento** mantém a etapa **Em treinamento**, incluindo o tratamento de cancelamento e ausência.
+
+O agendamento sozinho não conta como sessão concluída no diagnóstico. Quando há uma ocorrência de treinamento finalizadora, a sessão continua sendo contabilizada. Os períodos da jornada, SLA, checkpoints, suspensão e encerramento mantêm suas regras. A mudança requer apenas publicar o frontend, sem migração de dados.
+
 ## Regra de score e suporte
 
 O score efetivo é o último cálculo menos as reduções temporárias vigentes. Uma dúvida com Suporte ou Treinamento reduz 1 ponto por 15 dias; o intervalo maior que 5 dias entre agendas mantém a regra já existente. Somente cruzar o limite de 6 pontos altera Fast/Safety. Ex.: score 6 com um desconto de 1 vira Safety 5 sem preencher outro questionário. Ao vencer o desconto, volta a Fast 6 se não houver outros descontos. O relatório reavalia os vencimentos a cada minuto enquanto permanece aberto, sem novas leituras do Firestore.
@@ -28,6 +34,7 @@ Testes isolados, a partir da raiz:
 
 ```powershell
 node --experimental-vm-modules --test app/tests/historicoScore.test.mjs app/tests/reducaoScoreEmpresa.test.mjs
+node --test app/tests/jornadaAgendamento.test.mjs
 ```
 
 Cobrem mudanças por suporte e questionário, vencimentos, limites temporais, importação tardia, ausência de score, deduplicação e gravação transacional. Os mesmos fixtures alimentam os exemplos do emulador.

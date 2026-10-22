@@ -22,7 +22,17 @@ No celular, o pódio usa cartões empilhados. As animações de entrada e atuali
 
 A mudança utiliza os dados já carregados pela página, sem novas coleções, dependências ou chamadas de infraestrutura. Basta publicar o frontend. As permissões para lançamentos, metas e distribuição de clientes permanecem as existentes.
 
-## Validação
+## Remoção de pontos excedentes de treinamento
+
+Masters podem usar a lixeira **Remover ponto excedente** nas atividades de treinamento sem vínculo oficial com uma ocorrência. A confirmação remove somente o lançamento e ajusta o ranking; preserva o treinamento e o CSAT. Um `ocorrenciaId` no próprio ponto não prova vínculo: a referência oficial é `gamificacaoPontoId` da ocorrência ou reserva.
+
+Requer publicar frontend e API. `DELETE /api/gamificacao/pontos/:id/excedente` valida o token e o perfil do cadastro e verifica, dentro de uma transação, se alguma ocorrência ou reserva CSAT usa o ponto. Havendo vínculo, retorna 409 e preserva os dados. A ação é restrita a lançamentos de treinamento e repetir uma exclusão concluída é seguro. As regras de produção do Firestore continuam administradas no console; esta rota não depende de permissões de exclusão do SDK cliente.
+
+Essa ação permite limpar excedentes existentes; não altera o fluxo de conclusão das reservas que originou a duplicação.
+
+Validação do backend: em `server/`, `npm run build` e `node --test tests/pontoTreinamentoExcedente.test.mjs`.
+
+## Validação do frontend
 
 Em `app/`:
 

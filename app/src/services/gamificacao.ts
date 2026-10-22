@@ -14,6 +14,7 @@ import {
 import { auth, db } from "./firebase";
 import type { LancamentoPonto } from "../types";
 import { sincronizarColecao } from "./sincronizacaoIncremental";
+import { RADAR_API_URL } from "./apiConfig";
 
 const COLLECTION = "gamificacao_pontos";
 
@@ -109,6 +110,20 @@ export async function removerLancamentoPonto(id: string): Promise<void> {
   if (cachedPontos) {
     cachedPontos = cachedPontos.filter((p) => p.id !== id);
   }
+}
+
+export async function removerPontoTreinamentoExcedente(id: string): Promise<void> {
+  if (!auth.currentUser) throw new Error("Entre novamente no Radar.");
+  const token = await auth.currentUser.getIdToken();
+  const response = await fetch(`${RADAR_API_URL}/api/gamificacao/pontos/${encodeURIComponent(id)}/excedente`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+    signal: AbortSignal.timeout(20_000),
+  });
+  const dados = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(dados.error || "Não foi possível remover o ponto excedente. Confira se a API está atualizada e tente novamente.");
+  if (dados.sucesso !== true) throw new Error("A API retornou uma resposta inválida. Confira se ela está atualizada e tente novamente.");
+  if (cachedPontos) cachedPontos = cachedPontos.filter(p => p.id !== id);
 }
 
 export async function reassociarPontosTreinador(

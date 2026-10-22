@@ -5,15 +5,21 @@ import {
   runTransaction,
   doc,
   getDocsFromServer,
+  getDocFromServer,
   query,
   orderBy,
   limit,
+  where,
+  type Transaction,
+  type DocumentSnapshot,
+  type DocumentReference,
 } from "firebase/firestore";
 
 import { auth, db } from "./firebase";
 import type { Ocorrencia } from "../types";
 import { sincronizarColecao } from "./sincronizacaoIncremental";
 import { RADAR_API_URL } from './apiConfig.ts';
+import { exigeClienteAtivoParaTreinamento, MENSAGEM_TREINAMENTO_SUSPENSO, normalizarEmpresaOcorrencia } from "../utils/registroTreinamento";
 
 const COLLECTION = "ocorrencias";
 
@@ -21,6 +27,31 @@ let cachedOcorrencias: Ocorrencia[] | null = null;
 let lastFetchOcorrencias = 0;
 let cachedUsuario: string | undefined;
 const CACHE_TTL = 300000; // 5 minutos (300.000 ms)
+
+function validarCadastroTreinamento(cliente: DocumentSnapshot, nomeEmpresa: string): void {
+  const cadastro = cliente.data();
+  if (!cliente.exists() || typeof cadastro?.nomeEmpresa !== "string" || normalizarEmpresaOcorrencia(cadastro.nomeEmpresa) !== normalizarEmpresaOcorrencia(nomeEmpresa)) {
+    throw new Error("Selecione um cliente cadastrado válido para registrar o treinamento.");
+  }
+  if (cadastro.isSuspended) throw new Error(MENSAGEM_TREINAMENTO_SUSPENSO);
+}
+
+/** Consulta pontual antes de score/pontos; o estado é conferido novamente na transação de gravação. */
+export async function validarClienteParaNovoTreinamento(empresaId: string, nomeEmpresa: string): Promise<void> {
+  validarCadastroTreinamento(await getDocFromServer(doc(db, 'empresas', empresaId)), nomeEmpresa);
+}
+
+async function validarDestinoTreinamento(transaction: Transaction, nomeEmpresa: string, empresaId?: string): Promise<void> {
+  let ref: DocumentReference;
+  if (empresaId) ref = doc(db, 'empresas', empresaId);
+  else {
+    // Compatibilidade com chamadores antigos sem ID, sem leitura completa da coleção.
+    const clientes = await getDocsFromServer(query(collection(db, 'empresas'), where('nomeEmpresa', '==', nomeEmpresa), limit(2)));
+    if (clientes.docs.length !== 1) throw new Error("Selecione um cliente cadastrado válido para registrar o treinamento.");
+    ref = clientes.docs[0].ref;
+  }
+  validarCadastroTreinamento(await transaction.get(ref), nomeEmpresa);
+}
 
 // Remove `undefined` recursivamente (inclusive dentro de arrays/objetos aninhados),
 // pois o Firestore lança erro em updateDoc/addDoc ao encontrar undefined em qualquer profundidade.
@@ -40,7 +71,7 @@ function removerUndefined<T>(valor: T): T {
 
 export async function salvarOcorrencia(
   ocorrencia: Ocorrencia,
-  opcoes?: { updatedAtEsperado?: number },
+  opcoes?: { updatedAtEsperado?: number; empresaId?: string },
 ) {
   // A estrela é alterada somente pelo endpoint que valida perfil e limite por cliente.
   const { horaOcorrencia, id, favorita, favoritadaPor, favoritadaEm, favoritaEmpresaId, ...dados } = ocorrencia as any;
@@ -52,6 +83,10 @@ export async function salvarOcorrencia(
     const updatedAt = Date.now();
     await runTransaction(db, async transaction => {
       const atual = await transaction.get(ref);
+      const destino = { tipo: dadosLimpos.tipo ?? atual.data()?.tipo, empresa: dadosLimpos.empresa ?? atual.data()?.empresa };
+      if (exigeClienteAtivoParaTreinamento(destino, atual.data())) {
+        await validarDestinoTreinamento(transaction, destino.empresa, opcoes?.empresaId);
+      }
       if (
         opcoes?.updatedAtEsperado !== undefined &&
         atual.exists() &&
@@ -93,11 +128,19 @@ export async function salvarOcorrencia(
 
   const createdAt = ocorrencia.createdAt || Date.now();
   const updatedAt = Date.now();
-  const docRef = await addDoc(collection(db, COLLECTION), {
+  const novoDocumento = {
     ...dadosLimpos,
     createdAt,
     updatedAt,
-  });
+  };
+  let docRef: DocumentReference;
+  if (exigeClienteAtivoParaTreinamento(ocorrencia)) {
+    docRef = doc(collection(db, COLLECTION));
+    await runTransaction(db, async transaction => {
+      await validarDestinoTreinamento(transaction, ocorrencia.empresa, opcoes?.empresaId);
+      transaction.set(docRef, novoDocumento);
+    });
+  } else docRef = await addDoc(collection(db, COLLECTION), novoDocumento);
 
   const novaOcorrencia = {
     id: docRef.id,

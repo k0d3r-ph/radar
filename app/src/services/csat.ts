@@ -3,6 +3,7 @@ import { RADAR_API_URL } from './apiConfig.ts';
 import type { Ocorrencia } from '../types';
 
 export interface ReservaCsat extends Ocorrencia {
+  empresaId?: string;
   token: string;
   criadoPor: string;
   respostas: { nome: string; experiencia: 'Bom' | 'Ruim'; opiniao: string; respondidoEm: number }[];

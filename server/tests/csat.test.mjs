@@ -14,7 +14,7 @@ function setup() {
   const ref = path => ({ path, id: path.split('/').at(-1), get: async () => snapshot(ref(path)), collection: name => collection(`${path}/${name}`) });
   const collection = path => ({
     doc: id => ref(`${path}/${id || `id${++seq}`}`),
-    where: (field, op, value) => ({ get: async () => ({ docs: [...data.entries()]
+    where: (field, op, value) => ({ limit() { return this; }, get: async () => ({ docs: [...data.entries()]
       .filter(([key, item]) => key.startsWith(`${path}/`) && key.split('/').length === path.split('/').length + 1 && item[field] === value)
       .map(([key]) => snapshot(ref(key))) }) }),
   });
@@ -111,4 +111,42 @@ test('bloqueia novos links por treinador até concluir a reserva, inclusive para
   assert.equal((await call('POST /api/csat/reservas', { empresaId: 'e1' }, {}, 'u2')).status, 200);
   await call('POST /api/csat/reservas/:id/concluir', { empresa: 'Cliente', tipo: 'Treinamento', departamento: 'Treinamento', descricao: 'Realizado', dataOcorrencia: Date.now() }, { id: reserva.id });
   assert.equal((await call('POST /api/csat/reservas', { empresaId: 'e2' })).status, 200);
+});
+
+test('não reserva treinamento para suspenso e mantém sequência e coleções intactas', async () => {
+  const { call, data } = setup();
+  data.get('empresas/e1').isSuspended = true;
+  const antes = structuredClone([...data]);
+  const resultado = await call('POST /api/csat/reservas', { empresaId: 'e1' });
+  assert.equal(resultado.status, 409);
+  assert.match(resultado.result.error, /cliente suspenso/);
+  assert.deepEqual([...data], antes);
+});
+
+test('suspensão pausa reserva existente sem bloquear trabalho com outro cliente; retorno permite concluir', async () => {
+  const { call, data } = setup();
+  const reserva = (await call('POST /api/csat/reservas', { empresaId: 'e1' })).result;
+  const body = { empresa: 'Cliente', tipo: 'Treinamento', departamento: 'Treinamento', descricao: 'Realizado', dataOcorrencia: Date.now() };
+  data.get('empresas/e1').isSuspended = true;
+  const bloqueado = await call('POST /api/csat/reservas/:id/concluir', body, { id: reserva.id });
+  assert.equal(bloqueado.status, 409);
+  assert.match(bloqueado.result.error, /cliente suspenso/);
+  assert.equal(data.has(`ocorrencias/${reserva.id}`), false);
+  assert.equal(data.get(`csatReservas/${reserva.id}`).status, 'reservada');
+  data.set('empresas/e2', { nomeEmpresa: 'Outro cliente' });
+  assert.equal((await call('POST /api/csat/reservas', { empresaId: 'e2' })).status, 200);
+  assert.equal((await call('GET /api/csat/reservas')).result.length, 2);
+  data.get('empresas/e1').isSuspended = false;
+  assert.equal((await call('POST /api/csat/reservas/:id/concluir', body, { id: reserva.id })).status, 200);
+  assert.equal(data.get(`ocorrencias/${reserva.id}`).tipo, 'Treinamento');
+});
+
+test('respostas de treinamento concluído continuam sendo recebidas após suspensão', async () => {
+  const { call, data } = setup();
+  const reserva = (await call('POST /api/csat/reservas', { empresaId: 'e1' })).result;
+  await call('POST /api/csat/reservas/:id/concluir', { empresa: 'Cliente', tipo: 'Treinamento', departamento: 'Treinamento', descricao: 'Realizado', dataOcorrencia: Date.now() }, { id: reserva.id });
+  data.get('empresas/e1').isSuspended = true;
+  const resultado = await call('POST /api/csat/publico/:token', { nome: 'Ana', experiencia: 'Bom', opiniao: '', responseId: '12345678-12345678' }, { token: reserva.token }, '');
+  assert.equal(resultado.status, 200);
+  assert.deepEqual(data.get(`ocorrencias/${reserva.id}`).treinamentoResultados, ['Bom']);
 });

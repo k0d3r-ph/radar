@@ -30,7 +30,7 @@ async function criarPagina(estado) {
   });
   const firestore = new SyntheticModule([
     'collection', 'addDoc', 'deleteDoc', 'runTransaction', 'doc',
-    'getDocsFromServer', 'getDocsFromCache', 'documentId', 'query', 'where', 'orderBy', 'limit',
+    'getDocsFromServer', 'getDocFromServer', 'getDocsFromCache', 'documentId', 'query', 'where', 'orderBy', 'limit',
   ], function () {
     this.setExport('collection', (_db, nome) => ({ colecao: nome }));
     this.setExport('documentId', () => '__name__');
@@ -38,6 +38,7 @@ async function criarPagina(estado) {
     this.setExport('query', (colecao, ...filtros) => ({ ...colecao, filtros }));
     for (const nome of ['doc', 'orderBy', 'limit']) this.setExport(nome, (...args) => args);
     for (const nome of ['addDoc', 'deleteDoc', 'runTransaction']) this.setExport(nome, async () => {});
+    this.setExport('getDocFromServer', () => { throw new Error('A sincronização não deve consultar o cadastro de treinamento.'); });
     this.setExport('getDocsFromCache', async () => snapshot([...estado.cache.values()]));
     this.setExport('getDocsFromServer', async consulta => {
       if (estado.erroFirestore) throw new Error(estado.erroFirestore);
@@ -58,9 +59,10 @@ async function criarPagina(estado) {
   async function carregar(nome) {
     if (nome === 'firebase/firestore') return firestore;
     if (nome === './firebase') return firebase;
-    if (!['./ocorrencias', './sincronizacaoIncremental', './apiConfig.ts'].includes(nome)) throw new Error(`Import inesperado: ${nome}`);
+    if (!['./ocorrencias', './sincronizacaoIncremental', './apiConfig.ts', '../utils/registroTreinamento'].includes(nome)) throw new Error(`Import inesperado: ${nome}`);
     if (modules.has(nome)) return modules.get(nome);
-    const source = readFileSync(new URL(`../src/services/${nome.slice(2).replace(/\.ts$/, '')}.ts`, import.meta.url), 'utf8');
+    const caminho = nome === '../utils/registroTreinamento' ? '../src/utils/registroTreinamento.ts' : `../src/services/${nome.slice(2).replace(/\.ts$/, '')}.ts`;
+    const source = readFileSync(new URL(caminho, import.meta.url), 'utf8');
     const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
     const module = new SourceTextModule(code, { context, initializeImportMeta: meta => { meta.env = {}; } });
     modules.set(nome, module);

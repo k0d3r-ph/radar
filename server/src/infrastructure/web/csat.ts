@@ -1,11 +1,12 @@
 import type { Express, Request } from 'express';
-import type { Firestore } from 'firebase-admin/firestore';
+import type { Firestore, DocumentData } from 'firebase-admin/firestore';
 import type { Auth } from 'firebase-admin/auth';
 import { randomBytes, createHash } from 'crypto';
 
 class CsatError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
+const MENSAGEM_TREINAMENTO_SUSPENSO = 'Não é possível registrar treinamento para cliente suspenso. Retorne o cliente à esteira antes de registrar o treinamento.';
 export function validarResposta(body: any) {
   const nome = typeof body?.nome === 'string' ? body.nome.trim() : '';
   const opiniao = typeof body?.opiniao === 'string' ? body.opiniao.trim() : '';
@@ -59,10 +60,22 @@ export function registrarCsat(app: Express, db: Firestore | null, auth: Auth | n
       // O contador compartilhado serializa criações concorrentes, inclusive entre abas.
       const seq = Number((await tx.get(counter)).data()?.ultimo || 0) + 1;
       const anteriores = await tx.get(db!.collection('csatReservas').where('criadoPor', '==', user.uid));
-      const pendente = anteriores.docs.filter(d => d.data().status === 'reservada')
-        .sort((a, b) => b.data().createdAt - a.data().createdAt)[0];
-      if (pendente) throw new CsatError(409, `Registre a ocorrência ${pendente.data().idSeqFormatted} do cliente ${pendente.data().empresa} antes de gerar outro link do CSAT.`);
-      const cadastro = (await tx.get(empresa.ref)).data()!;
+      const cadastro = (await tx.get(empresa.ref)).data();
+      if (!cadastro) throw new CsatError(404, 'Cliente não encontrado.');
+      if (cadastro.isSuspended) throw new CsatError(409, MENSAGEM_TREINAMENTO_SUSPENSO);
+      const cadastros = new Map<string, DocumentData | undefined>([[empresa.id, cadastro]]);
+      const pendentes = anteriores.docs.filter(d => d.data().status === 'reservada')
+        .sort((a, b) => b.data().createdAt - a.data().createdAt);
+      for (const pendente of pendentes) {
+        const reserva = pendente.data();
+        const idCliente = reserva.empresaId;
+        if (typeof idCliente === 'string' && idCliente && !idCliente.includes('/')) {
+          if (!cadastros.has(idCliente)) cadastros.set(idCliente, (await tx.get(db!.collection('empresas').doc(idCliente))).data());
+          // Preserva a reserva, mas não trava o trabalho com outros clientes durante a suspensão.
+          if (cadastros.get(idCliente)?.isSuspended) continue;
+        }
+        throw new CsatError(409, `Registre a ocorrência ${reserva.idSeqFormatted} do cliente ${reserva.empresa} antes de gerar outro link do CSAT.`);
+      }
       const ocorrencias = await tx.get(db!.collection('ocorrencias').where('empresa', '==', cadastro.nomeEmpresa));
       const prefixo = typeof cadastro.idNumeric === 'number' ? String(cadastro.idNumeric)
         : (cadastro.nomeEmpresa.match(/#(\d+)/)?.[1] || cadastro.nomeEmpresa.match(/\((\d+)\)/)?.[1] || cadastro.nomeEmpresa.match(/\d+/)?.[0] || '0');
@@ -81,7 +94,7 @@ export function registrarCsat(app: Express, db: Firestore | null, auth: Auth | n
       const numeroOcorrencia = Math.max(ultimo, 0, ...reservados) + 1;
       const now = Date.now();
       const reserva = { id: ref.id, idSeqFormatted: `#${prefixo}${String(numeroOcorrencia).padStart(2, '0')}`,
-        empresa: empresa.data()!.nomeEmpresa, empresaId: empresa.id, tipo: 'Treinamento',
+        empresa: cadastro.nomeEmpresa, empresaId: empresa.id, tipo: 'Treinamento',
         departamento: 'Treinamento', responsavel: user.nome, descricao: '',
         createdAt: now, updatedAt: now, dataOcorrencia: now,
         criadoPor: user.uid, token, status: 'reservada', respostas: [] };
@@ -105,6 +118,15 @@ export function registrarCsat(app: Express, db: Firestore | null, auth: Auth | n
       const reserva = (await tx.get(ref)).data();
       if (!reserva || reserva.criadoPor !== user.uid) throw new CsatError(404, 'Reserva não encontrada.');
       if (reserva.status === 'concluida') return { id: ref.id };
+      let cadastro: DocumentData | undefined;
+      if (typeof reserva.empresaId === 'string' && reserva.empresaId && !reserva.empresaId.includes('/')) {
+        cadastro = (await tx.get(db!.collection('empresas').doc(reserva.empresaId))).data();
+      } else {
+        const clientes = await tx.get(db!.collection('empresas').where('nomeEmpresa', '==', reserva.empresa).limit(2));
+        if (clientes.docs.length === 1) cadastro = clientes.docs[0].data();
+      }
+      if (!cadastro) throw new CsatError(404, 'Cliente não encontrado.');
+      if (cadastro.isSuspended) throw new CsatError(409, MENSAGEM_TREINAMENTO_SUSPENSO);
       const dados = req.body;
       if (dados.treinamentoMotivoEspera != null && dados.treinamentoMotivoEspera !== 'cliente'
         && dados.treinamentoMotivoEspera !== 'agenda_treinador') {

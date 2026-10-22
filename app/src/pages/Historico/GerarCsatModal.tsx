@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Empresa } from "../../types";
+import { MENSAGEM_TREINAMENTO_SUSPENSO } from "../../utils/registroTreinamento";
 
 function normalizarBusca(valor: string) {
   return valor.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR").trim();
@@ -77,7 +78,7 @@ export function GerarCsatModal({
         aria-busy={gerando}
         onSubmit={(event) => {
           event.preventDefault();
-          if (empresaSelecionada?.id && !gerando) void onGerar(empresaSelecionada.id);
+          if (empresaSelecionada?.id && !empresaSelecionada.isSuspended && !gerando) void onGerar(empresaSelecionada.id);
         }}
       >
         <h2 id={tituloId}>Gerar link CSAT</h2>
@@ -115,9 +116,10 @@ export function GerarCsatModal({
                   name={`${clienteId}-empresa`}
                   value={empresa.id}
                   checked={empresa.id === empresaId}
+                  disabled={empresa.isSuspended}
                   onChange={(event) => setEmpresaId(event.target.value)}
                 />
-                <span>{empresa.nomeEmpresa}</span>
+                <span>{empresa.nomeEmpresa}{empresa.isSuspended ? " — Suspenso" : ""}</span>
               </label>
             ))}
             {empresasFiltradas.length === 0 && (
@@ -132,10 +134,11 @@ export function GerarCsatModal({
         <p className="hist-csat-selecao" aria-live="polite">
           {empresaSelecionada ? <>Cliente selecionado: <strong>{empresaSelecionada.nomeEmpresa}</strong></> : "Selecione uma empresa para gerar o link."}
         </p>
+        {empresaSelecionada?.isSuspended && <p className="hist-csat-erro" role="status">{MENSAGEM_TREINAMENTO_SUSPENSO}</p>}
         {erro && <p id={erroId} className="hist-csat-erro" role="alert">{erro}</p>}
         <div className="hist-csat-dialog-acoes">
           <button type="button" className="btn-secondary" disabled={gerando} onClick={onFechar}>Cancelar</button>
-          <button type="submit" className="btn-primary" disabled={gerando || !empresaSelecionada}>
+          <button type="submit" className="btn-primary" disabled={gerando || !empresaSelecionada || empresaSelecionada.isSuspended}>
             {gerando ? "Gerando link..." : "Gerar link"}
           </button>
         </div>

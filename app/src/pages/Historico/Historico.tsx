@@ -13,6 +13,7 @@ import {
   listarOcorrencias,
   removerOcorrencia,
   definirOcorrenciaFavorita,
+  validarClienteParaNovoTreinamento,
 } from "../../services/ocorrencias";
 import {
   listarEmpresas,
@@ -52,6 +53,7 @@ import { obterDataRealizacaoTreinamento, obterInstanteRealizacaoTreinamento } fr
 import { GestaoNotificacaoModal } from "../../components/GestaoNotificacaoModal";
 import { ConfirmarDescarteModal } from "../../components/ConfirmarDescarteModal";
 import { MotivoEsperaTreinamentoModal } from "../../components/MotivoEsperaTreinamentoModal";
+import { bloquearTreinamentoSuspenso, exigeClienteAtivoParaTreinamento, MENSAGEM_TREINAMENTO_SUSPENSO } from "../../utils/registroTreinamento";
 import { avaliarMotivoEsperaTreinamento, descreverMotivoEsperaTreinamento, motivoEsperaValido } from "../../utils/esperaTreinamento";
 import { camposResultadoConclusao } from "../../utils/notificacaoConclusao";
 
@@ -894,7 +896,10 @@ export function Historico() {
   const templateTreinamentoAtual = montarTemplateTreinamento(
     nomesParticipantesReserva || undefined,
   );
-  const ultimaReservaCsat = reservasCsat.reduce<ReservaCsat | undefined>(
+  function reservaDeClienteSuspenso(reserva: Pick<ReservaCsat, "empresa" | "empresaId">) {
+    return empresasList.some((e) => (reserva.empresaId ? e.id === reserva.empresaId : normalizar(e.nomeEmpresa) === normalizar(reserva.empresa)) && e.isSuspended);
+  }
+  const ultimaReservaCsat = reservasCsat.filter((r) => !reservaDeClienteSuspenso(r)).reduce<ReservaCsat | undefined>(
     (ultima, reserva) =>
       !ultima || (reserva.createdAt || 0) > (ultima.createdAt || 0)
         ? reserva
@@ -936,6 +941,10 @@ export function Historico() {
         "Selecione um cliente cadastrado para gerar o link.";
       setErroGerarCsat(mensagem);
       toast.error(mensagem);
+      return;
+    }
+    if (empresa.isSuspended) {
+      setErroGerarCsat(MENSAGEM_TREINAMENTO_SUSPENSO);
       return;
     }
     setGerandoCsat(true);
@@ -1609,10 +1618,19 @@ export function Historico() {
       (e) => normalizar(e.nomeEmpresa) === normalizar(form.empresa),
     );
 
+    const ocorrenciaOriginal = editandoId
+      ? ocorrencias.find((o) => o.id === editandoId) || reservaEditando
+      : null;
+    const origemTreinamento = reservaEditando ? null : ocorrenciaOriginal;
+
     if (!empresaObjeto) {
       toast.error(
         "A empresa especificada não foi encontrada. Selecione uma empresa cadastrada válida.",
       );
+      return;
+    }
+    if (bloquearTreinamentoSuspenso(empresaObjeto, form, origemTreinamento)) {
+      toast.error(MENSAGEM_TREINAMENTO_SUSPENSO);
       return;
     }
 
@@ -1704,10 +1722,6 @@ export function Historico() {
     } else if (form.tipo === "Gol") {
       timestamp = Date.now();
     }
-
-    const ocorrenciaOriginal = editandoId
-      ? ocorrencias.find((o) => o.id === editandoId) || reservaEditando
-      : null;
 
     const novaDescricao = form.descricao.trim();
 
@@ -1839,6 +1853,15 @@ export function Historico() {
           }),
     };
 
+    if (exigeClienteAtivoParaTreinamento(form, origemTreinamento)) {
+      if (!empresaObjeto.id) {
+        toast.error("Selecione um cliente cadastrado válido para registrar o treinamento.");
+        return;
+      }
+      // Confere o cadastro atual antes de qualquer ponto, cálculo ou notificação.
+      setSalvando(true);
+      await validarClienteParaNovoTreinamento(empresaObjeto.id, empresaObjeto.nomeEmpresa);
+    }
     setSalvando(true);
 
     if (calculoScoreResult) {
@@ -1847,9 +1870,9 @@ export function Historico() {
       const novoScore = calculoScoreResult.score;
       const novoTipo = calculoScoreResult.tipo;
 
-      // Atualiza a empresa
+      // Atualiza só o score: não sobrescreve uma suspensão feita em outra sessão.
       await salvarEmpresas({
-        ...empresaObjeto,
+        id: empresaObjeto.id,
         score: novoScore,
         tipo: novoTipo,
         scoreAnswers: calculoScoreResult.isNeutro ? null : respostasScore,
@@ -1946,6 +1969,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
     }
 
     let pontoId = base.gamificacaoPontoId;
+    let pontoCriadoNestaGravacao: string | undefined;
 
     if (form.tipo === "Treinamento" && user?.uid) {
       const isZeroPoints = (form.temaOcorrencia ?? []).some(
@@ -2033,6 +2057,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               ? { dataLancamento: finalCreatedAt }
               : {}),
           });
+          pontoCriadoNestaGravacao = pontoId;
         }
       } else {
         pontoId = await salvarLancamentoPonto({
@@ -2041,6 +2066,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             ? { dataLancamento: finalCreatedAt }
             : {}),
         });
+        pontoCriadoNestaGravacao = pontoId;
       }
 
       base.gamificacaoPontoId = pontoId;
@@ -2065,11 +2091,16 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
           ).id
         : await salvarOcorrencia(
             editandoId ? { ...base, id: editandoId } : base,
-            editandoId
-              ? { updatedAtEsperado: ocorrenciaOriginal?.updatedAt }
-              : undefined,
+            { empresaId: empresaObjeto.id, ...(editandoId ? { updatedAtEsperado: ocorrenciaOriginal?.updatedAt } : {}) },
           );
     } catch (error) {
+      if (pontoCriadoNestaGravacao && error instanceof Error && error.message === MENSAGEM_TREINAMENTO_SUSPENSO) {
+        try { await removerLancamentoPonto(pontoCriadoNestaGravacao); }
+        catch (erroPonto) {
+          console.error("Erro ao desfazer pontos do treinamento bloqueado:", erroPonto);
+          toast.warning("Treinamento bloqueado. Não foi possível desfazer os pontos criados; confira a gamificação.");
+        }
+      }
       toast.error(
         error instanceof Error
           ? error.message
@@ -3251,6 +3282,11 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
     (e) => normalizar(e.nomeEmpresa) === normalizar(form.empresa),
   );
   const isSelectedEmpresaOngoing = selectedEmpresaObj?.isOngoing ?? false;
+  const treinamentoIndisponivel = bloquearTreinamentoSuspenso(
+    selectedEmpresaObj,
+    { tipo: "Treinamento", empresa: form.empresa },
+    editandoId && !reservaEditando ? ocorrencias.find((o) => o.id === editandoId) : null,
+  );
 
   const tipoChartData = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -3574,6 +3610,8 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 <div key={reserva.id} className="hist-csat-reserva">
                   <button
                     className="btn-secondary"
+                    disabled={reservaDeClienteSuspenso(reserva)}
+                    title={reservaDeClienteSuspenso(reserva) ? MENSAGEM_TREINAMENTO_SUSPENSO : undefined}
                     onClick={() =>
                       abrirEdicao({
                         ...reserva,
@@ -3588,6 +3626,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   <span>
                     {reserva.empresa} · {reserva.respostas.length}{" "}
                     avaliação(ões)
+                    {reservaDeClienteSuspenso(reserva) ? " · Cliente suspenso: registro pausado" : ""}
                   </span>
                   <input
                     aria-label={`Link CSAT ${reserva.idSeqFormatted}`}
@@ -5245,11 +5284,14 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   {editandoImportadaSsx ? "Sem classificação" : "Selecione..."}
                 </option>
                 {getAllowedTypes().map((t) => (
-                  <option key={t} value={t}>
+                  <option key={t} value={t} disabled={t === "Treinamento" && treinamentoIndisponivel}>
                     {t}
                   </option>
                 ))}
               </select>
+              {treinamentoIndisponivel && (
+                <small role="status">Cliente suspenso: Treinamento está indisponível. Os demais tipos continuam disponíveis.</small>
+              )}
             </div>
 
             {(!editandoId || reservaEditando) &&
@@ -5998,7 +6040,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               <button
                 className="btn-primary"
                 onClick={salvar}
-                disabled={salvando}
+                disabled={salvando || (form.tipo === "Treinamento" && treinamentoIndisponivel)}
               >
                 {salvando
                   ? "Salvando..."

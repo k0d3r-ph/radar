@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import "./StatusFarol.css";
 import type { StatusFarolType } from "../utils/monitoramento/calcularFarol";
@@ -8,29 +8,41 @@ type Props = {
   pendencia?: string;
 };
 
-export default function StatusFarol({ status, pendencia }: Props) {
-  const [posicao, setPosicao] = useState<{ top: number; left: number; abaixo: boolean } | null>(null);
-  const wrapperRef = useRef<HTMLDivElement>(null);
+const MARGEM_TELA = 8;
 
-  if (status === "none") return null;
+export default function StatusFarol({ status, pendencia }: Props) {
+  const [ancora, setAncora] = useState<{ top: number; bottom: number; centro: number } | null>(null);
+  const [estilo, setEstilo] = useState<{ top: number; left: number } | null>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const tooltipRef = useRef<HTMLSpanElement>(null);
 
   const descricao = status === "laranja" ? `Pendência: ${pendencia || 'Não informada'}` : `Status ${status}`;
 
-  const ALTURA_TOOLTIP_ESTIMADA = 32;
+  useLayoutEffect(() => {
+    if (!ancora) { setEstilo(null); return; }
+    const rect = tooltipRef.current?.getBoundingClientRect();
+    const largura = rect?.width ?? 0;
+    const altura = rect?.height ?? 0;
+    const abaixo = ancora.top < altura + MARGEM_TELA;
+    setEstilo({
+      top: abaixo ? ancora.bottom + MARGEM_TELA : ancora.top - altura - MARGEM_TELA,
+      left: Math.max(
+        MARGEM_TELA,
+        Math.min(ancora.centro - largura / 2, window.innerWidth - largura - MARGEM_TELA)
+      ),
+    });
+  }, [ancora]);
+
+  if (status === "none") return null;
 
   function mostrarTooltip() {
     const rect = wrapperRef.current?.getBoundingClientRect();
     if (!rect) return;
-    const abaixo = rect.top < ALTURA_TOOLTIP_ESTIMADA;
-    setPosicao({
-      top: abaixo ? rect.bottom : rect.top,
-      left: rect.left + rect.width / 2,
-      abaixo,
-    });
+    setAncora({ top: rect.top, bottom: rect.bottom, centro: rect.left + rect.width / 2 });
   }
 
   function esconderTooltip() {
-    setPosicao(null);
+    setAncora(null);
   }
 
   return (
@@ -49,11 +61,12 @@ export default function StatusFarol({ status, pendencia }: Props) {
         aria-label={descricao}
         title={descricao}
       />
-      {posicao &&
+      {ancora &&
         createPortal(
           <span
-            className={`farol-tooltip farol-tooltip-portal${posicao.abaixo ? " farol-tooltip-abaixo" : ""}`}
-            style={{ top: posicao.top, left: posicao.left }}
+            ref={tooltipRef}
+            className="farol-tooltip farol-tooltip-portal"
+            style={estilo ? { top: estilo.top, left: estilo.left, opacity: 1 } : { top: ancora.top, left: ancora.centro, opacity: 0 }}
           >
             {descricao}
           </span>,

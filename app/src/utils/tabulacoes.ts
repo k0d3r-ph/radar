@@ -10,6 +10,7 @@ export const TIPOS_PADRAO_SISTEMA = [
   "Dúvida",
   "Solicitação",
   "Gol",
+  "Follow up final",
 ];
 
 export const PERFIS_TABULACAO = [
@@ -27,7 +28,7 @@ export function perfisPadraoTema(tema: Pick<TemaOcorrencia, "categoria" | "nome"
     return PERFIS_TABULACAO.map((perfil) => perfil.id);
   }
   const tiposPorPerfil: Record<string, string[]> = {
-    treinador: ["Informativa", "Treinamento", "Problema", "Dúvida", "Solicitação", "Gol"],
+    treinador: ["Informativa", "Treinamento", "Problema", "Dúvida", "Solicitação", "Gol", "Follow up final"],
     suporte: ["Informativa", "Problema", "Dúvida", "Solicitação"],
     hardware: ["Informativa"],
     comercial: ["Comercial", "Informativa"],

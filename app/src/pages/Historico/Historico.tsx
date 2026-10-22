@@ -52,6 +52,7 @@ import { generateEsteiraImage } from "../../utils/generateEsteiraImage";
 import { obterDataRealizacaoTreinamento, obterInstanteRealizacaoTreinamento } from "../../utils/dataTreinamento";
 import { GestaoNotificacaoModal } from "../../components/GestaoNotificacaoModal";
 import { ConfirmarDescarteModal } from "../../components/ConfirmarDescarteModal";
+import { ConfirmarNovoFollowUpModal } from "../../components/ConfirmarNovoFollowUpModal";
 import { MotivoEsperaTreinamentoModal } from "../../components/MotivoEsperaTreinamentoModal";
 import { bloquearTreinamentoSuspenso, exigeClienteAtivoParaTreinamento, MENSAGEM_TREINAMENTO_SUSPENSO } from "../../utils/registroTreinamento";
 import { avaliarMotivoEsperaTreinamento, descreverMotivoEsperaTreinamento, motivoEsperaValido } from "../../utils/esperaTreinamento";
@@ -337,6 +338,23 @@ const montarTemplateTreinamento = (participantes?: string) =>
   `Participantes: ${participantes ?? ""}\n\nNOTA: \n\nRelatório de treinamento:\n\n• Cliente se manteve atento? \n• Cliente absorveu o conteúdo aplicado?\n• Cliente foi participativo?\n• Houve alguma interrupção?\n• Ambiente favorável (Som)?\n• Manifestou alguma insatisfação?\n• Treinamento foi gravado?\n\nRelatório do atendimento:`;
 const TEMPLATE_TREINAMENTO = montarTemplateTreinamento();
 
+/** Ocorrência de Follow up final mais recente do cliente, para decidir se um novo
+ * registro precisa do modal de confirmação (follow up anterior em "Reforço de
+ * treinamento", ainda não concluído). */
+function obterUltimoFollowUpFinal(
+  historico: Ocorrencia[],
+  empresaNome: string,
+): Ocorrencia | undefined {
+  const nome = empresaNome.trim().toLowerCase();
+  const registros = historico.filter(
+    (item) => item.empresa.trim().toLowerCase() === nome && item.tipo === "Follow up final",
+  );
+  if (!registros.length) return undefined;
+  return registros.sort(
+    (a, b) => (b.dataOcorrencia || b.createdAt || 0) - (a.dataOcorrencia || a.createdAt || 0),
+  )[0];
+}
+
 const EMPTY: OcorrenciaForm = {
   empresa: "",
   tipo: "",
@@ -366,6 +384,10 @@ const EMPTY: OcorrenciaForm = {
   chamadoAberto: false,
   chamadoDescricao: "",
   chamadoLink: "",
+  followUpResultadoAnalise: "",
+  followUpStatusContato: "",
+  followUpProximaAcao: "",
+  followUpEncaminharSuporte: false,
 };
 
 interface ScoreFormAnswers {
@@ -761,6 +783,7 @@ export function Historico() {
   const [form, setForm] = useState({ ...EMPTY });
   const formSnapshotRef = useRef<string>(JSON.stringify(EMPTY));
   const [confirmarDescarteAberto, setConfirmarDescarteAberto] = useState(false);
+  const [followUpGateAberto, setFollowUpGateAberto] = useState(false);
   const origemPainelRef = useRef<HTMLElement | null>(null);
   const novaOcorrenciaRef = useRef<HTMLButtonElement>(null);
   const listaOcorrenciasRef = useRef<HTMLDivElement>(null);
@@ -1426,6 +1449,12 @@ export function Historico() {
         next.chamadoDescricao = "";
         next.chamadoLink = "";
       }
+      if (campo === "tipo" && f.tipo !== valor && valor !== "Follow up final") {
+        next.followUpResultadoAnalise = "";
+        next.followUpStatusContato = "";
+        next.followUpProximaAcao = "";
+        next.followUpEncaminharSuporte = false;
+      }
       return next;
     });
   }
@@ -1527,6 +1556,10 @@ export function Historico() {
       chamadoAberto: o.chamadoAberto ?? false,
       chamadoDescricao: o.chamadoDescricao ?? "",
       chamadoLink: o.chamadoLink ?? "",
+      followUpResultadoAnalise: o.followUpResultadoAnalise ?? "",
+      followUpStatusContato: o.followUpStatusContato ?? "",
+      followUpProximaAcao: o.followUpProximaAcao ?? "",
+      followUpEncaminharSuporte: o.followUpEncaminharSuporte ?? false,
     };
     setForm(formEdicao);
     formSnapshotRef.current = JSON.stringify(formEdicao);
@@ -1696,6 +1729,24 @@ export function Historico() {
       return;
     }
 
+    if (form.tipo === "Follow up final") {
+      if (!form.followUpResultadoAnalise) {
+        toast.error("Selecione o resultado da análise de aplicação.");
+        return;
+      }
+      if (!form.followUpStatusContato) {
+        toast.error("Selecione o status do contato.");
+        return;
+      }
+      if (
+        form.followUpStatusContato === "Contato bem-sucedido" &&
+        !form.followUpProximaAcao
+      ) {
+        toast.error("Selecione a próxima ação.");
+        return;
+      }
+    }
+
     const isOngoing = empresaObjeto.isOngoing ?? false;
 
     if (
@@ -1829,6 +1880,25 @@ export function Historico() {
       chamadoLink:
         form.tipo === "Problema" && form.chamadoAberto
           ? form.chamadoLink?.trim() || undefined
+          : undefined,
+      followUpResultadoAnalise:
+        form.tipo === "Follow up final"
+          ? form.followUpResultadoAnalise || undefined
+          : undefined,
+      followUpStatusContato:
+        form.tipo === "Follow up final"
+          ? form.followUpStatusContato || undefined
+          : undefined,
+      followUpProximaAcao:
+        form.tipo === "Follow up final" &&
+        form.followUpStatusContato === "Contato bem-sucedido"
+          ? form.followUpProximaAcao || undefined
+          : undefined,
+      followUpEncaminharSuporte:
+        form.tipo === "Follow up final" &&
+        form.followUpStatusContato === "Contato bem-sucedido" &&
+        form.followUpProximaAcao !== "Reforço de treinamento"
+          ? (form.followUpEncaminharSuporte ?? false)
           : undefined,
       ...(form.tipo === "Treinamento"
         ? {
@@ -2526,6 +2596,27 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       } catch (error) {
         console.error(
           "Erro ao sincronizar status de alerta na empresa:",
+          error,
+        );
+      }
+    }
+
+    // Follow up final com "Encaminhar pro suporte": preenche dataFollowUpFinal com
+    // a data deste registro, concluindo o acompanhamento (ver clienteConcluido() na
+    // Home). Não sobrescreve se o campo já estiver preenchido (idempotente ao reeditar).
+    if (
+      form.tipo === "Follow up final" &&
+      base.followUpEncaminharSuporte &&
+      empresaObjeto.id &&
+      !empresaObjeto.dataFollowUpFinal
+    ) {
+      try {
+        const hoje = new Date();
+        const dataFollowUpFinal = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-${String(hoje.getDate()).padStart(2, "0")}`;
+        await salvarEmpresas({ id: empresaObjeto.id, dataFollowUpFinal });
+      } catch (error) {
+        console.error(
+          "Erro ao preencher a data de follow up final da empresa:",
           error,
         );
       }
@@ -4071,6 +4162,18 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                           🎫
                         </span>
                       )}
+                      {o.tipo === "Follow up final" && (
+                        <span
+                          style={{ marginLeft: "6px" }}
+                          title={`Resultado: ${o.followUpResultadoAnalise || "—"}\nContato: ${o.followUpStatusContato || "—"}${o.followUpProximaAcao ? `\nPróxima ação: ${o.followUpProximaAcao}` : ""}${o.followUpEncaminharSuporte ? "\nEncaminhado para o Suporte" : ""}`}
+                        >
+                          {o.followUpStatusContato === "Aguardando retorno"
+                            ? "⏳"
+                            : o.followUpEncaminharSuporte
+                              ? "✅"
+                              : "🧭"}
+                        </span>
+                      )}
                     </td>
 
                     <td>{data ? data.toLocaleDateString("pt-BR") : "—"}</td>
@@ -4496,6 +4599,31 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       </strong>
                     </div>
                   )}
+
+                {selecionada.tipo === "Follow up final" && (
+                  <>
+                    <div>
+                      <span>Resultado da análise</span>
+                      <strong>{selecionada.followUpResultadoAnalise || "—"}</strong>
+                    </div>
+                    <div>
+                      <span>Status do contato</span>
+                      <strong>{selecionada.followUpStatusContato || "—"}</strong>
+                    </div>
+                    {selecionada.followUpProximaAcao && (
+                      <div>
+                        <span>Próxima ação</span>
+                        <strong>{selecionada.followUpProximaAcao}</strong>
+                      </div>
+                    )}
+                    {selecionada.followUpEncaminharSuporte && (
+                      <div>
+                        <span>Encaminhamento</span>
+                        <strong>Encaminhado para o Suporte ✅</strong>
+                      </div>
+                    )}
+                  </>
+                )}
 
                 {selecionada.tipo === "Treinamento" && (
                   <>
@@ -5278,7 +5406,20 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               </label>
               <select
                 value={form.tipo}
-                onChange={(e) => set("tipo", e.target.value)}
+                onChange={(e) => {
+                  const valor = e.target.value;
+                  if (
+                    valor === "Follow up final" &&
+                    !editandoId &&
+                    form.empresa &&
+                    obterUltimoFollowUpFinal(ocorrencias, form.empresa)
+                      ?.followUpProximaAcao === "Reforço de treinamento"
+                  ) {
+                    setFollowUpGateAberto(true);
+                    return;
+                  }
+                  set("tipo", valor);
+                }}
               >
                 <option value="">
                   {editandoImportadaSsx ? "Sem classificação" : "Selecione..."}
@@ -5468,6 +5609,129 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       />
                     </div>
                   </div>
+                )}
+              </div>
+            )}
+
+            {form.tipo === "Follow up final" && (
+              <div className="hist-campo">
+                <label>Resultado da análise *</label>
+                <div className="radio-group-score">
+                  {(
+                    ["Aplicado", "Sem evidência de aplicação", "Parcialmente aplicado"] as const
+                  ).map((opcao) => (
+                    <label key={opcao}>
+                      <input
+                        type="radio"
+                        name="followUpResultadoAnalise"
+                        value={opcao}
+                        checked={form.followUpResultadoAnalise === opcao}
+                        onChange={() => set("followUpResultadoAnalise", opcao)}
+                      />
+                      {opcao}
+                    </label>
+                  ))}
+                </div>
+
+                <label style={{ marginTop: "0.75rem", display: "block" }}>
+                  Status do contato *
+                </label>
+                <div className="radio-group-score">
+                  {(["Aguardando retorno", "Contato bem-sucedido"] as const).map(
+                    (opcao) => (
+                      <label key={opcao}>
+                        <input
+                          type="radio"
+                          name="followUpStatusContato"
+                          value={opcao}
+                          checked={form.followUpStatusContato === opcao}
+                          onChange={() =>
+                            setForm({
+                              ...form,
+                              followUpStatusContato: opcao,
+                              ...(opcao === "Aguardando retorno"
+                                ? { followUpProximaAcao: "", followUpEncaminharSuporte: false }
+                                : {}),
+                            })
+                          }
+                        />
+                        {opcao}
+                      </label>
+                    ),
+                  )}
+                </div>
+                {form.followUpStatusContato === "Aguardando retorno" && (
+                  <small role="status">
+                    A ocorrência pode ser salva assim. Edite-a depois para registrar o
+                    resultado do contato.
+                  </small>
+                )}
+
+                {form.followUpStatusContato === "Contato bem-sucedido" && (
+                  <>
+                    <label style={{ marginTop: "0.75rem", display: "block" }}>
+                      Próxima ação *
+                    </label>
+                    <div className="radio-group-score">
+                      {(
+                        [
+                          "Nenhuma ação necessária",
+                          "Orientação complementar",
+                          "Reforço de treinamento",
+                        ] as const
+                      ).map((opcao) => (
+                        <label key={opcao}>
+                          <input
+                            type="radio"
+                            name="followUpProximaAcao"
+                            value={opcao}
+                            checked={form.followUpProximaAcao === opcao}
+                            onChange={() =>
+                              setForm({
+                                ...form,
+                                followUpProximaAcao: opcao,
+                                ...(opcao === "Reforço de treinamento"
+                                  ? { followUpEncaminharSuporte: false }
+                                  : {}),
+                              })
+                            }
+                          />
+                          {opcao}
+                        </label>
+                      ))}
+                    </div>
+
+                    {form.followUpProximaAcao &&
+                      form.followUpProximaAcao !== "Reforço de treinamento" && (
+                        <label
+                          className="checkbox-label"
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            cursor: "pointer",
+                            marginTop: "0.75rem",
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={form.followUpEncaminharSuporte ?? false}
+                            onChange={(e) =>
+                              setForm({
+                                ...form,
+                                followUpEncaminharSuporte: e.target.checked,
+                              })
+                            }
+                          />
+                          Encaminhar pro suporte (conclui o acompanhamento do cliente) ✅
+                        </label>
+                      )}
+                    {form.followUpProximaAcao === "Reforço de treinamento" && (
+                      <small role="status">
+                        O cliente permanece na esteira até um novo follow up final.
+                      </small>
+                    )}
+                  </>
                 )}
               </div>
             )}
@@ -6056,6 +6320,15 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         <ConfirmarDescarteModal
           onContinuar={() => setConfirmarDescarteAberto(false)}
           onDescartar={() => cancelar({ skipConfirmacao: true })}
+        />
+      )}
+      {followUpGateAberto && (
+        <ConfirmarNovoFollowUpModal
+          onConcluiuAgora={() => {
+            setFollowUpGateAberto(false);
+            set("tipo", "Follow up final");
+          }}
+          onPrecisaDeMaisUmFollowUp={() => setFollowUpGateAberto(false)}
         />
       )}
       {diasConfirmacaoEspera !== null && (

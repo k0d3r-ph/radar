@@ -89,6 +89,12 @@ export type Empresa = {
   localizacao?: string;
 
   dataFinalizacao?: string;
+  /**
+   * Editável diretamente pelo master no cadastro, ou preenchida automaticamente
+   * pela ocorrência de tipo "Follow up final" quando o treinador marca
+   * "Encaminhar pro suporte" (ver followUpEncaminharSuporte em Ocorrencia).
+   * Junto com dataFinalizacao, determina clienteConcluido() na Home.
+   */
   dataFollowUpFinal?: string;
 
   /** Carimbo "Lobo Solitário" marcado manualmente no cadastro do cliente. */
@@ -252,6 +258,14 @@ export type Ocorrencia = {
   chamadoWhatsappStatus?: WhatsappStatus;
   chamadoWhatsappEnviadoEm?: number;
   chamadoWhatsappDestinatarios?: WhatsappDestinatarioEnvio[];
+  /** Resultado da análise de aplicação do tema treinado (ocorrência Follow up final). */
+  followUpResultadoAnalise?: "Aplicado" | "Sem evidência de aplicação" | "Parcialmente aplicado";
+  /** Status do contato com o cliente para o follow up final. Aguardando retorno deixa a ocorrência incompleta até ser editada. */
+  followUpStatusContato?: "Aguardando retorno" | "Contato bem-sucedido";
+  /** Próxima ação definida após contato bem-sucedido. Só preenchida quando followUpStatusContato é "Contato bem-sucedido". */
+  followUpProximaAcao?: "Nenhuma ação necessária" | "Orientação complementar" | "Reforço de treinamento";
+  /** Encaminha o cliente para o Suporte, concluindo o acompanhamento (preenche Empresa.dataFollowUpFinal com a data desta ocorrência). Indisponível quando followUpProximaAcao é "Reforço de treinamento". */
+  followUpEncaminharSuporte?: boolean;
   whatsappStatus?: WhatsappStatus;
   whatsappEnviadoEm?: number;
   whatsappDestinatarios?: WhatsappDestinatarioEnvio[];
@@ -288,6 +302,10 @@ export type OcorrenciaForm = {
   chamadoAberto?: boolean;
   chamadoDescricao?: string;
   chamadoLink?: string;
+  followUpResultadoAnalise?: "Aplicado" | "Sem evidência de aplicação" | "Parcialmente aplicado" | "";
+  followUpStatusContato?: "Aguardando retorno" | "Contato bem-sucedido" | "";
+  followUpProximaAcao?: "Nenhuma ação necessária" | "Orientação complementar" | "Reforço de treinamento" | "";
+  followUpEncaminharSuporte?: boolean;
 };
 
 export type Atualizacao = {

@@ -45,11 +45,9 @@
   border-radius: 50%;
 }
 
-.farol-tooltip {
-  position: absolute;
-  bottom: 180%;
-  left: 50%;
-  transform: translateX(-50%) translateY(8px) scale(0.9);
+.farol-tooltip-portal {
+  position: fixed;
+  transform: translateX(-50%) translateY(calc(-100% - 8px));
   background: #1e293b;
   color: #fff;
   padding: 4px 10px;
@@ -58,15 +56,11 @@
   font-weight: 700;
   white-space: nowrap;
   pointer-events: none;
-  opacity: 0;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  z-index: 99;
+  z-index: 9999;
 }
 
-.farol-wrapper:hover .farol-tooltip,
-.farol-wrapper:focus-visible .farol-tooltip {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0) scale(1);
+.farol-tooltip-abaixo {
+  transform: translateX(-50%) translateY(8px);
 }

@@ -4,6 +4,15 @@
   gap: 1.5rem;
 }
 
+.indicadores-treinamento-container .kpi-value-row {
+  flex-wrap: wrap;
+}
+
+.indicadores-kpi-complemento {
+  font-weight: 600;
+  color: inherit;
+}
+
 .indicadores-treinamento-container .indicadores-filtros {
   width: 100%;
   box-sizing: border-box;

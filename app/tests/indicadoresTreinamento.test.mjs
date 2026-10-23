@@ -18,6 +18,49 @@ await module.evaluate();
 const { construirEventosIndicadoresTreinamento: construir, calcularValorKpiTreinamento: calcular,
   listarTreinadoresIndicadoresTreinamento: listar, gerarPeriodosIndicadoresEntreDatas: periodos,
   listarEsperasLongasTreinamento: listarEsperas, recortarPeriodosIndicadores: recortar } = module.namespace;
+const { calcularResumoCardsTreinamento: resumoCards } = module.namespace;
+
+test('cartões usam a soma dos três tipos e 20 contatos em dez dias úteis dão média 2', () => {
+  const resumo = resumoCards({ treinamentosRealizados: 6, treinamentosAusentes: 3,
+    treinamentosCancelados: 1, contatosSuporte: 20 }, new Date(2026, 9, 5), new Date(2026, 9, 16, 23, 59));
+  assert.equal(resumo.totalTreinamentos, 10);
+  assert.deepEqual({ ...resumo.percentuais }, {
+    treinamentosRealizados: 60, treinamentosAusentes: 30, treinamentosCancelados: 10,
+  });
+  assert.equal(resumo.diasUteis, 10);
+  assert.equal(resumo.mediaSuporte, 2);
+});
+
+test('média inclui dias sem contato, extremos, feriados de semana e intervalos além do limite do gráfico', () => {
+  for (const [inicio, fim, dias] of [
+    [new Date(2026, 9, 23), new Date(2026, 9, 23, 23, 59), 1],
+    [new Date(2026, 9, 23), new Date(2026, 9, 26), 2],
+    [new Date(2026, 9, 10), new Date(2026, 9, 12), 1],
+    [new Date(2026, 0, 1), new Date(2026, 11, 31), 261],
+    [new Date(2024, 1, 28), new Date(2024, 2, 1), 3],
+  ]) {
+    const resumo = resumoCards({ contatosSuporte: 1 }, inicio, fim);
+    assert.equal(resumo.diasUteis, dias);
+    assert.equal(resumo.mediaSuporte, 1 / dias);
+  }
+});
+
+test('sem treinamentos não há porcentagem; sem dias úteis não há média; sem contatos a média é zero', () => {
+  const vazio = resumoCards({ contatosSuporte: 0 }, new Date(2026, 9, 23), new Date(2026, 9, 23));
+  assert.equal(vazio.totalTreinamentos, 0);
+  assert.deepEqual({ ...vazio.percentuais }, {
+    treinamentosRealizados: null, treinamentosAusentes: null, treinamentosCancelados: null,
+  });
+  assert.equal(vazio.mediaSuporte, 0);
+  for (const [inicio, fim] of [
+    [new Date(2026, 9, 24), new Date(2026, 9, 25)],
+    [new Date(2026, 9, 26), new Date(2026, 9, 23)],
+  ]) {
+    const resumo = resumoCards({ contatosSuporte: 0 }, inicio, fim);
+    assert.equal(resumo.diasUteis, 0);
+    assert.equal(resumo.mediaSuporte, null);
+  }
+});
 
 const lancamento = (empresa, tema = 'Cadastro', treinador = 'Natália Teixeira') => ({
   tipoAcao: 'treinamento', treinadorNome: treinador, treinamentoEmpresa: empresa,

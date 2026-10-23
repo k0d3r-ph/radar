@@ -81,6 +81,38 @@ export type KpiTreinamentoChave =
   | "clientesSuspensos"
   | "clientesCancelados";
 
+/** Complementos dos cartões, sobre os mesmos totais já filtrados do relatório. */
+export function calcularResumoCardsTreinamento(
+  valores: Partial<Record<KpiTreinamentoChave, number | null>>,
+  inicio: Date,
+  fim: Date,
+) {
+  // Conta o calendário completo, sem o limite de 180 pontos usado pelo gráfico.
+  const numeroDia = (data: Date) => Date.UTC(data.getFullYear(), data.getMonth(), data.getDate()) / 86_400_000;
+  const quantidadeDias = numeroDia(fim) - numeroDia(inicio) + 1;
+  let diasUteis = 0;
+  if (Number.isFinite(quantidadeDias) && quantidadeDias > 0) {
+    diasUteis = Math.floor(quantidadeDias / 7) * 5;
+    const cursor = inicioDoDia(inicio);
+    for (let i = 0; i < quantidadeDias % 7; i++) {
+      if (isDiaUtil(cursor)) diasUteis++;
+      cursor.setDate(cursor.getDate() + 1);
+    }
+  }
+  const chaves = ["treinamentosRealizados", "treinamentosAusentes", "treinamentosCancelados"] as const;
+  const totalTreinamentos = chaves.reduce((total, chave) => total + (valores[chave] ?? 0), 0);
+  const percentuais: Partial<Record<KpiTreinamentoChave, number | null>> = {};
+  chaves.forEach((chave) => {
+    percentuais[chave] = totalTreinamentos > 0 ? (valores[chave] ?? 0) / totalTreinamentos * 100 : null;
+  });
+  return {
+    percentuais,
+    totalTreinamentos,
+    diasUteis,
+    mediaSuporte: diasUteis > 0 && valores.contatosSuporte != null ? valores.contatosSuporte / diasUteis : null,
+  };
+}
+
 export interface ConfigKpiTreinamento {
   chave: KpiTreinamentoChave;
   titulo: string;

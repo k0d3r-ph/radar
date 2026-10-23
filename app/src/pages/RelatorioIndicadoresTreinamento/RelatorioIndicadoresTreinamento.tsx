@@ -32,6 +32,7 @@ import {
   construirEventosIndicadoresTreinamento,
   listarTreinadoresIndicadoresTreinamento,
   calcularValorKpiTreinamento,
+  calcularResumoCardsTreinamento,
   gerarPeriodosIndicadoresEntreDatas,
   recortarPeriodosIndicadores,
   formatarValorKpiTreinamento,
@@ -221,6 +222,10 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
     return resultado;
   }, [eventos, periodoTotal, treinadorAtivo]);
 
+  const resumoCards = useMemo(() => periodoTotal
+    ? calcularResumoCardsTreinamento(valoresCards, periodoTotal.inicio, periodoTotal.fim)
+    : null, [valoresCards, periodoTotal]);
+
   const linhasTabela = useMemo(() => {
     if (!periodoTotal) return [];
     const nomes = treinadorFiltro ? [treinadorFiltro] : treinadoresEquipe;
@@ -367,7 +372,21 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
                   <span className="kpi-value">
                     {formatarValorKpiTreinamento(kpi.chave, valoresCards[kpi.chave] ?? null)}
                   </span>
+                  {resumoCards && kpi.chave in resumoCards.percentuais && (
+                    <span className="kpi-desc indicadores-kpi-complemento">
+                      {formatarValorKpiTreinamento("taxaCsat", resumoCards.percentuais[kpi.chave] ?? null)} do total
+                    </span>
+                  )}
                 </div>
+                {resumoCards && kpi.chave in resumoCards.percentuais && (
+                  <span className="kpi-desc">Base: {resumoCards.totalTreinamentos} treinamentos (realizados, ausentes e cancelados).</span>
+                )}
+                {resumoCards && kpi.chave === "contatosSuporte" && (
+                  <span className="kpi-desc indicadores-kpi-complemento">
+                    Média: {resumoCards.mediaSuporte === null ? "—" : resumoCards.mediaSuporte.toFixed(1).replace(".", ",")} por dia útil
+                    {` · ${resumoCards.diasUteis} ${resumoCards.diasUteis === 1 ? "dia útil" : "dias úteis"} no período`}
+                  </span>
+                )}
                 <span className="kpi-desc">{kpi.descricao}</span>
               </div>
             ))}

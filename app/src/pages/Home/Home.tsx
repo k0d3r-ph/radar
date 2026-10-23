@@ -1409,12 +1409,18 @@ export default function Home() {
     return { total, concluidos, emAndamento, alerta };
   }, [dadosAtivos, dados]);
 
+  // Suspensos esvazia as demais seções (ver comentário acima de
+  // filtroSomenteSuspensos), então não combina com Status/Alerta e é desligado
+  // aqui. Lobo Solitário é um carimbo ortogonal ao status — combina livremente
+  // com Concluídos, Em andamento e Alerta, então não é tocado.
   const handleStatusCardClick = (status: "concluidos" | "andamento") => {
     setFiltroCardStatus((prev) => (prev === status ? "" : status));
+    setFiltroSomenteSuspensos(false);
   };
 
   const handleAlertaCardClick = () => {
     setFiltroCardAlerta((prev) => (prev === "alerta" ? "" : "alerta"));
+    setFiltroSomenteSuspensos(false);
   };
 
   // Quantidade de filtros ativos dentro do modal "Filtros", para o selo no botão
@@ -2538,6 +2544,8 @@ export default function Home() {
           onClick={() => {
             setFiltroCardStatus("");
             setFiltroCardAlerta("");
+            setFiltroSomenteSuspensos(false);
+            setFiltroLoboSolitario(false);
           }}
         >
           <div className="stat-card-texto">

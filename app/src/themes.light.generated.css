@@ -627,6 +627,25 @@ body.light-theme .temas-editor-remover:focus-visible,
 body.light-theme .temas-editor-adicionar:focus-visible {
     outline: 2px solid #60a5fa
 }
+body.light-theme .temas-editor-handle {
+    color: #64748b
+}
+body.light-theme .temas-editor-linha--alvo-antes {
+    box-shadow: 0 -2px 0 0 rgba(96, 165, 250, 0.45)
+}
+body.light-theme .temas-editor-linha--alvo-depois {
+    box-shadow: 0 2px 0 0 rgba(96, 165, 250, 0.45)
+}
+body.light-theme .temas-editor-mover-botao {
+    color: #64748b
+}
+body.light-theme .temas-editor-mover-botao:hover:not(:disabled) {
+    background: #e2e8f0;
+    color: #0f172a
+}
+body.light-theme .temas-editor-mover-botao:focus-visible {
+    outline: 2px solid #60a5fa
+}
 body.light-theme .btn-danger {
     background: #d11a2a;
     box-shadow: 0 8px 24px rgba(122, 0, 0, 0.126);

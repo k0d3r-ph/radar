@@ -172,7 +172,7 @@
 .temas-editor-cabecalho,
 .temas-editor-linha {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 84px 32px;
+  grid-template-columns: 18px minmax(0, 1fr) 84px 22px 32px;
   gap: 8px;
   align-items: center;
 }
@@ -183,7 +183,7 @@
   font-weight: 600;
 }
 
-.temas-editor-cabecalho span:nth-child(2) {
+.temas-editor-cabecalho span:nth-child(3) {
   text-align: center;
 }
 
@@ -272,6 +272,69 @@
   outline: 2px solid #60a5fa;
   outline-offset: 2px;
   opacity: 1;
+}
+
+.temas-editor-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.35);
+  cursor: grab;
+}
+
+.temas-editor-linha.arrastando {
+  opacity: 0.5;
+}
+
+.temas-editor-linha.arrastando .temas-editor-handle {
+  cursor: grabbing;
+}
+
+/* Indica onde a fase arrastada vai cair: uma linha acima ou abaixo da fase
+   sobrevoada, conforme a metade em que o cursor está. box-shadow em vez de
+   border para não deslocar o grid ao ligar/desligar o indicador. */
+.temas-editor-linha--alvo-antes {
+  box-shadow: 0 -2px 0 0 #60a5fa;
+}
+
+.temas-editor-linha--alvo-depois {
+  box-shadow: 0 2px 0 0 #60a5fa;
+}
+
+.temas-editor-mover {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.temas-editor-mover-botao {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 15px;
+  border: none;
+  border-radius: 4px;
+  padding: 0;
+  color: rgba(255, 255, 255, 0.5);
+  background: transparent;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+
+.temas-editor-mover-botao:hover:not(:disabled) {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.temas-editor-mover-botao:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.temas-editor-mover-botao:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 1px;
 }
 
 .btn-danger {

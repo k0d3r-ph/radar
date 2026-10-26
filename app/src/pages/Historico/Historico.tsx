@@ -5,6 +5,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import "./CsatReservas.css";
 import { requisicaoCsat, linkCsat, editarRespostaCsat } from "../../services/csat";
+import { copiarTexto } from '../../utils/clipboard';
 import type { ReservaCsat } from "../../services/csat";
 import { GerarCsatModal } from "./GerarCsatModal";
 import * as XLSX from "xlsx";
@@ -979,9 +980,11 @@ export function Historico() {
       )) as ReservaCsat;
       setReservasCsat((prev) => [...prev, reserva]);
       setModalCsatAberto(false);
+      const copiado = await copiarTexto(linkCsat(reserva.token));
       toast.success(
-        `Link gerado. Ocorrência ${reserva.idSeqFormatted} reservada.`,
+        `Link gerado${copiado ? ' e copiado' : ''}. Ocorrência ${reserva.idSeqFormatted} reservada.`,
       );
+      if (!copiado) toast.warning('O navegador não permitiu copiar automaticamente. Use “Copiar link” ou selecione o endereço no campo do CSAT.');
       // Uma falha ao atualizar os cadastros não invalida o link já criado.
       try {
         setEmpresasList(await listarEmpresas(true));
@@ -1485,7 +1488,18 @@ export function Historico() {
     setTemaForaEsteira(false);
   }
 
+  function abrirValidacao(nomeEmpresa: string) {
+    const empresa = empresasList.find((e) => normalizar(e.nomeEmpresa) === normalizar(nomeEmpresa));
+    navigate(empresa?.id ? `/validacao-conhecimento?empresa=${encodeURIComponent(empresa.id)}` : "/validacao-conhecimento");
+  }
+
   function abrirEdicao(o: Ocorrencia) {
+    if (o.validacaoTentativaId) {
+      toast.info('Esta ocorrência registra uma tentativa concluída da Validação do conhecimento e não pode ser editada aqui.', {
+        action: { label: 'Abrir validação', onClick: () => abrirValidacao(o.empresa) },
+      });
+      return;
+    }
     origemPainelRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const treinamento = lerTemasTreinamento(
       o.temaOcorrencia ?? [],
@@ -1636,6 +1650,11 @@ export function Historico() {
     const responsavelFinal = formatarNome(
       editandoId ? form.responsavel : userName,
     );
+
+    if (form.tipo === 'Treinamento' && (form.temaOcorrencia ?? []).some(t => normalizar(t) === normalizar('Validação do conhecimento'))) {
+      toast.error('Registre este tema pelo módulo Validação do conhecimento. A esteira avança apenas após aprovação na avaliação.');
+      return;
+    }
 
     if (
       !form.empresa.trim() ||
@@ -3728,12 +3747,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   <button
                     className="btn-secondary"
                     onClick={async () => {
-                      try {
-                        await navigator.clipboard.writeText(
-                          linkCsat(reserva.token),
-                        );
+                      if (await copiarTexto(linkCsat(reserva.token))) {
                         toast.success("Link copiado.");
-                      } catch {
+                      } else {
                         toast.error(
                           "Selecione e copie o link no campo ao lado.",
                         );
@@ -4627,6 +4643,25 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
                 {selecionada.tipo === "Treinamento" && (
                   <>
+                    {selecionada.validacaoTentativaId && (
+                      <div>
+                        <span>Validação do conhecimento</span>
+                        <strong>
+                          {selecionada.validacaoAprovada ? "Aprovado" : "Não aprovado"}
+                          {typeof selecionada.validacaoPercentual === "number" &&
+                            ` · ${selecionada.validacaoPercentual.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`}
+                          {typeof selecionada.validacaoNota === "number" &&
+                            ` · ${selecionada.validacaoNota.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}/10`}
+                        </strong>
+                        <button
+                          type="button"
+                          className="btn-link-template"
+                          onClick={() => abrirValidacao(selecionada.empresa)}
+                        >
+                          Ver respostas na Validação do conhecimento
+                        </button>
+                      </div>
+                    )}
                     {selecionada.treinamentoDataSolicitacao && (
                       <div>
                         <span>Data de solicitação</span>
@@ -5904,7 +5939,15 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                         ...(form.temaOcorrencia ?? []),
                       ]);
 
-                      return opcoes.map((tema) => (
+                      return opcoes.map((tema) => normalizar(tema) === normalizar("Validação do conhecimento") ? (
+                        <label key={tema} className="tema-opcao tema-opcao-bloqueada" title="Registrado pelo módulo Validação do conhecimento">
+                          <input type="checkbox" checked={false} disabled aria-describedby="hist-tema-validacao-ajuda" />
+                          {tema}
+                          <small id="hist-tema-validacao-ajuda">
+                            Registre pelo menu Validação do conhecimento
+                          </small>
+                        </label>
+                      ) : (
                         <label key={tema} className="tema-opcao">
                           <input
                             type="checkbox"

@@ -18,6 +18,8 @@ import { RADAR_API_URL } from "./apiConfig";
 
 const COLLECTION = "gamificacao_pontos";
 
+export function invalidarCacheGamificacao(): void { cachedPontos = null; }
+
 let cachedPontos: LancamentoPonto[] | null = null;
 let lastFetchPontos = 0;
 let cachedUsuario: string | undefined;

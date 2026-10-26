@@ -1,5 +1,7 @@
 # Radar CRM — frontend
 
+O módulo **Validação do conhecimento**, seus templates e as tarefas automáticas estão descritos em [VALIDACAO_CONHECIMENTO.md](VALIDACAO_CONHECIMENTO.md).
+
 ## Conexão com o backend
 
 Configure `app/.env` usando os endereços de `app/.env.example`:

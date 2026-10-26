@@ -15,6 +15,7 @@ import { WhatsAppSettings } from "./pages/WhatsApp/WhatsAppSettings";
 import { TiposOcorrencia } from "./pages/TiposOcorrencia/TiposOcorrencia";
 import ChecklistTarefas from "./components/ChecklistTarefas";
 import { useVerificaVersao } from "./utils/useVerificaVersao";
+import { ValidacaoConhecimento } from "./pages/ValidacaoConhecimento/ValidacaoConhecimento";
 
 
 function AppRoutes() {
@@ -101,6 +102,7 @@ function AppRoutes() {
               >
                 Gamificação
               </NavLink>
+              <NavLink to="/validacao-conhecimento" className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}>Validação do conhecimento</NavLink>
               <NavLink
                 to="/whatsapp"
                 className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
@@ -140,6 +142,7 @@ function AppRoutes() {
       </nav>
 
       <Routes>
+        <Route path="/validacao-conhecimento" element={role === "master" || role === "treinador" ? <ValidacaoConhecimento /> : <Navigate to="/" replace />} />
         <Route path="/" element={<Navigate to={role === "painel" ? "/relatorios" : "/home"} replace />} />
         <Route path="/login" element={<Navigate to={role === "painel" ? "/relatorios" : "/home"} replace />} />
         <Route path="/alterar-senha" element={<Navigate to={role === "painel" ? "/relatorios" : "/home"} replace />} />

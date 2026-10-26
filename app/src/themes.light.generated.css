@@ -53,163 +53,221 @@ body.light-theme {
 }
 
 /* ── components/ChecklistTarefas.css ── */
+body.light-theme .checklist-novas {
+    border: 1px solid #3b82f6;
+    background: #ebeefa;
+    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.04);
+    color: #1169d5
+}
+body.light-theme .checklist-novas:hover {
+    background: #eaeefa
+}
+body.light-theme .checklist-novas > span {
+    background: #93c5fd
+}
+body.light-theme .checklist-flutuante-botao--novas::before {
+    border: 2px solid #60a5fa
+}
 body.light-theme .checklist-flutuante-botao {
-    background: #3b82f6;
-    box-shadow: 0 4px 14px rgba(59, 130, 246, 0.203);
-    color: #fff
+    border: 1px solid #3b82f6;
+    background: #2563eb;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.048);
+    color: #ffffff
 }
 body.light-theme .checklist-flutuante-botao:hover {
-    box-shadow: 0 6px 18px rgba(59, 130, 246, 0.248)
+    background: #1d4ed8
 }
 body.light-theme .checklist-flutuante-badge {
+    border: 2px solid #ffffff;
     background: #ef4444;
-    border: 2px solid var(--bg, #ffffff);
-    color: #fff
+    color: #ffffff
 }
-body.light-theme .checklist-flutuante-painel {
-    background: var(--card-bg, #ffffff);
-    border: 1px solid #cbd5e1;
-    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.077)
-}
-body.light-theme .checklist-flutuante-fechar {
-    color: #475569
-}
-body.light-theme .checklist-flutuante-fechar:hover {
-    background: rgba(148, 163, 184, 0.15);
+body.light-theme .tarefas-painel {
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    box-shadow: 0 20px 64px rgba(15, 23, 42, 0.07);
     color: #0f172a
 }
-body.light-theme .checklist-flutuante-progresso {
+body.light-theme .checklist-flutuante :is(button, input, textarea, select, summary, a):focus-visible {
+    outline: 2px solid #60a5fa
+}
+body.light-theme .tarefas-titulo h2 {
+    color: #0f172a
+}
+body.light-theme .tarefas-titulo p {
+    color: #475569
+}
+body.light-theme .tarefas-icone {
+    border: 1px solid #e2e8f0;
+    background: #ffffff;
+    color: #1271db
+}
+body.light-theme .tarefas-painel .tarefas-botao-icone {
+    color: #475569
+}
+body.light-theme .tarefas-painel .tarefas-botao-icone:hover {
+    background: #ffffff;
+    color: #0f172a
+}
+body.light-theme .tarefas-responsavel > label {
+    color: #475569
+}
+body.light-theme .tarefas-abas {
+    border: 1px solid #e2e8f0;
+    background: #f8fafc
+}
+body.light-theme .tarefas-abas button {
+    color: #475569
+}
+body.light-theme .tarefas-abas button[aria-pressed=true] {
+    background: #ffffff;
+    border-color: #cbd5e1;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+    color: #0f172a
+}
+body.light-theme .tarefas-abas button > span {
     background: rgba(148, 163, 184, 0.15)
 }
-body.light-theme .checklist-flutuante-progresso-preenchido {
-    background: #3b82f6
+body.light-theme .tarefa-card {
+    border: 1px solid #e2e8f0;
+    background: #f8fafc
 }
-body.light-theme .checklist-flutuante-select {
-    background-color: rgba(148, 163, 184, 0.08);
-    border: 1px solid #cbd5e1;
-    color: #0f172a
-}
-body.light-theme .checklist-flutuante-select:hover,
-body.light-theme .checklist-flutuante-select:focus {
-    border-color: #3b82f6;
-    background-color: rgba(148, 163, 184, 0.12)
-}
-body.light-theme .checklist-flutuante-select option {
-    background-color: #ffffff;
-    color: #0f172a
-}
-body.light-theme .checklist-flutuante-autor {
-    color: #64748b
-}
-body.light-theme .checklist-flutuante-form input {
-    background: rgba(148, 163, 184, 0.08);
-    border: 1px solid #cbd5e1;
-    color: #0f172a
-}
-body.light-theme .checklist-flutuante-form input::placeholder {
-    color: #64748b
-}
-body.light-theme .checklist-flutuante-form input:focus {
-    border-color: #3b82f6;
-    background: rgba(148, 163, 184, 0.12)
-}
-body.light-theme .checklist-flutuante-sla-icon {
-    color: #64748b
-}
-body.light-theme .checklist-flutuante-sla-input {
-    background: rgba(148, 163, 184, 0.08);
-    border: 1px solid #cbd5e1;
-    color: #0f172a
-}
-body.light-theme .checklist-flutuante-sla-input:focus {
-    border-color: #3b82f6;
-    background: rgba(148, 163, 184, 0.12)
-}
-body.light-theme .checklist-flutuante-sla-limpar {
+body.light-theme .tarefa-card--pausada h3,
+body.light-theme .tarefa-card--pausada .tarefa-cliente {
     color: #475569
 }
-body.light-theme .checklist-flutuante-sla-limpar:hover {
-    background: rgba(239, 68, 68, 0.15);
-    color: #eb1515
+body.light-theme .tarefas-secao-pausadas {
+    border-top: 1px solid #e2e8f0
 }
-body.light-theme .checklist-flutuante-vazio {
+body.light-theme .tarefas-secao-pausadas h3 {
+    color: #334155
+}
+body.light-theme .tarefas-secao-pausadas h3 > span {
+    background: rgba(148, 163, 184, 0.15);
     color: #475569
 }
-body.light-theme .checklist-flutuante-item {
-    background: rgba(148, 163, 184, 0.06)
-}
-body.light-theme .checklist-flutuante-item.concluida span {
-    color: #64748b
-}
-body.light-theme .checklist-flutuante-sla-badge.sla-vazio {
-    background: rgba(148, 163, 184, 0.1);
-    border-color: #cbd5e1;
+body.light-theme .tarefas-secao-pausadas > p {
     color: #475569
 }
-body.light-theme .checklist-flutuante-sla-badge.sla-vazio:hover {
-    background: rgba(148, 163, 184, 0.18);
-    color: #cbd5e1
+body.light-theme .tarefa-card--nova {
+    border-color: #3b82f6;
+    box-shadow: inset 3px 0 0 rgba(59, 130, 246, 0.45)
 }
-body.light-theme .checklist-flutuante-sla-badge.sla-normal {
-    background: rgba(52, 211, 153, 0.12);
-    border-color: rgba(52, 211, 153, 0.3);
-    color: #34d399
+body.light-theme .tarefa-nova {
+    background: #ebeefa;
+    color: #1067c8
 }
-body.light-theme .checklist-flutuante-sla-badge.sla-proximo {
-    background: rgba(251, 191, 36, 0.12);
-    border-color: rgba(251, 191, 36, 0.3);
-    color: #fbbf24
+body.light-theme .tarefas-painel .tarefa-check {
+    border: 1.5px solid #cbd5e1;
+    color: #0f172a
 }
-body.light-theme .checklist-flutuante-sla-badge.sla-urgente {
-    background: rgba(249, 115, 22, 0.15);
-    border-color: rgba(249, 115, 22, 0.35);
-    color: #b85b0f
+body.light-theme .tarefas-painel .tarefa-check:hover {
+    border-color: #60a5fa;
+    background: rgba(59, 130, 246, 0.12)
 }
-body.light-theme .checklist-flutuante-sla-badge.sla-atrasado {
-    background: rgba(239, 68, 68, 0.15);
-    border-color: rgba(239, 68, 68, 0.4);
+body.light-theme .tarefas-painel .tarefa-check[aria-pressed=true] {
+    background: #16a34a;
+    border-color: #16a34a
+}
+body.light-theme .tarefa-cliente {
+    color: #0f172a
+}
+body.light-theme .tarefa-card h3 {
+    color: #334155
+}
+body.light-theme .tarefa-card--concluida h3 {
+    color: #475569
+}
+body.light-theme .tarefa-prioridade--baixa,
+body.light-theme .tarefa-prioridade--normal {
+    background: #ffffff;
+    color: #475569
+}
+body.light-theme .tarefa-prioridade--alta {
+    background: rgba(245, 158, 11, 0.12);
+    color: #ab630e
+}
+body.light-theme .tarefa-prioridade--urgente {
+    background: rgba(239, 68, 68, 0.12);
     color: #e61313
 }
-body.light-theme .checklist-flutuante-prioridade-select.prioridade-baixa,
-body.light-theme .checklist-flutuante-prioridade-badge.prioridade-baixa {
-    background-color: rgba(148, 163, 184, 0.1);
-    border-color: #cbd5e1;
+body.light-theme .tarefa-motivo {
     color: #475569
 }
-body.light-theme .checklist-flutuante-prioridade-select.prioridade-normal,
-body.light-theme .checklist-flutuante-prioridade-badge.prioridade-normal {
-    background-color: rgba(59, 130, 246, 0.12);
-    border-color: rgba(59, 130, 246, 0.3);
-    color: #126fe2
+body.light-theme .tarefa-indicadores {
+    color: #475569
 }
-body.light-theme .checklist-flutuante-prioridade-select.prioridade-alta,
-body.light-theme .checklist-flutuante-prioridade-badge.prioridade-alta {
-    background-color: rgba(249, 115, 22, 0.15);
-    border-color: rgba(249, 115, 22, 0.35);
-    color: #b85b0f
-}
-body.light-theme .checklist-flutuante-prioridade-select.prioridade-urgente,
-body.light-theme .checklist-flutuante-prioridade-badge.prioridade-urgente {
-    background-color: rgba(239, 68, 68, 0.15);
-    border-color: rgba(239, 68, 68, 0.4);
+body.light-theme .tarefa-indicadores .tarefa-prazo-atrasado {
     color: #e61313
 }
-body.light-theme .checklist-flutuante-prioridade-select option,
-body.light-theme .checklist-flutuante-prioridade-badge option {
-    background-color: #ffffff;
-    color: #e2e8f0
-}
-body.light-theme .checklist-flutuante-sla-inline-input {
-    background: rgba(148, 163, 184, 0.08);
-    border: 1px solid #3b82f6;
-    color: #0f172a
-}
-body.light-theme .checklist-flutuante-remover {
+body.light-theme .tarefa-links a {
     color: #475569
 }
-body.light-theme .checklist-flutuante-remover:hover {
-    background: rgba(239, 68, 68, 0.15);
-    color: #eb1515
+body.light-theme .tarefa-links a:hover {
+    color: #1271db
+}
+body.light-theme .tarefa-links .tarefa-acao {
+    border: 1px solid rgba(59, 130, 246, 0.25);
+    background: rgba(59, 130, 246, 0.1);
+    color: #1271db
+}
+body.light-theme .tarefa-conclusao-info {
+    color: #475569
+}
+body.light-theme .tarefa-rodape {
+    border-top: 1px solid #e2e8f0
+}
+body.light-theme .tarefa-opcoes > summary {
+    color: #475569
+}
+body.light-theme .tarefas-painel form label {
+    color: #334155
+}
+body.light-theme .tarefas-painel :is(form input, form textarea, form select) {
+    border: 1px solid #cbd5e1;
+    background: #f8fafc;
+    color: #0f172a
+}
+body.light-theme .tarefa-opcoes-acoes button {
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #0f172a
+}
+body.light-theme .tarefas-painel .tarefa-excluir {
+    color: #e61313
+}
+body.light-theme .tarefas-rodape {
+    border-top: 1px solid #e2e8f0
+}
+body.light-theme .tarefas-painel .tarefas-nova {
+    border: 1px dashed #cbd5e1;
+    color: #334155
+}
+body.light-theme .tarefas-painel .tarefas-nova:hover {
+    background: #ffffff;
+    border-color: #60a5fa
+}
+body.light-theme .tarefas-painel .tarefas-salvar {
+    border: 1px solid #2563eb;
+    background: #2563eb;
+    color: #ffffff
+}
+body.light-theme .tarefas-erro {
+    background: rgba(239, 68, 68, 0.1);
+    color: #eb1313
+}
+body.light-theme .tarefas-erro button {
+    color: #eb1313
+}
+body.light-theme .tarefas-vazio {
+    color: #475569
+}
+body.light-theme .tarefas-vazio strong {
+    color: #334155
+}
+body.light-theme .tarefas-vazio-icone {
+    background: #ffffff;
+    color: #475569
 }
 
 /* ── components/ColumnSelector.css ── */
@@ -256,6 +314,61 @@ body.light-theme .column-selector-trigger:focus-visible,
 body.light-theme .column-selector-checkbox-label input:focus-visible,
 body.light-theme .column-selector-restaurar:focus-visible {
     outline: 2px solid #60a5fa
+}
+
+/* ── components/ConfirmacaoModal.css ── */
+body.light-theme .confirmacao-modal {
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.077);
+    color: #0f172a
+}
+body.light-theme .confirmacao-modal::backdrop {
+    background: rgba(15, 23, 42, 0.4)
+}
+body.light-theme .confirmacao-modal-icone {
+    background: rgba(59, 130, 246, 0.12);
+    color: #1271db
+}
+body.light-theme .confirmacao-modal-icone--perigo {
+    background: rgba(239, 68, 68, 0.12);
+    color: #eb1313
+}
+body.light-theme .confirmacao-modal h2 {
+    color: #0f172a
+}
+body.light-theme .confirmacao-modal p {
+    color: #334155
+}
+body.light-theme .confirmacao-modal-acoes button {
+    border: 1px solid #cbd5e1
+}
+body.light-theme .confirmacao-modal-voltar {
+    background: #ffffff;
+    color: #0f172a
+}
+body.light-theme .confirmacao-modal-voltar:hover {
+    background: #f1f5f9
+}
+body.light-theme .confirmacao-modal-acoes .confirmacao-modal-confirmar {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #ffffff
+}
+body.light-theme .confirmacao-modal-acoes .confirmacao-modal-confirmar:hover {
+    background: #1d4ed8;
+    border-color: #1d4ed8
+}
+body.light-theme .confirmacao-modal-acoes .confirmacao-modal-confirmar--perigo {
+    background: #b91c1c;
+    border-color: #b91c1c
+}
+body.light-theme .confirmacao-modal-acoes .confirmacao-modal-confirmar--perigo:hover {
+    background: #991b1b;
+    border-color: #991b1b
+}
+body.light-theme .confirmacao-modal button:focus-visible {
+    outline: 3px solid #60a5fa
 }
 
 /* ── components/ConfirmarDescarteModal.css ── */
@@ -2012,6 +2125,12 @@ body.light-theme .tema-opcao {
 }
 body.light-theme .tema-opcao:hover {
     background: #f1f5f9
+}
+body.light-theme .tema-opcao.tema-opcao-bloqueada {
+    color: #475569 !important
+}
+body.light-theme .tema-opcao-bloqueada small {
+    color: #475569
 }
 body.light-theme .tema-tag {
     background: rgba(59, 130, 246, 0.15);
@@ -4159,6 +4278,20 @@ body.light-theme .sem-score-badge:hover {
     background: rgba(245, 158, 11, 0.25)
 }
 
+/* ── pages/RelatorioValidacaoConhecimento/RelatorioValidacaoConhecimento.css ── */
+body.light-theme .validacao-relatorio-nota {
+    color: #475569
+}
+body.light-theme .validacao-relatorio-tabelas h2 {
+    color: #0f172a
+}
+body.light-theme .validacao-relatorio-tabelas section > p {
+    color: #475569
+}
+body.light-theme .validacao-relatorio-vazio {
+    color: #475569
+}
+
 /* ── pages/Relatorios/Relatorios.css ── */
 body.light-theme .relatorios-page {
     background: #f8fafc;
@@ -4712,6 +4845,276 @@ body.light-theme .admin-tool-section {
 }
 body.light-theme .admin-tool-section h2 {
     border-bottom-color: rgba(16, 185, 129, 0.15) !important
+}
+
+/* ── pages/ValidacaoConhecimento/ValidacaoConhecimento.css ── */
+body.light-theme .validacao-page {
+    color: #0f172a
+}
+body.light-theme .validacao-page > header p {
+    color: #475569
+}
+body.light-theme .validacao-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0
+}
+body.light-theme .validacao-page label {
+    color: #334155
+}
+body.light-theme .validacao-page input:not([type=radio]):not([type=checkbox]),
+body.light-theme .validacao-page textarea,
+body.light-theme .validacao-page select {
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    color: #0f172a
+}
+body.light-theme .validacao-page button {
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #0f172a
+}
+body.light-theme .validacao-page button:hover:not(:disabled) {
+    border-color: #cbd5e1;
+    background: #f1f5f9
+}
+body.light-theme .validacao-page :is(button, input, textarea, select, a, summary):focus-visible {
+    outline: 2px solid #60a5fa
+}
+body.light-theme .validacao-page a {
+    color: #1271db
+}
+body.light-theme .validacao-agenda {
+    border-top: 1px solid #e2e8f0
+}
+body.light-theme .validacao-erro-campo {
+    color: #eb1313
+}
+body.light-theme .validacao-historico button {
+    color: #475569
+}
+body.light-theme .validacao-historico button[aria-pressed=true] {
+    border-color: rgba(59, 130, 246, 0.45);
+    background: rgba(59, 130, 246, 0.1);
+    color: #1271db
+}
+body.light-theme .validacao-sessao-cabecalho p {
+    color: #475569
+}
+body.light-theme .validacao-eyebrow {
+    color: #475569
+}
+body.light-theme .validacao-status {
+    background: rgba(59, 130, 246, 0.12);
+    color: #1271db
+}
+body.light-theme .validacao-status--pausada {
+    background: rgba(245, 158, 11, 0.12);
+    color: #ab630e
+}
+body.light-theme .validacao-status--concluida {
+    background: rgba(34, 197, 94, 0.12);
+    color: #11833b
+}
+body.light-theme .validacao-status--cancelada {
+    background: #ffffff;
+    color: #334155
+}
+body.light-theme .validacao-resumo {
+    border: 1px solid #e2e8f0;
+    background: #f8fafc
+}
+body.light-theme .validacao-resumo > div + div {
+    border-left: 1px solid #e2e8f0
+}
+body.light-theme .validacao-resumo span {
+    color: #475569
+}
+body.light-theme .validacao-resumo strong {
+    color: #0f172a
+}
+body.light-theme .validacao-resumo small {
+    color: #475569
+}
+body.light-theme .validacao-resumo progress::-webkit-progress-bar {
+    background: #f1f5f9
+}
+body.light-theme .validacao-resumo progress::-webkit-progress-value {
+    background: #3b82f6
+}
+body.light-theme .validacao-questao--pendente {
+    border-left-color: #e2e8f0
+}
+body.light-theme .validacao-questao--correto {
+    border-left-color: #34d399
+}
+body.light-theme .validacao-questao--parcial {
+    border-left-color: #fbbf24
+}
+body.light-theme .validacao-questao--incorreto {
+    border-left-color: #f87171
+}
+body.light-theme .validacao-questao-numero {
+    border: 1px solid #e2e8f0;
+    background: #ffffff;
+    color: #475569
+}
+body.light-theme .validacao-questao-secao {
+    color: #334155
+}
+body.light-theme .validacao-questao-origem {
+    color: #475569
+}
+body.light-theme .validacao-preferida {
+    background: rgba(251, 191, 36, 0.1);
+    color: #ab630e
+}
+body.light-theme .validacao-page .validacao-pergunta-texto {
+    color: #0f172a
+}
+body.light-theme .validacao-respostas legend {
+    color: #475569
+}
+body.light-theme .validacao-page .validacao-opcao {
+    border: 1px solid #cbd5e1;
+    background: #f8fafc;
+    color: #475569
+}
+body.light-theme .validacao-opcao:has(input:focus-visible) {
+    outline: 2px solid #60a5fa
+}
+body.light-theme .validacao-opcao:hover:has(input:not(:disabled)) {
+    border-color: #cbd5e1
+}
+body.light-theme .validacao-opcao-linha strong {
+    color: #334155
+}
+body.light-theme .validacao-opcao-marca {
+    border: 1px solid #cbd5e1
+}
+body.light-theme .validacao-page .validacao-opcao--correto.validacao-opcao--selecionada {
+    border-color: #34d399;
+    background: rgba(52, 211, 153, 0.08);
+    color: #6ee7b7
+}
+body.light-theme .validacao-page .validacao-opcao--parcial.validacao-opcao--selecionada {
+    border-color: #fbbf24;
+    background: rgba(251, 191, 36, 0.08);
+    color: #fcd34d
+}
+body.light-theme .validacao-page .validacao-opcao--incorreto.validacao-opcao--selecionada {
+    border-color: #f87171;
+    background: rgba(248, 113, 113, 0.08);
+    color: #fca5a5
+}
+body.light-theme .validacao-questao-rodape {
+    border-top: 1px solid #e2e8f0;
+    color: #475569
+}
+body.light-theme .validacao-questao-rodape strong {
+    color: #334155
+}
+body.light-theme .validacao-page .validacao-questao-ferramentas button {
+    color: #475569
+}
+body.light-theme .validacao-page .validacao-questao-ferramentas button:hover:not(:disabled) {
+    background: rgba(148, 163, 184, 0.12);
+    color: #0f172a
+}
+body.light-theme .validacao-page .validacao-questao-ferramentas .validacao-remover:hover {
+    color: #e61313
+}
+body.light-theme .validacao-page details > summary {
+    color: #334155
+}
+body.light-theme .validacao-aviso {
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.2);
+    color: #ac630e
+}
+body.light-theme .validacao-resultado {
+    background: #ffffff;
+    border: 1px solid #e2e8f0
+}
+body.light-theme .validacao-resultado--aprovado {
+    border-color: rgba(52, 211, 153, 0.35);
+    border-left-color: #34d399
+}
+body.light-theme .validacao-resultado--aprovado > strong {
+    color: #16875a
+}
+body.light-theme .validacao-resultado--reprovado {
+    border-color: rgba(251, 191, 36, 0.35);
+    border-left-color: #fbbf24
+}
+body.light-theme .validacao-resultado--reprovado > strong {
+    color: #ac630e
+}
+body.light-theme .validacao-banco > div {
+    border-bottom: 1px solid #e2e8f0
+}
+body.light-theme .validacao-acoes--principal {
+    background: #f8fafc;
+    box-shadow: 0 8px 28px rgba(15, 23, 42, 0.055)
+}
+body.light-theme .validacao-acoes-contexto {
+    color: #475569
+}
+body.light-theme .validacao-page .validacao-proxima {
+    color: #1271db
+}
+body.light-theme .validacao-page .validacao-proxima:hover:not(:disabled) {
+    background: rgba(59, 130, 246, 0.1)
+}
+body.light-theme .validacao-page .validacao-primario {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #ffffff
+}
+body.light-theme .validacao-page .validacao-primario:hover:not(:disabled) {
+    background: #1d4ed8;
+    border-color: #1d4ed8
+}
+body.light-theme .validacao-page .validacao-cancelar {
+    border-color: rgba(239, 68, 68, 0.3);
+    color: #eb1313
+}
+body.light-theme .validacao-page .validacao-cancelar:hover:not(:disabled) {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: #f87171
+}
+body.light-theme .validacao-banco-gestao > summary span {
+    color: #475569
+}
+body.light-theme .validacao-banco-gestao h3 {
+    color: #0f172a
+}
+body.light-theme .validacao-banco-form {
+    border-bottom: 1px solid #e2e8f0
+}
+body.light-theme .validacao-banco-form > p {
+    color: #475569
+}
+body.light-theme .validacao-banco-lista li {
+    border-bottom: 1px solid #e2e8f0
+}
+body.light-theme .validacao-banco-lista li > p {
+    color: #0f172a
+}
+body.light-theme .validacao-banco-inativa > p,
+body.light-theme .validacao-banco-inativa .validacao-banco-etiquetas > span:first-child {
+    color: #475569
+}
+body.light-theme .validacao-banco-etiquetas > span {
+    background: #ffffff;
+    color: #334155
+}
+body.light-theme .validacao-banco-etiquetas .validacao-etiqueta-preferida {
+    background: rgba(251, 191, 36, 0.1);
+    color: #ab630e
+}
+body.light-theme .validacao-banco-etiquetas .validacao-etiqueta-inativa {
+    background: rgba(148, 163, 184, 0.15);
+    color: #475569
 }
 
 /* ── pages/WhatsApp/WhatsAppSettings.css ── */

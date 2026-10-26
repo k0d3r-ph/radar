@@ -7,10 +7,11 @@
 // Ex.: temas ensinados hoje = [Videotelemetria], já ensinados antes = [0,1] →
 // Videotelemetria (originalmente na posição 6) é movido para a posição 2.
 //
-// "Início" e "Conclusão" são âncoras fixas: independentemente de onde estejam
-// cadastradas na esteira, "Início" é sempre tratada como o primeiro tema e
-// "Conclusão" como o último — nunca entram no embaralhamento acima, e nenhum
-// outro tema pode ser puxado para antes de "Início" ou para depois de "Conclusão".
+// "Início" e o tema final são âncoras fixas: validação é o último tema quando
+// presente; esteiras antigas continuam usando "Conclusão". As âncoras não
+// entram no embaralhamento e nenhum tema é movido para fora desses limites.
+import { indiceTemaFinal } from '../../../server/src/domain/validacaoConhecimento.ts';
+
 const normalizarTema = (s: string) => s.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
 export function reordenarTemasEnsinados(
@@ -26,9 +27,7 @@ export function reordenarTemasEnsinados(
   indicesEnsinados = indicesEnsinados.map((indice) => indicesValidos.indexOf(indice)).filter((indice) => indice !== -1);
 
   const idxInicio = linhasTema.findIndex((t) => normalizarTema(t) === "inicio");
-  const idxConclusao = linhasTema.findIndex(
-    (t) => normalizarTema(t) === "conclusao",
-  );
+  const idxConclusao = indiceTemaFinal(linhasTema);
 
   const inicioItem =
     idxInicio !== -1
@@ -66,7 +65,7 @@ export function reordenarTemasEnsinados(
         inicioItem.data = dataStr;
       continue;
     }
-    if (normalizado === "conclusao") {
+    if (idxOriginal === idxConclusao) {
       if (conclusaoItem && conclusaoItem.data.trim() === "")
         conclusaoItem.data = dataStr;
       continue;
@@ -107,7 +106,7 @@ export function reordenarTemasEnsinados(
   // Última posição (no array final) que faz parte do progresso já concluído.
   // "Início" conta como concluída assim que ocupa a posição fixa (não trava o
   // progresso dos demais temas por falta da própria data — empresas antigas
-  // podem nunca ter tido essa data preenchida). "Conclusão" só conta quando
+  // podem nunca ter tido essa data preenchida). O tema final só conta quando
   // todos os temas do meio já estiverem preenchidos E ela própria tiver data.
   let ultimoIndice = (inicioItem ? 1 : 0) + frontIndex - 1;
   if (

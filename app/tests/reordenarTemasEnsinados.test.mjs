@@ -35,3 +35,25 @@ test('esteira vazia não tem fase concluída', () => {
   assert.deepEqual(resultado.newTemas, []);
   assert.equal(resultado.ultimoIndice, -1);
 });
+
+test('validação do conhecimento é a âncora final e só conclui após os demais temas', () => {
+  const pendente = reordenarTemasEnsinados(
+    ['Início', 'Validação do conhecimento', 'Relatórios'], ['01/10', '', ''], [1], '05/10',
+  );
+  assert.deepEqual(pendente.newTemas, ['Início', 'Relatórios', 'Validação do conhecimento']);
+  assert.equal(pendente.ultimoIndice, 0);
+
+  const concluida = reordenarTemasEnsinados(
+    ['Início', 'Relatórios', 'Validação do conhecimento'], ['01/10', '03/10', ''], [2], '05/10',
+  );
+  assert.deepEqual(concluida.newDatas, ['01/10', '03/10', '05/10']);
+  assert.equal(concluida.ultimoIndice, 2);
+});
+
+test('com validação presente, "Conclusão" antiga vira tema comum antes dela', () => {
+  const resultado = reordenarTemasEnsinados(
+    ['Início', 'Conclusão', 'Validação do conhecimento'], ['01/10', '', ''], [1], '05/10',
+  );
+  assert.deepEqual(resultado.newTemas, ['Início', 'Conclusão', 'Validação do conhecimento']);
+  assert.equal(resultado.ultimoIndice, 1);
+});

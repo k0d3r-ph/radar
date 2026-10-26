@@ -18,6 +18,8 @@ import { descreverQuedaParaSafetyPorReducao, obterTipoEfetivo } from "../utils/s
 
 const COLLECTION = "empresas";
 
+export function invalidarCacheEmpresas(): void { cachedEmpresas = null; }
+
 // Empresas internas (ex.: treinamentos dados à própria Systemsat) não devem ser
 // contabilizadas como clientes na esteira, ongoing, cancelados ou suspensos —
 // mas continuam pesquisáveis normalmente ao registrar uma ocorrência.

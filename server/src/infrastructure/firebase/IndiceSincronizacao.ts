@@ -5,6 +5,7 @@ export type ColecaoSincronizada = typeof COLECOES_SINCRONIZADAS[number];
 type DocumentoIndice = { id: string; versao: string };
 type EstadoIndice = {
   documentos: DocumentoIndice[];
+  dados: Map<string, Record<string, unknown>>;
   pronto: Promise<void>;
   cancelar: () => void;
   erro?: Error;
@@ -28,7 +29,7 @@ export class IndiceSincronizacao {
       let concluir!: () => void;
       let falhar!: (erro: Error) => void;
       estado = {
-        documentos: [], cancelar: () => {}, tentarNovamenteEm: 0,
+        documentos: [], dados: new Map(), cancelar: () => {}, tentarNovamenteEm: 0,
         pronto: new Promise<void>((resolve, reject) => { concluir = resolve; falhar = reject; }),
       };
       this.indices.set(colecao, estado);
@@ -40,6 +41,7 @@ export class IndiceSincronizacao {
       };
       try {
         atual.cancelar = this.db.collection(colecao).onSnapshot(snapshot => {
+          atual.dados = new Map(snapshot.docs.map(d => [d.id, { ...d.data(), id: d.id }]));
           atual.documentos = snapshot.docs.map(documento => ({
             id: documento.id,
             // Detecta gravações sem updatedAt e independe do relógio do navegador.
@@ -59,5 +61,10 @@ export class IndiceSincronizacao {
   encerrar(): void {
     for (const estado of this.indices.values()) estado.cancelar();
     this.indices.clear();
+  }
+
+  async dados(colecao: ColecaoSincronizada): Promise<Record<string, unknown>[]> {
+    await this.listar(colecao);
+    return [...this.indices.get(colecao)!.dados.values()];
   }
 }

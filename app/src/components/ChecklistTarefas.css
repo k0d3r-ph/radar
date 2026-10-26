@@ -1,478 +1,93 @@
-.checklist-flutuante {
-  position: fixed;
-  right: 1.5rem;
-  bottom: 1.5rem;
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.75rem;
-  margin-right: 1rem;
-}
-
-.checklist-flutuante-botao {
-  position: relative;
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  border: none;
-  background: #3b82f6;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.45);
-  transition:
-    transform 0.15s ease,
-    box-shadow 0.15s ease;
-}
-
-.checklist-flutuante-botao:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(59, 130, 246, 0.55);
-}
-
-.checklist-flutuante-badge {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  background: #ef4444;
-  color: #fff;
-  border-radius: 999px;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 5px;
-  font-size: 0.7rem;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 2px solid var(--bg, #0f172a);
-}
-
-.checklist-flutuante-painel {
-  width: 380px;
-  max-width: calc(100vw - 3rem);
-  max-height: 68vh;
-  display: flex;
-  flex-direction: column;
-  background: var(--card-bg, #1e293b);
-  border: 1px solid rgba(148, 163, 184, 0.15);
-  border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-  padding: 1rem;
-  overflow: hidden;
-}
-
-.checklist-flutuante-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0.75rem;
-}
-
-.checklist-flutuante-header h2 {
-  margin: 0;
-  font-size: 1rem;
-}
-
-.checklist-flutuante-fechar {
-  background: none;
-  border: none;
-  color: #94a3b8;
-  cursor: pointer;
-  padding: 4px;
-  display: flex;
-  border-radius: 6px;
-  transition:
-    background 0.2s,
-    color 0.2s;
-}
-
-.checklist-flutuante-fechar:hover {
-  background: rgba(148, 163, 184, 0.15);
-  color: #e2e8f0;
-}
-
-.checklist-flutuante-progresso {
-  width: 100%;
-  height: 6px;
-  border-radius: 999px;
-  background: rgba(148, 163, 184, 0.15);
-  overflow: hidden;
-  margin-bottom: 0.75rem;
-}
-
-.checklist-flutuante-progresso-preenchido {
-  height: 100%;
-  background: #3b82f6;
-  border-radius: 999px;
-  transition: width 0.2s ease;
-}
-
-.checklist-flutuante-select {
-  width: 100%;
-  height: 38px;
-  padding: 0 2rem 0 0.75rem;
-  margin-bottom: 0.75rem;
-  background-color: rgba(148, 163, 184, 0.08);
-  border: 1px solid rgba(148, 163, 184, 0.25);
-  border-radius: 8px;
-  color: #e2e8f0;
-  font-size: 0.88rem;
-  outline: none;
-  appearance: none;
-  -webkit-appearance: none;
-  cursor: pointer;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
-  background-repeat: no-repeat;
-  background-position: right 0.6rem center;
-  transition:
-    border-color 0.15s ease,
-    background-color 0.15s ease;
-}
-
-.checklist-flutuante-select:hover,
-.checklist-flutuante-select:focus {
-  border-color: #3b82f6;
-  background-color: rgba(148, 163, 184, 0.12);
-}
-
-.checklist-flutuante-select option {
-  background-color: #1e293b;
-  color: #e2e8f0;
-}
-
-.checklist-flutuante-autor {
-  display: block;
-  font-size: 0.72rem;
-  color: #64748b;
-  margin-top: 0.15rem;
-}
-
-.checklist-flutuante-form {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
-}
-
-.checklist-flutuante-form input {
-  flex: 1;
-  min-width: 0;
-  height: 38px;
-  padding: 0 0.75rem;
-  background: rgba(148, 163, 184, 0.08);
-  border: 1px solid rgba(148, 163, 184, 0.25);
-  border-radius: 8px;
-  color: #e2e8f0;
-  font-size: 0.88rem;
-  outline: none;
-  transition:
-    border-color 0.15s ease,
-    background 0.15s ease;
-}
-
-.checklist-flutuante-form input::placeholder {
-  color: #64748b;
-}
-
-.checklist-flutuante-form input:focus {
-  border-color: #3b82f6;
-  background: rgba(148, 163, 184, 0.12);
-}
-
-.checklist-flutuante-form button {
-  flex-shrink: 0;
-  width: 38px;
-  height: 38px;
-  padding: 0;
-  border: none;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.1rem;
-  line-height: 1;
-}
-
-.checklist-flutuante-form button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.checklist-flutuante-sla-form {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  margin-bottom: 0.75rem;
-}
-
-.checklist-flutuante-sla-icon {
-  color: #64748b;
-  flex-shrink: 0;
-}
-
-.checklist-flutuante-sla-input {
-  flex: 1;
-  min-width: 0;
-  height: 32px;
-  padding: 0 0.5rem;
-  background: rgba(148, 163, 184, 0.08);
-  border: 1px solid rgba(148, 163, 184, 0.25);
-  border-radius: 8px;
-  color: #e2e8f0;
-  font-size: 0.78rem;
-  outline: none;
-  transition:
-    border-color 0.15s ease,
-    background 0.15s ease;
-  color-scheme: dark;
-}
-
-.checklist-flutuante-sla-input:focus {
-  border-color: #3b82f6;
-  background: rgba(148, 163, 184, 0.12);
-}
-
-.checklist-flutuante-sla-limpar {
-  flex-shrink: 0;
-  background: none;
-  border: none;
-  color: #94a3b8;
-  cursor: pointer;
-  padding: 4px;
-  display: flex;
-  border-radius: 6px;
-  transition:
-    background 0.2s,
-    color 0.2s;
-}
-
-.checklist-flutuante-sla-limpar:hover {
-  background: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
-}
-
-.checklist-flutuante-vazio {
-  color: #94a3b8;
-  font-size: 0.85rem;
-  margin: 0.25rem 0;
-}
-
-.checklist-flutuante-lista {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  overflow-y: auto;
-}
-
-.checklist-flutuante-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.45rem 0.6rem;
-  border-radius: 8px;
-  background: rgba(148, 163, 184, 0.06);
-}
-
-.checklist-flutuante-item-conteudo {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.55rem;
-  flex: 1;
-  min-width: 0;
-}
-
-.checklist-flutuante-item-conteudo input[type="checkbox"] {
-  margin-top: 0.2rem;
-  flex-shrink: 0;
-  cursor: pointer;
-}
-
-.checklist-flutuante-item-conteudo span {
-  overflow-wrap: anywhere;
-  font-size: 0.88rem;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.3rem;
-}
-
-.checklist-flutuante-item.concluida span {
-  text-decoration: line-through;
-  color: #64748b;
-}
-
-.checklist-flutuante-sla-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  border: 1px solid transparent;
-  border-radius: 999px;
-  padding: 0.15rem 0.55rem;
-  font-size: 0.7rem;
-  font-weight: 600;
-  cursor: pointer;
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.checklist-flutuante-sla-badge.sla-vazio {
-  background: rgba(148, 163, 184, 0.1);
-  border-color: rgba(148, 163, 184, 0.25);
-  color: #94a3b8;
-}
-
-.checklist-flutuante-sla-badge.sla-vazio:hover {
-  background: rgba(148, 163, 184, 0.18);
-  color: #cbd5e1;
-}
-
-.checklist-flutuante-sla-badge.sla-normal {
-  background: rgba(52, 211, 153, 0.12);
-  border-color: rgba(52, 211, 153, 0.3);
-  color: #34d399;
-}
-
-.checklist-flutuante-sla-badge.sla-proximo {
-  background: rgba(251, 191, 36, 0.12);
-  border-color: rgba(251, 191, 36, 0.3);
-  color: #fbbf24;
-}
-
-.checklist-flutuante-sla-badge.sla-urgente {
-  background: rgba(249, 115, 22, 0.15);
-  border-color: rgba(249, 115, 22, 0.35);
-  color: #fb923c;
-  animation: sla-pulse 2s infinite;
-}
-
-.checklist-flutuante-sla-badge.sla-atrasado {
-  background: rgba(239, 68, 68, 0.15);
-  border-color: rgba(239, 68, 68, 0.4);
-  color: #f87171;
-  animation: sla-pulse 2s infinite;
-}
-
-@keyframes sla-pulse {
-  0% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.6;
-  }
-  100% {
-    opacity: 1;
-  }
-}
-
-.checklist-flutuante-prioridade-select {
-  flex-shrink: 0;
-  height: 32px;
-  padding: 0 1.5rem 0 0.5rem;
-  border-radius: 8px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  outline: none;
-  cursor: pointer;
-  appearance: none;
-  -webkit-appearance: none;
-  background-repeat: no-repeat;
-  background-position: right 0.4rem center;
-  background-size: 12px;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
-}
-
-.checklist-flutuante-badges-row {
-  display: flex;
-  flex-direction: row !important;
-  align-items: center !important;
-  gap: 0.35rem;
-  flex-wrap: wrap;
-}
-
-.checklist-flutuante-prioridade-badge {
-  flex-shrink: 0;
-  border: 1px solid transparent;
-  border-radius: 999px;
-  padding: 0.15rem 1.3rem 0.15rem 0.55rem;
-  font-size: 0.7rem;
-  font-weight: 600;
-  cursor: pointer;
-  outline: none;
-  appearance: none;
-  -webkit-appearance: none;
-  background-repeat: no-repeat;
-  background-position: right 0.45rem center;
-  background-size: 9px;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
-}
-
-.checklist-flutuante-prioridade-select.prioridade-baixa,
-.checklist-flutuante-prioridade-badge.prioridade-baixa {
-  background-color: rgba(148, 163, 184, 0.1);
-  border-color: rgba(148, 163, 184, 0.25);
-  color: #94a3b8;
-}
-
-.checklist-flutuante-prioridade-select.prioridade-normal,
-.checklist-flutuante-prioridade-badge.prioridade-normal {
-  background-color: rgba(59, 130, 246, 0.12);
-  border-color: rgba(59, 130, 246, 0.3);
-  color: #60a5fa;
-}
-
-.checklist-flutuante-prioridade-select.prioridade-alta,
-.checklist-flutuante-prioridade-badge.prioridade-alta {
-  background-color: rgba(249, 115, 22, 0.15);
-  border-color: rgba(249, 115, 22, 0.35);
-  color: #fb923c;
-}
-
-.checklist-flutuante-prioridade-select.prioridade-urgente,
-.checklist-flutuante-prioridade-badge.prioridade-urgente {
-  background-color: rgba(239, 68, 68, 0.15);
-  border-color: rgba(239, 68, 68, 0.4);
-  color: #f87171;
-}
-
-.checklist-flutuante-prioridade-select option,
-.checklist-flutuante-prioridade-badge option {
-  background-color: #1e293b;
-  color: #e2e8f0;
-}
-
-.checklist-flutuante-sla-inline-input {
-  height: 30px;
-  padding: 0 0.5rem;
-  background: rgba(148, 163, 184, 0.08);
-  border: 1px solid #3b82f6;
-  border-radius: 8px;
-  color: #e2e8f0;
-  font-size: 0.75rem;
-  outline: none;
-  color-scheme: dark;
-}
-
-.checklist-flutuante-remover {
-  background: none;
-  border: none;
-  color: #94a3b8;
-  cursor: pointer;
-  padding: 3px;
-  display: flex;
-  border-radius: 6px;
-  flex-shrink: 0;
-  transition:
-    background 0.2s,
-    color 0.2s;
-}
-
-.checklist-flutuante-remover:hover {
-  background: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
-}
+.checklist-flutuante { position: fixed; right: 40px; bottom: 24px; z-index: 1000; display: flex; flex-direction: column; align-items: flex-end; gap: 12px; }
+.checklist-atalho { display: flex; align-items: center; gap: 12px; }
+.checklist-novas { display: inline-flex; align-items: center; gap: 8px; max-width: calc(100vw - 144px); padding: 10px 13px; border: 1px solid #3b82f6; border-radius: 12px; background: #172554; color: #bfdbfe; box-shadow: 0 6px 20px rgba(0,0,0,.18); font: inherit; font-size: 12px; line-height: 1.4; font-weight: 600; cursor: pointer; }
+.checklist-novas:hover { background: #1e3a8a; }
+.checklist-novas > span { flex-shrink: 0; width: 6px; height: 6px; border-radius: 50%; background: #93c5fd; }
+.checklist-flutuante-botao--novas::before { content: ''; position: absolute; inset: -6px; border: 2px solid #60a5fa; border-radius: 23px; pointer-events: none; opacity: 0; animation: tarefas-novas-halo 2.5s ease-out 3; }
+@keyframes tarefas-novas-halo { 0% { transform: scale(.95); opacity: .7; } 100% { transform: scale(1.2); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .checklist-flutuante-botao--novas::before { animation: none; opacity: .6; } }
+.tarefas-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+.checklist-flutuante-botao { position: relative; display: grid; place-items: center; width: 52px; height: 52px; padding: 0; border: 1px solid #3b82f6; border-radius: 18px; background: #2563eb; color: #ffffff; cursor: pointer; box-shadow: 0 8px 24px rgba(0,0,0,.22); }
+.checklist-flutuante-botao:hover { background: #1d4ed8; }
+.checklist-flutuante-badge { position: absolute; top: -6px; right: -6px; min-width: 23px; height: 23px; display: grid; place-items: center; padding: 0 5px; border: 2px solid #0f172a; border-radius: 99px; background: #ef4444; color: #ffffff; font-size: 11px; font-weight: 700; }
+.tarefas-painel { display: flex; flex-direction: column; width: 448px; max-width: calc(100vw - 80px); max-height: min(780px, calc(100dvh - 104px)); border: 1px solid #334155; border-radius: 18px; background: #0f172a; color: #e2e8f0; box-shadow: 0 20px 64px rgba(0,0,0,.32); font-size: 13px; text-align: left; }
+.tarefas-painel *, .tarefas-painel *::before, .tarefas-painel *::after { box-sizing: border-box; }
+.tarefas-painel button { font: inherit; cursor: pointer; transition: background .15s, border-color .15s; transform: none; }
+.tarefas-painel button:disabled { opacity: .5; cursor: wait; }
+.checklist-flutuante :is(button, input, textarea, select, summary, a):focus-visible { outline: 2px solid #60a5fa; outline-offset: 3px; }
+.tarefas-cabecalho { display: flex; align-items: center; justify-content: space-between; padding: 20px 20px 16px; gap: 12px; }
+.tarefas-titulo { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.tarefas-titulo h2 { margin: 0 0 4px; font-size: 18px; font-weight: 700; color: #f1f5f9; }
+.tarefas-titulo p { margin: 0; font-size: 12px; color: #94a3b8; }
+.tarefas-icone { display: grid; place-items: center; flex: 0 0 40px; height: 40px; border: 1px solid #334155; border-radius: 12px; background: #1e293b; color: #93c5fd; }
+.tarefas-painel .tarefas-botao-icone { display: grid; place-items: center; flex: 0 0 32px; height: 32px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: #94a3b8; }
+.tarefas-painel .tarefas-botao-icone:hover { background: #1e293b; color: #f1f5f9; }
+.tarefas-responsavel { display: grid; gap: 10px; padding: 0 20px 16px; }
+.tarefas-responsavel > label { display: block; margin: 0; font-size: 11px; line-height: 1.5; font-weight: 600; color: #94a3b8; }
+.tarefas-abas { display: flex; gap: 3px; margin: 0 20px 14px; padding: 4px; border: 1px solid #334155; border-radius: 10px; background: #111827; }
+.tarefas-abas button { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; min-width: 0; padding: 8px 5px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: #94a3b8; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.tarefas-abas button[aria-pressed=true] { background: #1e293b; border-color: #475569; color: #f1f5f9; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+.tarefas-abas button > span { min-width: 20px; padding: 1px 6px; border-radius: 99px; background: rgba(148,163,184,.15); font-size: 11px; }
+.tarefas-conteudo { flex: 1; overflow-y: auto; min-height: 100px; overscroll-behavior: contain; padding: 0 20px 16px; scrollbar-width: thin; scrollbar-color: #475569 transparent; }
+.tarefas-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.tarefa-card { padding: 16px; border: 1px solid #334155; border-radius: 12px; background: #111827; }
+.tarefa-card--pausada { border-style: dashed; background: transparent; }
+.tarefa-card--pausada h3, .tarefa-card--pausada .tarefa-cliente { color: #94a3b8; }
+.tarefas-secao-pausadas { margin-top: 20px; padding-top: 16px; border-top: 1px solid #334155; }
+.tarefas-secao-pausadas h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; font-size: 12px; font-weight: 600; color: #cbd5e1; }
+.tarefas-secao-pausadas h3 > span { padding: 1px 7px; border-radius: 99px; background: rgba(148,163,184,.15); font-size: 11px; color: #94a3b8; }
+.tarefas-secao-pausadas > p { margin: 0 0 12px; font-size: 11px; line-height: 1.6; color: #94a3b8; }
+.tarefa-card--nova { border-color: #3b82f6; box-shadow: inset 3px 0 0 #3b82f6; }
+.tarefa-nova { display: inline-flex; align-items: center; gap: 4px; width: fit-content; margin-bottom: 8px; padding: 3px 7px; border-radius: 5px; background: #172554; color: #93c5fd; font-size: 11px; line-height: 1.4; font-weight: 700; }
+.tarefa-card-topo { display: flex; align-items: flex-start; gap: 10px; }
+.tarefas-painel .tarefa-check { position: relative; display: grid; place-items: center; flex: 0 0 22px; height: 22px; padding: 0; margin-top: 0; border: 1.5px solid #64748b; border-radius: 6px; background: transparent; color: #ffffff; }
+.tarefas-painel .tarefa-check::after { content: ''; position: absolute; inset: -8px; }
+.tarefas-painel .tarefa-check:hover { border-color: #60a5fa; background: rgba(59,130,246,.12); }
+.tarefas-painel .tarefa-check[aria-pressed=true] { background: #16a34a; border-color: #16a34a; }
+.tarefa-card-identidade { flex: 1; min-width: 0; }
+.tarefa-cliente { display: block; font-size: 14px; line-height: 1.45; font-weight: 700; margin-bottom: 5px; color: #f1f5f9; overflow-wrap: anywhere; }
+.tarefa-card h3 { margin: 0; font-size: 13px; line-height: 1.55; font-weight: 500; color: #cbd5e1; overflow-wrap: anywhere; }
+.tarefa-card--concluida h3 { text-decoration: line-through; color: #94a3b8; }
+.tarefa-prioridade { flex-shrink: 0; padding: 3px 7px; border-radius: 5px; font-size: 11px; line-height: 1.4; font-weight: 600; }
+.tarefa-prioridade--baixa, .tarefa-prioridade--normal { background: #1e293b; color: #94a3b8; }
+.tarefa-prioridade--alta { background: rgba(245,158,11,.12); color: #fbbf24; }
+.tarefa-prioridade--urgente { background: rgba(239,68,68,.12); color: #f87171; }
+.tarefa-motivo { margin: 12px 0; color: #94a3b8; font-size: 12px; line-height: 1.65; }
+.tarefa-indicadores { display: flex; flex-wrap: wrap; gap: 6px 12px; margin: 10px 0; color: #94a3b8; font-size: 11px; }
+.tarefa-indicadores > span { display: inline-flex; align-items: center; gap: 4px; }
+.tarefa-indicadores .tarefa-prazo-atrasado { color: #f87171; }
+.tarefa-links { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-top: 12px; }
+.tarefa-links a { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: #94a3b8; text-decoration: none; }
+.tarefa-links a:hover { text-decoration: underline; color: #93c5fd; }
+.tarefa-links .tarefa-acao { padding: 8px 10px; border: 1px solid rgba(59,130,246,.25); border-radius: 7px; background: rgba(59,130,246,.1); color: #93c5fd; font-weight: 600; }
+.tarefa-conclusao-info { margin: 10px 0 0; font-size: 11px; line-height: 1.6; color: #94a3b8; }
+.tarefa-rodape { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; margin-top: 12px; padding-top: 10px; border-top: 1px solid #334155; }
+.tarefa-opcoes { grid-column: 1 / -1; grid-row: 1; min-width: 0; }
+.tarefa-opcoes > summary { display: flex; align-items: center; gap: 6px; width: fit-content; min-height: 30px; padding: 2px 0; cursor: pointer; font-size: 11px; color: #94a3b8; list-style: none; }
+.tarefa-rodape:has(> .tarefa-excluir) .tarefa-opcoes > summary { max-width: calc(100% - 110px); }
+.tarefa-rodape > .tarefa-excluir { grid-column: 2; grid-row: 1; z-index: 1; display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-height: 30px; padding: 4px 6px; border: 0; border-radius: 6px; font-size: 11px; white-space: nowrap; }
+.tarefa-opcoes > summary::-webkit-details-marker { display: none; }
+.tarefa-opcoes > summary::after { content: '+'; margin-left: 4px; }
+.tarefa-opcoes[open] > summary::after { content: '−'; }
+.tarefa-opcoes form, .tarefas-form { display: grid; gap: 16px; margin-top: 16px; }
+.tarefas-painel form label { display: grid; gap: 10px; min-width: 0; color: #cbd5e1; font-size: 11px; line-height: 1.5; font-weight: 500; }
+.tarefas-painel :is(form input, form textarea, form select) { width: 100%; min-width: 0; padding: 9px 10px; border: 1px solid #475569; border-radius: 7px; background: #0f172a; color: #e2e8f0; font: inherit; font-size: 12px; line-height: 1.5; }
+.tarefas-painel form textarea { resize: vertical; min-height: 65px; }
+.tarefas-painel form input[type=datetime-local] { max-width: 100%; }
+.tarefa-opcoes-acoes { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.tarefa-opcoes-acoes button { display: inline-flex; align-items: center; gap: 4px; padding: 7px 9px; border: 1px solid #475569; border-radius: 6px; background: #1e293b; color: #e2e8f0; font-size: 11px; }
+.tarefas-painel .tarefa-excluir { border-color: transparent; background: transparent; color: #f87171; }
+.tarefas-rodape { flex-shrink: 0; padding: 14px 20px; border-top: 1px solid #334155; }
+.tarefas-rodape:has(.tarefas-form) { flex-shrink: 1; max-height: 45dvh; overflow-y: auto; }
+.tarefas-painel .tarefas-nova { display: flex; align-items: center; justify-content: center; gap: 7px; width: 100%; padding: 9px; border: 1px dashed #475569; border-radius: 8px; background: transparent; color: #cbd5e1; font-size: 12px; }
+.tarefas-painel .tarefas-nova:hover { background: #1e293b; border-color: #60a5fa; }
+.tarefas-form-campos { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 10px; }
+.tarefas-painel .tarefas-salvar { padding: 10px; border: 1px solid #2563eb; border-radius: 8px; background: #2563eb; color: #ffffff; font-weight: 600; }
+.tarefas-erro { padding: 12px; margin: 0 20px 12px; border-radius: 8px; background: rgba(239,68,68,.1); color: #fca5a5; }
+.tarefas-erro p { margin: 0 0 8px; font-size: 12px; line-height: 1.5; }
+.tarefas-erro button { display: flex; gap: 6px; align-items: center; padding: 0; border: 0; background: transparent; color: #fca5a5; font-size: 11px; }
+.tarefas-vazio { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; min-height: 170px; text-align: center; padding: 24px 12px; color: #94a3b8; }
+.tarefas-vazio strong { font-size: 14px; font-weight: 600; color: #cbd5e1; }
+.tarefas-vazio p { margin: 0; font-size: 12px; line-height: 1.6; }
+.tarefas-vazio-icone { display: grid; place-items: center; width: 50px; height: 50px; border-radius: 16px; background: #1e293b; color: #94a3b8; }
+@media (max-width: 520px) { .checklist-flutuante { right: 24px; bottom: 16px; } .tarefas-painel { width: calc(100vw - 48px); max-width: calc(100vw - 48px); max-height: calc(100dvh - 100px); } .tarefas-cabecalho { padding: 16px; } .tarefas-responsavel { padding: 0 16px 12px; } .tarefas-abas { margin: 0 12px 12px; } .tarefas-conteudo { padding: 0 12px 12px; } .tarefas-rodape { padding: 12px; } .tarefa-card { padding: 14px; } }

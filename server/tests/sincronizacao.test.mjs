@@ -20,8 +20,9 @@ function database(usuario = { role: 'treinador' }) {
       },
     }),
     emitir(nome, documentos) {
-      listeners.get(nome).callback({ docs: documentos.map(({ id, versao = 1 }) => ({
+      listeners.get(nome).callback({ docs: documentos.map(({ id, versao = 1, dados = {} }) => ({
         id, updateTime: { seconds: versao, nanoseconds: 123 },
+        data: () => dados,
       })) });
     },
   };
@@ -37,6 +38,7 @@ test('primeira resposta aguarda snapshot; chamadas concorrentes reutilizam liste
   db.emitir('ocorrencias', [{ id: 'b', versao: 2 }, { id: 'c' }]);
   assert.deepEqual(await indice.listar('ocorrencias'), [{ id: 'b', versao: '2:123' }, { id: 'c', versao: '1:123' }]);
   assert.equal(db.inscricoes(), 1);
+  assert.deepEqual(await indice.dados('ocorrencias'), [{ id: 'b' }, { id: 'c' }]);
   indice.encerrar();
   assert.equal(db.cancelamentos(), 1);
 });

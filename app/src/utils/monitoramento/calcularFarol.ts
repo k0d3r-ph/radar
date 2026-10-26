@@ -1,5 +1,6 @@
 import { pendenciaAtiva } from '../pendencias.ts';
 import type { PendenciaCliente } from '../pendencias.ts';
+import { baseAcompanhamento, PRAZO_FOLLOW_UP_FINAL, PRAZO_AGENDAR_TREINAMENTO } from '../../../../server/src/domain/acompanhamentoEsteira.ts';
 
 export type StatusFarolType = "verde" | "amarelo" | "laranja" | "vermelho" | "none";
 
@@ -20,6 +21,10 @@ export function calcularFarol({
   pendencia?: PendenciaCliente;
   agora?: number;
 }): StatusFarolType {
+  if (progresso >= 100 && dataFinalizacao) {
+    const base = baseAcompanhamento(progresso, dataFinalizacao);
+    tme = base ? Math.floor((agora - base) / 86_400_000) : null;
+  }
   if (pendenciaAtiva(pendencia, agora)) {
     return "laranja";
   }
@@ -39,7 +44,7 @@ export function calcularFarol({
   if (!finalizado) {
     if (tme < 0) return "verde";
 
-    if (tme >= 4) {
+    if (tme >= PRAZO_AGENDAR_TREINAMENTO) {
       return "vermelho";
     }
 
@@ -50,7 +55,7 @@ export function calcularFarol({
     return "verde";
   }
 
-  if (tme >= 20) return "vermelho";
+  if (tme >= PRAZO_FOLLOW_UP_FINAL) return "vermelho";
   if (tme < 0) return "verde";
 
   return "verde";

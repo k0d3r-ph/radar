@@ -14,7 +14,9 @@ export function usePendenciasClock(empresas: Empresa[]) {
       const prazos = empresas.filter(e => e.pendencia?.ativa)
         .map(e => vencimentoPendencia(e.pendencia?.venceEm))
         .filter((p): p is number => p !== undefined && Number.isFinite(p) && p > instante);
-      if (prazos.length) timer = setTimeout(atualizar, Math.min(Math.min(...prazos) - instante, 2_147_483_647));
+      // A idade do TME também muda sem gravações: mantém farol e tarefas no mesmo relógio.
+      const proximoPrazo = prazos.length ? Math.min(...prazos) - instante : 60_000;
+      timer = setTimeout(atualizar, Math.min(proximoPrazo, 60_000));
     };
     atualizar();
     window.addEventListener('focus', atualizar);

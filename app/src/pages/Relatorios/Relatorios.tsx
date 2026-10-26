@@ -1,3 +1,4 @@
+import { baseAcompanhamento } from "../../../../server/src/domain/acompanhamentoEsteira.ts";
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { toast } from "sonner";
 import { LineChart } from "../../components/LineChart";
@@ -46,6 +47,7 @@ import { RelatorioScore } from "../RelatorioScore/RelatorioScore";
 import { RelatorioJornadaCliente } from "../RelatorioJornadaCliente/RelatorioJornadaCliente";
 import { RelatorioAging } from "../RelatorioAging/RelatorioAging";
 import { RelatorioIndicadoresTreinamento } from "../RelatorioIndicadoresTreinamento/RelatorioIndicadoresTreinamento";
+import { RelatorioValidacaoConhecimento } from "../RelatorioValidacaoConhecimento/RelatorioValidacaoConhecimento";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { usePendenciasClock } from "../../hooks/usePendenciasClock";
@@ -119,7 +121,7 @@ export const Relatorios: React.FC = () => {
   const navigate = useNavigate();
   const { role } = useAuth();
   const [activeTab, setActiveTab] = useState<
-    "esteira" | "score" | "jornada" | "executiva" | "aging" | "indicadores"
+    "esteira" | "score" | "jornada" | "executiva" | "aging" | "indicadores" | "validacao"
   >("esteira");
 
   useEffect(() => {
@@ -279,17 +281,15 @@ export const Relatorios: React.FC = () => {
         empresa.nomeEmpresa
       );
 
-      const dataBase =
-        ultimoTreinamento?.dataOcorrencia || ultimoTreinamento?.createdAt;
-
-      const tme = calcularTME(dataBase);
-
       const totalFases = calcularTotalFases(empresa.temaText);
 
       const progresso = calcularProgressoPorFases(
         empresa.currentPhase,
         totalFases
       );
+
+      const dataBase = baseAcompanhamento(progresso, empresa.dataFinalizacao, ultimoTreinamento?.dataOcorrencia || ultimoTreinamento?.createdAt);
+      const tme = calcularTME(dataBase, agoraPendencias);
 
       const ultimaOcorrenciaAlerta = ocorrencias
         .filter(
@@ -1325,7 +1325,9 @@ ${riscoChurn.length > 0
                   ? "Aging da Esteira"
                   : activeTab === "indicadores"
                     ? "Indicadores de Treinamento"
-                    : "Relatório Geral de Scores"}
+                    : activeTab === "validacao"
+                      ? "Validação do Conhecimento"
+                      : "Relatório Geral de Scores"}
         </h1>
         <p>
           {activeTab === "esteira"
@@ -1338,7 +1340,9 @@ ${riscoChurn.length > 0
                   ? "Tempo de permanência dos clientes na esteira de capacitação, por faixa de dias e treinador."
                   : activeTab === "indicadores"
                     ? "KPIs de treinamentos, CSAT, suporte e carteira de clientes, por treinador, dia ou semana."
-                    : "Estatísticas consolidadas e listagem de clientes baseadas no último cálculo de score."}
+                    : activeTab === "validacao"
+                      ? "Aprovação, aproveitamento e pontos de reforço das avaliações de conhecimento dos clientes."
+                      : "Estatísticas consolidadas e listagem de clientes baseadas no último cálculo de score."}
         </p>
       </header>
 
@@ -1382,6 +1386,14 @@ ${riscoChurn.length > 0
             >
               Indicadores de Treinamento
             </button>
+            {(role === "master" || role === "treinador") && (
+              <button
+                className={`relatorios-tab-btn ${activeTab === "validacao" ? "active" : ""}`}
+                onClick={() => setActiveTab("validacao")}
+              >
+                Validação do Conhecimento
+              </button>
+            )}
           </>
         )}
       </div>
@@ -2037,6 +2049,8 @@ ${riscoChurn.length > 0
         <RelatorioAging />
       ) : activeTab === "indicadores" ? (
         <RelatorioIndicadoresTreinamento />
+      ) : activeTab === "validacao" ? (
+        <RelatorioValidacaoConhecimento />
       ) : (
         <RelatorioJornadaCliente empresas={empresas} ocorrencias={ocorrencias} />
       )}

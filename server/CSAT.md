@@ -1,8 +1,12 @@
 # CSAT direto no Radar
 
+O módulo [Validação do conhecimento](VALIDACAO_CONHECIMENTO.md) reutiliza a reserva, a sequência e as respostas públicas do CSAT. Cada tentativa concluída gera seu próprio treinamento e CSAT em uma transação única. As respostas também atualizam a tentativa vinculada.
+
 No **Histórico**, treinadores e masters podem clicar em **Gerar link CSAT** e selecionar o cliente na janela de confirmação. O campo **Pesquisar empresa** filtra os nomes sem diferenciar maiúsculas ou acentos; a lista indica a empresa selecionada e mantém essa escolha ao mudar a pesquisa. A seleção inclui empresas internas cadastradas, como a **Systemsat**, permitindo avaliar treinamentos internos sem depender do acesso pela Home. Ao entrar por **Ver ocorrências** na Home, o cliente do filtro vem pré-selecionado e pode ser alterado antes de gerar o link.
 
-Após gerar, copie o endereço e clique no ID reservado para preencher o treinamento. As reservas pendentes do usuário ficam visíveis mesmo quando o Histórico está filtrado por outro cliente. O CSAT reserva o próximo número na sequência do cliente: depois de `#14505`, a reserva é `#14506`. O número é preservado ao concluir a ocorrência e fica ocupado mesmo enquanto a reserva está pendente. A reserva fica fora dos relatórios e só é listada para seu criador; ao concluir, a ocorrência passa ao histórico normal. Reservas antigas com prefixo `CSAT-` mantêm o identificador original.
+Após gerar, o endereço completo é copiado automaticamente para a área de transferência. Clique no ID reservado para preencher o treinamento. A mesma cópia acontece ao concluir uma validação do conhecimento, assim que seu CSAT é gerado. A interface confirma a cópia; se o navegador bloquear o acesso, mantém a operação concluída, apresenta um aviso e permite usar **Copiar link** ou selecionar o endereço no campo do CSAT. Abrir ou recarregar uma avaliação/reserva já existente não altera a área de transferência.
+
+As reservas pendentes do usuário ficam visíveis mesmo quando o Histórico está filtrado por outro cliente. O CSAT reserva o próximo número na sequência do cliente: depois de `#14505`, a reserva é `#14506`. O número é preservado ao concluir a ocorrência e fica ocupado mesmo enquanto a reserva está pendente. A reserva fica fora dos relatórios e só é listada para seu criador; ao concluir, a ocorrência passa ao histórico normal. Reservas antigas com prefixo `CSAT-` mantêm o identificador original.
 
 Cada participante informa nome, Bom/Ruim e opinião opcional de até 100 caracteres. O link aceita vários participantes; reenvios do mesmo navegador são idempotentes. As respostas atualizam `treinamentoResultados` e `csatRespostas` na ocorrência, inclusive depois da conclusão. Não há envio automático do link pelo WhatsApp.
 
@@ -26,4 +30,4 @@ match /csatControle/{document=**} { allow read, write: if false; }
 
 Regras permissivas com `match /{document=**}` também precisam excluir essas coleções: permissões Firestore são combinadas por OR, então um deny específico não anula um allow abrangente. As regras do projeto não estão neste repositório e precisam ser conferidas no Firebase antes da publicação para garantir a privacidade das reservas e dos tokens.
 
-Validação: `node node_modules/typescript/bin/tsc` seguido de `node --test tests/csat.test.mjs` no diretório `server`.
+Validação: `node node_modules/typescript/bin/tsc` seguido de `node --test tests/csat.test.mjs` no diretório `server`. Para a cópia automática no frontend, em `app/`: `node --experimental-vm-modules --test tests/csatClipboard.test.mjs`. Cobre os dois fluxos, ordem da cópia, bloqueio/ausência da área de transferência e falhas de geração sem copiar links.

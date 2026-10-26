@@ -1,3 +1,4 @@
+import { baseAcompanhamento } from "../../../../server/src/domain/acompanhamentoEsteira.ts";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
@@ -1153,17 +1154,15 @@ export default function Home() {
           empresa.nomeEmpresa,
         );
 
-        const dataBase =
-          ultimoTreinamento?.dataOcorrencia || ultimoTreinamento?.createdAt;
-
-        const tme = calcularTME(dataBase);
-
         const totalFases = calcularTotalFases(empresa.temaText);
 
         const progresso = calcularProgressoPorFases(
           empresa.currentPhase,
           totalFases,
         );
+
+        const dataBase = baseAcompanhamento(progresso, empresa.dataFinalizacao, ultimoTreinamento?.dataOcorrencia || ultimoTreinamento?.createdAt);
+        const tme = calcularTME(dataBase, agora);
 
         // Encontra a ocorrência mais recente da empresa que define ou resolve um alerta.
         // Ordena por `createdAt` (momento em que foi registrada) e não por `dataOcorrencia`
@@ -4299,6 +4298,17 @@ export default function Home() {
               >
                 Ver ocorrências
               </button>
+
+              {(role === "treinador" || role === "master") && clienteSelecionado.id && (
+                <button
+                  className="btn-esteira"
+                  onClick={() =>
+                    navigate(`/validacao-conhecimento?empresa=${encodeURIComponent(clienteSelecionado.id!)}`)
+                  }
+                >
+                  Validação do conhecimento
+                </button>
+              )}
 
               {(role === "treinador" || role === "master") && (
                 <button

@@ -48,10 +48,14 @@ html, body {
 /* Ajustes e alinhamento na Navbar (.app-nav) */
 .app-nav {
   justify-content: space-between !important;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .nav-links {
   display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
   gap: 8px;
   align-items: center;
 }

@@ -1,0 +1,7 @@
+.validacao-relatorio-periodo { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+.validacao-relatorio-nota { margin: 0.5rem 0 0; font-size: 0.8rem; color: #94a3b8; }
+.validacao-relatorio-tabelas { display: grid; gap: 1.75rem; margin-top: 1.75rem; }
+.validacao-relatorio-tabelas h2 { margin: 0 0 0.35rem; font-size: 1rem; color: #f1f5f9; }
+.validacao-relatorio-tabelas section > p { margin: 0 0 0.75rem; font-size: 0.85rem; color: #94a3b8; }
+.validacao-relatorio-pergunta { max-width: 520px; white-space: normal; overflow-wrap: anywhere; }
+.validacao-relatorio-vazio { color: #94a3b8; }

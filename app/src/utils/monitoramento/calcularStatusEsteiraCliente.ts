@@ -1,3 +1,4 @@
+import { baseAcompanhamento } from "../../../../server/src/domain/acompanhamentoEsteira.ts";
 import type { Empresa, Ocorrencia } from "../../types";
 import { calcularTME } from "./calcularTME.ts";
 import { calcularFarol, type StatusFarolType } from "./calcularFarol.ts";
@@ -6,14 +7,6 @@ import { calcularDiasNaEsteira } from "./calcularDiasNaEsteira.ts";
 import { calcularDiasCongeladosPorCheckpoint } from "./calcularDiasCongeladosPorCheckpoint.ts";
 import { obterUltimoTreinamento } from "./obterUltimoTreinamentoOuCheckpointOuInformativo.ts";
 import { calcularTotalFases } from "./calcularTotalFases.ts";
-
-// Interpreta "YYYY-MM-DD" no fuso local (Brasília), em vez de UTC — mesmo
-// padrão usado em calcularDiasNaEsteira.ts para datas de negócio.
-function timestampDataLocal(data: string): number | undefined {
-  const [year, month, day] = data.split("-").map(Number);
-  const timestamp = new Date(year, month - 1, day).getTime();
-  return isNaN(timestamp) ? undefined : timestamp;
-}
 
 export type StatusEsteiraCliente = {
   farol: StatusFarolType;
@@ -54,11 +47,9 @@ export function calcularStatusEsteiraCliente(
   // checkpoints ou informativas registrados depois da conclusão. Sem isso, qualquer
   // contato posterior resetava o prazo de 20 dias e o farol vermelho nunca aparecia.
   const dataBase =
-    progresso >= 100 && empresa.dataFinalizacao
-      ? timestampDataLocal(empresa.dataFinalizacao)
-      : ultimoTreinamento?.dataOcorrencia || ultimoTreinamento?.createdAt;
+    baseAcompanhamento(progresso, empresa.dataFinalizacao, ultimoTreinamento?.dataOcorrencia || ultimoTreinamento?.createdAt);
 
-  const tme = calcularTME(dataBase);
+  const tme = calcularTME(dataBase, agora);
 
   // Mesma lógica de resolução de alerta usada na Home: a ocorrência de alerta
   // mais recente (por createdAt) só vale se não houver resolução posterior.

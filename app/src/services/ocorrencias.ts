@@ -23,6 +23,8 @@ import { exigeClienteAtivoParaTreinamento, MENSAGEM_TREINAMENTO_SUSPENSO, normal
 
 const COLLECTION = "ocorrencias";
 
+export function invalidarCacheOcorrencias(): void { cachedOcorrencias = null; }
+
 let cachedOcorrencias: Ocorrencia[] | null = null;
 let lastFetchOcorrencias = 0;
 let cachedUsuario: string | undefined;

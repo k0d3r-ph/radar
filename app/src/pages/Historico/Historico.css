@@ -1208,6 +1208,24 @@
   background: rgba(255, 255, 255, 0.05);
 }
 
+/* Tema "Validação do conhecimento": registrado só pelo módulo próprio. */
+.tema-opcao.tema-opcao-bloqueada {
+  cursor: not-allowed;
+  color: #94a3b8 !important;
+  flex-wrap: wrap;
+}
+
+.tema-opcao.tema-opcao-bloqueada:hover {
+  background: none;
+}
+
+.tema-opcao-bloqueada small {
+  flex-basis: 100%;
+  padding-left: 1.5rem;
+  color: #94a3b8;
+  font-size: 0.75rem;
+}
+
 /* Light Mode overrides */
 
 
@@ -2941,4 +2959,4 @@ body:not(.dark-theme) .hist-ia-copy-btn {
 }
 
 
-
+

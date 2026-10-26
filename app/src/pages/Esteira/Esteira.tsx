@@ -24,6 +24,7 @@ import { buscarIdCentralPorNome } from "../../services/centrais";
 import { camposResultadoConclusao } from "../../utils/notificacaoConclusao";
 import { normalizarTextosTema } from "../../utils/temasEsteira";
 import { TemasEsteiraEditor } from "./TemasEsteiraEditor";
+import { normalizarConhecimento, TEMA_VALIDACAO } from "../../../../server/src/domain/validacaoConhecimento";
 
 function normalizarNome(nome: string) {
   return nome
@@ -47,42 +48,42 @@ const TEMPLATES_ESTEIRA: TemplateEsteira[] = [
     nome: "Template Básico",
     descricao: "Fluxo padrão de implantação",
     temas:
-      "Início\nCadastro de Gateway\nDebug\nCadastro de Rastreador\nCadastro de Veículo\nCadastro de Cliente\nTela Operacional\nPessoas\nSSX Mobile\nRegras\nRelatório\nConclusão",
+      "Início\nCadastro de Gateway\nDebug\nCadastro de Rastreador\nCadastro de Veículo\nCadastro de Cliente\nTela Operacional\nPessoas\nSSX Mobile\nRegras\nRelatório\nValidação do conhecimento",
   },
   {
     id: "template1",
     nome: "Template 1",
     descricao: "Central que já precisa atender seus clientes",
     temas:
-      "Início\nFunções da Tela Operacional\nHistórico de Posições\nReset de Senha\nFunções do Aplicativo\nCadastrar Novo Cliente\nCadastrar Novo Veículo\nCadastro de Pessoas\nApontar Novo Rastreador\nDesassociar Rastreador\nCriar Templates\nCriar Regras, Áreas e Rotas\nApresentar Relatórios\nConclusão",
+      "Início\nFunções da Tela Operacional\nHistórico de Posições\nReset de Senha\nFunções do Aplicativo\nCadastrar Novo Cliente\nCadastrar Novo Veículo\nCadastro de Pessoas\nApontar Novo Rastreador\nDesassociar Rastreador\nCriar Templates\nCriar Regras, Áreas e Rotas\nApresentar Relatórios\nValidação do conhecimento",
   },
   {
     id: "template2",
     nome: "Template 2",
     descricao: "Central que utilizará apenas Videotelemetria",
     temas:
-      "Início\nCadastrar Câmeras\nCadastrar Veículos\nDesassociar Rastreador\nFunções da Tela Operacional\nCadastro de cliente e Calculadora\nApresentar Videotelemetria\nCriar Templates\nCriar Regras, Áreas e Rotas\nSSX Mobile\nApresentar Relatórios\nConclusão",
+      "Início\nCadastrar Câmeras\nCadastrar Veículos\nDesassociar Rastreador\nFunções da Tela Operacional\nCadastro de cliente e Calculadora\nApresentar Videotelemetria\nCriar Templates\nCriar Regras, Áreas e Rotas\nSSX Mobile\nApresentar Relatórios\nValidação do conhecimento",
   },
   {
     id: "template3",
     nome: "Template 3",
     descricao: "Central que utiliza ERP integrado ao SSX",
     temas:
-      "Início\nFunções da Tela Operacional\nEntender o Debug\nCadastro de Pessoas\nDesassociar Rastreador\nCriar Templates\nCriar Regras, Áreas e Rotas\nApresentar Relatórios\nConclusão",
+      "Início\nFunções da Tela Operacional\nEntender o Debug\nCadastro de Pessoas\nDesassociar Rastreador\nCriar Templates\nCriar Regras, Áreas e Rotas\nApresentar Relatórios\nValidação do conhecimento",
   },
   {
     id: "template4",
     nome: "Template 4",
     descricao: "Central sem experiência em rastreamento",
     temas:
-      "Início\nVisão Geral de Rastreamento\nCadastrar Gateway\nEntender o Debug\nChecar Cadastro de Rastreador\nCadastrar Cliente\nCadastrar Veículo\nCadastro de Pessoas\nFunções da Tela Operacional\nCriar Templates\nCriar Regras, Áreas e Rotas\nApresentar Relatórios\nConclusão",
+      "Início\nVisão Geral de Rastreamento\nCadastrar Gateway\nEntender o Debug\nChecar Cadastro de Rastreador\nCadastrar Cliente\nCadastrar Veículo\nCadastro de Pessoas\nFunções da Tela Operacional\nCriar Templates\nCriar Regras, Áreas e Rotas\nApresentar Relatórios\nValidação do conhecimento",
   },
   {
     id: "template5",
     nome: "Template 5",
     descricao: "Central com experiência em rastreamento",
     temas:
-      "Início\nCadastrar Gateway\nEntender o Debug\nChecar Cadastro de Rastreador\nCadastrar Cliente\nCadastrar Veículo\nCadastro de Pessoas\nFunções da Tela Operacional\nCriar Templates\nCriar Regras, Áreas e Rotas\nApresentar Relatórios\nConclusão",
+      "Início\nCadastrar Gateway\nEntender o Debug\nChecar Cadastro de Rastreador\nCadastrar Cliente\nCadastrar Veículo\nCadastro de Pessoas\nFunções da Tela Operacional\nCriar Templates\nCriar Regras, Áreas e Rotas\nApresentar Relatórios\nValidação do conhecimento",
   },
 ];
 
@@ -677,6 +678,22 @@ function Esteira() {
               Templates
             </button>
           )}
+
+          {isTreinador &&
+            empresaSelecionada?.id &&
+            (empresaSelecionada.temaText || "")
+              .split("\n")
+              .some((tema) => normalizarConhecimento(tema) === normalizarConhecimento(TEMA_VALIDACAO)) && (
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() =>
+                  navigate(`/validacao-conhecimento?empresa=${encodeURIComponent(empresaSelecionada.id!)}`)
+                }
+              >
+                Validação do conhecimento
+              </button>
+            )}
         </div>
 
         <div className="control-row">

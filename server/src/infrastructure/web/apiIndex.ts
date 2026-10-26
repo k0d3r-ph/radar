@@ -12,8 +12,9 @@ import { iniciarSincronizacaoSsxDesk } from '../ssxDesk/SsxDeskSyncService.js';
 async function bootstrap() {
   console.log('Iniciando Radar API Server...');
 
-  const app = createApiApp();
+  const app = createApiApp({ tarefasAutomaticas: true });
   const httpServer = createServer(app);
+  httpServer.on('close', () => app.locals.encerrarTarefasAutomaticas?.());
 
   httpServer.listen(config.apiPort, () => {
     console.log(`--------------------------------------------------`);

@@ -1,5 +1,7 @@
 # Redução de leituras do Firestore
 
+As [tarefas automáticas](VALIDACAO_CONHECIMENTO.md) compartilham o mesmo índice/listeners da API. O índice mantém os dados em memória para o processamento interno, mas as rotas públicas autenticadas continuam retornando somente IDs e versões.
+
 As listas de ocorrências, empresas, pontos e tarefas do checklist usam `GET /api/sincronizacao/:colecao` no backend existente do Radar. A rota exige token Firebase válido, usuário cadastrado com perfil do Radar e senha já definida. Retorna somente IDs e versões; os documentos continuam sendo consultados diretamente pelo navegador, com as regras atuais do Firestore. O cadastro do usuário usado nessa validação fica em memória por 60 segundos, então uma revogação de acesso pode levar até esse prazo para valer.
 
 O sincronizador do SSX Desk relê a coleção `usuarios` no máximo uma vez por hora, não a cada ciclo de 5 minutos.

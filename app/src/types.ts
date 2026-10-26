@@ -176,6 +176,10 @@ export type Empresa = {
 export type MotivoEsperaTreinamento = "cliente" | "agenda_treinador";
 
 export type Ocorrencia = {
+  validacaoTentativaId?: string;
+  validacaoAprovada?: boolean;
+  validacaoNota?: number;
+  validacaoPercentual?: number;
   id?: string;
   empresa: string;
   tipo: string;
@@ -370,6 +374,17 @@ export interface LancamentoPonto {
 export type PrioridadeTarefa = "baixa" | "normal" | "alta" | "urgente";
 
 export interface TarefaChecklist {
+  empresaId?: string;
+  empresa?: string;
+  automatica?: boolean;
+  origemAutomatica?: 'follow_up_final' | 'agendar_treinamento';
+  baseAutomatica?: number;
+  excluida?: boolean;
+  excluidaEm?: number;
+  excluidaPorId?: string;
+  pausada?: boolean;
+  updatedAt?: number;
+  concluidaEm?: number;
   id?: string;
   treinadorId: string;
   treinadorNome: string;

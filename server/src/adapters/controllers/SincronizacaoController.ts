@@ -16,8 +16,9 @@ export class SincronizacaoController {
     db: Firestore | null,
     private readonly auth: Auth | null,
     private readonly usuariosRepo: IUsuariosRepository | null,
+    indice?: IndiceSincronizacao | null,
   ) {
-    this.indice = db ? new IndiceSincronizacao(db) : null;
+    this.indice = indice ?? (db ? new IndiceSincronizacao(db) : null);
   }
 
   private async lerUsuario(uid: string): Promise<Record<string, any> | undefined> {

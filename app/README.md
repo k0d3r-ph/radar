@@ -27,6 +27,10 @@ node --experimental-vm-modules --test tests/apiConfig.test.mjs
 npm run test:sincronizacao
 ```
 
+## Contatos com suporte na Visão Geral
+
+O total, a lista, o comparativo entre semanas e o gráfico usam apenas as empresas das tabelas **Esteira atual** e **Suspensos** da Home. Empresas internas e canceladas são excluídas. Fora dos suspensos, também são excluídos Ongoing e Concluídas (data de finalização e follow-up final preenchidos). Quem aguarda o follow-up final continua na esteira atual. A mesma carteira limita as opções do filtro de clientes e as séries de comparação com Treinamento no gráfico.
+
 ## Links de dúvidas no Histórico
 
 No dashboard do Histórico, as colunas de **Assuntos das Dúvidas Registradas** abrem a lista com o tipo **Dúvida** e o assunto escolhido. As colunas do **Top 10 Clientes com Mais Dúvidas** abrem a lista com o cliente escolhido e o tipo **Dúvida**. Os links mantêm o período, departamento, pesquisa, expediente e filtro de estrelas usados no gráfico, além de outros filtros de cliente ou assunto já aplicados.

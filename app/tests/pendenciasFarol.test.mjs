@@ -7,6 +7,19 @@ const pendencia = { ativa: true, tipoId: 'pendencia-1', tipoNome: 'Aguardando re
 const base = { progresso: 50, tme: 2 };
 const prazo = Date.parse('2026-10-02T00:00:00-03:00');
 
+test('esteira finalizada fica vermelha a partir de 20 dias sem follow-up final', () => {
+  for (const [tme, esperado] of [[19, 'verde'], [20, 'vermelho'], [21, 'vermelho']]) {
+    assert.equal(calcularFarol({ progresso: 100, tme }), esperado);
+  }
+});
+
+test('no limite de 20 dias, follow-up final mantém verde e pendência ativa prevalece em laranja', () => {
+  const finalizada = { progresso: 100, tme: 20, dataFollowUpFinal: '2026-10-01' };
+  assert.equal(calcularFarol(finalizada), 'verde');
+  assert.equal(calcularFarol({ ...finalizada, pendencia }), 'laranja');
+  assert.equal(calcularFarol({ progresso: 100, tme: 20, pendencia }), 'laranja');
+});
+
 test('pendência ativa prevalece sobre farol tradicional mesmo sem treinamento anterior', () => {
   for (const estado of [base, { ...base, alerta: true }, { progresso: 0, tme: null }, { progresso: 100, tme: 1, dataFollowUpFinal: '2026-09-30' }]) {
     assert.equal(calcularFarol({ ...estado, pendencia }), 'laranja');

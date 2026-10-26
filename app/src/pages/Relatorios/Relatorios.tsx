@@ -40,7 +40,7 @@ import type { StatusFarolType } from "../../utils/monitoramento";
 import { formatarNome } from "../../utils/formatarNome";
 import { estaDentroDoExpediente } from "../../utils/expediente";
 import { obterInfoTipoOcorrencia } from "../../utils/empresaUtils";
-import { obterCategoriaContatoSuporte } from "../../utils/contatosSuporte";
+import { filtrarEmpresasContatosSuporte, obterCategoriaContatoSuporte } from "../../utils/contatosSuporte";
 import "./Relatorios.css";
 import { RelatorioScore } from "../RelatorioScore/RelatorioScore";
 import { RelatorioJornadaCliente } from "../RelatorioJornadaCliente/RelatorioJornadaCliente";
@@ -380,6 +380,16 @@ export const Relatorios: React.FC = () => {
     });
   }, [dadosEmpresas, limitesSemana]);
 
+  // Total, lista e gráfico compartilham a mesma carteira, inclusive no comparativo.
+  const empresasContatosSuporte = useMemo(
+    () => filtrarEmpresasContatosSuporte(dadosEmpresas),
+    [dadosEmpresas],
+  );
+  const nomesEmpresasContatosSuporte = useMemo(
+    () => new Set(empresasContatosSuporte.map((e) => e.nomeEmpresa.trim().toLowerCase())),
+    [empresasContatosSuporte],
+  );
+
   const contatosSuporte = useMemo(() => {
     if (!limitesSemana) return [];
     const { inicio, fim } = limitesSemana;
@@ -421,8 +431,8 @@ export const Relatorios: React.FC = () => {
       }
     });
 
-    return dadosEmpresas
-      .filter((e) => !e.isOngoing && !e.isCancelled && statsMap.has(e.nomeEmpresa.trim().toLowerCase()))
+    return empresasContatosSuporte
+      .filter((e) => statsMap.has(e.nomeEmpresa.trim().toLowerCase()))
       .map((e) => {
         const stats = statsMap.get(e.nomeEmpresa.trim().toLowerCase())!;
         return {
@@ -432,7 +442,7 @@ export const Relatorios: React.FC = () => {
           totalContatos: stats.total,
         };
       });
-  }, [dadosEmpresas, ocorrencias, limitesSemana]);
+  }, [empresasContatosSuporte, ocorrencias, limitesSemana]);
 
   const semProximoPasso = useMemo(() => {
     if (!limitesSemana) return [];
@@ -763,8 +773,8 @@ export const Relatorios: React.FC = () => {
       }
     });
 
-    return dadosEmpresas
-      .filter((e) => !e.isOngoing && !e.isCancelled && statsMap.has(e.nomeEmpresa.trim().toLowerCase()))
+    return empresasContatosSuporte
+      .filter((e) => statsMap.has(e.nomeEmpresa.trim().toLowerCase()))
       .map((e) => {
         const stats = statsMap.get(e.nomeEmpresa.trim().toLowerCase())!;
         return {
@@ -774,7 +784,7 @@ export const Relatorios: React.FC = () => {
           totalContatos: stats.total,
         };
       });
-  }, [dadosEmpresas, ocorrencias, limitesSemanaComparacao]);
+  }, [empresasContatosSuporte, ocorrencias, limitesSemanaComparacao]);
 
   const riscoChurnComparacao = useMemo(() => {
     if (!limitesSemanaComparacao) return [];
@@ -876,10 +886,6 @@ export const Relatorios: React.FC = () => {
         semClassificacaoTreinamento: [] as number[],
       };
 
-    const nomesClientesCancelados = new Set(
-      dadosEmpresas.filter((e) => e.isCancelled).map((e) => e.nomeEmpresa.trim().toLowerCase())
-    );
-
     const periodos: { inicio: Date; fim: Date }[] = [];
     if (granularidadeGrafico === "dia") {
       // Termina no fim da semana selecionada, sem avançar além de hoje (evita dias futuros zerados)
@@ -924,7 +930,7 @@ export const Relatorios: React.FC = () => {
       const eSuporte = o.departamento === "Suporte";
       const eTreinamento = o.departamento === "Treinamento";
       if (!eSuporte && !eTreinamento) return;
-      if (nomesClientesCancelados.has((o.empresa || "").trim().toLowerCase())) return;
+      if (!nomesEmpresasContatosSuporte.has((o.empresa || "").trim().toLowerCase())) return;
       if (clienteFiltro && !(o.empresa || "").trim().toLowerCase().includes(clienteFiltro)) return;
 
       const categoria = obterCategoriaContatoSuporte(o);
@@ -964,7 +970,7 @@ export const Relatorios: React.FC = () => {
       semClassificacaoSuporte,
       semClassificacaoTreinamento,
     };
-  }, [ocorrencias, dadosEmpresas, limitesSemana, granularidadeGrafico, numSemanasGrafico, numDiasGrafico, clienteFiltroGrafico, expedienteFiltroGrafico]);
+  }, [ocorrencias, nomesEmpresasContatosSuporte, limitesSemana, granularidadeGrafico, numSemanasGrafico, numDiasGrafico, clienteFiltroGrafico, expedienteFiltroGrafico]);
 
   const seriesGraficoSuporte = useMemo(() => {
     const todas = [
@@ -1049,12 +1055,13 @@ export const Relatorios: React.FC = () => {
   const clientesComContatoSuporte = useMemo(() => {
     const nomes = new Set<string>();
     ocorrencias.forEach((o) => {
-      if ((o.departamento === "Suporte" || o.departamento === "Treinamento") && o.empresa) {
+      if ((o.departamento === "Suporte" || o.departamento === "Treinamento") && o.empresa &&
+        nomesEmpresasContatosSuporte.has(o.empresa.trim().toLowerCase())) {
         nomes.add(o.empresa.trim());
       }
     });
     return Array.from(nomes).sort((a, b) => a.localeCompare(b, "pt-BR"));
-  }, [ocorrencias]);
+  }, [ocorrencias, nomesEmpresasContatosSuporte]);
 
   const formatarDiferenca = (atual: number, anterior: number, menorEhMelhor = false) => {
     if (anterior === 0) {

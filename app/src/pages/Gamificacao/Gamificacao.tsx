@@ -964,7 +964,7 @@ export const Gamificacao: React.FC = () => {
       });
 
     const treinadoresElegiveis = trainers.filter((t) => {
-      if (t.suspensoDistribuicao) return false;
+      if (t.suspensoDistribuicao || t.inativo) return false;
       const primeiroNome =
         formatarNome(t.nome).split(" ")[0]?.toLowerCase() || "";
       return primeiroNome !== "jean" && primeiroNome !== "jeff";
@@ -2985,27 +2985,14 @@ export const Gamificacao: React.FC = () => {
               </p>
             ) : (
               <>
-                <div className="distribuicao-vencedor">
-                  <span className="distribuicao-vencedor-icone" aria-hidden="true">
-                    <UserCheck size={20} />
-                  </span>
-                  <div>
-                    <span className="distribuicao-vencedor-label">
-                      Indicado para o próximo cliente
-                    </span>
-                    <span className="distribuicao-vencedor-nome">
-                      {formatarNome(distribuicaoRanking[0].nome) ||
-                        distribuicaoRanking[0].email}
-                    </span>
-                    <MemoriaCarga item={distribuicaoRanking[0]} />
-                  </div>
-                  <span className="distribuicao-vencedor-score">
-                    Carga:{" "}
-                    {formatarNumeroCarga(
-                      distribuicaoRanking[0].cargaDistribuicao,
-                    )}
-                  </span>
-                </div>
+                <p className="distribuicao-vencedor-label">
+                  <UserCheck size={14} aria-hidden="true" />
+                  Indicado para o próximo cliente:{" "}
+                  <strong>
+                    {formatarNome(distribuicaoRanking[0].nome) ||
+                      distribuicaoRanking[0].email}
+                  </strong>
+                </p>
 
                 <div className="distribuicao-lista">
                   {distribuicaoRanking.map((t, index) => (
@@ -3013,19 +3000,21 @@ export const Gamificacao: React.FC = () => {
                       key={t.uid}
                       className={`distribuicao-item ${index === 0 ? "distribuicao-item-vencedor" : ""}`}
                     >
-                      <span className="distribuicao-posicao">{index + 1}</span>
-                      <div className="distribuicao-info">
+                      <div className="distribuicao-item-header">
+                        <span className="distribuicao-posicao">
+                          {index + 1}
+                        </span>
                         <span className="distribuicao-nome">
                           {formatarNome(t.nome) || t.email}
                           {t.uid === user?.uid && (
                             <span className="me-badge">Você</span>
                           )}
                         </span>
-                        <MemoriaCarga item={t} />
+                        <span className="distribuicao-score">
+                          Carga: {formatarNumeroCarga(t.cargaDistribuicao)}
+                        </span>
                       </div>
-                      <span className="distribuicao-score">
-                        Carga: {formatarNumeroCarga(t.cargaDistribuicao)}
-                      </span>
+                      <MemoriaCarga item={t} />
                     </div>
                   ))}
                 </div>

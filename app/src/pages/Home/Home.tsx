@@ -708,9 +708,7 @@ export default function Home() {
       const nomeEmpresa = empresaExistente.nomeEmpresa.trim().toLowerCase();
       diasSuspensoAcumulado += calcularDiasSuspensaoAtual(
         empresaExistente,
-        historico.filter(
-          (o) => o.empresa.trim().toLowerCase() === nomeEmpresa,
-        ),
+        historico.filter((o) => o.empresa.trim().toLowerCase() === nomeEmpresa),
       );
       dataSuspensao = undefined;
     }
@@ -1161,7 +1159,11 @@ export default function Home() {
           totalFases,
         );
 
-        const dataBase = baseAcompanhamento(progresso, empresa.dataFinalizacao, ultimoTreinamento?.dataOcorrencia || ultimoTreinamento?.createdAt);
+        const dataBase = baseAcompanhamento(
+          progresso,
+          empresa.dataFinalizacao,
+          ultimoTreinamento?.dataOcorrencia || ultimoTreinamento?.createdAt,
+        );
         const tme = calcularTME(dataBase, agora);
 
         // Encontra a ocorrência mais recente da empresa que define ou resolve um alerta.
@@ -2164,7 +2166,9 @@ export default function Home() {
               borderRadius: "999px",
               fontSize: "0.8rem",
               fontWeight: 600,
-              background: CORES_PRODUTO[empresa.produto] || "var(--lt-fundo-64748b, #64748b)",
+              background:
+                CORES_PRODUTO[empresa.produto] ||
+                "var(--lt-fundo-64748b, #64748b)",
               color: "var(--lt-texto-ffffff, white)",
             }}
           >
@@ -2185,7 +2189,9 @@ export default function Home() {
             style={{
               fontWeight: 600,
               color:
-                obterTipoEfetivo(empresa) === "Fast" ? "var(--lt-texto-16a34a, #16a34a)" : "#dc2626",
+                obterTipoEfetivo(empresa) === "Fast"
+                  ? "var(--lt-texto-16a34a, #16a34a)"
+                  : "#dc2626",
             }}
             title={
               (calcularScoreEfetivo(empresa) ?? empresa.score) !== empresa.score
@@ -2461,7 +2467,13 @@ export default function Home() {
   ];
 
   // Cada esteira mantém suas definições e seu padrão; as demais colunas são opcionais.
-  const catalogoColunas = [...colunasEsteiraAtual, ...colunasOngoing, ...colunasSuspensos, ...colunasConcluidos, ...colunasCancelados];
+  const catalogoColunas = [
+    ...colunasEsteiraAtual,
+    ...colunasOngoing,
+    ...colunasSuspensos,
+    ...colunasConcluidos,
+    ...colunasCancelados,
+  ];
   const colunasDisponiveis = {
     ativas: ampliarCatalogoColunas(colunasEsteiraAtual, catalogoColunas),
     ongoing: ampliarCatalogoColunas(colunasOngoing, catalogoColunas),
@@ -2605,7 +2617,9 @@ export default function Home() {
               <span className="stat-label">Suspensos</span>
             </span>
             <span className="stat-sub">
-              {filtroSomenteSuspensos ? "Filtro ativo · clique para remover" : "Exibir somente suspensos"}
+              {filtroSomenteSuspensos
+                ? "Filtro ativo · clique para remover"
+                : "Exibir somente suspensos"}
             </span>
           </span>
         </button>
@@ -2625,7 +2639,9 @@ export default function Home() {
               </span>
             </span>
             <span className="stat-sub">
-              {filtroLoboSolitario ? "Filtro ativo · clique para remover" : "Exibir somente lobos solitários"}
+              {filtroLoboSolitario
+                ? "Filtro ativo · clique para remover"
+                : "Exibir somente lobos solitários"}
             </span>
           </span>
         </button>
@@ -2956,7 +2972,6 @@ export default function Home() {
                 />
                 Dentro do prazo do Gol (até o dia 30)
               </label>
-
             </div>
 
             <div className="modal-filtros-footer">
@@ -3020,7 +3035,7 @@ export default function Home() {
           onClick={() => setTabelaAtivaAberta((prev) => !prev)}
         >
           <div className="collapsible-title-wrapper">
-            <h2>Esteira Atual ⚡</h2>
+            <h2>Esteira Atual</h2>
             <span className="collapsible-count-badge">
               {dadosAtivosFiltrados.length}
             </span>
@@ -3048,7 +3063,10 @@ export default function Home() {
                 📥 Exportar Excel
               </button>
             )}
-            <span className={`collapsible-arrow ${tabelaAtivaAberta ? "aberta" : ""}`} aria-hidden="true">
+            <span
+              className={`collapsible-arrow ${tabelaAtivaAberta ? "aberta" : ""}`}
+              aria-hidden="true"
+            >
               ▶
             </span>
           </div>
@@ -3179,7 +3197,7 @@ export default function Home() {
           onClick={() => setTabelaOngoingAberta((prev) => !prev)}
         >
           <div className="collapsible-title-wrapper">
-            <h2>Clientes Ongoing 🔄</h2>
+            <h2>Clientes Ongoing</h2>
             <span
               className="collapsible-count-badge"
               style={{
@@ -3213,7 +3231,10 @@ export default function Home() {
                 📥 Exportar Excel
               </button>
             )}
-            <span className={`collapsible-arrow ${tabelaOngoingAberta ? "aberta" : ""}`} aria-hidden="true">
+            <span
+              className={`collapsible-arrow ${tabelaOngoingAberta ? "aberta" : ""}`}
+              aria-hidden="true"
+            >
               ▶
             </span>
           </div>
@@ -3344,7 +3365,7 @@ export default function Home() {
           onClick={() => setTabelaSuspensaAberta((prev) => !prev)}
         >
           <div className="collapsible-title-wrapper">
-            <h2>Clientes Suspensos ⏸️</h2>
+            <h2>Clientes Suspensos</h2>
             <span
               className="collapsible-count-badge"
               style={{
@@ -3378,7 +3399,10 @@ export default function Home() {
                 📥 Exportar Excel
               </button>
             )}
-            <span className={`collapsible-arrow ${tabelaSuspensaAberta ? "aberta" : ""}`} aria-hidden="true">
+            <span
+              className={`collapsible-arrow ${tabelaSuspensaAberta ? "aberta" : ""}`}
+              aria-hidden="true"
+            >
               ▶
             </span>
           </div>
@@ -3509,7 +3533,7 @@ export default function Home() {
           onClick={() => setTabelaConcluidosAberta((prev) => !prev)}
         >
           <div className="collapsible-title-wrapper">
-            <h2>Clientes Concluídos ✅</h2>
+            <h2>Clientes Concluídos</h2>
             <span
               className="collapsible-count-badge"
               style={{
@@ -3543,7 +3567,10 @@ export default function Home() {
                 📥 Exportar Excel
               </button>
             )}
-            <span className={`collapsible-arrow ${tabelaConcluidosAberta ? "aberta" : ""}`} aria-hidden="true">
+            <span
+              className={`collapsible-arrow ${tabelaConcluidosAberta ? "aberta" : ""}`}
+              aria-hidden="true"
+            >
               ▶
             </span>
           </div>
@@ -3674,10 +3701,13 @@ export default function Home() {
           onClick={() => setTabelaCanceladosAberta((prev) => !prev)}
         >
           <div className="collapsible-title-wrapper">
-            <h2>Clientes Cancelados ❌</h2>
+            <h2>Clientes Cancelados</h2>
             <span
               className="collapsible-count-badge"
-              style={{ background: "rgba(220, 38, 38, 0.2)", color: "var(--lt-texto-f87171, #f87171)" }}
+              style={{
+                background: "rgba(220, 38, 38, 0.2)",
+                color: "var(--lt-texto-f87171, #f87171)",
+              }}
             >
               {dadosCanceladosFiltrados.length}
             </span>
@@ -3705,7 +3735,10 @@ export default function Home() {
                 📥 Exportar Excel
               </button>
             )}
-            <span className={`collapsible-arrow ${tabelaCanceladosAberta ? "aberta" : ""}`} aria-hidden="true">
+            <span
+              className={`collapsible-arrow ${tabelaCanceladosAberta ? "aberta" : ""}`}
+              aria-hidden="true"
+            >
               ▶
             </span>
           </div>
@@ -3886,7 +3919,10 @@ export default function Home() {
                 <span className="info-label">ID do Cliente</span>
                 <span
                   className="info-value"
-                  style={{ fontWeight: "bold", color: "var(--lt-texto-1e90ff, #1e90ff)" }}
+                  style={{
+                    fontWeight: "bold",
+                    color: "var(--lt-texto-1e90ff, #1e90ff)",
+                  }}
                 >
                   {clienteSelecionado.idNumeric
                     ? `#${clienteSelecionado.idNumeric}`
@@ -3989,11 +4025,21 @@ export default function Home() {
                       ❌ Cancelado
                     </span>
                   ) : clienteSelecionado.isSuspended ? (
-                    <span style={{ color: "var(--lt-texto-f59e0b, #f59e0b)", fontWeight: "bold" }}>
+                    <span
+                      style={{
+                        color: "var(--lt-texto-f59e0b, #f59e0b)",
+                        fontWeight: "bold",
+                      }}
+                    >
                       ⏸️ Suspenso Temporariamente
                     </span>
                   ) : (
-                    <span style={{ color: "var(--lt-texto-10b981, #10b981)", fontWeight: "bold" }}>
+                    <span
+                      style={{
+                        color: "var(--lt-texto-10b981, #10b981)",
+                        fontWeight: "bold",
+                      }}
+                    >
                       ▶️ Ativo
                     </span>
                   )}
@@ -4008,7 +4054,10 @@ export default function Home() {
                     {clienteSelecionado.whatsappStatusSuspensao ===
                       "enviado" && (
                       <span
-                        style={{ color: "var(--lt-texto-16a34a, #16a34a)", fontWeight: "bold" }}
+                        style={{
+                          color: "var(--lt-texto-16a34a, #16a34a)",
+                          fontWeight: "bold",
+                        }}
                         title={
                           clienteSelecionado.whatsappEnviadoEmSuspensao
                             ? "Enviado em " +
@@ -4024,7 +4073,10 @@ export default function Home() {
                     {clienteSelecionado.whatsappStatusSuspensao ===
                       "parcial" && (
                       <span
-                        style={{ color: "var(--lt-texto-d97706, #d97706)", fontWeight: "bold" }}
+                        style={{
+                          color: "var(--lt-texto-d97706, #d97706)",
+                          fontWeight: "bold",
+                        }}
                         title={(
                           clienteSelecionado.whatsappDestinatariosSuspensao ||
                           []
@@ -4077,7 +4129,10 @@ export default function Home() {
                     {clienteSelecionado.whatsappStatusCancelamento ===
                       "enviado" && (
                       <span
-                        style={{ color: "var(--lt-texto-16a34a, #16a34a)", fontWeight: "bold" }}
+                        style={{
+                          color: "var(--lt-texto-16a34a, #16a34a)",
+                          fontWeight: "bold",
+                        }}
                         title={
                           clienteSelecionado.whatsappEnviadoEmCancelamento
                             ? "Enviado em " +
@@ -4093,7 +4148,10 @@ export default function Home() {
                     {clienteSelecionado.whatsappStatusCancelamento ===
                       "parcial" && (
                       <span
-                        style={{ color: "var(--lt-texto-d97706, #d97706)", fontWeight: "bold" }}
+                        style={{
+                          color: "var(--lt-texto-d97706, #d97706)",
+                          fontWeight: "bold",
+                        }}
                         title={(
                           clienteSelecionado.whatsappDestinatariosCancelamento ||
                           []
@@ -4299,16 +4357,19 @@ export default function Home() {
                 Ver ocorrências
               </button>
 
-              {(role === "treinador" || role === "master") && clienteSelecionado.id && (
-                <button
-                  className="btn-esteira"
-                  onClick={() =>
-                    navigate(`/validacao-conhecimento?empresa=${encodeURIComponent(clienteSelecionado.id!)}`)
-                  }
-                >
-                  Validação do conhecimento
-                </button>
-              )}
+              {(role === "treinador" || role === "master") &&
+                clienteSelecionado.id && (
+                  <button
+                    className="btn-esteira"
+                    onClick={() =>
+                      navigate(
+                        `/validacao-conhecimento?empresa=${encodeURIComponent(clienteSelecionado.id!)}`,
+                      )
+                    }
+                  >
+                    Validação do conhecimento
+                  </button>
+                )}
 
               {(role === "treinador" || role === "master") && (
                 <button
@@ -5226,7 +5287,8 @@ export default function Home() {
                   borderRadius: "10px",
                   fontWeight: "600",
                   cursor: "pointer",
-                  border: "1px solid var(--lt-borda-ffffff14, rgba(255, 255, 255, 0.08))",
+                  border:
+                    "1px solid var(--lt-borda-ffffff14, rgba(255, 255, 255, 0.08))",
                   background: "var(--lt-fundo-1e293b, #1e293b)",
                   color: "var(--lt-texto-cbd5e1, #cbd5e1)",
                   fontSize: "0.95rem",

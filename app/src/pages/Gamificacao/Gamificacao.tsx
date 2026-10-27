@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState, useRef } from "react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import {
-  Trophy,
+  UserCheck,
   PlusCircle,
   Trash2,
   AlertTriangle,
@@ -2986,10 +2986,12 @@ export const Gamificacao: React.FC = () => {
             ) : (
               <>
                 <div className="distribuicao-vencedor">
-                  <Trophy className="trophy-gold" size={28} />
+                  <span className="distribuicao-vencedor-icone" aria-hidden="true">
+                    <UserCheck size={20} />
+                  </span>
                   <div>
                     <span className="distribuicao-vencedor-label">
-                      Deve ficar com o próximo cliente
+                      Indicado para o próximo cliente
                     </span>
                     <span className="distribuicao-vencedor-nome">
                       {formatarNome(distribuicaoRanking[0].nome) ||

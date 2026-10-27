@@ -2634,9 +2634,7 @@ export default function Home() {
           <span className="stat-card-texto">
             <span className="stat-value-row">
               <span className="stat-value">{totalLobosSolitarios}</span>
-              <span className="stat-label">
-                <span aria-hidden="true">🐺</span> Lobos Solitários
-              </span>
+              <span className="stat-label">Lobos Solitários</span>
             </span>
             <span className="stat-sub">
               {filtroLoboSolitario
@@ -2655,7 +2653,7 @@ export default function Home() {
               <h3 className="stat-value">{stats.alerta}</h3>
               <p className="stat-label">Clientes em risco de Churn</p>
             </div>
-            <p className="stat-sub">Necessitam atenção 🔥</p>
+            <p className="stat-sub">Necessitam atenção</p>
           </div>
         </div>
       </div>

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowUpRight, Check, Clock3, PauseCircle, Settings2, Sparkles, Trash2 } from 'lucide-react';
 import type { PrioridadeTarefa, TarefaChecklist } from '../types';
-import { apresentarTarefa, dataInputTarefa, prazoTarefa, PRIORIDADES_TAREFA } from '../utils/tarefasChecklist';
+import { apresentarTarefa, dataInputTarefa, nivelAtencaoTarefa, prazoTarefa, PRIORIDADES_TAREFA } from '../utils/tarefasChecklist';
 
 interface Props {
   tarefa: TarefaChecklist; agora: number; ocupado: boolean;
@@ -32,7 +32,9 @@ export function TarefaChecklistCard({ tarefa, agora, ocupado, nova = false, onVi
   }, [nova, onVisualizar]);
   const { titulo, motivo, automatica, historicoUrl, esteiraUrl } = apresentarTarefa(tarefa, agora);
   const prazo = tarefa.slaEm ? prazoTarefa(tarefa.slaEm, agora) : null;
-  return <li ref={cardRef} className={`tarefa-card${tarefa.concluida ? ' tarefa-card--concluida' : ''}${tarefa.pausada ? ' tarefa-card--pausada' : ''}${destacarNova && !tarefa.concluida ? ' tarefa-card--nova' : ''}`}>
+  const emAberto = !tarefa.concluida && !tarefa.pausada;
+  const nivelAtencao = nivelAtencaoTarefa(tarefa, agora);
+  return <li ref={cardRef} className={`tarefa-card${tarefa.concluida ? ' tarefa-card--concluida' : ''}${tarefa.pausada ? ' tarefa-card--pausada' : ''}${destacarNova && !tarefa.concluida ? ' tarefa-card--nova' : ''}${nivelAtencao ? ` tarefa-card--atencao-${nivelAtencao}` : ''}`}>
     <div className="tarefa-card-topo">
       <button type="button" className="tarefa-check" aria-pressed={tarefa.concluida} disabled={ocupado} onClick={onConcluir}
         aria-label={`${tarefa.concluida ? 'Reabrir' : 'Concluir'} tarefa: ${titulo}${tarefa.empresa ? ` de ${tarefa.empresa}` : ''}`}
@@ -47,7 +49,7 @@ export function TarefaChecklistCard({ tarefa, agora, ocupado, nova = false, onVi
     <div className="tarefa-indicadores">
       {automatica && <span><Sparkles size={12} /> Automática</span>}
       {tarefa.pausada && !tarefa.concluida && <span><PauseCircle size={12} /> Cliente suspenso</span>}
-      {prazo && <span className={prazo.atrasado && !tarefa.concluida ? 'tarefa-prazo-atrasado' : ''}><Clock3 size={12} />{prazo.texto}</span>}
+      {prazo && <span className={emAberto && prazo.atrasado ? 'tarefa-prazo-atrasado' : emAberto && prazo.proximo ? 'tarefa-prazo-proximo' : ''}><Clock3 size={12} />{prazo.texto}</span>}
       {!automatica && <span>Por {tarefa.criadoPorNome}</span>}
     </div>
     {tarefa.empresa && !tarefa.concluida && <div className="tarefa-links"><Link className="tarefa-acao" to={historicoUrl} onClick={onNavegar}>Ver atendimentos <ArrowUpRight size={14} /></Link>{esteiraUrl && <Link to={esteiraUrl} onClick={onNavegar}>Abrir esteira</Link>}</div>}

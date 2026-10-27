@@ -7,7 +7,7 @@ import { listarTarefasChecklist, criarTarefaChecklist, atualizarTarefaChecklist,
 import { listarUsuarios, type UsuarioDocument } from '../services/auth';
 import { SelectCustomizado } from './SelectCustomizado';
 import { TarefaChecklistCard } from './TarefaChecklistCard';
-import { apresentarTarefa, PRIORIDADES_TAREFA, urgenciaTarefa } from '../utils/tarefasChecklist';
+import { apresentarTarefa, nivelAtencaoMaisCritico, PRIORIDADES_TAREFA, urgenciaTarefa } from '../utils/tarefasChecklist';
 import type { PrioridadeTarefa, TarefaChecklist } from '../types';
 import './ChecklistTarefas.css';
 
@@ -95,6 +95,7 @@ export default function ChecklistTarefas() {
     : urgenciaTarefa(a, agora) - urgenciaTarefa(b, agora));
   const abertas = grupos.pendentes.length, automaticas = grupos.pendentes.filter(t => t.automatica).length;
   const minhasAbertas = tarefas.filter(t => t.treinadorId === user.uid && !t.excluida && !t.pausada && !t.concluida).length;
+  const nivelAlerta = nivelAtencaoMaisCritico(tarefas.filter(t => t.treinadorId === user.uid && !t.excluida), agora);
   const textoNovas = `${novas.size} ${novas.size === 1 ? 'nova tarefa' : 'novas tarefas'}`;
   return <div className="checklist-flutuante" ref={raizRef}>
     {aberto && <section id="painel-tarefas" role="dialog" aria-modal="false" aria-labelledby="titulo-tarefas" tabIndex={-1} className="tarefas-painel" ref={painelRef}>
@@ -130,7 +131,7 @@ export default function ChecklistTarefas() {
     <span className="tarefas-sr-only" role="status">{novas.size > 0 ? `Você tem ${textoNovas}.` : ''}</span>
     <div className="checklist-atalho">
       {!aberto && novas.size > 0 && <button className="checklist-novas" type="button" onClick={abrirNovas} aria-label={`Ver ${textoNovas}`}><span aria-hidden="true" />{textoNovas}</button>}
-      <button ref={botaoRef} type="button" className={`checklist-flutuante-botao${novas.size > 0 && !aberto ? ' checklist-flutuante-botao--novas' : ''}`} onClick={() => { if (!aberto && novas.size > 0) abrirNovas(); else { setAberto(!aberto); setAgora(Date.now()); } }} aria-label={`Minhas tarefas${minhasAbertas ? `, ${minhasAbertas} pendentes` : ''}${novas.size ? `, ${textoNovas}` : ''}`} aria-expanded={aberto} aria-controls="painel-tarefas"><ListChecks size={23} />{minhasAbertas > 0 && <span className="checklist-flutuante-badge">{minhasAbertas}</span>}</button>
+      <button ref={botaoRef} type="button" className={`checklist-flutuante-botao${novas.size > 0 && !aberto ? ' checklist-flutuante-botao--novas' : ''}${nivelAlerta ? ` checklist-flutuante-botao--alerta-${nivelAlerta}` : ''}`} onClick={() => { if (!aberto && novas.size > 0) abrirNovas(); else { setAberto(!aberto); setAgora(Date.now()); } }} aria-label={`Minhas tarefas${minhasAbertas ? `, ${minhasAbertas} pendentes` : ''}${novas.size ? `, ${textoNovas}` : ''}${nivelAlerta === 'atrasada' ? ', há tarefas vencidas' : nivelAlerta ? ', há tarefas prestes a vencer' : ''}`} aria-expanded={aberto} aria-controls="painel-tarefas"><ListChecks size={23} />{minhasAbertas > 0 && <span className="checklist-flutuante-badge">{minhasAbertas}</span>}{nivelAlerta && <span className={`checklist-flutuante-alerta checklist-flutuante-alerta--${nivelAlerta}`} aria-hidden="true" />}</button>
     </div>
   </div>;
 }

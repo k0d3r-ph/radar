@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import type { ClipboardEvent, KeyboardEvent } from "react";
-import { ChevronDown, ChevronUp, GripVertical, Plus, X } from "lucide-react";
+import { ChevronDown, ChevronUp, GripVertical, Link2, Plus, X } from "lucide-react";
 import {
   linhasTemaParaTextos,
   textosParaLinhasTema,
@@ -10,13 +10,14 @@ import type { LinhaTemaEsteira } from "../../utils/temasEsteira";
 type Props = {
   temaText: string;
   dataText: string;
-  onChange: (textos: { temaText: string; dataText: string }) => void;
+  blocoText: string;
+  onChange: (textos: { temaText: string; dataText: string; blocoText: string }) => void;
   disabled?: boolean;
 };
 
 /** Campos de tema e data da esteira, um par por fase, adicionados pelo treinador. */
-export function TemasEsteiraEditor({ temaText, dataText, onChange, disabled }: Props) {
-  const linhas = textosParaLinhasTema(temaText, dataText);
+export function TemasEsteiraEditor({ temaText, dataText, blocoText, onChange, disabled }: Props) {
+  const linhas = textosParaLinhasTema(temaText, dataText, blocoText);
   const temaRefs = useRef<(HTMLInputElement | null)[]>([]);
   const moverCimaRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const moverBaixoRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -53,15 +54,18 @@ export function TemasEsteiraEditor({ temaText, dataText, onChange, disabled }: P
     aplicar(linhas.map((l, i) => (i === indice ? { ...l, [campo]: valor } : l)));
 
   const inserirDepois = (indice: number) => {
-    aplicar([...linhas.slice(0, indice + 1), { tema: "", data: "" }, ...linhas.slice(indice + 1)]);
+    aplicar([...linhas.slice(0, indice + 1), { tema: "", data: "", mesmoDiaDoProximo: false }, ...linhas.slice(indice + 1)]);
     setFocarLinha(indice + 1);
   };
 
   const remover = (indice: number) => {
     const restantes = linhas.filter((_, i) => i !== indice);
-    aplicar(restantes.length ? restantes : [{ tema: "", data: "" }]);
+    aplicar(restantes.length ? restantes : [{ tema: "", data: "", mesmoDiaDoProximo: false }]);
     setFocarLinha(Math.min(indice, Math.max(0, restantes.length - 1)));
   };
+
+  const alternarMesmoDia = (indice: number) =>
+    aplicar(linhas.map((l, i) => (i === indice ? { ...l, mesmoDiaDoProximo: !l.mesmoDiaDoProximo } : l)));
 
   const reordenar = (origem: number, destino: number) => {
     if (origem === destino || destino < 0 || destino >= linhas.length) return;
@@ -103,6 +107,7 @@ export function TemasEsteiraEditor({ temaText, dataText, onChange, disabled }: P
     const novas = colados.map((tema, i) => ({
       tema,
       data: i === 0 ? atual.data : "",
+      mesmoDiaDoProximo: i === 0 ? atual.mesmoDiaDoProximo : false,
     }));
     const substituiAtual = !atual.tema.trim();
     aplicar([
@@ -135,13 +140,16 @@ export function TemasEsteiraEditor({ temaText, dataText, onChange, disabled }: P
           const ultima = i === linhas.length - 1;
           const primeira = i === 0;
           const rotuloFase = linha.tema.trim() ? ` (${linha.tema.trim()})` : ` ${i + 1}`;
+          const noMesmoBlocoDoAnterior = !primeira && linhas[i - 1].mesmoDiaDoProximo;
           return (
+            <Fragment key={i}>
             <li
-              key={i}
               className={[
                 "temas-editor-linha",
                 arrastandoIndex === i ? "arrastando" : "",
                 alvo?.indice === i ? `temas-editor-linha--alvo-${alvo.posicao}` : "",
+                linha.mesmoDiaDoProximo ? "temas-editor-linha--inicio-bloco" : "",
+                noMesmoBlocoDoAnterior ? "temas-editor-linha--meio-bloco" : "",
               ].filter(Boolean).join(" ")}
               draggable={!disabled}
               onDragStart={() => setArrastandoIndex(i)}
@@ -256,6 +264,27 @@ export function TemasEsteiraEditor({ temaText, dataText, onChange, disabled }: P
                 <span aria-hidden="true" />
               )}
             </li>
+            {!ultima && (
+              <li className="temas-editor-conector" aria-hidden={disabled}>
+                <button
+                  type="button"
+                  className={`temas-editor-conector-botao ${linha.mesmoDiaDoProximo ? "ativo" : ""}`}
+                  onClick={() => alternarMesmoDia(i)}
+                  disabled={disabled}
+                  aria-pressed={linha.mesmoDiaDoProximo}
+                  aria-label={
+                    linha.mesmoDiaDoProximo
+                      ? `Fase${rotuloFase} está no mesmo dia da próxima. Clique para separar.`
+                      : `Unir fase${rotuloFase} no mesmo dia da próxima`
+                  }
+                  title={linha.mesmoDiaDoProximo ? "Mesmo dia da próxima fase — clique para separar" : "Unir com a próxima fase no mesmo dia"}
+                >
+                  <Link2 size={12} aria-hidden="true" />
+                  {linha.mesmoDiaDoProximo ? "Mesmo dia" : "Unir ao próximo"}
+                </button>
+              </li>
+            )}
+            </Fragment>
           );
         })}
       </ol>

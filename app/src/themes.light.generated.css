@@ -82,6 +82,30 @@ body.light-theme .checklist-flutuante-badge {
     background: #ef4444;
     color: #ffffff
 }
+body.light-theme .checklist-flutuante-botao--alerta-atrasada {
+    color: #eb1515
+}
+body.light-theme .checklist-flutuante-botao--alerta-urgente {
+    color: #e61313
+}
+body.light-theme .checklist-flutuante-botao--alerta-proxima {
+    color: #ab630e
+}
+body.light-theme .checklist-flutuante-alerta {
+    border: 2px solid #ffffff
+}
+body.light-theme .checklist-flutuante-alerta--atrasada {
+    background: #ef4444;
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.158)
+}
+body.light-theme .checklist-flutuante-alerta--urgente {
+    background: #f87171;
+    box-shadow: 0 0 0 2px rgba(248, 113, 113, 0.158)
+}
+body.light-theme .checklist-flutuante-alerta--proxima {
+    background: #fbbf24;
+    box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.158)
+}
 body.light-theme .tarefas-painel {
     border: 1px solid #e2e8f0;
     background: #f8fafc;
@@ -153,6 +177,21 @@ body.light-theme .tarefa-card--nova {
     border-color: #3b82f6;
     box-shadow: inset 3px 0 0 rgba(59, 130, 246, 0.45)
 }
+body.light-theme .tarefa-card--atencao-atrasada {
+    border-color: #ef4444;
+    background: linear-gradient(90deg, rgba(239, 68, 68, 0.1), rgba(239, 68, 68, 0.02) 60%);
+    box-shadow: inset 3px 0 0 rgba(239, 68, 68, 0.45)
+}
+body.light-theme .tarefa-card--atencao-urgente {
+    border-color: #f87171;
+    background: linear-gradient(90deg, rgba(248, 113, 113, 0.08), rgba(248, 113, 113, 0.02) 60%);
+    box-shadow: inset 3px 0 0 rgba(248, 113, 113, 0.45)
+}
+body.light-theme .tarefa-card--atencao-proxima {
+    border-color: #fbbf24;
+    background: linear-gradient(90deg, rgba(251, 191, 36, 0.08), rgba(251, 191, 36, 0.02) 60%);
+    box-shadow: inset 3px 0 0 rgba(251, 191, 36, 0.45)
+}
 body.light-theme .tarefa-nova {
     background: #ebeefa;
     color: #1067c8
@@ -199,6 +238,9 @@ body.light-theme .tarefa-indicadores {
 }
 body.light-theme .tarefa-indicadores .tarefa-prazo-atrasado {
     color: #e61313
+}
+body.light-theme .tarefa-indicadores .tarefa-prazo-proximo {
+    color: #ab630e
 }
 body.light-theme .tarefa-links a {
     color: #475569
@@ -677,6 +719,11 @@ body.light-theme .csat-card button {
 }
 
 /* ── pages/Esteira/Esteira.css ── */
+body.light-theme .temas-secao {
+    background: #ffffff;
+    box-shadow: 0 18px 60px rgba(15, 23, 42, 0.055);
+    color: #0f172a
+}
 body.light-theme .fake-select-button {
     border: 1px solid #e2e8f0;
     background: #f8fafc;
@@ -720,6 +767,9 @@ body.light-theme .controls {
     box-shadow: 0 18px 60px rgba(15, 23, 42, 0.055);
     color: #0f172a
 }
+body.light-theme .control-row .campo-ajuda {
+    color: #475569
+}
 body.light-theme .temas-editor-remover,
 body.light-theme .temas-editor-adicionar {
     color: #475569
@@ -759,6 +809,34 @@ body.light-theme .temas-editor-mover-botao:hover:not(:disabled) {
 body.light-theme .temas-editor-mover-botao:focus-visible {
     outline: 2px solid #60a5fa
 }
+body.light-theme .temas-editor-linha--inicio-bloco,
+body.light-theme .temas-editor-linha--meio-bloco {
+    border-left: 3px solid #60a5fa
+}
+body.light-theme .temas-editor-conector-botao {
+    border: 1px dashed #cbd5e1;
+    color: #475569
+}
+body.light-theme .temas-editor-conector-botao:hover {
+    border-color: #cbd5e1;
+    color: #0f172a
+}
+body.light-theme .temas-editor-conector-botao.ativo {
+    border: 1px solid #60a5fa;
+    background: rgba(96, 165, 250, 0.12);
+    color: #126fe2
+}
+body.light-theme .temas-editor-conector-botao:focus-visible {
+    outline: 2px solid #60a5fa
+}
+body.light-theme .planejamento-sobrescrever-label {
+    border: 1px solid #d5dce5;
+    color: #334155
+}
+body.light-theme .planejamento-sobrescrever-label:hover {
+    border-color: #cbd5e1;
+    color: #0f172a
+}
 body.light-theme .btn-danger {
     background: #d11a2a;
     box-shadow: 0 8px 24px rgba(122, 0, 0, 0.126);
@@ -770,7 +848,10 @@ body.light-theme .btn-danger:hover {
 }
 body.light-theme .controls input,
 body.light-theme .controls textarea,
-body.light-theme .controls select {
+body.light-theme .controls select,
+body.light-theme .temas-secao input,
+body.light-theme .temas-secao textarea,
+body.light-theme .temas-secao select {
     background: #f1f5f9;
     border: 1px solid #d5dce5;
     color: #0f172a
@@ -787,7 +868,9 @@ body.light-theme .phase-status-badge {
     color: rgba(238, 243, 255, 0.75)
 }
 body.light-theme .controls input::placeholder,
-body.light-theme .controls textarea::placeholder {
+body.light-theme .controls textarea::placeholder,
+body.light-theme .temas-secao input::placeholder,
+body.light-theme .temas-secao textarea::placeholder {
     color: #475569
 }
 body.light-theme .active-badge {
@@ -3388,8 +3471,19 @@ body.light-theme .aging-legenda {
 }
 
 /* ── pages/RelatorioIndicadoresTreinamento/RelatorioIndicadoresTreinamento.css ── */
+body.light-theme .indicadores-resumo-grid .relatorio-kpi-card {
+    border-left-color: #3b82f6
+}
 body.light-theme .indicadores-secao-header p {
     color: #475569
+}
+body.light-theme .indicadores-meta-badge--ok {
+    background: rgba(16, 185, 129, 0.14);
+    color: #0b815a
+}
+body.light-theme .indicadores-meta-badge--abaixo {
+    background: rgba(239, 68, 68, 0.14);
+    color: #eb1515
 }
 body.light-theme .indicadores-comparativo {
     --comparativo-bg: #ffffff;

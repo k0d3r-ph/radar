@@ -22,9 +22,15 @@ import type { DestinatarioGestao } from "../../services/notificacoes";
 import { GestaoNotificacaoModal } from "../../components/GestaoNotificacaoModal";
 import { buscarIdCentralPorNome } from "../../services/centrais";
 import { camposResultadoConclusao } from "../../utils/notificacaoConclusao";
-import { normalizarTextosTema } from "../../utils/temasEsteira";
+import {
+  normalizarTextosTema,
+  textosParaLinhasTema,
+  linhasTemaParaTextos,
+  agruparLinhasEmBlocos,
+} from "../../utils/temasEsteira";
+import { isDiaUtilComFeriados } from "../../utils/feriados";
+import { avancarDiasUteisComFeriados } from "../../utils/prazoTreinamento";
 import { TemasEsteiraEditor } from "./TemasEsteiraEditor";
-import { normalizarConhecimento, TEMA_VALIDACAO } from "../../../../server/src/domain/validacaoConhecimento";
 
 function normalizarNome(nome: string) {
   return nome
@@ -105,6 +111,18 @@ function Esteira() {
   const [dataText, setDataText] = useState(``);
   const [currentPhase, setCurrentPhase] = useState(0);
   const [temaGol, setTemaGol] = useState("");
+  const [blocoText, setBlocoText] = useState("");
+  const [cadenciaDiasTreinamento, setCadenciaDiasTreinamento] =
+    useState<string>("");
+  // Data do primeiro treinamento combinado com o cliente, usada só para "Gerar
+  // planejamento" preencher as datas dos temas — não é persistida na empresa.
+  const [dataInicioPlanejamento, setDataInicioPlanejamento] =
+    useState<string>("");
+  // Quando marcado, "Gerar planejamento" recalcula e substitui todas as datas, não só
+  // as vazias — necessário para refletir uma mudança de bloco (unir/separar temas) num
+  // planejamento que já tinha sido gerado antes.
+  const [sobrescreverDatasPlanejamento, setSobrescreverDatasPlanejamento] =
+    useState(false);
   const [golDropdownAberto, setGolDropdownAberto] = useState(false);
   const golWrapperRef = useRef<HTMLDivElement | null>(null);
   const empresasOrdenadas = [...empresas].sort((a, b) =>
@@ -147,15 +165,21 @@ function Esteira() {
         setCurrentPhase(empresa.currentPhase || 0);
 
         setTemaGol(empresa.temaGol || "");
+
+        setBlocoText(empresa.blocoText || "");
+
+        setCadenciaDiasTreinamento(
+          empresa.cadenciaDiasTreinamento
+            ? String(empresa.cadenciaDiasTreinamento)
+            : "",
+        );
       }
     }
 
     carregar();
   }, [id]);
 
-  const empresaSelecionada = empresas.find(
-    (e) => String(e.id) === empresaId,
-  );
+  const empresaSelecionada = empresas.find((e) => String(e.id) === empresaId);
 
   const statusEsteiraCliente = useMemo(() => {
     if (!empresaSelecionada) return null;
@@ -292,6 +316,7 @@ function Esteira() {
 
   return (
     <div className="app-shell">
+      <div className="app-shell-top">
       <div className="controls">
         <div className="control-row">
           <label>Empresas salvas</label>
@@ -310,6 +335,10 @@ function Esteira() {
                 setTemaText("");
                 setDataText("");
                 setTemaGol("");
+                setBlocoText("");
+                setCadenciaDiasTreinamento("");
+                setDataInicioPlanejamento("");
+                setSobrescreverDatasPlanejamento(false);
                 return;
               }
 
@@ -319,6 +348,14 @@ function Esteira() {
               setDataText(empresa.dataText);
               setCurrentPhase(empresa.currentPhase || 0);
               setTemaGol(empresa.temaGol || "");
+              setBlocoText(empresa.blocoText || "");
+              setCadenciaDiasTreinamento(
+                empresa.cadenciaDiasTreinamento
+                  ? String(empresa.cadenciaDiasTreinamento)
+                  : "",
+              );
+              setDataInicioPlanejamento("");
+              setSobrescreverDatasPlanejamento(false);
             }}
           />
         </div>
@@ -356,7 +393,8 @@ function Esteira() {
               // Busca automática do idCentral pelo nome (planilha do CS). Só
               // preenche sozinho quando o campo ainda está vazio — se alguém já
               // digitou/corrigiu o ID manualmente, não sobrescreve.
-              if (!isTreinador || !nomeEmpresa.trim() || idCentral.trim()) return;
+              if (!isTreinador || !nomeEmpresa.trim() || idCentral.trim())
+                return;
 
               setBuscandoIdCentral(true);
               try {
@@ -378,28 +416,112 @@ function Esteira() {
         </div>
 
         <div className="control-row">
-          <label>ID Central (SSX)</label>
+          <label htmlFor="cadencia-dias-treinamento">
+            Cadência entre treinamentos (dias úteis)
+          </label>
           <input
-            value={idCentral}
-            onChange={(e) => setIdCentral(e.target.value)}
-            placeholder={
-              buscandoIdCentral
-                ? "Buscando na planilha do CS..."
-                : "Preenchido automaticamente pelo nome da empresa"
-            }
-            disabled={!isTreinador || buscandoIdCentral}
+            id="cadencia-dias-treinamento"
+            type="number"
+            min={1}
+            step={1}
+            value={cadenciaDiasTreinamento}
+            onChange={(e) => setCadenciaDiasTreinamento(e.target.value)}
+            placeholder="Ex.: 2 (validar com o cliente)"
+            disabled={!isTreinador}
           />
         </div>
 
-        <TemasEsteiraEditor
-          temaText={temaText}
-          dataText={dataText}
-          onChange={(textos) => {
-            setTemaText(textos.temaText);
-            setDataText(textos.dataText);
-          }}
-          disabled={!isTreinador}
-        />
+        {isTreinador && (
+          <div className="control-row">
+            <label htmlFor="data-inicio-planejamento">
+              Gerar planejamento a partir de
+            </label>
+            <div className="planejamento-gerar-linha">
+              <input
+                id="data-inicio-planejamento"
+                type="date"
+                value={dataInicioPlanejamento}
+                onChange={(e) => setDataInicioPlanejamento(e.target.value)}
+              />
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => {
+                  if (!dataInicioPlanejamento) {
+                    toast.error("Informe a data do primeiro treinamento.");
+                    return;
+                  }
+                  const cadencia = parseInt(cadenciaDiasTreinamento, 10);
+                  if (!cadencia || cadencia <= 0) {
+                    toast.error(
+                      "Informe a cadência entre treinamentos (dias úteis) antes de gerar o planejamento.",
+                    );
+                    return;
+                  }
+
+                  const [ano, mes, dia] = dataInicioPlanejamento
+                    .split("-")
+                    .map(Number);
+                  let dataCursor = new Date(ano, mes - 1, dia);
+                  while (!isDiaUtilComFeriados(dataCursor)) {
+                    dataCursor.setDate(dataCursor.getDate() + 1);
+                  }
+
+                  const linhas = textosParaLinhasTema(
+                    temaText,
+                    dataText,
+                    blocoText,
+                  );
+                  const blocos = agruparLinhasEmBlocos(linhas);
+                  const linhasGeradas = [...linhas];
+
+                  blocos.forEach((indicesDoBloco, indiceBloco) => {
+                    if (indiceBloco > 0) {
+                      dataCursor = avancarDiasUteisComFeriados(
+                        dataCursor,
+                        cadencia,
+                      );
+                    }
+                    const dataFormatada = `${String(dataCursor.getDate()).padStart(2, "0")}/${String(dataCursor.getMonth() + 1).padStart(2, "0")}`;
+                    indicesDoBloco.forEach((indice) => {
+                      if (
+                        sobrescreverDatasPlanejamento ||
+                        !linhasGeradas[indice].data.trim()
+                      ) {
+                        linhasGeradas[indice] = {
+                          ...linhasGeradas[indice],
+                          data: dataFormatada,
+                        };
+                      }
+                    });
+                  });
+
+                  const textos = linhasTemaParaTextos(linhasGeradas);
+                  setTemaText(textos.temaText);
+                  setDataText(textos.dataText);
+                  setBlocoText(textos.blocoText);
+                  toast.success(
+                    sobrescreverDatasPlanejamento
+                      ? "Planejamento gerado. Todas as datas foram recalculadas."
+                      : "Planejamento gerado. Datas já preenchidas foram preservadas.",
+                  );
+                }}
+              >
+                Gerar planejamento
+              </button>
+              <label className="planejamento-sobrescrever-label">
+                <input
+                  type="checkbox"
+                  checked={sobrescreverDatasPlanejamento}
+                  onChange={(e) =>
+                    setSobrescreverDatasPlanejamento(e.target.checked)
+                  }
+                />
+                Substituir datas já preenchidas
+              </label>
+            </div>
+          </div>
+        )}
 
         <div className="download-row">
           {isTreinador && (
@@ -451,8 +573,11 @@ function Esteira() {
                 );
                 const isFinished = currentPhase === temas.length - 1;
                 // Grava sem os campos de fase deixados em branco na tela.
-                const { temaText: temaTextFinal, dataText: dataTextFinal } =
-                  normalizarTextosTema(temaText, dataText);
+                const {
+                  temaText: temaTextFinal,
+                  dataText: dataTextFinal,
+                  blocoText: blocoTextFinal,
+                } = normalizarTextosTema(temaText, dataText, blocoText);
 
                 const today = new Date();
                 const year = today.getFullYear();
@@ -473,6 +598,7 @@ function Esteira() {
                       idCentral: idCentralFinal || undefined,
                       temaText: temaTextFinal,
                       dataText: dataTextFinal,
+                      blocoText: blocoTextFinal,
                       currentPhase,
                       dataFinalizacao,
                       // Se o treinador esquecer de preencher a data de entrada
@@ -480,6 +606,9 @@ function Esteira() {
                       // é a base do cálculo de dias na esteira e do Aging.
                       dataEntrada: empresaExistente?.dataEntrada || dataHoje,
                       temaGol,
+                      cadenciaDiasTreinamento: cadenciaDiasTreinamento.trim()
+                        ? Math.max(1, parseInt(cadenciaDiasTreinamento, 10))
+                        : undefined,
                       updatedAt: Date.now(),
                     },
                     empresaId
@@ -536,7 +665,9 @@ function Esteira() {
                         "[notificações] Falha ao montar destinatários de conclusão:",
                         err,
                       );
-                      toast.error("Não foi possível preparar o aviso de conclusão. Reenvie pelos detalhes do cliente.");
+                      toast.error(
+                        "Não foi possível preparar o aviso de conclusão. Reenvie pelos detalhes do cliente.",
+                      );
                     });
                 }
 
@@ -546,6 +677,10 @@ function Esteira() {
                 setDataText("");
                 setCurrentPhase(0);
                 setTemaGol("");
+                setBlocoText("");
+                setCadenciaDiasTreinamento("");
+                setDataInicioPlanejamento("");
+                setSobrescreverDatasPlanejamento(false);
               }}
             >
               {buscandoIdCentral ? "Buscando ID Central..." : "Salvar empresa"}
@@ -668,32 +803,6 @@ function Esteira() {
           >
             Baixar imagem
           </button>
-
-          {isTreinador && (
-            <button
-              type="button"
-              className="btn-secondary"
-              onClick={() => setTemplatesAbertos(true)}
-            >
-              Templates
-            </button>
-          )}
-
-          {isTreinador &&
-            empresaSelecionada?.id &&
-            (empresaSelecionada.temaText || "")
-              .split("\n")
-              .some((tema) => normalizarConhecimento(tema) === normalizarConhecimento(TEMA_VALIDACAO)) && (
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() =>
-                  navigate(`/validacao-conhecimento?empresa=${encodeURIComponent(empresaSelecionada.id!)}`)
-                }
-              >
-                Validação do conhecimento
-              </button>
-            )}
         </div>
 
         <div className="control-row">
@@ -797,6 +906,7 @@ function Esteira() {
         </div>
       </div>
 
+      <div className="preview-coluna">
       <div className="preview">
         <img className="background" src={base} alt="Fundo" />
 
@@ -895,6 +1005,35 @@ function Esteira() {
         </svg>
       </div>
 
+      <div className="temas-secao">
+        <div className="temas-secao-header">
+          <h2>Temas e templates</h2>
+          {isTreinador && (
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setTemplatesAbertos(true)}
+            >
+              Templates
+            </button>
+          )}
+        </div>
+
+        <TemasEsteiraEditor
+          temaText={temaText}
+          dataText={dataText}
+          blocoText={blocoText}
+          onChange={(textos) => {
+            setTemaText(textos.temaText);
+            setDataText(textos.dataText);
+            setBlocoText(textos.blocoText);
+          }}
+          disabled={!isTreinador}
+        />
+      </div>
+      </div>
+      </div>
+
       <GestaoNotificacaoModal
         open={gestaoConfirmModalOpen}
         titulo="🎉 Notificar Supervisor, CS e Comercial sobre a conclusão da esteira?"
@@ -904,7 +1043,10 @@ function Esteira() {
         onChangeMensagem={setGestaoMensagem}
         onResultado={async (resultado) => {
           if (!gestaoEmpresaId) return;
-          await salvarEmpresas({ id: gestaoEmpresaId, ...camposResultadoConclusao(resultado) });
+          await salvarEmpresas({
+            id: gestaoEmpresaId,
+            ...camposResultadoConclusao(resultado),
+          });
           setEmpresas(await listarEmpresas());
         }}
         onClose={() => {

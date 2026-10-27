@@ -10,6 +10,19 @@
 .checklist-flutuante-botao { position: relative; display: grid; place-items: center; width: 52px; height: 52px; padding: 0; border: 1px solid #3b82f6; border-radius: 18px; background: #2563eb; color: #ffffff; cursor: pointer; box-shadow: 0 8px 24px rgba(0,0,0,.22); }
 .checklist-flutuante-botao:hover { background: #1d4ed8; }
 .checklist-flutuante-badge { position: absolute; top: -6px; right: -6px; min-width: 23px; height: 23px; display: grid; place-items: center; padding: 0 5px; border: 2px solid #0f172a; border-radius: 99px; background: #ef4444; color: #ffffff; font-size: 11px; font-weight: 700; }
+/* Indicador de que há tarefa vencida, urgente ou prestes a vencer: o ícone e o
+   pontinho no canto oposto ao contador seguem a mesma cor usada no cartão da
+   tarefa (vermelho forte = vencida, vermelho claro = urgente, âmbar = prestes a
+   vencer), para o nível mais crítico das tarefas do usuário. */
+.checklist-flutuante-botao--alerta-atrasada { color: #ef4444; }
+.checklist-flutuante-botao--alerta-urgente { color: #f87171; }
+.checklist-flutuante-botao--alerta-proxima { color: #fbbf24; }
+.checklist-flutuante-alerta { position: absolute; bottom: -3px; left: -3px; width: 14px; height: 14px; border: 2px solid #0f172a; border-radius: 99px; animation: tarefas-alerta-pulso 1.8s ease-in-out infinite; }
+.checklist-flutuante-alerta--atrasada { background: #ef4444; box-shadow: 0 0 0 2px rgba(239,68,68,.35); }
+.checklist-flutuante-alerta--urgente { background: #f87171; box-shadow: 0 0 0 2px rgba(248,113,113,.35); }
+.checklist-flutuante-alerta--proxima { background: #fbbf24; box-shadow: 0 0 0 2px rgba(251,191,36,.35); }
+@keyframes tarefas-alerta-pulso { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.3); opacity: .65; } }
+@media (prefers-reduced-motion: reduce) { .checklist-flutuante-alerta { animation: none; } }
 .tarefas-painel { display: flex; flex-direction: column; width: 448px; max-width: calc(100vw - 80px); max-height: min(780px, calc(100dvh - 104px)); border: 1px solid #334155; border-radius: 18px; background: #0f172a; color: #e2e8f0; box-shadow: 0 20px 64px rgba(0,0,0,.32); font-size: 13px; text-align: left; }
 .tarefas-painel *, .tarefas-painel *::before, .tarefas-painel *::after { box-sizing: border-box; }
 .tarefas-painel button { font: inherit; cursor: pointer; transition: background .15s, border-color .15s; transform: none; }
@@ -38,6 +51,12 @@
 .tarefas-secao-pausadas h3 > span { padding: 1px 7px; border-radius: 99px; background: rgba(148,163,184,.15); font-size: 11px; color: #94a3b8; }
 .tarefas-secao-pausadas > p { margin: 0 0 12px; font-size: 11px; line-height: 1.6; color: #94a3b8; }
 .tarefa-card--nova { border-color: #3b82f6; box-shadow: inset 3px 0 0 #3b82f6; }
+/* Destaque de atenção: uma única borda lateral + leve tingimento de fundo, por nível
+   de urgência (vencida > prioridade urgente > prestes a vencer), para o olho achar
+   as tarefas mais importantes sem precisar ler cada cartão. */
+.tarefa-card--atencao-atrasada { border-color: #ef4444; background: linear-gradient(90deg, rgba(239,68,68,.1), rgba(239,68,68,.02) 60%); box-shadow: inset 3px 0 0 #ef4444; }
+.tarefa-card--atencao-urgente { border-color: #f87171; background: linear-gradient(90deg, rgba(248,113,113,.08), rgba(248,113,113,.02) 60%); box-shadow: inset 3px 0 0 #f87171; }
+.tarefa-card--atencao-proxima { border-color: #fbbf24; background: linear-gradient(90deg, rgba(251,191,36,.08), rgba(251,191,36,.02) 60%); box-shadow: inset 3px 0 0 #fbbf24; }
 .tarefa-nova { display: inline-flex; align-items: center; gap: 4px; width: fit-content; margin-bottom: 8px; padding: 3px 7px; border-radius: 5px; background: #172554; color: #93c5fd; font-size: 11px; line-height: 1.4; font-weight: 700; }
 .tarefa-card-topo { display: flex; align-items: flex-start; gap: 10px; }
 .tarefas-painel .tarefa-check { position: relative; display: grid; place-items: center; flex: 0 0 22px; height: 22px; padding: 0; margin-top: 0; border: 1.5px solid #64748b; border-radius: 6px; background: transparent; color: #ffffff; }
@@ -55,7 +74,8 @@
 .tarefa-motivo { margin: 12px 0; color: #94a3b8; font-size: 12px; line-height: 1.65; }
 .tarefa-indicadores { display: flex; flex-wrap: wrap; gap: 6px 12px; margin: 10px 0; color: #94a3b8; font-size: 11px; }
 .tarefa-indicadores > span { display: inline-flex; align-items: center; gap: 4px; }
-.tarefa-indicadores .tarefa-prazo-atrasado { color: #f87171; }
+.tarefa-indicadores .tarefa-prazo-atrasado { color: #f87171; font-weight: 700; }
+.tarefa-indicadores .tarefa-prazo-proximo { color: #fbbf24; font-weight: 700; }
 .tarefa-links { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-top: 12px; }
 .tarefa-links a { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: #94a3b8; text-decoration: none; }
 .tarefa-links a:hover { text-decoration: underline; color: #93c5fd; }

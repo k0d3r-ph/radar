@@ -15,6 +15,7 @@ import {
   removerOcorrencia,
   definirOcorrenciaFavorita,
   validarClienteParaNovoTreinamento,
+  type AcaoLancamentoPonto,
 } from "../../services/ocorrencias";
 import {
   listarEmpresas,
@@ -2058,7 +2059,11 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
     }
 
     let pontoId = base.gamificacaoPontoId;
-    let pontoCriadoNestaGravacao: string | undefined;
+    // Fluxo normal (não é conclusão de reserva CSAT): o lançamento de ponto vai na mesma
+    // transação do Firestore que grava a ocorrência (ver salvarOcorrencia/aplicarLancamentoPonto),
+    // para os dois nunca ficarem dessincronizados se um dos dois falhar. A conclusão de
+    // reserva CSAT (reservaEditando) continua tratada à parte, pelo endpoint do servidor.
+    let acaoLancamentoPonto: AcaoLancamentoPonto | undefined;
 
     if (form.tipo === "Treinamento" && user?.uid) {
       const isZeroPoints = (form.temaOcorrencia ?? []).some(
@@ -2130,66 +2135,67 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         treinamentoResultados: validResultados,
       };
 
-      if (pontoId) {
-        try {
-          await atualizarLancamentoPonto(pontoId, {
-            ...lancamentoDados,
-            ...(finalCreatedAt !== undefined
-              ? { dataLancamento: finalCreatedAt }
-              : {}),
-          });
-        } catch (error) {
-          console.error("Erro ao atualizar lançamento de ponto:", error);
-          pontoId = await salvarLancamentoPonto({
-            ...lancamentoDados,
-            ...(finalCreatedAt !== undefined
-              ? { dataLancamento: finalCreatedAt }
-              : {}),
-          });
-          pontoCriadoNestaGravacao = pontoId;
-        }
-      } else {
-        pontoId = await salvarLancamentoPonto({
-          ...lancamentoDados,
-          ...(finalCreatedAt !== undefined
-            ? { dataLancamento: finalCreatedAt }
-            : {}),
-        });
-        pontoCriadoNestaGravacao = pontoId;
-      }
+      const dadosComData = {
+        ...lancamentoDados,
+        ...(finalCreatedAt !== undefined ? { dataLancamento: finalCreatedAt } : {}),
+      };
 
-      base.gamificacaoPontoId = pontoId;
-    } else if (ocorrenciaOriginal?.gamificacaoPontoId) {
-      try {
-        await removerLancamentoPonto(ocorrenciaOriginal.gamificacaoPontoId);
-      } catch (error) {
-        console.error("Erro ao remover lançamento de ponto anterior:", error);
+      if (reservaEditando) {
+        // Conclusão de reserva CSAT: o endpoint do servidor é quem grava a ocorrência,
+        // então o lançamento de ponto não pode ir na mesma transação daqui — segue
+        // sendo criado/atualizado à parte, como antes.
+        if (pontoId) {
+          try {
+            await atualizarLancamentoPonto(pontoId, dadosComData);
+          } catch (error) {
+            console.error("Erro ao atualizar lançamento de ponto:", error);
+            pontoId = await salvarLancamentoPonto(dadosComData);
+          }
+        } else {
+          pontoId = await salvarLancamentoPonto(dadosComData);
+        }
+        base.gamificacaoPontoId = pontoId;
+      } else {
+        acaoLancamentoPonto = pontoId
+          ? { acao: "atualizar", id: pontoId, dados: dadosComData }
+          : { acao: "criar", dados: dadosComData };
       }
-      base.gamificacaoPontoId = "";
+    } else if (ocorrenciaOriginal?.gamificacaoPontoId) {
+      if (reservaEditando) {
+        try {
+          await removerLancamentoPonto(ocorrenciaOriginal.gamificacaoPontoId);
+        } catch (error) {
+          console.error("Erro ao remover lançamento de ponto anterior:", error);
+        }
+        base.gamificacaoPontoId = "";
+      } else {
+        acaoLancamentoPonto = { acao: "remover", id: ocorrenciaOriginal.gamificacaoPontoId };
+      }
     }
 
     let savedId: string;
     try {
-      savedId = reservaEditando
-        ? (
-            await requisicaoCsat(
-              `reservas/${reservaEditando.id}/concluir`,
-              base,
-              true,
-            )
-          ).id
-        : await salvarOcorrencia(
-            editandoId ? { ...base, id: editandoId } : base,
-            { empresaId: empresaObjeto.id, ...(editandoId ? { updatedAtEsperado: ocorrenciaOriginal?.updatedAt } : {}) },
-          );
-    } catch (error) {
-      if (pontoCriadoNestaGravacao && error instanceof Error && error.message === MENSAGEM_TREINAMENTO_SUSPENSO) {
-        try { await removerLancamentoPonto(pontoCriadoNestaGravacao); }
-        catch (erroPonto) {
-          console.error("Erro ao desfazer pontos do treinamento bloqueado:", erroPonto);
-          toast.warning("Treinamento bloqueado. Não foi possível desfazer os pontos criados; confira a gamificação.");
-        }
+      if (reservaEditando) {
+        savedId = (
+          await requisicaoCsat(
+            `reservas/${reservaEditando.id}/concluir`,
+            base,
+            true,
+          )
+        ).id;
+      } else {
+        const resultado = await salvarOcorrencia(
+          editandoId ? { ...base, id: editandoId } : base,
+          {
+            empresaId: empresaObjeto.id,
+            ...(editandoId ? { updatedAtEsperado: ocorrenciaOriginal?.updatedAt } : {}),
+            ...(acaoLancamentoPonto ? { lancamentoPonto: acaoLancamentoPonto } : {}),
+          },
+        );
+        savedId = resultado.id;
+        if (acaoLancamentoPonto) pontoId = resultado.gamificacaoPontoId;
       }
+    } catch (error) {
       toast.error(
         error instanceof Error
           ? error.message
@@ -5917,15 +5923,6 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       );
                       const temaGolEmpresa =
                         empresaSelecionada?.temaGol?.trim();
-                      const datasAplicacao = (
-                        empresaSelecionada?.dataText ?? ""
-                      ).split("\n");
-                      const temasAplicados = new Set(
-                        (empresaSelecionada?.temaText ?? "")
-                          .split("\n")
-                          .filter((_, index) => datasAplicacao[index]?.trim())
-                          .map((tema) => normalizar(tema)),
-                      );
                       const opcoes = normalizarTemasTreinamento([
                         "Ausente",
                         "Cancelado",
@@ -5960,15 +5957,6 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                                 setTemasRevisados((temas) =>
                                   temas.filter((t) => t !== tema),
                                 );
-                              } else if (
-                                !["ausente", "cancelado"].includes(
-                                  tema.trim().toLowerCase(),
-                                ) &&
-                                temasAplicados.has(normalizar(tema))
-                              ) {
-                                setTemasRevisados((temas) => [
-                                  ...new Set([...temas, tema]),
-                                ]);
                               }
                               const novoTema = e.target.checked
                                 ? normalizarTemasTreinamento([...atual, tema])
@@ -6054,9 +6042,8 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       ))}
                   </div>
                   <small>
-                    Temas com data de aplicação entram automaticamente como
-                    revisão. Apenas os temas não marcados como revisão avançam a
-                    esteira.
+                    Marque manualmente os temas que forem revisão. Apenas os
+                    temas não marcados como revisão avançam a esteira.
                   </small>
                 </div>
               )}

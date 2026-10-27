@@ -26,7 +26,7 @@ let cachedUsuario: string | undefined;
 const CACHE_TTL = 300000; // 5 minutos (300.000 ms)
 
 export async function salvarLancamentoPonto(
-  lancamento: Omit<LancamentoPonto, "id"> & { dataLancamento?: number }
+  lancamento: Omit<LancamentoPonto, "id" | "dataLancamento"> & { dataLancamento?: number }
 ): Promise<string> {
   const dadosLimpos = Object.fromEntries(
     Object.entries(lancamento).filter(([_, v]) => v !== undefined)

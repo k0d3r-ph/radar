@@ -62,8 +62,22 @@ export type Empresa = {
 
   dataText: string;
 
+  /**
+   * Uma linha por fase (alinhada com `temaText`/`dataText`): "1" quando esse tema
+   * acontece no mesmo dia do próximo (mesmo bloco/encontro), vazio caso contrário.
+   * A última fase nunca tem esse marcador, pois não há um "próximo" para agrupar.
+   */
+  blocoText?: string;
+
   /** Nome exato do tema (linha de {@link temaText}) marcado como o "Gol" da esteira. */
   temaGol?: string;
+
+  /**
+   * Dias úteis entre um treinamento e o próximo, validados com o cliente (ex.: "de 2 em 2
+   * dias"). Usado para estimar a data do último treinamento da esteira e medir o indicador
+   * "Treinamentos no prazo". Sem esse campo preenchido, a empresa fica fora desse indicador.
+   */
+  cadenciaDiasTreinamento?: number;
 
   currentPhase: number;
 

@@ -15,6 +15,16 @@ interface ColumnSelectorProps {
   onChangeOrder: (order: string[]) => void;
   onChangeHidden: (hidden: string[]) => void;
   onRestaurarPadrao: () => void;
+  /** Texto do botão. Padrão: "⚙️ Colunas". */
+  label?: string;
+  /** title do botão. Padrão: "Escolher e reorganizar colunas". */
+  triggerTitulo?: string;
+  /** Título exibido no topo do painel. Padrão: "Colunas desta esteira". */
+  painelTitulo?: string;
+  /** Texto de ajuda exibido no topo do painel. */
+  painelDica?: string;
+  /** aria-label do painel (grupo). Padrão: "Escolher colunas desta esteira". */
+  ariaLabel?: string;
 }
 
 const LARGURA_PAINEL = 280;
@@ -27,6 +37,11 @@ export function ColumnSelector({
   onChangeOrder,
   onChangeHidden,
   onRestaurarPadrao,
+  label = "⚙️ Colunas",
+  triggerTitulo = "Escolher e reorganizar colunas",
+  painelTitulo = "Colunas desta esteira",
+  painelDica = "Inclua ou oculte colunas de qualquer esteira. Arraste para reordenar.",
+  ariaLabel = "Escolher colunas desta esteira",
 }: ColumnSelectorProps) {
   const [aberto, setAberto] = useState(false);
   const [arrastandoIndex, setArrastandoIndex] = useState<number | null>(null);
@@ -121,11 +136,11 @@ export function ColumnSelector({
         type="button"
         className="column-selector-trigger"
         onClick={() => setAberto((prev) => !prev)}
-        title="Escolher e reorganizar colunas"
+        title={triggerTitulo}
         aria-expanded={aberto}
         aria-controls={aberto ? painelId : undefined}
       >
-        ⚙️ Colunas
+        {label}
       </button>
 
       {aberto &&
@@ -135,12 +150,12 @@ export function ColumnSelector({
             id={painelId}
             className="column-selector-painel"
             role="group"
-            aria-label="Escolher colunas desta esteira"
+            aria-label={ariaLabel}
             style={{ top: posicao.top, left: posicao.left, width: LARGURA_PAINEL }}
           >
             <div className="column-selector-painel-header">
-              <span>Colunas desta esteira</span>
-              <span className="column-selector-dica">Inclua ou oculte colunas de qualquer esteira. Arraste para reordenar.</span>
+              <span>{painelTitulo}</span>
+              <span className="column-selector-dica">{painelDica}</span>
             </div>
 
             <ul className="column-selector-lista">

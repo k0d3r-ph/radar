@@ -230,7 +230,7 @@
 .temas-editor-cabecalho,
 .temas-editor-linha {
   display: grid;
-  grid-template-columns: 18px minmax(0, 1fr) 84px 22px 32px;
+  grid-template-columns: 18px minmax(0, 1fr) 84px 28px 22px 32px;
   gap: 8px;
   align-items: center;
 }
@@ -333,6 +333,70 @@
   outline: 2px solid #60a5fa;
   outline-offset: 2px;
   opacity: 1;
+}
+
+.temas-editor-recalcular-botao {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.5);
+  background: transparent;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+
+.temas-editor-recalcular-botao:hover,
+.temas-editor-recalcular-botao[aria-expanded="true"] {
+  color: #60a5fa;
+  background: rgba(96, 165, 250, 0.12);
+}
+
+.temas-editor-recalcular-botao:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 2px;
+}
+
+/* Linha extra que aparece ao clicar no botão de recalcular: deixa escolher a nova
+   data real (com ano) da fase e recalcula as datas das fases seguintes a partir
+   dela, pela cadência configurada, sem tocar nas fases anteriores. */
+.temas-editor-recalculo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  margin-left: 26px;
+  border: 1px solid rgba(96, 165, 250, 0.4);
+  border-radius: 8px;
+  background: rgba(96, 165, 250, 0.08);
+  font-size: 0.85rem;
+}
+
+.temas-editor-recalculo label {
+  white-space: nowrap;
+}
+
+.temas-editor-recalculo-cancelar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.65);
+  background: transparent;
+  cursor: pointer;
+  margin-left: auto;
+}
+
+.temas-editor-recalculo-cancelar:hover {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.12);
 }
 
 .temas-editor-handle {

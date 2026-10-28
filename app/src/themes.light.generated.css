@@ -790,6 +790,28 @@ body.light-theme .temas-editor-remover:focus-visible,
 body.light-theme .temas-editor-adicionar:focus-visible {
     outline: 2px solid #60a5fa
 }
+body.light-theme .temas-editor-recalcular-botao {
+    color: #64748b
+}
+body.light-theme .temas-editor-recalcular-botao:hover,
+body.light-theme .temas-editor-recalcular-botao[aria-expanded="true"] {
+    background: rgba(96, 165, 250, 0.12);
+    color: #126fe2
+}
+body.light-theme .temas-editor-recalcular-botao:focus-visible {
+    outline: 2px solid #60a5fa
+}
+body.light-theme .temas-editor-recalculo {
+    border: 1px solid rgba(96, 165, 250, 0.4);
+    background: rgba(96, 165, 250, 0.08)
+}
+body.light-theme .temas-editor-recalculo-cancelar {
+    color: #475569
+}
+body.light-theme .temas-editor-recalculo-cancelar:hover {
+    background: rgba(248, 113, 113, 0.12);
+    color: #e61313
+}
 body.light-theme .temas-editor-handle {
     color: #64748b
 }

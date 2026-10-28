@@ -1028,6 +1028,7 @@ function Esteira() {
             setDataText(textos.dataText);
             setBlocoText(textos.blocoText);
           }}
+          cadenciaDiasTreinamento={cadenciaDiasTreinamento}
           disabled={!isTreinador}
         />
       </div>

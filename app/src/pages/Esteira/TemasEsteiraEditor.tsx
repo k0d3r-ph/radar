@@ -1,22 +1,29 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import type { ClipboardEvent, KeyboardEvent } from "react";
-import { ChevronDown, ChevronUp, GripVertical, Link2, Plus, X } from "lucide-react";
+import { CalendarClock, ChevronDown, ChevronUp, GripVertical, Link2, Plus, X } from "lucide-react";
+import { toast } from "sonner";
 import {
+  agruparLinhasEmBlocos,
   linhasTemaParaTextos,
   textosParaLinhasTema,
 } from "../../utils/temasEsteira";
 import type { LinhaTemaEsteira } from "../../utils/temasEsteira";
+import { isDiaUtilComFeriados } from "../../utils/feriados";
+import { avancarDiasUteisComFeriados } from "../../utils/prazoTreinamento";
 
 type Props = {
   temaText: string;
   dataText: string;
   blocoText: string;
   onChange: (textos: { temaText: string; dataText: string; blocoText: string }) => void;
+  /** Cadência (dias úteis) usada para recalcular as datas das fases seguintes a
+   * partir de uma data ajustada numa fase intermediária. */
+  cadenciaDiasTreinamento?: string;
   disabled?: boolean;
 };
 
 /** Campos de tema e data da esteira, um par por fase, adicionados pelo treinador. */
-export function TemasEsteiraEditor({ temaText, dataText, blocoText, onChange, disabled }: Props) {
+export function TemasEsteiraEditor({ temaText, dataText, blocoText, onChange, cadenciaDiasTreinamento, disabled }: Props) {
   const linhas = textosParaLinhasTema(temaText, dataText, blocoText);
   const temaRefs = useRef<(HTMLInputElement | null)[]>([]);
   const moverCimaRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -26,6 +33,10 @@ export function TemasEsteiraEditor({ temaText, dataText, blocoText, onChange, di
   // dela — decidido pela metade (acima/abaixo) em que o cursor está dentro da
   // linha, para o indicador mostrar exatamente onde a fase vai ficar.
   const [alvo, setAlvo] = useState<{ indice: number; posicao: "antes" | "depois" } | null>(null);
+  // Fase em que o seletor de "ajustar data e recalcular as seguintes" está aberto, e
+  // a nova data (com ano) escolhida nele.
+  const [recalculoAberto, setRecalculoAberto] = useState<number | null>(null);
+  const [dataRecalculo, setDataRecalculo] = useState("");
   // Campo a focar depois que a linha nova/removida for renderizada.
   const focarLinhaRef = useRef<number | null>(null);
   const setFocarLinha = (indice: number) => {
@@ -118,6 +129,48 @@ export function TemasEsteiraEditor({ temaText, dataText, blocoText, onChange, di
     setFocarLinha((substituiAtual ? indice : indice + 1) + novas.length - 1);
   };
 
+  // Quando o cliente não pode mais num dia já planejado (ex.: treinamento marcado
+  // para o dia 16 precisa ir pro dia 17), ajusta a data real dessa fase (e das demais
+  // do mesmo bloco/dia) e recalcula as fases seguintes a partir dela pela cadência
+  // configurada — sem tocar nas fases anteriores a este bloco.
+  const recalcularAPartirDe = (indice: number) => {
+    const cadencia = parseInt(cadenciaDiasTreinamento || "", 10);
+    if (!cadencia || cadencia <= 0) {
+      toast.error("Informe a cadência entre treinamentos (dias úteis) para recalcular as datas seguintes.");
+      return;
+    }
+    if (!dataRecalculo) {
+      toast.error("Informe a nova data desta fase.");
+      return;
+    }
+    const [ano, mes, dia] = dataRecalculo.split("-").map(Number);
+    let cursor = new Date(ano, mes - 1, dia);
+    while (!isDiaUtilComFeriados(cursor)) {
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    const blocos = agruparLinhasEmBlocos(linhas);
+    const indiceBlocoAncora = blocos.findIndex((indicesDoBloco) => indicesDoBloco.includes(indice));
+    if (indiceBlocoAncora === -1) return;
+
+    const novasLinhas = [...linhas];
+    blocos.forEach((indicesDoBloco, indiceBloco) => {
+      if (indiceBloco < indiceBlocoAncora) return;
+      if (indiceBloco > indiceBlocoAncora) {
+        cursor = avancarDiasUteisComFeriados(cursor, cadencia);
+      }
+      const dataFormatada = `${String(cursor.getDate()).padStart(2, "0")}/${String(cursor.getMonth() + 1).padStart(2, "0")}`;
+      indicesDoBloco.forEach((idx) => {
+        novasLinhas[idx] = { ...novasLinhas[idx], data: dataFormatada };
+      });
+    });
+
+    aplicar(novasLinhas);
+    setRecalculoAberto(null);
+    setDataRecalculo("");
+    toast.success("Data ajustada. As fases seguintes foram recalculadas pela cadência.");
+  };
+
   // Cor do bloco (grupo de fases unidas no "mesmo dia") de cada linha, alternando a
   // cada novo bloco — para que blocos consecutivos não pareçam um único grupo contínuo.
   // -1 = linha fora de qualquer bloco.
@@ -143,6 +196,7 @@ export function TemasEsteiraEditor({ temaText, dataText, blocoText, onChange, di
         <span />
         <span>Temas</span>
         <span>Data</span>
+        <span />
         <span />
         <span />
       </div>
@@ -238,6 +292,24 @@ export function TemasEsteiraEditor({ temaText, dataText, blocoText, onChange, di
                 disabled={disabled}
               />
 
+              {!disabled && !ultima ? (
+                <button
+                  type="button"
+                  className="temas-editor-recalcular-botao"
+                  onClick={() => {
+                    setRecalculoAberto(recalculoAberto === i ? null : i);
+                    setDataRecalculo("");
+                  }}
+                  aria-expanded={recalculoAberto === i}
+                  aria-label={`Ajustar a data da fase${rotuloFase} e recalcular as fases seguintes`}
+                  title="Ajustar esta data e recalcular as datas seguintes pela cadência"
+                >
+                  <CalendarClock size={16} aria-hidden="true" />
+                </button>
+              ) : (
+                <span aria-hidden="true" />
+              )}
+
               {!disabled && linhas.length > 1 ? (
                 <span className="temas-editor-mover">
                   <button
@@ -285,6 +357,34 @@ export function TemasEsteiraEditor({ temaText, dataText, blocoText, onChange, di
                 <span aria-hidden="true" />
               )}
             </li>
+            {recalculoAberto === i && (
+              <li className="temas-editor-recalculo">
+                <label htmlFor={`temas-editor-recalculo-data-${i}`}>
+                  Nova data da fase{rotuloFase}:
+                </label>
+                <input
+                  id={`temas-editor-recalculo-data-${i}`}
+                  type="date"
+                  value={dataRecalculo}
+                  onChange={(e) => setDataRecalculo(e.target.value)}
+                />
+                <button type="button" className="btn-secondary" onClick={() => recalcularAPartirDe(i)}>
+                  Aplicar e recalcular seguintes
+                </button>
+                <button
+                  type="button"
+                  className="temas-editor-recalculo-cancelar"
+                  onClick={() => {
+                    setRecalculoAberto(null);
+                    setDataRecalculo("");
+                  }}
+                  aria-label="Cancelar ajuste de data"
+                  title="Cancelar"
+                >
+                  <X size={14} aria-hidden="true" />
+                </button>
+              </li>
+            )}
             {!ultima && (
               <li className="temas-editor-conector" aria-hidden={disabled}>
                 <button

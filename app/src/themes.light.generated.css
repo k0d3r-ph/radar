@@ -813,6 +813,15 @@ body.light-theme .temas-editor-linha--inicio-bloco,
 body.light-theme .temas-editor-linha--meio-bloco {
     border-left: 3px solid #60a5fa
 }
+body.light-theme .temas-editor-linha--bloco-1 {
+    border-left-color: #f87171
+}
+body.light-theme .temas-editor-linha--bloco-2 {
+    border-left-color: #34d399
+}
+body.light-theme .temas-editor-linha--bloco-3 {
+    border-left-color: #fbbf24
+}
 body.light-theme .temas-editor-conector-botao {
     border: 1px dashed #cbd5e1;
     color: #475569
@@ -825,6 +834,21 @@ body.light-theme .temas-editor-conector-botao.ativo {
     border: 1px solid #60a5fa;
     background: rgba(96, 165, 250, 0.12);
     color: #126fe2
+}
+body.light-theme .temas-editor-conector-botao.ativo.temas-editor-conector-botao--bloco-1 {
+    border-color: #f87171;
+    background: rgba(248, 113, 113, 0.12);
+    color: #e61313
+}
+body.light-theme .temas-editor-conector-botao.ativo.temas-editor-conector-botao--bloco-2 {
+    border-color: #34d399;
+    background: rgba(52, 211, 153, 0.12);
+    color: #34d399
+}
+body.light-theme .temas-editor-conector-botao.ativo.temas-editor-conector-botao--bloco-3 {
+    border-color: #fbbf24;
+    background: rgba(251, 191, 36, 0.12);
+    color: #fbbf24
 }
 body.light-theme .temas-editor-conector-botao:focus-visible {
     outline: 2px solid #60a5fa
@@ -1683,26 +1707,22 @@ body.light-theme .distribuicao-modal-text {
 body.light-theme .distribuicao-modal-text strong {
     color: #4668f0
 }
-body.light-theme .distribuicao-vencedor {
-    background: linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, #ffffff 100%);
-    border: 1px solid rgba(251, 191, 36, 0.3)
-}
 body.light-theme .distribuicao-vencedor-label {
     color: #475569
 }
-body.light-theme .distribuicao-vencedor-nome {
-    color: #ab630e
-}
-body.light-theme .distribuicao-vencedor-score {
-    color: #ab630e
+body.light-theme .distribuicao-vencedor-label strong {
+    color: #4b67f0
 }
 body.light-theme .distribuicao-item {
     border: 1px solid #e8edf3;
     background: #f8fafc
 }
 body.light-theme .distribuicao-item-vencedor {
-    border-color: rgba(251, 191, 36, 0.25);
-    background: rgba(251, 191, 36, 0.05)
+    border-color: rgba(99, 102, 241, 0.3);
+    background: rgba(99, 102, 241, 0.08)
+}
+body.light-theme .distribuicao-item-vencedor .distribuicao-posicao {
+    color: #4b67f0
 }
 body.light-theme .distribuicao-posicao {
     color: #64748b

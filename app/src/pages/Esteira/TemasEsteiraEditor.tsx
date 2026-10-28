@@ -118,6 +118,25 @@ export function TemasEsteiraEditor({ temaText, dataText, blocoText, onChange, di
     setFocarLinha((substituiAtual ? indice : indice + 1) + novas.length - 1);
   };
 
+  // Cor do bloco (grupo de fases unidas no "mesmo dia") de cada linha, alternando a
+  // cada novo bloco — para que blocos consecutivos não pareçam um único grupo contínuo.
+  // -1 = linha fora de qualquer bloco.
+  const QUANTIDADE_CORES_BLOCO = 4;
+  const corBlocoPorIndice: number[] = [];
+  let proximaCor = 0;
+  linhas.forEach((linha, i) => {
+    const noMesmoBlocoDoAnterior = i > 0 && linhas[i - 1].mesmoDiaDoProximo;
+    const inicioBloco = linha.mesmoDiaDoProximo && !noMesmoBlocoDoAnterior;
+    if (inicioBloco) {
+      corBlocoPorIndice[i] = proximaCor % QUANTIDADE_CORES_BLOCO;
+      proximaCor++;
+    } else if (noMesmoBlocoDoAnterior) {
+      corBlocoPorIndice[i] = corBlocoPorIndice[i - 1];
+    } else {
+      corBlocoPorIndice[i] = -1;
+    }
+  });
+
   return (
     <div className="control-row temas-editor">
       <div className="temas-editor-cabecalho" aria-hidden="true">
@@ -141,6 +160,7 @@ export function TemasEsteiraEditor({ temaText, dataText, blocoText, onChange, di
           const primeira = i === 0;
           const rotuloFase = linha.tema.trim() ? ` (${linha.tema.trim()})` : ` ${i + 1}`;
           const noMesmoBlocoDoAnterior = !primeira && linhas[i - 1].mesmoDiaDoProximo;
+          const corBloco = corBlocoPorIndice[i];
           return (
             <Fragment key={i}>
             <li
@@ -150,6 +170,7 @@ export function TemasEsteiraEditor({ temaText, dataText, blocoText, onChange, di
                 alvo?.indice === i ? `temas-editor-linha--alvo-${alvo.posicao}` : "",
                 linha.mesmoDiaDoProximo ? "temas-editor-linha--inicio-bloco" : "",
                 noMesmoBlocoDoAnterior ? "temas-editor-linha--meio-bloco" : "",
+                corBloco > 0 ? `temas-editor-linha--bloco-${corBloco}` : "",
               ].filter(Boolean).join(" ")}
               draggable={!disabled}
               onDragStart={() => setArrastandoIndex(i)}
@@ -268,7 +289,11 @@ export function TemasEsteiraEditor({ temaText, dataText, blocoText, onChange, di
               <li className="temas-editor-conector" aria-hidden={disabled}>
                 <button
                   type="button"
-                  className={`temas-editor-conector-botao ${linha.mesmoDiaDoProximo ? "ativo" : ""}`}
+                  className={[
+                    "temas-editor-conector-botao",
+                    linha.mesmoDiaDoProximo ? "ativo" : "",
+                    linha.mesmoDiaDoProximo && corBloco > 0 ? `temas-editor-conector-botao--bloco-${corBloco}` : "",
+                  ].filter(Boolean).join(" ")}
                   onClick={() => alternarMesmoDia(i)}
                   disabled={disabled}
                   aria-pressed={linha.mesmoDiaDoProximo}

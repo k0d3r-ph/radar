@@ -223,7 +223,8 @@ export type Ocorrencia = {
   temaOcorrencia?: string[];
   idSeqFormatted?: string;
   csatReservaId?: string;
-  csatRespostas?: { nome: string; experiencia: "Bom" | "Ruim"; opiniao: string; respondidoEm: number; editadoPor?: string; editadoEm?: number }[];
+  /** `nota` (1 a 5 estrelas) é o modelo atual; `experiencia` ("Bom"/"Ruim") é derivado dela para os indicadores antigos, ou vem preenchido direto em respostas registradas antes da reintrodução das estrelas. */
+  csatRespostas?: { nome: string; nota?: number; experiencia: "Bom" | "Ruim"; opiniao: string; respondidoEm: number; editadoPor?: string; editadoEm?: number }[];
   atualizacoes?: Atualizacao[];
   scoreCalculado?: number;
   scoreAnswers?: any;
@@ -253,11 +254,11 @@ export type Ocorrencia = {
   treinamentoMotivoEspera?: MotivoEsperaTreinamento | null;
   treinamentoTempoAgenda?: string;
   treinamentoSolicitante?: string;
-  /** @deprecated Modelo antigo (nota 1 a 5). Mantido só para exibir/alimentar médias de registros antigos. */
+  /** Notas de 1 a 5 estrelas por participante, extraídas de {@link csatRespostas}. */
   treinamentoNotas?: number[];
-  /** @deprecated Média calculada de {@link treinamentoNotas}. Mantido só para dados antigos. */
+  /** Média calculada de {@link treinamentoNotas}; null quando nenhuma resposta trouxe nota em estrelas. */
   treinamentoNotaMedia?: number | null;
-  /** Resultado do CSAT por participante, no modelo atual: "Bom" ou "Ruim". */
+  /** Resultado do CSAT por participante, derivado da nota ("Bom" a partir de 4 estrelas) para preservar os indicadores já existentes. */
   treinamentoResultados?: ("Bom" | "Ruim")[];
   isRevisao?: boolean;
   retornarEsteira?: boolean;
@@ -375,11 +376,11 @@ export interface LancamentoPonto {
   treinamentoDataRealizacao?: string;
   treinamentoTempoAgenda?: string;
   treinamentoSolicitante?: string;
-  /** @deprecated Modelo antigo (nota 1 a 5). Mantido só para exibir/alimentar médias de registros antigos. */
+  /** Notas de 1 a 5 estrelas por participante, extraídas de csatRespostas. */
   treinamentoNotas?: number[];
-  /** @deprecated Média calculada de {@link treinamentoNotas}. Mantido só para dados antigos. */
+  /** Média calculada de {@link treinamentoNotas}; null quando nenhuma resposta trouxe nota em estrelas. */
   treinamentoNotaMedia?: number | null;
-  /** Resultado do CSAT por participante, no modelo atual: "Bom" ou "Ruim". */
+  /** Resultado do CSAT por participante, derivado da nota ("Bom" a partir de 4 estrelas) para preservar os indicadores já existentes. */
   treinamentoResultados?: ("Bom" | "Ruim")[];
   ocorrenciaId?: string;
   isAlerta?: boolean;

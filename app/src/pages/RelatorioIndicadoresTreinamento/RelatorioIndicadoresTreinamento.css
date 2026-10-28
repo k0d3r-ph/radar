@@ -4,9 +4,10 @@
   gap: 1.5rem;
 }
 
-/* Bordinha de destaque na lateral dos cartões do Resumo de metas (mesmo padrão
-   visual da Validação do Conhecimento), para marcar visualmente cada indicador. */
-.indicadores-resumo-grid .relatorio-kpi-card {
+/* Bordinha de destaque na lateral dos cartões estáticos (metas da gestão, sem
+   gráfico próprio), mesmo padrão visual da Validação do Conhecimento, para
+   diferenciá-los dos cartões de KPI clicáveis. */
+.relatorio-kpi-card.indicadores-cartao-estatico {
   border-left-width: 4px;
   border-left-color: #3b82f6;
 }

@@ -6,10 +6,23 @@ export interface ReservaCsat extends Ocorrencia {
   empresaId?: string;
   token: string;
   criadoPor: string;
-  respostas: { nome: string; experiencia: 'Bom' | 'Ruim'; opiniao: string; respondidoEm: number }[];
+  respostas: { nome: string; nota?: number; experiencia: 'Bom' | 'Ruim'; opiniao: string; respondidoEm: number }[];
 }
+/** Edita uma resposta no modelo atual (1 a 5 estrelas). */
+export async function editarRespostaCsatNota(ocorrenciaId: string, index: number, nota: number, opiniao: string) {
+  return requisicaoCsat(`ocorrencias/${encodeURIComponent(ocorrenciaId)}/respostas/${index}/editar`, { nota, opiniao }, true);
+}
+/** Edita uma resposta no modelo antigo (Bom/Ruim), para registros anteriores à reintrodução das estrelas. */
 export async function editarRespostaCsat(ocorrenciaId: string, index: number, experiencia: 'Bom' | 'Ruim', opiniao: string) {
   return requisicaoCsat(`ocorrencias/${encodeURIComponent(ocorrenciaId)}/respostas/${index}/editar`, { experiencia, opiniao }, true);
+}
+/** Busca o token do link do CSAT já gerado para a ocorrência, se houver. */
+export async function buscarLinkCsatDaOcorrencia(ocorrenciaId: string): Promise<{ token: string | null; reservaId?: string }> {
+  return requisicaoCsat(`ocorrencias/${encodeURIComponent(ocorrenciaId)}/link`, undefined, true);
+}
+/** Gera (ou retorna, se já existir) o link do CSAT a partir de uma ocorrência de treinamento já registrada. */
+export async function gerarLinkCsatDaOcorrencia(ocorrenciaId: string): Promise<{ token: string; reservaId: string }> {
+  return requisicaoCsat(`ocorrencias/${encodeURIComponent(ocorrenciaId)}/gerar-link`, {}, true);
 }
 export async function requisicaoCsat(path: string, body?: unknown, autenticada = false) {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };

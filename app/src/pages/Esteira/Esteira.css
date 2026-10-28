@@ -33,10 +33,15 @@
 
 /* Temas e templates: o nome dos temas é frequentemente longo e a coluna
    estreita da barra lateral cortava o texto, dificultando decidir o que
-   unir no mesmo bloco — por isso ficam na largura da imagem, não na barra. */
+   unir no mesmo bloco — por isso ficam na largura da imagem, não na barra.
+   Mesmo assim, não precisa ocupar a largura inteira da imagem: um pouco
+   mais estreita já evita o corte do texto. */
 .temas-secao {
   position: relative;
   z-index: 2;
+  width: 100%;
+  max-width: 820px;
+  margin: 0 auto;
   padding: 24px;
   background: rgba(0, 0, 0, 0.55);
   border-radius: 18px;
@@ -296,18 +301,12 @@
   width: 24px;
   height: 24px;
   border-radius: 6px;
-  opacity: 0;
+  opacity: 0.75;
 }
 
 .temas-editor-linha:hover .temas-editor-remover,
 .temas-editor-linha:focus-within .temas-editor-remover {
   opacity: 1;
-}
-
-@media (hover: none) {
-  .temas-editor-remover {
-    opacity: 1;
-  }
 }
 
 .temas-editor-remover:hover {

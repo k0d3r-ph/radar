@@ -19,6 +19,7 @@ export function reordenarTemasEnsinados(
   linhasData: string[],
   indicesEnsinados: number[],
   dataStr: string,
+  currentPhase?: number,
 ): { newTemas: string[]; newDatas: string[]; ultimoIndice: number } {
   // Filtra tema e data juntos: linhas vazias não são fases pendentes.
   const indicesValidos = linhasTema.flatMap((tema, indice) => tema.trim() ? [indice] : []);
@@ -47,10 +48,26 @@ export function reordenarTemasEnsinados(
     .filter((idx) => idx !== idxInicio && idx !== idxConclusao)
     .map((idx) => linhasData[idx] ?? "");
 
-  // Fronteira atual: primeiro índice (dentro do meio) ainda sem data
-  let frontIndex = 0;
-  while (frontIndex < newDatas.length && newDatas[frontIndex].trim() !== "") {
-    frontIndex++;
+  // Fronteira atual: quantos temas do meio já foram efetivamente ensinados.
+  // `currentPhase` (quando informado) é a fonte confiável — é o mesmo índice já
+  // persistido na empresa e mantido por todos os fluxos que marcam temas como
+  // ensinados. Não usamos presença de data para inferir isso: "Gerar
+  // planejamento" (Esteira.tsx) preenche datas futuras em todas as fases como
+  // previsão, não como registro de tema já ministrado, e uma varredura por data
+  // trataria esse planejamento como progresso real. Para registros antigos sem
+  // `currentPhase` definido, cai no comportamento anterior (varredura por data).
+  let frontIndex: number;
+  if (currentPhase !== undefined) {
+    const offsetInicio = inicioItem ? 1 : 0;
+    frontIndex = Math.max(
+      0,
+      Math.min(newDatas.length, currentPhase - offsetInicio + 1),
+    );
+  } else {
+    frontIndex = 0;
+    while (frontIndex < newDatas.length && newDatas[frontIndex].trim() !== "") {
+      frontIndex++;
+    }
   }
 
   // Processa os temas ensinados nesta ocorrência em ordem crescente de índice original

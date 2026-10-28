@@ -467,7 +467,7 @@ test('aprovação com temas pendentes registra a data da validação sem avança
 
   // Ao registrar o tema pendente pelo Histórico, a âncora final já datada conclui a esteira.
   const { reordenarTemasEnsinados } = await import('../../app/src/utils/reordenarTemasEnsinados.ts');
-  const resultado = reordenarTemasEnsinados(empresa.temaText.split('\n'), datas, [2], '20/10');
+  const resultado = reordenarTemasEnsinados(empresa.temaText.split('\n'), datas, [2], '20/10', empresa.currentPhase);
   assert.equal(resultado.ultimoIndice, 3);
 });
 test('módulos aceitam sinônimos e consideram todos os temas da esteira', async () => {

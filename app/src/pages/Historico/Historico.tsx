@@ -2810,6 +2810,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             linhasData,
             indicesEnsinados,
             dataStr,
+            empresaObjeto.currentPhase,
           );
           const novoTemaText = newTemas.join("\n");
           const novoDataText = newDatas.join("\n");
@@ -2973,6 +2974,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             linhasData,
             indicesEnsinados,
             dataStr,
+            empresaObjeto.currentPhase,
           );
           ultimoIndice = reordenado.ultimoIndice;
           novoTemaText = reordenado.newTemas.join("\n");

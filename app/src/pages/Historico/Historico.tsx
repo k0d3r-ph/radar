@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import "./CsatReservas.css";
-import { requisicaoCsat, linkCsat, editarRespostaCsat } from "../../services/csat";
+import { requisicaoCsat, linkCsat, editarRespostaCsat, editarRespostaCsatNota, buscarLinkCsatDaOcorrencia, gerarLinkCsatDaOcorrencia } from "../../services/csat";
 import { copiarTexto } from '../../utils/clipboard';
 import type { ReservaCsat } from "../../services/csat";
 import { GerarCsatModal } from "./GerarCsatModal";
@@ -118,6 +118,7 @@ import {
   Trash2,
   X,
   Share2,
+  Link as LinkIcon,
 } from "lucide-react";
 
 const TIPOS_PADRAO = TIPOS_PADRAO_SISTEMA;
@@ -558,6 +559,7 @@ export function Historico() {
   const [modalCsatAberto, setModalCsatAberto] = useState(false);
   const [erroGerarCsat, setErroGerarCsat] = useState("");
   const [erroReservasCsat, setErroReservasCsat] = useState("");
+  const [carregandoLinkCsatOcorrencia, setCarregandoLinkCsatOcorrencia] = useState(false);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [modalScoreAberto, setModalScoreAberto] = useState(false);
@@ -776,6 +778,8 @@ export function Historico() {
   const [editingUpdateText, setEditingUpdateText] = useState("");
   const [editingCsatIdx, setEditingCsatIdx] = useState<number | null>(null);
   const [editingCsatExperiencia, setEditingCsatExperiencia] = useState<"Bom" | "Ruim">("Bom");
+  /** >0 enquanto edita uma resposta no modelo de estrelas; 0 usa o modelo antigo (Bom/Ruim) via editingCsatExperiencia. */
+  const [editingCsatNota, setEditingCsatNota] = useState(0);
   const [editingCsatOpiniao, setEditingCsatOpiniao] = useState("");
   const [novoResponsavelAtual, setNovoResponsavelAtual] = useState("");
   const [empresasList, setEmpresasList] = useState<Empresa[]>([]);
@@ -1009,6 +1013,40 @@ export function Historico() {
       }
     } finally {
       setGerandoCsat(false);
+    }
+  }
+  /** Copia o link do CSAT já existente da ocorrência ou, se ainda não houver, gera um novo a partir dela. */
+  async function gerarOuCopiarLinkCsatDaOcorrencia() {
+    if (!selecionada?.id || !isTreinador || carregandoLinkCsatOcorrencia) return;
+    setCarregandoLinkCsatOcorrencia(true);
+    try {
+      const existente = selecionada.csatReservaId
+        ? await buscarLinkCsatDaOcorrencia(selecionada.id)
+        : { token: null as string | null };
+      const resultado = existente.token
+        ? existente
+        : await gerarLinkCsatDaOcorrencia(selecionada.id);
+      if (!resultado.token) {
+        toast.error("Não foi possível localizar o link do CSAT desta ocorrência.");
+        return;
+      }
+      const copiado = await copiarTexto(linkCsat(resultado.token));
+      if (!selecionada.csatReservaId) {
+        const reservaId = "reservaId" in resultado ? resultado.reservaId : selecionada.id;
+        setSelecionada((prev) => (prev ? { ...prev, csatReservaId: reservaId } : prev));
+        setOcorrencias((lista) =>
+          lista.map((o) => (o.id === selecionada.id ? { ...o, csatReservaId: reservaId } : o)),
+        );
+      }
+      toast.success(
+        copiado
+          ? (existente.token ? "Link do CSAT copiado!" : "Link do CSAT gerado e copiado!")
+          : "Link do CSAT pronto, mas o navegador não permitiu copiar automaticamente. Copie manualmente.",
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível obter o link do CSAT.");
+    } finally {
+      setCarregandoLinkCsatOcorrencia(false);
     }
   }
   const ocorrenciaIdFiltro = searchParams.get("ocorrencia") || "";
@@ -1360,12 +1398,19 @@ export function Historico() {
     if (!selecionada?.id) return;
     setSalvando(true);
     try {
-      const dados = await editarRespostaCsat(
-        selecionada.id,
-        index,
-        editingCsatExperiencia,
-        editingCsatOpiniao.trim(),
-      );
+      const dados = editingCsatNota > 0
+        ? await editarRespostaCsatNota(
+            selecionada.id,
+            index,
+            editingCsatNota,
+            editingCsatOpiniao.trim(),
+          )
+        : await editarRespostaCsat(
+            selecionada.id,
+            index,
+            editingCsatExperiencia,
+            editingCsatOpiniao.trim(),
+          );
       setSelecionada({
         ...selecionada,
         csatRespostas: dados.csatRespostas,
@@ -1374,6 +1419,7 @@ export function Historico() {
       await carregar(true);
       setEditingCsatIdx(null);
       setEditingCsatOpiniao("");
+      setEditingCsatNota(0);
       toast.success("Avaliação do CSAT atualizada com sucesso!");
     } catch (error) {
       console.error("Erro ao editar avaliação do CSAT:", error);
@@ -4395,6 +4441,29 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   >
                     <Share2 size={16} />
                   </button>
+                  {isTreinador && selecionada.tipo === "Treinamento" && (
+                    <button
+                      className="hist-detail-compartilhar"
+                      title={
+                        selecionada.csatReservaId
+                          ? "Copiar link do CSAT desta ocorrência"
+                          : "Gerar e copiar link do CSAT desta ocorrência"
+                      }
+                      aria-label={
+                        selecionada.csatReservaId
+                          ? "Copiar link do CSAT"
+                          : "Gerar link do CSAT"
+                      }
+                      disabled={carregandoLinkCsatOcorrencia}
+                      onClick={gerarOuCopiarLinkCsatDaOcorrencia}
+                    >
+                      {carregandoLinkCsatOcorrencia ? (
+                        <span aria-hidden="true">...</span>
+                      ) : (
+                        <LinkIcon size={16} />
+                      )}
+                    </button>
+                  )}
                   <button
                     className="hist-detail-fechar"
                     onClick={() => fecharDetalhe()}
@@ -4753,39 +4822,67 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                           {isEditingCsat ? (
                             <div className="hist-atualizacao-edit-container">
                               <span>{resposta.nome}</span>
-                              <fieldset
-                                style={{
-                                  display: "flex",
-                                  gap: "12px",
-                                  border: "none",
-                                  padding: 0,
-                                  margin: 0,
-                                }}
-                              >
-                                {["Bom", "Ruim"].map((valor) => (
-                                  <label
-                                    key={valor}
-                                    style={{
-                                      display: "flex",
-                                      alignItems: "center",
-                                      gap: "4px",
-                                    }}
-                                  >
-                                    <input
-                                      type="radio"
-                                      name={`csat-experiencia-${index}`}
-                                      value={valor}
-                                      checked={editingCsatExperiencia === valor}
-                                      onChange={() =>
-                                        setEditingCsatExperiencia(
-                                          valor as "Bom" | "Ruim",
-                                        )
-                                      }
-                                    />
-                                    {valor}
-                                  </label>
-                                ))}
-                              </fieldset>
+                              {editingCsatNota > 0 || resposta.nota ? (
+                                <fieldset
+                                  style={{ display: "flex", gap: "4px", border: "none", padding: 0, margin: 0 }}
+                                >
+                                  <legend style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0,0,0,0)" }}>Nota de 1 a 5 estrelas</legend>
+                                  {[1, 2, 3, 4, 5].map((valor) => (
+                                    <label
+                                      key={valor}
+                                      title={`${valor} de 5`}
+                                      style={{ display: "flex", alignItems: "center", cursor: "pointer" }}
+                                    >
+                                      <input
+                                        type="radio"
+                                        name={`csat-nota-${index}`}
+                                        value={valor}
+                                        checked={editingCsatNota === valor}
+                                        onChange={() => setEditingCsatNota(valor)}
+                                        style={{ position: "absolute", opacity: 0, width: 1, height: 1 }}
+                                      />
+                                      <Star size={20} fill={editingCsatNota >= valor ? "#eab308" : "none"} color="#eab308" />
+                                    </label>
+                                  ))}
+                                  <span aria-hidden="true" style={{ marginLeft: "4px" }}>
+                                    {editingCsatNota > 0 ? `${editingCsatNota}/5` : "—"}
+                                  </span>
+                                </fieldset>
+                              ) : (
+                                <fieldset
+                                  style={{
+                                    display: "flex",
+                                    gap: "12px",
+                                    border: "none",
+                                    padding: 0,
+                                    margin: 0,
+                                  }}
+                                >
+                                  {["Bom", "Ruim"].map((valor) => (
+                                    <label
+                                      key={valor}
+                                      style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: "4px",
+                                      }}
+                                    >
+                                      <input
+                                        type="radio"
+                                        name={`csat-experiencia-${index}`}
+                                        value={valor}
+                                        checked={editingCsatExperiencia === valor}
+                                        onChange={() =>
+                                          setEditingCsatExperiencia(
+                                            valor as "Bom" | "Ruim",
+                                          )
+                                        }
+                                      />
+                                      {valor}
+                                    </label>
+                                  ))}
+                                </fieldset>
+                              )}
                               <textarea
                                 rows={2}
                                 maxLength={100}
@@ -4810,6 +4907,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                                   onClick={() => {
                                     setEditingCsatIdx(null);
                                     setEditingCsatOpiniao("");
+                                    setEditingCsatNota(0);
                                   }}
                                 >
                                   Cancelar
@@ -4826,8 +4924,18 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                               }}
                             >
                               <div>
-                                <span>
-                                  {resposta.nome} — {resposta.experiencia}
+                                <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                                  {resposta.nome} —{" "}
+                                  {resposta.nota ? (
+                                    <span style={{ display: "inline-flex", alignItems: "center", gap: "2px" }} aria-label={`Nota ${resposta.nota} de 5`}>
+                                      {[1, 2, 3, 4, 5].map((valor) => (
+                                        <Star key={valor} size={14} fill={resposta.nota! >= valor ? "#eab308" : "none"} color="#eab308" aria-hidden="true" />
+                                      ))}
+                                      <span aria-hidden="true">({resposta.nota}/5)</span>
+                                    </span>
+                                  ) : (
+                                    resposta.experiencia
+                                  )}
                                 </span>
                                 {resposta.opiniao && <p>{resposta.opiniao}</p>}
                                 {resposta.editadoPor && resposta.editadoEm && (
@@ -4856,6 +4964,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                                     setEditingCsatExperiencia(
                                       resposta.experiencia,
                                     );
+                                    setEditingCsatNota(resposta.nota || 0);
                                     setEditingCsatOpiniao(
                                       resposta.opiniao || "",
                                     );

@@ -7,15 +7,25 @@ export class CsatError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
 const MENSAGEM_TREINAMENTO_SUSPENSO = 'Não é possível registrar treinamento para cliente suspenso. Retorne o cliente à esteira antes de registrar o treinamento.';
+/** A partir de 4 estrelas o CSAT conta como "Bom" para os indicadores antigos (Taxa CSAT, Treinamento BOM/RUIM). */
+export const derivarExperienciaDaNota = (nota: number): 'Bom' | 'Ruim' => (nota >= 4 ? 'Bom' : 'Ruim');
+
 export function validarResposta(body: any) {
   const nome = typeof body?.nome === 'string' ? body.nome.trim() : '';
   const opiniao = typeof body?.opiniao === 'string' ? body.opiniao.trim() : '';
-  if (!nome || nome.length > 120 || !['Bom', 'Ruim'].includes(body?.experiencia)
+  const nota = Number(body?.nota);
+  if (!nome || nome.length > 120 || !Number.isInteger(nota) || nota < 1 || nota > 5
     || opiniao.length > 100 || typeof body?.responseId !== 'string'
     || !/^[a-zA-Z0-9-]{16,64}$/.test(body.responseId)) {
-    throw new CsatError(400, 'Informe nome, experiência (Bom ou Ruim) e opinião com até 100 caracteres.');
+    throw new CsatError(400, 'Informe nome, uma nota de 1 a 5 estrelas e uma opinião com até 100 caracteres.');
   }
-  return { nome, experiencia: body.experiencia as 'Bom' | 'Ruim', opiniao };
+  return { nome, nota, experiencia: derivarExperienciaDaNota(nota), opiniao };
+}
+function notasDe(respostas: any[]): number[] {
+  return respostas.map(r => r?.nota).filter((n): n is number => Number.isInteger(n) && n >= 1 && n <= 5);
+}
+function mediaNotas(notas: number[]): number | null {
+  return notas.length > 0 ? notas.reduce((acc, n) => acc + n, 0) / notas.length : null;
 }
 
 /** Prepara todas as leituras antes das escritas; reutilizado na conclusão atômica de validações. */
@@ -149,9 +159,11 @@ export function registrarCsat(app: Express, db: Firestore | null, auth: Auth | n
       }
       const { id, token, criadoPor, respostas, status, ...ocorrencia } = dados;
       const resultados = reserva.respostas.map((r: any) => r.experiencia);
+      const notas = notasDe(reserva.respostas);
       tx.set(db!.collection('ocorrencias').doc(ref.id), { ...ocorrencia,
         idSeqFormatted: reserva.idSeqFormatted, createdAt: reserva.createdAt, updatedAt: Date.now(),
-        csatReservaId: ref.id, csatRespostas: reserva.respostas, treinamentoResultados: resultados });
+        csatReservaId: ref.id, csatRespostas: reserva.respostas, treinamentoResultados: resultados,
+        treinamentoNotas: notas, treinamentoNotaMedia: mediaNotas(notas) });
       if (typeof dados.gamificacaoPontoId === 'string' && /^[a-zA-Z0-9]+$/.test(dados.gamificacaoPontoId)) {
         tx.update(db!.collection('gamificacao_pontos').doc(dados.gamificacaoPontoId), { treinamentoResultados: resultados, updatedAt: Date.now() });
       }
@@ -192,8 +204,10 @@ export function registrarCsat(app: Express, db: Firestore | null, auth: Auth | n
       tx.update(ref, { respostas, updatedAt: Date.now() });
       if (reserva.status === 'concluida') {
         if (tentativaRef && tentativa?.exists) tx.update(tentativaRef, { csatRespostas: respostas, updatedAt: Date.now() });
+        const notas = notasDe(respostas);
         tx.update(db!.collection('ocorrencias').doc(ref.id), {
-          csatRespostas: respostas, treinamentoResultados: respostas.map(r => r.experiencia), updatedAt: Date.now(),
+          csatRespostas: respostas, treinamentoResultados: respostas.map(r => r.experiencia),
+          treinamentoNotas: notas, treinamentoNotaMedia: mediaNotas(notas), updatedAt: Date.now(),
         });
         if (pontoRef && ponto?.exists) tx.update(pontoRef, {
           treinamentoResultados: respostas.map(r => r.experiencia), updatedAt: Date.now(),
@@ -202,16 +216,71 @@ export function registrarCsat(app: Express, db: Firestore | null, auth: Auth | n
       return { sucesso: true };
     });
   }));
+  app.get('/api/csat/ocorrencias/:id/link', wrap(async req => {
+    await usuario(req);
+    if (!/^[a-zA-Z0-9]+$/.test(req.params.id)) throw new CsatError(400, 'Ocorrência inválida.');
+    const ocorrencia = (await db!.collection('ocorrencias').doc(req.params.id).get()).data();
+    if (!ocorrencia) throw new CsatError(404, 'Ocorrência não encontrada.');
+    if (typeof ocorrencia.csatReservaId !== 'string' || !ocorrencia.csatReservaId) return { token: null };
+    const reserva = (await db!.collection('csatReservas').doc(ocorrencia.csatReservaId).get()).data();
+    if (!reserva) return { token: null };
+    return { token: reserva.token, reservaId: ocorrencia.csatReservaId };
+  }));
+  app.post('/api/csat/ocorrencias/:id/gerar-link', wrap(async req => {
+    const user = await usuario(req);
+    if (!/^[a-zA-Z0-9]+$/.test(req.params.id)) throw new CsatError(400, 'Ocorrência inválida.');
+    const ref = db!.collection('ocorrencias').doc(req.params.id);
+    const token = randomBytes(32).toString('hex');
+    const tokenRef = db!.collection('csatLinks').doc(createHash('sha256').update(token).digest('hex'));
+    return db!.runTransaction(async tx => {
+      const ocorrencia = (await tx.get(ref)).data();
+      if (!ocorrencia) throw new CsatError(404, 'Ocorrência não encontrada.');
+      if (ocorrencia.tipo !== 'Treinamento' || ocorrencia.departamento !== 'Treinamento') {
+        throw new CsatError(400, 'O link do CSAT só pode ser gerado para ocorrências de treinamento.');
+      }
+      if (typeof ocorrencia.csatReservaId === 'string' && ocorrencia.csatReservaId) {
+        const reservaExistente = (await tx.get(db!.collection('csatReservas').doc(ocorrencia.csatReservaId))).data();
+        if (reservaExistente) return { token: reservaExistente.token, reservaId: ocorrencia.csatReservaId };
+      }
+      const clientes = await tx.get(db!.collection('empresas').where('nomeEmpresa', '==', ocorrencia.empresa).limit(2));
+      if (clientes.docs.length !== 1) throw new CsatError(404, 'Não foi possível identificar o cliente desta ocorrência.');
+      const cadastro = clientes.docs[0].data();
+      if (cadastro.isSuspended) throw new CsatError(409, MENSAGEM_TREINAMENTO_SUSPENSO);
+      const reservaRef = db!.collection('csatReservas').doc(ref.id);
+      const now = Date.now();
+      const reserva = {
+        id: ref.id, idSeqFormatted: ocorrencia.idSeqFormatted || '', empresa: ocorrencia.empresa,
+        empresaId: clientes.docs[0].id, tipo: 'Treinamento', departamento: 'Treinamento',
+        responsavel: ocorrencia.responsavel || user.nome, descricao: ocorrencia.descricao || '',
+        createdAt: ocorrencia.createdAt || now, updatedAt: now, dataOcorrencia: ocorrencia.dataOcorrencia || now,
+        criadoPor: user.uid, token, status: 'concluida', respostas: ocorrencia.csatRespostas || [],
+      };
+      tx.set(reservaRef, reserva);
+      tx.set(tokenRef, { reservaId: ref.id });
+      tx.update(ref, { csatReservaId: ref.id, updatedAt: now });
+      return { token, reservaId: ref.id };
+    });
+  }));
   app.post('/api/csat/ocorrencias/:id/respostas/:index/editar', wrap(async req => {
     const user = await usuario(req, true);
     const index = Number(req.params.index);
     if (!/^[a-zA-Z0-9]+$/.test(req.params.id) || !Number.isInteger(index) || index < 0) {
       throw new CsatError(400, 'Avaliação inválida.');
     }
-    const experiencia = req.body?.experiencia;
     const opiniao = typeof req.body?.opiniao === 'string' ? req.body.opiniao.trim() : '';
-    if (!['Bom', 'Ruim'].includes(experiencia) || opiniao.length > 100) {
-      throw new CsatError(400, 'Informe a experiência (Bom ou Ruim) e uma opinião com até 100 caracteres.');
+    const notaInformada = req.body?.nota !== undefined;
+    const nota = Number(req.body?.nota);
+    let experiencia: 'Bom' | 'Ruim';
+    if (notaInformada) {
+      if (!Number.isInteger(nota) || nota < 1 || nota > 5 || opiniao.length > 100) {
+        throw new CsatError(400, 'Informe uma nota de 1 a 5 estrelas e uma opinião com até 100 caracteres.');
+      }
+      experiencia = derivarExperienciaDaNota(nota);
+    } else {
+      if (!['Bom', 'Ruim'].includes(req.body?.experiencia) || opiniao.length > 100) {
+        throw new CsatError(400, 'Informe a experiência (Bom ou Ruim) e uma opinião com até 100 caracteres.');
+      }
+      experiencia = req.body.experiencia;
     }
     const ref = db!.collection('ocorrencias').doc(req.params.id);
     return db!.runTransaction(async tx => {
@@ -219,9 +288,16 @@ export function registrarCsat(app: Express, db: Firestore | null, auth: Auth | n
       if (!ocorrencia) throw new CsatError(404, 'Ocorrência não encontrada.');
       const respostas = Array.isArray(ocorrencia.csatRespostas) ? [...ocorrencia.csatRespostas] : [];
       if (index >= respostas.length) throw new CsatError(404, 'Avaliação não encontrada.');
-      respostas[index] = { ...respostas[index], experiencia, opiniao, editadoPor: user.nome, editadoEm: Date.now() };
+      respostas[index] = {
+        ...respostas[index], experiencia, opiniao, editadoPor: user.nome, editadoEm: Date.now(),
+        ...(notaInformada ? { nota } : {}),
+      };
       const resultados = respostas.map((r: any) => r.experiencia);
-      tx.update(ref, { csatRespostas: respostas, treinamentoResultados: resultados, updatedAt: Date.now() });
+      const notas = notasDe(respostas);
+      tx.update(ref, {
+        csatRespostas: respostas, treinamentoResultados: resultados,
+        treinamentoNotas: notas, treinamentoNotaMedia: mediaNotas(notas), updatedAt: Date.now(),
+      });
       if (typeof ocorrencia.csatReservaId === 'string') {
         tx.update(db!.collection('csatReservas').doc(ocorrencia.csatReservaId), { respostas, updatedAt: Date.now() });
       }
@@ -231,7 +307,7 @@ export function registrarCsat(app: Express, db: Firestore | null, auth: Auth | n
       if (typeof ocorrencia.gamificacaoPontoId === 'string' && /^[a-zA-Z0-9]+$/.test(ocorrencia.gamificacaoPontoId)) {
         tx.update(db!.collection('gamificacao_pontos').doc(ocorrencia.gamificacaoPontoId), { treinamentoResultados: resultados, updatedAt: Date.now() });
       }
-      return { csatRespostas: respostas, treinamentoResultados: resultados };
+      return { csatRespostas: respostas, treinamentoResultados: resultados, treinamentoNotas: notas, treinamentoNotaMedia: mediaNotas(notas) };
     });
   }));
 }

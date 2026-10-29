@@ -1,6 +1,7 @@
 import type { Empresa, LancamentoPonto, Ocorrencia, MotivoEsperaTreinamento } from "../types";
 import { obterCategoriaContatoSuporte } from "./contatosSuporte";
 import { calcularDiasEsperaTreinamento, LIMITE_ESPERA_LONGA_TREINAMENTO, motivoEsperaValido } from "./esperaTreinamento";
+import { obterPrimeiroTreinamentoRealizado } from "./prazoTreinamento";
 
 const DIACRITICOS = new RegExp("[\\u0300-\\u036f]", "g");
 
@@ -53,6 +54,20 @@ export interface EventoEspera extends EventoIndicador {
   ocorrenciaId?: string;
 }
 
+export interface EventoClienteSuspenso extends EventoIndicador {
+  empresa: string;
+}
+
+export interface EventoTempoPrimeiroTreinamento extends EventoIndicador {
+  dias: number;
+  empresa: string;
+}
+
+export interface EventoNotaCsat extends EventoIndicador {
+  nota: number;
+  empresa?: string;
+}
+
 export interface EventosIndicadoresTreinamento {
   treinamentosRealizados: EventoIndicador[];
   treinamentosAusentes: EventoIndicador[];
@@ -63,9 +78,15 @@ export interface EventosIndicadoresTreinamento {
   treinamentosRuins: EventoIndicador[];
   esperas: EventoEspera[];
   contatosSuporte: EventoIndicador[];
+  /** Ocorrências de Suporte importadas do SSX Desk de clientes em treinamento (não ongoing, não cancelados). */
+  contatosSuporteTreinamento: EventoIndicador[];
   atendimentosWhatsApp: EventoIndicador[];
-  clientesSuspensos: EventoIndicador[];
+  clientesSuspensos: EventoClienteSuspenso[];
   clientesCancelados: EventoIndicador[];
+  /** Dias corridos entre a entrada do cliente na esteira e o primeiro treinamento realizado. */
+  temposPrimeiroTreinamento: EventoTempoPrimeiroTreinamento[];
+  /** Avaliações de CSAT no modelo de estrelas (1 a 5), por participante. */
+  avaliacoesCsatEstrelas: EventoNotaCsat[];
 }
 
 export type KpiTreinamentoChave =
@@ -77,9 +98,12 @@ export type KpiTreinamentoChave =
   | "treinamentosRuins"
   | "tempoMedioEspera"
   | "contatosSuporte"
+  | "contatosSuporteTreinamento"
   | "atendimentosWhatsApp"
   | "clientesSuspensos"
-  | "clientesCancelados";
+  | "clientesCancelados"
+  | "tempoPrimeiroTreinamento"
+  | "csatTreinamento";
 
 /** Complementos dos cartões, sobre os mesmos totais já filtrados do relatório. */
 export function calcularResumoCardsTreinamento(
@@ -117,7 +141,7 @@ export interface ConfigKpiTreinamento {
   chave: KpiTreinamentoChave;
   titulo: string;
   descricao: string;
-  formato: "contagem" | "percentual" | "dias";
+  formato: "contagem" | "percentual" | "dias" | "diasCorridos" | "nota";
   /** Quando true, um valor menor é o resultado desejado (inverte a cor do indicador de variação). */
   menorEhMelhor: boolean;
 }
@@ -199,6 +223,27 @@ export const KPIS_TREINAMENTO: ConfigKpiTreinamento[] = [
     descricao: "Clientes cancelados. Sem um campo de data de cancelamento, usa a data de envio do aviso de WhatsApp como aproximação; cancelamentos sem esse envio não aparecem na linha do tempo.",
     formato: "contagem",
     menorEhMelhor: true,
+  },
+  {
+    chave: "tempoPrimeiroTreinamento",
+    titulo: "Tempo até o primeiro treinamento",
+    descricao: "Dias corridos entre a entrada do cliente na esteira e a realização do primeiro treinamento.",
+    formato: "diasCorridos",
+    menorEhMelhor: true,
+  },
+  {
+    chave: "contatosSuporteTreinamento",
+    titulo: "Contatos com Suporte atribuíveis a treinamento",
+    descricao: "Ocorrências de Suporte importadas do SSX Desk de clientes em treinamento (não ongoing, não cancelados).",
+    formato: "contagem",
+    menorEhMelhor: true,
+  },
+  {
+    chave: "csatTreinamento",
+    titulo: "CSAT do treinamento",
+    descricao: "Média das notas de 1 a 5 estrelas recebidas no período. Avaliações antigas no modelo Bom/Ruim não entram nesta média.",
+    formato: "nota",
+    menorEhMelhor: false,
   },
 ];
 
@@ -287,6 +332,7 @@ export function construirEventosIndicadoresTreinamento(
   const treinamentosBons: EventoIndicador[] = [];
   const treinamentosRuins: EventoIndicador[] = [];
   const esperas: EventoEspera[] = [];
+  const avaliacoesCsatEstrelas: EventoNotaCsat[] = [];
 
   const lancamentosPorId = new Map(lancamentos.filter((l) => l.id).map((l) => [l.id, l]));
   const lancamentosPorOcorrencia = new Map<string, LancamentoPonto>();
@@ -352,6 +398,11 @@ export function construirEventosIndicadoresTreinamento(
         else if (r === "Ruim") treinamentosRuins.push(evento);
       });
     }
+    (o.csatRespostas || []).forEach((r) => {
+      if (Number.isInteger(r.nota) && r.nota! >= 1 && r.nota! <= 5) {
+        avaliacoesCsatEstrelas.push({ ...evento, nota: r.nota!, empresa: o.empresa });
+      }
+    });
 
     if (empresasCadastradas.has(empresa)) {
       const realizacao = `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}-${String(data.getDate()).padStart(2, "0")}`;
@@ -365,7 +416,15 @@ export function construirEventosIndicadoresTreinamento(
   });
 
   const contatosSuporte: EventoIndicador[] = [];
+  const contatosSuporteTreinamento: EventoIndicador[] = [];
   const atendimentosWhatsApp: EventoIndicador[] = [];
+  // Cliente "em treinamento" para o indicador de contatos de Suporte vindos do SSX Desk:
+  // mesmo critério usado na importação (server/src/infrastructure/ssxDesk/trainingConversations.ts).
+  const empresasEmTreinamentoPorNome = new Map<string, boolean>();
+  empresas.forEach((e) => {
+    const chave = normalizarNome(e.nomeEmpresa);
+    if (chave) empresasEmTreinamentoPorNome.set(chave, !e.isOngoing && !e.isCancelled);
+  });
 
   ocorrencias.forEach((o) => {
     const timestamp = o.dataOcorrencia || o.createdAt;
@@ -377,6 +436,9 @@ export function construirEventosIndicadoresTreinamento(
       // do cliente, não para quem eventualmente registrou a ocorrência.
       const dono = responsavelPorEmpresa.get(normalizarNome(o.empresa));
       if (dono) contatosSuporte.push({ data, treinador: dono });
+      if (o.origem === "ssx-desk" && dono && empresasEmTreinamentoPorNome.get(normalizarNome(o.empresa))) {
+        contatosSuporteTreinamento.push({ data, treinador: dono });
+      }
       return;
     }
 
@@ -389,8 +451,9 @@ export function construirEventosIndicadoresTreinamento(
     }
   });
 
-  const clientesSuspensos: EventoIndicador[] = [];
+  const clientesSuspensos: EventoClienteSuspenso[] = [];
   const clientesCancelados: EventoIndicador[] = [];
+  const temposPrimeiroTreinamento: EventoTempoPrimeiroTreinamento[] = [];
 
   empresas.forEach((e) => {
     const treinador = resolverTreinador(e.responsavel);
@@ -398,7 +461,14 @@ export function construirEventosIndicadoresTreinamento(
 
     if (e.isSuspended) {
       const data = parseDataLocalISO(e.dataSuspensao);
-      if (data) clientesSuspensos.push({ data, treinador });
+      if (data) clientesSuspensos.push({ data, treinador, empresa: e.nomeEmpresa });
+    }
+
+    const dataEntrada = parseDataLocalISO(e.dataEntrada);
+    const primeiroTreinamento = obterPrimeiroTreinamentoRealizado(ocorrencias, e.nomeEmpresa);
+    if (dataEntrada && primeiroTreinamento) {
+      const dias = Math.round((inicioDoDia(primeiroTreinamento).getTime() - inicioDoDia(dataEntrada).getTime()) / 86_400_000);
+      if (dias >= 0) temposPrimeiroTreinamento.push({ data: inicioDoDia(primeiroTreinamento), treinador, dias, empresa: e.nomeEmpresa });
     }
 
     if (e.isCancelled && e.whatsappEnviadoEmCancelamento) {
@@ -416,7 +486,10 @@ export function construirEventosIndicadoresTreinamento(
     treinamentosRuins,
     esperas,
     contatosSuporte,
+    contatosSuporteTreinamento,
     atendimentosWhatsApp,
+    temposPrimeiroTreinamento,
+    avaliacoesCsatEstrelas,
     clientesSuspensos,
     clientesCancelados,
   };
@@ -479,6 +552,18 @@ export function calcularValorKpiTreinamento(
       if (amostra.length === 0) return null;
       return amostra.reduce((acc, e) => acc + e.dias, 0) / amostra.length;
     }
+    case "contatosSuporteTreinamento":
+      return filtra(eventos.contatosSuporteTreinamento).length;
+    case "tempoPrimeiroTreinamento": {
+      const amostra = filtra(eventos.temposPrimeiroTreinamento);
+      if (amostra.length === 0) return null;
+      return amostra.reduce((acc, e) => acc + e.dias, 0) / amostra.length;
+    }
+    case "csatTreinamento": {
+      const amostra = filtra(eventos.avaliacoesCsatEstrelas);
+      if (amostra.length === 0) return null;
+      return amostra.reduce((acc, e) => acc + e.nota, 0) / amostra.length;
+    }
     default:
       return null;
   }
@@ -496,6 +581,31 @@ export function listarEsperasLongasTreinamento(
   return filtrarPorTreinador(eventos.esperas, treinador)
     .filter((evento) => evento.dias >= LIMITE_ESPERA_LONGA_TREINAMENTO && dentroDoPeriodo(evento, inicio, fim))
     .sort((a, b) => b.data.getTime() - a.data.getTime());
+}
+
+/** Clientes suspensos no período, para o detalhamento do indicador "Clientes Suspensos". */
+export function listarClientesSuspensosNoPeriodo(
+  eventos: EventosIndicadoresTreinamento, inicio: Date, fim: Date, treinador: string | null,
+): EventoClienteSuspenso[] {
+  return filtrarPorTreinador(eventos.clientesSuspensos, treinador)
+    .filter((evento) => dentroDoPeriodo(evento, inicio, fim))
+    .sort((a, b) => b.data.getTime() - a.data.getTime());
+}
+
+/** Avaliações de CSAT em estrelas dentro do período, mesma amostra usada por `csatTreinamento`. */
+export function listarAvaliacoesCsatNoPeriodo(
+  eventos: EventosIndicadoresTreinamento, inicio: Date, fim: Date, treinador: string | null,
+): EventoNotaCsat[] {
+  return filtrarPorTreinador(eventos.avaliacoesCsatEstrelas, treinador)
+    .filter((evento) => dentroDoPeriodo(evento, inicio, fim));
+}
+
+/** Clientes com tempo até o primeiro treinamento apurado no período, mesma amostra usada por `tempoPrimeiroTreinamento`. */
+export function listarTemposPrimeiroTreinamentoNoPeriodo(
+  eventos: EventosIndicadoresTreinamento, inicio: Date, fim: Date, treinador: string | null,
+): EventoTempoPrimeiroTreinamento[] {
+  return filtrarPorTreinador(eventos.temposPrimeiroTreinamento, treinador)
+    .filter((evento) => dentroDoPeriodo(evento, inicio, fim));
 }
 
 /** Teto de colunas geradas por {@link gerarPeriodosIndicadoresEntreDatas}, para um período
@@ -589,5 +699,7 @@ export function formatarValorKpiTreinamento(chave: KpiTreinamentoChave, valor: n
   const cfg = KPI_POR_CHAVE[chave];
   if (cfg.formato === "percentual") return `${valor.toFixed(1).replace(".", ",")}%`;
   if (cfg.formato === "dias") return `${valor.toFixed(1).replace(".", ",")} dias úteis`;
+  if (cfg.formato === "diasCorridos") return `${valor.toFixed(1).replace(".", ",")} dias`;
+  if (cfg.formato === "nota") return `${valor.toFixed(1).replace(".", ",")} / 5`;
   return `${Math.round(valor)}`;
 }

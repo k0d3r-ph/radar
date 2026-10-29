@@ -17,12 +17,16 @@ import {
   ClipboardCheck,
   Award,
   Flag,
+  Hourglass,
+  Headphones,
+  Star,
 } from "lucide-react";
 import { LineChart } from "../../components/LineChart";
 import { SelectCustomizado } from "../../components/SelectCustomizado";
 import { ColumnSelector } from "../../components/ColumnSelector";
 import { ComparativoTreinamento } from "./ComparativoTreinamento";
 import { DetalhamentoEsperaTreinamento } from "./DetalhamentoEsperaTreinamento";
+import { DetalhamentoClientesSuspensos } from "./DetalhamentoClientesSuspensos";
 import {
   intervaloAnteriorTreinamento,
   lerDataComparacao,
@@ -42,6 +46,7 @@ import { calcularGolNoPrazo } from "../../utils/golTreinamento";
 import type { Empresa, Ocorrencia, LancamentoPonto } from "../../types";
 import {
   KPIS_TREINAMENTO,
+  KPI_POR_CHAVE,
   construirEventosIndicadoresTreinamento,
   listarTreinadoresIndicadoresTreinamento,
   calcularValorKpiTreinamento,
@@ -49,6 +54,8 @@ import {
   gerarPeriodosIndicadoresEntreDatas,
   recortarPeriodosIndicadores,
   formatarValorKpiTreinamento,
+  listarAvaliacoesCsatNoPeriodo,
+  listarTemposPrimeiroTreinamentoNoPeriodo,
   type KpiTreinamentoChave,
 } from "../../utils/indicadoresTreinamento";
 import "../Relatorios/Relatorios.css";
@@ -66,6 +73,9 @@ const ICONE_KPI: Record<KpiTreinamentoChave, React.ReactNode> = {
   atendimentosWhatsApp: <MessageCircle size={22} />,
   clientesSuspensos: <PauseCircle size={22} color="#f59e0b" />,
   clientesCancelados: <XCircle size={22} color="#ef4444" />,
+  tempoPrimeiroTreinamento: <Hourglass size={22} />,
+  contatosSuporteTreinamento: <Headphones size={22} color="#f59e0b" />,
+  csatTreinamento: <Star size={22} color="#f59e0b" />,
 };
 
 function formatarDataISOLocal(d: Date): string {
@@ -358,6 +368,20 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
           100
         : null;
 
+    const csatTreinamento = calcularValorKpiTreinamento(
+      "csatTreinamento",
+      eventos,
+      periodoTotal.inicio,
+      periodoTotal.fim,
+      treinadorAtivo,
+    );
+    const csatTreinamentoAmostra = listarAvaliacoesCsatNoPeriodo(
+      eventos,
+      periodoTotal.inicio,
+      periodoTotal.fim,
+      treinadorAtivo,
+    ).length;
+
     return {
       satisfacao,
       satisfacaoAmostra: bons + ruins,
@@ -365,6 +389,8 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
       treinamentosNoPrazoAmostra: prazoResultados.length,
       golNoPrazo,
       golNoPrazoAmostra: golResultados.length,
+      csatTreinamento,
+      csatTreinamentoAmostra,
     };
   }, [eventos, periodoTotal, treinadorAtivo, empresas, ocorrencias]);
 
@@ -477,43 +503,323 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
   }`;
 
   const PAINEIS_INDICADORES = [
-    { key: "resumo", label: "Resumo de metas (KPIs da gestão)", locked: true },
-    { key: "grade", label: "Grade de indicadores clicáveis" },
+    { key: "cartoes", label: "Cartões de indicadores" },
     { key: "comparativo", label: "Comparativo entre períodos" },
     { key: "grafico", label: "Gráfico de evolução" },
     { key: "tabela", label: "Tabela por treinador" },
   ];
   const prefsPaineis = usePreferenciaPaineis(
-    "radar:indicadores-treinamento:paineis:v1",
+    "radar:indicadores-treinamento:paineis:v2",
     PAINEIS_INDICADORES,
   );
   const painelVisivel = (chave: string) =>
     prefsPaineis.visiveis.includes(chave);
 
-  // Quais cartões de indicador (treinamentos realizados, taxa CSAT, etc.) aparecem na
-  // grade clicável "Visão dos indicadores" — independente dos painéis acima.
-  const KPIS_GRADE_ITENS = KPIS_TREINAMENTO.map((kpi) => ({
-    key: kpi.chave,
-    label: kpi.titulo,
-  }));
-  const prefsKpisGrade = usePreferenciaPaineis(
-    "radar:indicadores-treinamento:kpis-grade:v1",
-    KPIS_GRADE_ITENS,
+  // Cartões sem KPI próprio (não alimentam o gráfico/tabela abaixo) — antigo "Resumo de
+  // metas" — reunidos com os cartões de KPIS_TREINAMENTO (antiga grade clicável "Visão
+  // dos indicadores") num único seletor, para o usuário escolher o que acompanhar.
+  const CHAVES_CARTOES_ESTATICOS = [
+    "treinamentosNoPrazo",
+    "validacaoAprendizado",
+    "satisfacaoTreinamento",
+    "golNoPrazo",
+  ] as const;
+  type ChaveCartaoEstatico = (typeof CHAVES_CARTOES_ESTATICOS)[number];
+  const CHAVES_CARTOES_ESTATICOS_SET = new Set<string>(
+    CHAVES_CARTOES_ESTATICOS,
   );
-  const kpisGradeVisiveis = KPIS_TREINAMENTO.filter((kpi) =>
-    prefsKpisGrade.visiveis.includes(kpi.chave),
-  );
+  const TITULOS_CARTOES_ESTATICOS: Record<ChaveCartaoEstatico, string> = {
+    treinamentosNoPrazo: "Treinamentos no prazo",
+    validacaoAprendizado: "Validação prática de aprendizado",
+    satisfacaoTreinamento: "Satisfação com o treinamento",
+    golNoPrazo: "GOL atingido no prazo",
+  };
 
-  // Se o KPI selecionado (usado no gráfico e na tabela abaixo) foi ocultado da grade,
-  // volta para o primeiro cartão ainda visível.
+  // Padrão (sem preferência salva): só os cinco indicadores mais acompanhados ficam
+  // visíveis; os demais começam ocultos até o usuário escolher exibi-los.
+  const CARTOES_VISIVEIS_PADRAO = new Set<string>([
+    "golNoPrazo",
+    "tempoPrimeiroTreinamento",
+    "clientesSuspensos",
+    "contatosSuporteTreinamento",
+    "csatTreinamento",
+  ]);
+  const ITENS_CARTOES_INDICADORES = [
+    ...CHAVES_CARTOES_ESTATICOS.map((chave) => ({
+      key: chave,
+      label: TITULOS_CARTOES_ESTATICOS[chave],
+      hiddenByDefault: !CARTOES_VISIVEIS_PADRAO.has(chave),
+    })),
+    ...KPIS_TREINAMENTO.map((kpi) => ({
+      key: kpi.chave,
+      label: kpi.titulo,
+      hiddenByDefault: !CARTOES_VISIVEIS_PADRAO.has(kpi.chave),
+    })),
+  ];
+  const prefsCartoes = usePreferenciaPaineis(
+    "radar:indicadores-treinamento:cartoes:v1",
+    ITENS_CARTOES_INDICADORES,
+  );
+  const cartoesVisiveis = prefsCartoes.visiveis;
+
+  // Se o KPI selecionado (usado no gráfico e na tabela abaixo) foi ocultado, volta para
+  // o primeiro cartão de KPI ainda visível (os cartões estáticos não alimentam o gráfico).
+  const kpisVisiveis = cartoesVisiveis.filter(
+    (chave) => !CHAVES_CARTOES_ESTATICOS_SET.has(chave),
+  ) as KpiTreinamentoChave[];
   useEffect(() => {
-    if (
-      kpisGradeVisiveis.length > 0 &&
-      !kpisGradeVisiveis.some((k) => k.chave === kpiSelecionado)
-    ) {
-      setKpiSelecionado(kpisGradeVisiveis[0].chave);
+    if (kpisVisiveis.length > 0 && !kpisVisiveis.includes(kpiSelecionado)) {
+      setKpiSelecionado(kpisVisiveis[0]);
     }
-  }, [kpisGradeVisiveis, kpiSelecionado]);
+  }, [kpisVisiveis, kpiSelecionado]);
+
+  // Dados dos quatro cartões estáticos (sem KPI próprio): mesmas fontes do antigo
+  // "Resumo de metas" (resumoMetas, validação de conhecimento).
+  const cartoesEstaticosDados: Record<
+    ChaveCartaoEstatico,
+    {
+      titulo: string;
+      icone: React.ReactNode;
+      valor: number | null;
+      amostra: number;
+      meta: number | null;
+      descricaoAmostra: (n: number) => string;
+      descricaoSemAmostra: string;
+    }
+  > = {
+    treinamentosNoPrazo: {
+      titulo: "Treinamentos no prazo",
+      icone: <Target size={22} color="#3b82f6" />,
+      valor: resumoMetas?.treinamentosNoPrazo ?? null,
+      amostra: resumoMetas?.treinamentosNoPrazoAmostra ?? 0,
+      meta: 95,
+      descricaoAmostra: (n) =>
+        `${n} ${n === 1 ? "esteira concluída" : "esteiras concluídas"} no período, com cadência cadastrada.`,
+      descricaoSemAmostra:
+        "Nenhuma esteira com cadência de treinamento cadastrada concluiu o último treinamento neste período.",
+    },
+    validacaoAprendizado: {
+      titulo: "Validação prática de aprendizado",
+      icone: <ClipboardCheck size={22} color="#10b981" />,
+      valor: carregandoValidacao
+        ? null
+        : (validacaoAprendizado?.taxaAprovacao ?? null),
+      amostra: validacaoAprendizado?.amostra ?? 0,
+      meta: 80,
+      descricaoAmostra: (n) =>
+        `${n} ${n === 1 ? "tentativa concluída" : "tentativas concluídas"} no período.`,
+      descricaoSemAmostra: carregandoValidacao
+        ? "Carregando…"
+        : "Nenhuma tentativa de validação concluída neste período.",
+    },
+    satisfacaoTreinamento: {
+      titulo: "Satisfação com o treinamento",
+      icone: <Award size={22} color="#f59e0b" />,
+      valor: resumoMetas?.satisfacao ?? null,
+      amostra: resumoMetas?.satisfacaoAmostra ?? 0,
+      meta: 90,
+      descricaoAmostra: (n) =>
+        `${n} ${n === 1 ? "avaliação recebida" : "avaliações recebidas"} (Bom ou Ruim) no período.`,
+      descricaoSemAmostra:
+        "Nenhuma avaliação de CSAT recebida neste período.",
+    },
+    golNoPrazo: {
+      titulo: "GOL atingido no prazo",
+      icone: <Flag size={22} color="#ef4444" />,
+      valor: resumoMetas?.golNoPrazo ?? null,
+      amostra: resumoMetas?.golNoPrazoAmostra ?? 0,
+      meta: null,
+      descricaoAmostra: (n) =>
+        `${n} ${n === 1 ? "cliente avaliado" : "clientes avaliados"} no período (Gol batido ou prazo de 30 dias vencido).`,
+      descricaoSemAmostra:
+        "Nenhum cliente com resultado de Gol apurado neste período.",
+    },
+  };
+
+  function renderCartaoEstatico(chave: ChaveCartaoEstatico) {
+    const item = cartoesEstaticosDados[chave];
+    const atingiuMeta =
+      item.valor !== null && item.meta !== null
+        ? item.valor >= item.meta
+        : null;
+    const valorFormatado =
+      item.valor === null ? "—" : `${Math.round(item.valor)}%`;
+    const metaFormatada = item.meta === null ? null : `≥${item.meta}%`;
+    return (
+      <div
+        key={chave}
+        className="relatorio-kpi-card indicadores-cartao-estatico"
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <span className="kpi-label">{item.titulo}</span>
+          <span style={{ opacity: 0.8 }}>{item.icone}</span>
+        </div>
+        <div className="kpi-value-row">
+          <span className="kpi-value">{valorFormatado}</span>
+          {metaFormatada && (
+            <span className="kpi-desc indicadores-kpi-complemento">
+              Meta: {metaFormatada}
+            </span>
+          )}
+        </div>
+        {atingiuMeta !== null && (
+          <span
+            className={`indicadores-meta-badge ${atingiuMeta ? "indicadores-meta-badge--ok" : "indicadores-meta-badge--abaixo"}`}
+          >
+            {atingiuMeta ? "✓ Dentro da meta" : "✗ Abaixo da meta"}
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  // Complementos (meta e amostra) dos três KPIs que antes só apareciam no Resumo de
+  // metas — preservados aqui para não perder informação ao fundir os dois painéis.
+  const metasExtraKpi: Partial<
+    Record<
+      KpiTreinamentoChave,
+      {
+        meta: number | null;
+        formatoMeta: "percentual" | "nota";
+        amostra: number;
+        descricaoAmostra: (n: number) => string;
+        descricaoSemAmostra: string;
+      }
+    >
+  > = periodoTotal
+    ? {
+        tempoPrimeiroTreinamento: {
+          meta: null,
+          formatoMeta: "percentual",
+          amostra: listarTemposPrimeiroTreinamentoNoPeriodo(
+            eventos,
+            periodoTotal.inicio,
+            periodoTotal.fim,
+            treinadorAtivo,
+          ).length,
+          descricaoAmostra: (n) =>
+            `${n} ${n === 1 ? "cliente apurado" : "clientes apurados"} no período. Sem meta fixa (linha de base).`,
+          descricaoSemAmostra:
+            "Nenhum cliente com primeiro treinamento realizado neste período.",
+        },
+        contatosSuporteTreinamento: {
+          meta: null,
+          formatoMeta: "percentual",
+          amostra: valoresCards.contatosSuporteTreinamento ?? 0,
+          descricaoAmostra: () =>
+            "Ocorrências de Suporte importadas do SSX Desk de clientes em treinamento no período. Sem meta fixa (linha de base).",
+          descricaoSemAmostra:
+            "Nenhum contato de Suporte do SSX Desk atribuível a treinamento neste período.",
+        },
+        csatTreinamento: {
+          meta: 4.8,
+          formatoMeta: "nota",
+          amostra: listarAvaliacoesCsatNoPeriodo(
+            eventos,
+            periodoTotal.inicio,
+            periodoTotal.fim,
+            treinadorAtivo,
+          ).length,
+          descricaoAmostra: (n) =>
+            `${n} ${n === 1 ? "avaliação" : "avaliações"} de 1 a 5 estrelas no período. Respostas antigas (Bom/Ruim) não entram aqui.`,
+          descricaoSemAmostra:
+            "Nenhuma avaliação em estrelas recebida neste período.",
+        },
+      }
+    : {};
+
+  function renderCartaoKpi(chave: KpiTreinamentoChave) {
+    const kpi = KPI_POR_CHAVE[chave];
+    const extra = metasExtraKpi[chave];
+    const valor = valoresCards[chave] ?? null;
+    const atingiuMeta =
+      extra && valor !== null && extra.meta !== null
+        ? valor >= extra.meta
+        : null;
+    const metaFormatada =
+      extra?.meta == null
+        ? null
+        : extra.formatoMeta === "nota"
+          ? `≥${String(extra.meta).replace(".", ",")} / 5`
+          : `≥${extra.meta}%`;
+    return (
+      <div
+        key={chave}
+        className={`relatorio-kpi-card ${kpiSelecionado === chave ? "active" : ""}`}
+        onClick={() => setKpiSelecionado(chave)}
+        role="button"
+        aria-pressed={kpiSelecionado === chave}
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setKpiSelecionado(chave);
+          }
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <span className="kpi-label">{kpi.titulo}</span>
+          <span style={{ opacity: 0.8 }}>{ICONE_KPI[chave]}</span>
+        </div>
+        <div className="kpi-value-row">
+          <span className="kpi-value">
+            {formatarValorKpiTreinamento(chave, valor)}
+          </span>
+          {metaFormatada && (
+            <span className="kpi-desc indicadores-kpi-complemento">
+              Meta: {metaFormatada}
+            </span>
+          )}
+          {!metaFormatada &&
+            resumoCards &&
+            chave in resumoCards.percentuais && (
+              <span className="kpi-desc indicadores-kpi-complemento">
+                {formatarValorKpiTreinamento(
+                  "taxaCsat",
+                  resumoCards.percentuais[chave] ?? null,
+                )}{" "}
+                do total
+              </span>
+            )}
+        </div>
+        {atingiuMeta !== null && (
+          <span
+            className={`indicadores-meta-badge ${atingiuMeta ? "indicadores-meta-badge--ok" : "indicadores-meta-badge--abaixo"}`}
+          >
+            {atingiuMeta ? "✓ Dentro da meta" : "✗ Abaixo da meta"}
+          </span>
+        )}
+        {resumoCards && chave in resumoCards.percentuais && (
+          <span className="kpi-desc">
+            Base: {resumoCards.totalTreinamentos} treinamentos (realizados,
+            ausentes e cancelados).
+          </span>
+        )}
+        {resumoCards && chave === "contatosSuporte" && (
+          <span className="kpi-desc indicadores-kpi-complemento">
+            Média:{" "}
+            {resumoCards.mediaSuporte === null
+              ? "—"
+              : resumoCards.mediaSuporte.toFixed(1).replace(".", ",")}{" "}
+            por dia útil
+            {` · ${resumoCards.diasUteis} ${resumoCards.diasUteis === 1 ? "dia útil" : "dias úteis"} no período`}
+          </span>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="indicadores-treinamento-container">
@@ -636,212 +942,40 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
         </div>
       ) : (
         <>
-          {/* Resumo de metas — sempre visível, independente de o usuário clicar num KPI da grade abaixo */}
-          {painelVisivel("resumo") && (
-            <>
-              <div className="indicadores-secao-header">
-                <h2>Resumo de metas</h2>
-                <p>
-                  Indicadores acompanhados pela gestão para o período
-                  selecionado acima.
-                </p>
-              </div>
-              <div className="relatorios-grid indicadores-resumo-grid">
-                {(
-                  [
-                    {
-                      chave: "treinamentosNoPrazo",
-                      titulo: "Treinamentos no prazo",
-                      icone: <Target size={22} color="#3b82f6" />,
-                      valor: resumoMetas?.treinamentosNoPrazo ?? null,
-                      amostra: resumoMetas?.treinamentosNoPrazoAmostra ?? 0,
-                      meta: 95,
-                      descricaoAmostra: (n: number) =>
-                        `${n} ${n === 1 ? "esteira concluída" : "esteiras concluídas"} no período, com cadência cadastrada.`,
-                      descricaoSemAmostra:
-                        "Nenhuma esteira com cadência de treinamento cadastrada concluiu o último treinamento neste período.",
-                    },
-                    {
-                      chave: "validacaoAprendizado",
-                      titulo: "Validação prática de aprendizado",
-                      icone: <ClipboardCheck size={22} color="#10b981" />,
-                      valor: carregandoValidacao
-                        ? null
-                        : (validacaoAprendizado?.taxaAprovacao ?? null),
-                      amostra: validacaoAprendizado?.amostra ?? 0,
-                      meta: 80,
-                      descricaoAmostra: (n: number) =>
-                        `${n} ${n === 1 ? "tentativa concluída" : "tentativas concluídas"} no período.`,
-                      descricaoSemAmostra: carregandoValidacao
-                        ? "Carregando…"
-                        : "Nenhuma tentativa de validação concluída neste período.",
-                    },
-                    {
-                      chave: "satisfacaoTreinamento",
-                      titulo: "Satisfação com o treinamento",
-                      icone: <Award size={22} color="#f59e0b" />,
-                      valor: resumoMetas?.satisfacao ?? null,
-                      amostra: resumoMetas?.satisfacaoAmostra ?? 0,
-                      meta: 90,
-                      descricaoAmostra: (n: number) =>
-                        `${n} ${n === 1 ? "avaliação recebida" : "avaliações recebidas"} (Bom ou Ruim) no período.`,
-                      descricaoSemAmostra:
-                        "Nenhuma avaliação de CSAT recebida neste período.",
-                    },
-                    {
-                      chave: "golNoPrazo",
-                      titulo: "GOL atingido no prazo",
-                      icone: <Flag size={22} color="#ef4444" />,
-                      valor: resumoMetas?.golNoPrazo ?? null,
-                      amostra: resumoMetas?.golNoPrazoAmostra ?? 0,
-                      meta: null,
-                      descricaoAmostra: (n: number) =>
-                        `${n} ${n === 1 ? "cliente avaliado" : "clientes avaliados"} no período (Gol batido ou prazo de 30 dias vencido).`,
-                      descricaoSemAmostra:
-                        "Nenhum cliente com resultado de Gol apurado neste período.",
-                    },
-                  ] as const
-                ).map((item) => {
-                  const atingiuMeta =
-                    item.valor !== null && item.meta !== null
-                      ? item.valor >= item.meta
-                      : null;
-                  return (
-                    <div key={item.chave} className="relatorio-kpi-card">
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                        }}
-                      >
-                        <span className="kpi-label">{item.titulo}</span>
-                        <span style={{ opacity: 0.8 }}>{item.icone}</span>
-                      </div>
-                      <div className="kpi-value-row">
-                        <span className="kpi-value">
-                          {item.valor === null
-                            ? "—"
-                            : `${Math.round(item.valor)}%`}
-                        </span>
-                        {item.meta !== null && (
-                          <span className="kpi-desc indicadores-kpi-complemento">
-                            Meta: ≥{item.meta}%
-                          </span>
-                        )}
-                      </div>
-                      {atingiuMeta !== null && (
-                        <span
-                          className={`indicadores-meta-badge ${atingiuMeta ? "indicadores-meta-badge--ok" : "indicadores-meta-badge--abaixo"}`}
-                        >
-                          {atingiuMeta
-                            ? "✓ Dentro da meta"
-                            : "✗ Abaixo da meta"}
-                        </span>
-                      )}
-                      <span className="kpi-desc">
-                        {item.amostra > 0
-                          ? item.descricaoAmostra(item.amostra)
-                          : item.descricaoSemAmostra}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </>
-          )}
-
-          {/* Grid de KPIs — clicar num card seleciona o KPI exibido no gráfico e no painel abaixo */}
-          {painelVisivel("grade") && (
+          {/* Cartões de indicadores — reúne as metas da gestão (antigo "Resumo de metas")
+              e os KPIs clicáveis que alimentam o gráfico/tabela abaixo (antiga "Visão
+              dos indicadores") num único seletor de cartões visíveis. */}
+          {painelVisivel("cartoes") && (
             <>
               <div className="indicadores-secao-header indicadores-secao-header-com-acao">
                 <div>
-                  <h2>Visão dos indicadores</h2>
+                  <h2>Indicadores</h2>
                   <p>
-                    Selecione um indicador para explorar a evolução e comparar
-                    períodos.
+                    Escolha os indicadores acompanhados para o período
+                    selecionado acima. Clique num cartão de KPI para explorar
+                    a evolução e comparar períodos.
                   </p>
                 </div>
                 <ColumnSelector
-                  columns={KPIS_GRADE_ITENS}
-                  order={prefsKpisGrade.order}
-                  hidden={prefsKpisGrade.hidden}
-                  onChangeOrder={prefsKpisGrade.setOrder}
-                  onChangeHidden={prefsKpisGrade.setHidden}
-                  onRestaurarPadrao={prefsKpisGrade.restaurarPadrao}
+                  columns={ITENS_CARTOES_INDICADORES}
+                  order={prefsCartoes.order}
+                  hidden={prefsCartoes.hidden}
+                  onChangeOrder={prefsCartoes.setOrder}
+                  onChangeHidden={prefsCartoes.setHidden}
+                  onRestaurarPadrao={prefsCartoes.restaurarPadrao}
                   label="⚙️ Indicadores"
-                  triggerTitulo="Escolher e reorganizar os cartões desta grade"
-                  painelTitulo="Cartões desta grade"
+                  triggerTitulo="Escolher e reorganizar os cartões exibidos"
+                  painelTitulo="Cartões deste relatório"
                   painelDica="Escolha quais indicadores aparecem aqui e em que ordem. Arraste para reordenar."
-                  ariaLabel="Escolher indicadores visíveis na grade"
+                  ariaLabel="Escolher indicadores visíveis no relatório"
                 />
               </div>
               <div className="relatorios-grid">
-                {kpisGradeVisiveis.map((kpi) => (
-                  <div
-                    key={kpi.chave}
-                    className={`relatorio-kpi-card ${kpiSelecionado === kpi.chave ? "active" : ""}`}
-                    onClick={() => setKpiSelecionado(kpi.chave)}
-                    role="button"
-                    aria-pressed={kpiSelecionado === kpi.chave}
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        setKpiSelecionado(kpi.chave);
-                      }
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                      }}
-                    >
-                      <span className="kpi-label">{kpi.titulo}</span>
-                      <span style={{ opacity: 0.8 }}>
-                        {ICONE_KPI[kpi.chave]}
-                      </span>
-                    </div>
-                    <div className="kpi-value-row">
-                      <span className="kpi-value">
-                        {formatarValorKpiTreinamento(
-                          kpi.chave,
-                          valoresCards[kpi.chave] ?? null,
-                        )}
-                      </span>
-                      {resumoCards && kpi.chave in resumoCards.percentuais && (
-                        <span className="kpi-desc indicadores-kpi-complemento">
-                          {formatarValorKpiTreinamento(
-                            "taxaCsat",
-                            resumoCards.percentuais[kpi.chave] ?? null,
-                          )}{" "}
-                          do total
-                        </span>
-                      )}
-                    </div>
-                    {resumoCards && kpi.chave in resumoCards.percentuais && (
-                      <span className="kpi-desc">
-                        Base: {resumoCards.totalTreinamentos} treinamentos
-                        (realizados, ausentes e cancelados).
-                      </span>
-                    )}
-                    {resumoCards && kpi.chave === "contatosSuporte" && (
-                      <span className="kpi-desc indicadores-kpi-complemento">
-                        Média:{" "}
-                        {resumoCards.mediaSuporte === null
-                          ? "—"
-                          : resumoCards.mediaSuporte
-                              .toFixed(1)
-                              .replace(".", ",")}{" "}
-                        por dia útil
-                        {` · ${resumoCards.diasUteis} ${resumoCards.diasUteis === 1 ? "dia útil" : "dias úteis"} no período`}
-                      </span>
-                    )}
-                    <span className="kpi-desc">{kpi.descricao}</span>
-                  </div>
-                ))}
+                {cartoesVisiveis.map((chave) =>
+                  CHAVES_CARTOES_ESTATICOS_SET.has(chave)
+                    ? renderCartaoEstatico(chave as ChaveCartaoEstatico)
+                    : renderCartaoKpi(chave as KpiTreinamentoChave),
+                )}
               </div>
             </>
           )}
@@ -906,6 +1040,14 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
               {(kpiSelecionado === "treinamentosRealizados" ||
                 kpiSelecionado === "tempoMedioEspera") && (
                 <DetalhamentoEsperaTreinamento
+                  eventos={eventos}
+                  inicio={rangeAtivo.inicio}
+                  fim={rangeAtivo.fim}
+                  treinador={treinadorAtivo}
+                />
+              )}
+              {kpiSelecionado === "clientesSuspensos" && (
+                <DetalhamentoClientesSuspensos
                   eventos={eventos}
                   inicio={rangeAtivo.inicio}
                   fim={rangeAtivo.fim}

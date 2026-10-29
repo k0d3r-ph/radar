@@ -9,3 +9,11 @@
 .csat-card .csat-option { display: flex; align-items: center; gap: 8px; }
 .csat-card button { padding: 12px; border: 0; border-radius: 8px; background: #1d4ed8; color: white; font: inherit; cursor: pointer; }
 .csat-card button:disabled { opacity: .6; cursor: wait; }
+.csat-estrelas-fieldset { display: flex; flex-direction: column; gap: 10px; }
+.csat-estrelas { display: flex; gap: 10px; }
+.csat-estrela { display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; color: #94a3b8; padding: 4px; border-radius: 8px; }
+.csat-estrela input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.csat-estrela:has(input:focus-visible) { outline: 2px solid #1d4ed8; outline-offset: 2px; }
+.csat-estrela--marcada { color: #f59e0b; }
+.csat-estrela-rotulo { font-size: 12px; color: #475569; }
+.csat-nota-selecionada { margin: 0; font-size: 14px; color: #475569; }

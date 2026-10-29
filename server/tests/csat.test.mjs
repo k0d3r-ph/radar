@@ -36,9 +36,11 @@ function setup() {
 }
 
 test('valida campos obrigatórios e limite da opinião no servidor', () => {
-  const body = { nome: 'Ana', experiencia: 'Bom', opiniao: '', responseId: '12345678-12345678' };
+  const body = { nome: 'Ana', nota: 5, opiniao: '', responseId: '12345678-12345678' };
   assert.equal(validarResposta(body).nome, 'Ana');
-  for (const override of [{ nome: ' ' }, { experiencia: 'Ótimo' }, { opiniao: 'x'.repeat(101) }, { responseId: '../invalid' }]) {
+  assert.equal(validarResposta(body).experiencia, 'Bom');
+  assert.equal(validarResposta({ ...body, nota: 2 }).experiencia, 'Ruim');
+  for (const override of [{ nome: ' ' }, { nota: 6 }, { nota: 0 }, { nota: 'Ótimo' }, { opiniao: 'x'.repeat(101) }, { responseId: '../invalid' }]) {
     assert.throws(() => validarResposta({ ...body, ...override }));
   }
 });
@@ -57,7 +59,7 @@ test('reserva ID único, restringe criação e lista apenas reservas do criador'
 test('vincula respostas antes e depois da conclusão, sem duplicar reenvio', async () => {
   const { call, data } = setup();
   const reserva = (await call('POST /api/csat/reservas', { empresaId: 'e1' })).result;
-  const body = { nome: 'Ana', experiencia: 'Bom', opiniao: 'Excelente', responseId: '12345678-12345678' };
+  const body = { nome: 'Ana', nota: 5, opiniao: 'Excelente', responseId: '12345678-12345678' };
   const params = { token: reserva.token };
   assert.deepEqual((await call('GET /api/csat/publico/:token', undefined, params, '')).result, { disponivel: true });
   assert.equal((await call('POST /api/csat/publico/:token', body, params, '')).status, 200);
@@ -65,8 +67,12 @@ test('vincula respostas antes e depois da conclusão, sem duplicar reenvio', asy
   const completed = await call('POST /api/csat/reservas/:id/concluir', { empresa: 'Cliente', tipo: 'Treinamento', departamento: 'Treinamento', descricao: 'Realizado', dataOcorrencia: Date.now() }, { id: reserva.id });
   assert.equal(completed.status, 200);
   assert.deepEqual(data.get(`ocorrencias/${reserva.id}`).treinamentoResultados, ['Bom']);
-  await call('POST /api/csat/publico/:token', { ...body, nome: 'Carlos', experiencia: 'Ruim', responseId: '87654321-87654321' }, params, '');
+  assert.deepEqual(data.get(`ocorrencias/${reserva.id}`).treinamentoNotas, [5]);
+  assert.equal(data.get(`ocorrencias/${reserva.id}`).treinamentoNotaMedia, 5);
+  await call('POST /api/csat/publico/:token', { ...body, nome: 'Carlos', nota: 1, responseId: '87654321-87654321' }, params, '');
   assert.deepEqual(data.get(`ocorrencias/${reserva.id}`).treinamentoResultados, ['Bom', 'Ruim']);
+  assert.deepEqual(data.get(`ocorrencias/${reserva.id}`).treinamentoNotas, [5, 1]);
+  assert.equal(data.get(`ocorrencias/${reserva.id}`).treinamentoNotaMedia, 3);
   assert.equal(data.get(`ocorrencias/${reserva.id}`).csatRespostas[0].opiniao, 'Excelente');
   await call('POST /api/csat/reservas/:id/concluir', { descricao: 'Reenvio' }, { id: reserva.id });
   assert.equal(data.get(`ocorrencias/${reserva.id}`).descricao, 'Realizado');
@@ -141,12 +147,39 @@ test('suspensão pausa reserva existente sem bloquear trabalho com outro cliente
   assert.equal(data.get(`ocorrencias/${reserva.id}`).tipo, 'Treinamento');
 });
 
+test('gera link do CSAT retroativamente para ocorrência já existente, de forma idempotente, e permite copiar depois', async () => {
+  const { call, data } = setup();
+  data.set('ocorrencias/o1', { empresa: 'Cliente', tipo: 'Treinamento', departamento: 'Treinamento', descricao: 'Realizado', dataOcorrencia: Date.now() });
+  assert.deepEqual((await call('GET /api/csat/ocorrencias/:id/link', undefined, { id: 'o1' })).result, { token: null });
+  const gerado = await call('POST /api/csat/ocorrencias/:id/gerar-link', {}, { id: 'o1' });
+  assert.equal(gerado.status, 200);
+  assert.equal(gerado.result.reservaId, 'o1');
+  assert.equal(data.get('ocorrencias/o1').csatReservaId, 'o1');
+  assert.equal(data.get('csatReservas/o1').status, 'concluida');
+  const copiado = await call('GET /api/csat/ocorrencias/:id/link', undefined, { id: 'o1' });
+  assert.equal(copiado.result.token, gerado.result.token);
+  const novamente = await call('POST /api/csat/ocorrencias/:id/gerar-link', {}, { id: 'o1' });
+  assert.equal(novamente.result.token, gerado.result.token);
+  const resposta = await call('POST /api/csat/publico/:token', { nome: 'Ana', nota: 4, opiniao: '', responseId: '12345678-12345678' }, { token: gerado.result.token }, '');
+  assert.equal(resposta.status, 200);
+  assert.deepEqual(data.get('ocorrencias/o1').treinamentoNotas, [4]);
+});
+test('não gera link retroativo para ocorrência fora do tipo Treinamento ou cliente suspenso', async () => {
+  const { call, data } = setup();
+  data.set('ocorrencias/o1', { empresa: 'Cliente', tipo: 'Dúvida', departamento: 'Treinamento', descricao: 'x', dataOcorrencia: Date.now() });
+  assert.equal((await call('POST /api/csat/ocorrencias/:id/gerar-link', {}, { id: 'o1' })).status, 400);
+  data.set('ocorrencias/o2', { empresa: 'Cliente', tipo: 'Treinamento', departamento: 'Treinamento', descricao: 'x', dataOcorrencia: Date.now() });
+  data.get('empresas/e1').isSuspended = true;
+  assert.equal((await call('POST /api/csat/ocorrencias/:id/gerar-link', {}, { id: 'o2' })).status, 409);
+});
+
 test('respostas de treinamento concluído continuam sendo recebidas após suspensão', async () => {
   const { call, data } = setup();
   const reserva = (await call('POST /api/csat/reservas', { empresaId: 'e1' })).result;
   await call('POST /api/csat/reservas/:id/concluir', { empresa: 'Cliente', tipo: 'Treinamento', departamento: 'Treinamento', descricao: 'Realizado', dataOcorrencia: Date.now() }, { id: reserva.id });
   data.get('empresas/e1').isSuspended = true;
-  const resultado = await call('POST /api/csat/publico/:token', { nome: 'Ana', experiencia: 'Bom', opiniao: '', responseId: '12345678-12345678' }, { token: reserva.token }, '');
+  const resultado = await call('POST /api/csat/publico/:token', { nome: 'Ana', nota: 5, opiniao: '', responseId: '12345678-12345678' }, { token: reserva.token }, '');
   assert.equal(resultado.status, 200);
   assert.deepEqual(data.get(`ocorrencias/${reserva.id}`).treinamentoResultados, ['Bom']);
+  assert.deepEqual(data.get(`ocorrencias/${reserva.id}`).treinamentoNotas, [5]);
 });

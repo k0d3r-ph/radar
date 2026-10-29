@@ -1,5 +1,5 @@
 import type { Empresa, LancamentoPonto, Ocorrencia, MotivoEsperaTreinamento } from "../types";
-import { obterCategoriaContatoSuporte } from "./contatosSuporte";
+import { filtrarEmpresasContatosSuporte, obterCategoriaContatoSuporte } from "./contatosSuporte";
 import { calcularDiasEsperaTreinamento, LIMITE_ESPERA_LONGA_TREINAMENTO, motivoEsperaValido } from "./esperaTreinamento";
 import { obterPrimeiroTreinamentoRealizado } from "./prazoTreinamento";
 
@@ -419,11 +419,17 @@ export function construirEventosIndicadoresTreinamento(
   const contatosSuporteTreinamento: EventoIndicador[] = [];
   const atendimentosWhatsApp: EventoIndicador[] = [];
   // Cliente "em treinamento" para o indicador de contatos de Suporte vindos do SSX Desk:
-  // mesmo critério usado na importação (server/src/infrastructure/ssxDesk/trainingConversations.ts).
+  // mesmo filtro do relatório de Suporte (clientes na esteira e suspensos, sem concluídos),
+  // para os dois relatórios ficarem comparáveis.
   const empresasEmTreinamentoPorNome = new Map<string, boolean>();
+  const empresasElegiveisContatoSuporte = new Set(
+    filtrarEmpresasContatosSuporte(empresas)
+      .map((e) => normalizarNome(e.nomeEmpresa))
+      .filter(Boolean),
+  );
   empresas.forEach((e) => {
     const chave = normalizarNome(e.nomeEmpresa);
-    if (chave) empresasEmTreinamentoPorNome.set(chave, !e.isOngoing && !e.isCancelled);
+    if (chave) empresasEmTreinamentoPorNome.set(chave, empresasElegiveisContatoSuporte.has(chave));
   });
 
   ocorrencias.forEach((o) => {

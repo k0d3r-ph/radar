@@ -675,11 +675,6 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
             {atingiuMeta ? "✓ Dentro da meta" : "✗ Abaixo da meta"}
           </span>
         )}
-        <span className="kpi-desc">
-          {item.amostra > 0
-            ? item.descricaoAmostra(item.amostra)
-            : item.descricaoSemAmostra}
-        </span>
       </div>
     );
   }
@@ -822,13 +817,6 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
             {` · ${resumoCards.diasUteis} ${resumoCards.diasUteis === 1 ? "dia útil" : "dias úteis"} no período`}
           </span>
         )}
-        <span className="kpi-desc">
-          {extra
-            ? extra.amostra > 0
-              ? extra.descricaoAmostra(extra.amostra)
-              : extra.descricaoSemAmostra
-            : kpi.descricao}
-        </span>
       </div>
     );
   }

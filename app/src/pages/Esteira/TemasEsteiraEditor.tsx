@@ -4,6 +4,7 @@ import { CalendarClock, ChevronDown, ChevronUp, GripVertical, Link2, Plus, X } f
 import { toast } from "sonner";
 import {
   agruparLinhasEmBlocos,
+  definirContagemReagendamento,
   formatarDataDigitada,
   incrementarReagendamentoSeDataAlterada,
   linhasTemaParaTextos,
@@ -214,6 +215,7 @@ export function TemasEsteiraEditor({ temaText, dataText, blocoText, reagendament
         <span />
         <span>Temas</span>
         <span>Data</span>
+        <span>Reagendamentos</span>
         <span />
         <span />
         <span />
@@ -244,8 +246,6 @@ export function TemasEsteiraEditor({ temaText, dataText, blocoText, reagendament
                 noMesmoBlocoDoAnterior ? "temas-editor-linha--meio-bloco" : "",
                 corBloco > 0 ? `temas-editor-linha--bloco-${corBloco}` : "",
               ].filter(Boolean).join(" ")}
-              draggable={!disabled}
-              onDragStart={() => setArrastandoIndex(i)}
               onDragOver={(e) => {
                 e.preventDefault();
                 if (arrastandoIndex === null || arrastandoIndex === i) {
@@ -270,7 +270,17 @@ export function TemasEsteiraEditor({ temaText, dataText, blocoText, reagendament
                 setAlvo(null);
               }}
             >
-              <span className="temas-editor-handle" aria-hidden="true" title="Arraste para reordenar">
+              <span
+                className="temas-editor-handle"
+                aria-hidden="true"
+                title="Arraste para reordenar"
+                draggable={!disabled}
+                onDragStart={(e) => {
+                  e.dataTransfer.effectAllowed = "move";
+                  e.dataTransfer.setData("text/plain", String(i));
+                  setArrastandoIndex(i);
+                }}
+              >
                 <GripVertical size={16} />
               </span>
 
@@ -324,6 +334,26 @@ export function TemasEsteiraEditor({ temaText, dataText, blocoText, reagendament
                 onKeyDown={aoTeclar(i)}
                 placeholder="DD/MM"
                 aria-label={`Data da fase ${i + 1}`}
+                disabled={disabled}
+              />
+
+              <input
+                className="temas-editor-reagendamentos"
+                type="number"
+                min={0}
+                step={1}
+                value={linha.reagendamentos}
+                onChange={(e) =>
+                  aplicar(
+                    definirContagemReagendamento(
+                      linhas,
+                      i,
+                      Number(e.target.value),
+                    ),
+                  )
+                }
+                aria-label={`Quantidade de reagendamentos da fase ${i + 1}`}
+                title="Ajuste ou zere a quantidade de reagendamentos"
                 disabled={disabled}
               />
 

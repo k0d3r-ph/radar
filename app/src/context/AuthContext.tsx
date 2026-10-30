@@ -14,6 +14,7 @@ interface AuthContextType {
   setNeedsPasswordChange: (value: boolean) => void;
   role: string;
   setRole: (role: string) => void;
+  cargo: string;
   userName: string;
   setUserName: (name: string) => void;
   logout: () => Promise<void>;
@@ -28,6 +29,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [loading, setLoading] = useState(true);
   const [needsPasswordChange, setNeedsPasswordChange] = useState(false);
   const [role, setRole] = useState("");
+  const [cargo, setCargo] = useState("");
   const [userName, setUserName] = useState("");
 
   useEffect(() => {
@@ -43,6 +45,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             await deslogarUsuario();
             setUser(null);
             setRole("");
+            setCargo("");
             setUserName("");
             setNeedsPasswordChange(false);
             toast.error("Esta conta foi desativada ou não possui permissões de acesso.");
@@ -54,6 +57,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
               await setDoc(userDocRef, { role: "cs", updatedAt: Date.now() }, { merge: true });
             }
             setRole(userRole);
+            setCargo(data.cargo || "");
             const rawNome = data.nome || currentUser.email || "";
             const formattedNome = formatarNome(rawNome);
             setUserName(formattedNome);
@@ -63,6 +67,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             await deslogarUsuario();
             setUser(null);
             setRole("");
+            setCargo("");
             setUserName("");
             setNeedsPasswordChange(false);
             toast.error("Esta conta foi desativada ou não possui permissões de acesso.");
@@ -72,6 +77,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           await deslogarUsuario();
           setUser(null);
           setRole("");
+          setCargo("");
           setUserName("");
           setNeedsPasswordChange(false);
           toast.error("Acesso negado: erro de permissão ou conexão.");
@@ -79,6 +85,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       } else {
         setUser(null);
         setRole("");
+        setCargo("");
         setUserName("");
         setNeedsPasswordChange(false);
       }
@@ -101,6 +108,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         setNeedsPasswordChange,
         role,
         setRole,
+        cargo,
         userName,
         setUserName,
         logout,

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  definirContagemReagendamento,
   formatarDataDigitada,
   incrementarReagendamentoSeDataAlterada,
   linhasTemaParaTextos,
@@ -88,6 +89,17 @@ test('uma data inicialmente vazia não é contada como reagendamento', () => {
     ),
     [0, 0],
   );
+});
+
+test('a contagem de reagendamentos pode ser alterada e zerada manualmente', () => {
+  const linhas = textosParaLinhasTema('Início\nCadastro', '10/10\n12/10', '', '2\n4');
+
+  const ajustada = definirContagemReagendamento(linhas, 1, 1);
+  assert.deepEqual(ajustada.map((linha) => linha.reagendamentos), [2, 1]);
+
+  const zerada = definirContagemReagendamento(ajustada, 0, 0);
+  assert.deepEqual(zerada.map((linha) => linha.reagendamentos), [0, 1]);
+  assert.equal(linhasTemaParaTextos(zerada).reagendamentosText, '0\n1');
 });
 
 test('formata datas digitadas em DD/MM automaticamente', () => {

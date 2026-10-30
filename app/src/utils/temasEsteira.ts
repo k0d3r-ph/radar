@@ -74,6 +74,20 @@ export function incrementarReagendamentoSeDataAlterada(
   );
 }
 
+export function definirContagemReagendamento(
+  linhas: LinhaTemaEsteira[],
+  indice: number,
+  contagem: number,
+): LinhaTemaEsteira[] {
+  if (!linhas[indice]) return linhas;
+  const valor = Number.isFinite(contagem)
+    ? Math.min(Number.MAX_SAFE_INTEGER, Math.max(0, Math.trunc(contagem)))
+    : 0;
+  return linhas.map((linha, i) =>
+    i === indice ? { ...linha, reagendamentos: valor } : linha,
+  );
+}
+
 /**
  * Versão para gravar: apara os textos e descarta linhas sem tema e sem data.
  * Remover a linha inteira mantém tema, data e bloco alinhados.

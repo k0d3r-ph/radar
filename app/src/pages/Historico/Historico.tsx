@@ -3,6 +3,7 @@ import { calcularDiasSuspensaoAtual } from "../../utils/monitoramento";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { podeEditarOcorrencia } from "../../utils/permissoesOcorrencia";
 import "./CsatReservas.css";
 import {
   requisicaoCsat,
@@ -585,7 +586,7 @@ function descreverRespostas(respostas: ScoreFormAnswers): string[] {
 }
 
 export function Historico() {
-  const { role, userName, user } = useAuth();
+  const { role, cargo, userName, user } = useAuth();
   const isTreinador = role === "treinador" || role === "master";
   const [reservasCsat, setReservasCsat] = useState<ReservaCsat[]>([]);
   const [carregandoReservasCsat, setCarregandoReservasCsat] = useState(true);
@@ -1629,6 +1630,12 @@ export function Historico() {
   }
 
   function abrirEdicao(o: Ocorrencia) {
+    if (!podeEditarOcorrencia(role, cargo, o)) {
+      toast.error(
+        "Somente supervisores podem editar ocorrências do próprio departamento.",
+      );
+      return;
+    }
     if (o.validacaoTentativaId) {
       toast.info(
         "Esta ocorrência registra uma tentativa concluída da Validação do conhecimento e não pode ser editada aqui.",
@@ -1789,6 +1796,24 @@ export function Historico() {
   }
 
   async function salvarFormulario() {
+    const ocorrenciaOriginalParaPermissao = editandoId
+      ? ocorrencias.find((ocorrencia) => ocorrencia.id === editandoId)
+      : undefined;
+    if (
+      editandoId &&
+      !reservaEditando &&
+      (!ocorrenciaOriginalParaPermissao ||
+        !podeEditarOcorrencia(
+          role,
+          cargo,
+          ocorrenciaOriginalParaPermissao,
+        ))
+    ) {
+      toast.error(
+        "Somente supervisores podem editar ocorrências do próprio departamento.",
+      );
+      return;
+    }
     if (
       reservaEditando &&
       (form.empresa !== reservaEditando.empresa ||
@@ -5752,11 +5777,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
               <div className="botoes">
                 {!novaAtualizacaoAberta &&
-                  (role === "treinador" ||
-                    role === "master" ||
-                    (selecionada.responsavel &&
-                      selecionada.responsavel.toLowerCase() ===
-                        userName.toLowerCase())) && (
+                  podeEditarOcorrencia(role, cargo, selecionada) && (
                     <button
                       className="btn-secondary btn-small"
                       onClick={() => setNovaAtualizacaoAberta(true)}
@@ -5765,12 +5786,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                     </button>
                   )}
 
-                {(role === "treinador" ||
-                  role === "master" ||
-                  (role === "suporte" && selecionada.origem === "ssx-desk") ||
-                  (selecionada.responsavel &&
-                    selecionada.responsavel.toLowerCase() ===
-                      userName.toLowerCase())) && (
+                {podeEditarOcorrencia(role, cargo, selecionada) && (
                   <button
                     className="btn-secondary btn-small"
                     onClick={() => {

@@ -116,7 +116,6 @@ export type Empresa = {
    * Editável diretamente pelo master no cadastro, ou preenchida automaticamente
    * pela ocorrência de tipo "Follow up final" quando o treinador marca
    * "Encaminhar pro suporte" (ver followUpEncaminharSuporte em Ocorrencia).
-   * Na conclusão unilateral, recebe a data de finalização mais 20 dias corridos.
    * Junto com dataFinalizacao, determina clienteConcluido() na Home.
    */
   dataFollowUpFinal?: string;
@@ -255,7 +254,7 @@ export type Ocorrencia = {
     dataFollowUpFinal?: string;
     conclusaoUnilateralCapacitacao: boolean;
     temasConcluidosUnilateralmente: string[];
-  };
+  } | null;
   /**
    * Uid de quem marcou como feito o aviso de "cliente em treinamento contatou o
    * Suporte" exibido na Home (ver painel de avisos em Home.tsx). Ausente enquanto

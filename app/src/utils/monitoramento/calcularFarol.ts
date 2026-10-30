@@ -10,6 +10,7 @@ export function calcularFarol({
   alerta,
   dataFinalizacao,
   dataFollowUpFinal,
+  conclusaoUnilateralCapacitacao,
   pendencia,
   agora = Date.now(),
 }: {
@@ -18,6 +19,7 @@ export function calcularFarol({
   alerta?: boolean;
   dataFinalizacao?: string;
   dataFollowUpFinal?: string;
+  conclusaoUnilateralCapacitacao?: boolean;
   pendencia?: PendenciaCliente;
   agora?: number;
 }): StatusFarolType {
@@ -40,6 +42,7 @@ export function calcularFarol({
   }
 
   const finalizado = progresso >= 100;
+  if (finalizado && conclusaoUnilateralCapacitacao) return "verde";
 
   if (!finalizado) {
     if (tme < 0) return "verde";

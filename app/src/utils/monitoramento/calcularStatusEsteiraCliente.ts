@@ -80,6 +80,7 @@ export function calcularStatusEsteiraCliente(
     alerta,
     dataFinalizacao: empresa.dataFinalizacao,
     dataFollowUpFinal: empresa.dataFollowUpFinal,
+    conclusaoUnilateralCapacitacao: empresa.conclusaoUnilateralCapacitacao,
     pendencia: empresa.pendencia,
     agora,
   });

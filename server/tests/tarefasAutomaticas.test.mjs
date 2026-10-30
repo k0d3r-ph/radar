@@ -11,6 +11,7 @@ test('follow-up usa 20 dias desde finalização mesmo com atividade recente; age
   assert.equal(calcularSituacaoAcompanhamento(empresa, [contato], agora - dia).tipo, null);
   assert.equal(calcularSituacaoAcompanhamento(empresa, [contato], agora).tipo, 'follow_up_final');
   assert.equal(calcularSituacaoAcompanhamento({ ...empresa, dataFollowUpFinal: '2026-10-26' }, [], agora).tipo, null);
+  assert.equal(calcularSituacaoAcompanhamento({ ...empresa, conclusaoUnilateralCapacitacao: true }, [], agora).tipo, null);
   const incompleta = { ...empresa, currentPhase: 1, dataFinalizacao: undefined };
   assert.equal(calcularSituacaoAcompanhamento(incompleta, [{ ...contato, dataOcorrencia: agora - 3 * dia }], agora).tipo, null);
   assert.equal(calcularSituacaoAcompanhamento(incompleta, [{ ...contato, tipo: 'Informativa', dataOcorrencia: agora - 4 * dia }], agora).tipo, 'agendar_treinamento');
@@ -37,6 +38,22 @@ test('cria uma tarefa por situação, preserva conclusão manual e conclui autom
   await tarefa.execute(agora + dia);
   assert.equal(data.get(chave).concluida, true);
   assert.deepEqual(data.get(chave).historicoAutomatico.map(e => e.evento), ['criada', 'situacao_resolvida']);
+});
+test('conclusão unilateral resolve tarefa automática sem aguardar os 20 dias', async () => {
+  const { data, tarefa } = setup();
+  await tarefa.execute(agora);
+  const chave = [...data.keys()].find(k => k.startsWith('checklist_tarefas/'));
+  assert.ok(chave);
+  assert.equal(data.get(chave).origemAutomatica, 'follow_up_final');
+
+  data.get('empresas/e1').conclusaoUnilateralCapacitacao = true;
+  await tarefa.execute(agora + dia);
+
+  assert.equal(data.get(chave).concluida, true);
+  assert.deepEqual(data.get(chave).historicoAutomatico.map(e => e.evento), [
+    'criada',
+    'situacao_resolvida',
+  ]);
 });
 test('suspensão não cria tarefa nova; pausa tarefa existente e preserva até o retorno', async () => {
   const { data, tarefa } = setup({ ...empresa, isSuspended: true });

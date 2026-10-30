@@ -354,6 +354,8 @@ export const Relatorios: React.FC = () => {
         alerta: temAlerta,
         dataFinalizacao: empresa.dataFinalizacao,
         dataFollowUpFinal: empresa.dataFollowUpFinal,
+        conclusaoUnilateralCapacitacao:
+          empresa.conclusaoUnilateralCapacitacao,
         pendencia: empresa.pendencia,
         agora: agoraPendencias,
       });

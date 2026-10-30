@@ -1219,6 +1219,8 @@ export default function Home() {
           alerta: temAlerta,
           dataFinalizacao: empresa.dataFinalizacao,
           dataFollowUpFinal: empresa.dataFollowUpFinal,
+          conclusaoUnilateralCapacitacao:
+            empresa.conclusaoUnilateralCapacitacao,
           pendencia: empresa.pendencia,
           agora,
         });
@@ -2470,8 +2472,14 @@ export default function Home() {
       key: "dataFollowUpFinal",
       label: "Follow up final",
       defaultWidth: 150,
-      render: (empresa) => formatarData(empresa.dataFollowUpFinal),
-      exportValue: (empresa) => formatarData(empresa.dataFollowUpFinal),
+      render: (empresa) =>
+        empresa.conclusaoUnilateralCapacitacao
+          ? "—"
+          : formatarData(empresa.dataFollowUpFinal),
+      exportValue: (empresa) =>
+        empresa.conclusaoUnilateralCapacitacao
+          ? "—"
+          : formatarData(empresa.dataFollowUpFinal),
     },
     {
       key: "valorContrato",
@@ -3586,141 +3594,6 @@ export default function Home() {
         </Recolhivel>
       </div>
 
-      {/* Tabela de clientes com conclusão unilateral */}
-      <div className="collapsible-section" style={{ marginTop: "2rem" }}>
-        <div
-          className="collapsible-header"
-          onClick={() => setTabelaUnilateralAberta((prev) => !prev)}
-        >
-          <div className="collapsible-title-wrapper">
-            <h2>Conclusão Unilateral da Capacitação</h2>
-            <span
-              className="collapsible-count-badge"
-              style={{
-                background: "rgba(107, 114, 128, 0.2)",
-                color: "var(--lt-texto-9ca3af, #9ca3af)",
-              }}
-            >
-              {dadosConcluidosUnilateralmenteFiltrados.length}
-            </span>
-          </div>
-          <div className="collapsible-header-actions">
-            <div onClick={(e) => e.stopPropagation()}>
-              <ColumnSelector
-                columns={colunasDisponiveis.unilateral}
-                order={colunasUnilateralPrefs.order}
-                hidden={colunasUnilateralPrefs.hidden}
-                onChangeOrder={colunasUnilateralPrefs.setOrder}
-                onChangeHidden={colunasUnilateralPrefs.setHidden}
-                onRestaurarPadrao={colunasUnilateralPrefs.restaurarPadrao}
-              />
-            </div>
-            {role === "master" && (
-              <button
-                className="btn-exportar-excel"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  exportarConcluidosUnilateralmenteExcel();
-                }}
-                title="Exportar clientes com conclusão unilateral para Excel"
-              >
-                📥 Exportar Excel
-              </button>
-            )}
-            <span
-              className={`collapsible-arrow ${tabelaUnilateralAberta ? "aberta" : ""}`}
-              aria-hidden="true"
-            >
-              ▶
-            </span>
-          </div>
-        </div>
-
-        <Recolhivel aberta={!loading && tabelaUnilateralAberta}>
-          <div className="table-wrapper">
-            <table>
-              <colgroup>
-                {colunasUnilateralPrefs.colunasVisiveis.map((col) => (
-                  <col
-                    key={col.key}
-                    style={{
-                      width: `${colunasUnilateralPrefs.widths[col.key] ?? col.defaultWidth}px`,
-                    }}
-                  />
-                ))}
-              </colgroup>
-              <thead>
-                <tr>
-                  {colunasUnilateralPrefs.colunasVisiveis.map((col) => (
-                    <th
-                      key={col.key}
-                      className={col.className}
-                      style={
-                        col.align === "right"
-                          ? { textAlign: "right" }
-                          : undefined
-                      }
-                    >
-                      {col.label}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {dadosConcluidosUnilateralmenteFiltrados.map((empresa) => (
-                  <tr
-                    key={empresa.id}
-                    className="linha-cliente"
-                    onClick={() => abrirCliente(empresa)}
-                  >
-                    {colunasUnilateralPrefs.colunasVisiveis.map((col) => (
-                      <td
-                        key={col.key}
-                        className={col.className}
-                        style={
-                          col.align === "right"
-                            ? { textAlign: "right", fontWeight: 600 }
-                            : undefined
-                        }
-                      >
-                        {col.render(empresa)}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-                {dadosConcluidosUnilateralmenteFiltrados.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={colunasUnilateralPrefs.colunasVisiveis.length}
-                      style={{
-                        textAlign: "center",
-                        color: "#64748b",
-                        padding: "2rem",
-                      }}
-                    >
-                      Nenhum cliente com conclusão unilateral.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-
-            <div className="table-footer">
-              <span>
-                Mostrando{" "}
-                <strong>
-                  {dadosConcluidosUnilateralmenteFiltrados.length}
-                </strong>{" "}
-                de <strong>{dadosConcluidosUnilateralmente.length}</strong>{" "}
-                {dadosConcluidosUnilateralmente.length === 1
-                  ? "cliente"
-                  : "clientes"}
-              </span>
-            </div>
-          </div>
-        </Recolhivel>
-      </div>
-
       {/* Tabela de Clientes Concluídos */}
       <div className="collapsible-section" style={{ marginTop: "2rem" }}>
         <div
@@ -4051,6 +3924,141 @@ export default function Home() {
                 Mostrando <strong>{dadosCanceladosFiltrados.length}</strong> de{" "}
                 <strong>{dadosCancelados.length}</strong>{" "}
                 {dadosCancelados.length === 1 ? "cliente" : "clientes"}
+              </span>
+            </div>
+          </div>
+        </Recolhivel>
+      </div>
+
+      {/* Tabela de clientes com conclusão unilateral */}
+      <div className="collapsible-section" style={{ marginTop: "2rem" }}>
+        <div
+          className="collapsible-header"
+          onClick={() => setTabelaUnilateralAberta((prev) => !prev)}
+        >
+          <div className="collapsible-title-wrapper">
+            <h2>Conclusão Unilateral da Capacitação</h2>
+            <span
+              className="collapsible-count-badge"
+              style={{
+                background: "rgba(107, 114, 128, 0.2)",
+                color: "var(--lt-texto-9ca3af, #9ca3af)",
+              }}
+            >
+              {dadosConcluidosUnilateralmenteFiltrados.length}
+            </span>
+          </div>
+          <div className="collapsible-header-actions">
+            <div onClick={(e) => e.stopPropagation()}>
+              <ColumnSelector
+                columns={colunasDisponiveis.unilateral}
+                order={colunasUnilateralPrefs.order}
+                hidden={colunasUnilateralPrefs.hidden}
+                onChangeOrder={colunasUnilateralPrefs.setOrder}
+                onChangeHidden={colunasUnilateralPrefs.setHidden}
+                onRestaurarPadrao={colunasUnilateralPrefs.restaurarPadrao}
+              />
+            </div>
+            {role === "master" && (
+              <button
+                className="btn-exportar-excel"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  exportarConcluidosUnilateralmenteExcel();
+                }}
+                title="Exportar clientes com conclusão unilateral para Excel"
+              >
+                📥 Exportar Excel
+              </button>
+            )}
+            <span
+              className={`collapsible-arrow ${tabelaUnilateralAberta ? "aberta" : ""}`}
+              aria-hidden="true"
+            >
+              ▶
+            </span>
+          </div>
+        </div>
+
+        <Recolhivel aberta={!loading && tabelaUnilateralAberta}>
+          <div className="table-wrapper">
+            <table>
+              <colgroup>
+                {colunasUnilateralPrefs.colunasVisiveis.map((col) => (
+                  <col
+                    key={col.key}
+                    style={{
+                      width: `${colunasUnilateralPrefs.widths[col.key] ?? col.defaultWidth}px`,
+                    }}
+                  />
+                ))}
+              </colgroup>
+              <thead>
+                <tr>
+                  {colunasUnilateralPrefs.colunasVisiveis.map((col) => (
+                    <th
+                      key={col.key}
+                      className={col.className}
+                      style={
+                        col.align === "right"
+                          ? { textAlign: "right" }
+                          : undefined
+                      }
+                    >
+                      {col.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {dadosConcluidosUnilateralmenteFiltrados.map((empresa) => (
+                  <tr
+                    key={empresa.id}
+                    className="linha-cliente"
+                    onClick={() => abrirCliente(empresa)}
+                  >
+                    {colunasUnilateralPrefs.colunasVisiveis.map((col) => (
+                      <td
+                        key={col.key}
+                        className={col.className}
+                        style={
+                          col.align === "right"
+                            ? { textAlign: "right", fontWeight: 600 }
+                            : undefined
+                        }
+                      >
+                        {col.render(empresa)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+                {dadosConcluidosUnilateralmenteFiltrados.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={colunasUnilateralPrefs.colunasVisiveis.length}
+                      style={{
+                        textAlign: "center",
+                        color: "#64748b",
+                        padding: "2rem",
+                      }}
+                    >
+                      Nenhum cliente com conclusão unilateral.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+
+            <div className="table-footer">
+              <span>
+                Mostrando{" "}
+                <strong>
+                  {dadosConcluidosUnilateralmenteFiltrados.length}
+                </strong>{" "}
+                de <strong>{dadosConcluidosUnilateralmente.length}</strong>{" "}
+                {dadosConcluidosUnilateralmente.length === 1
+                  ? "cliente"
+                  : "clientes"}
               </span>
             </div>
           </div>
@@ -4506,7 +4514,8 @@ export default function Home() {
                         )}
                       </div>
                     )}
-                    {clienteSelecionado.dataFollowUpFinal && (
+                    {!clienteSelecionado.conclusaoUnilateralCapacitacao &&
+                      clienteSelecionado.dataFollowUpFinal && (
                       <div className="info-item">
                         <span
                           className="info-label"

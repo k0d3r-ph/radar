@@ -1835,11 +1835,11 @@ export function Historico() {
       : null;
     const origemTreinamento = reservaEditando ? null : ocorrenciaOriginal;
     const concluirUnilateralmente =
-      !editandoId &&
       !reservaEditando &&
       (role === "master" || role === "cs") &&
       form.tipo === "Informativa" &&
-      form.conclusaoUnilateralCapacitacao === true;
+      form.conclusaoUnilateralCapacitacao === true &&
+      ocorrenciaOriginal?.conclusaoUnilateralCapacitacao !== true;
 
     if (!empresaObjeto) {
       toast.error(
@@ -2068,9 +2068,10 @@ export function Historico() {
       isRevisao:
         form.tipo === "Treinamento" ? treinamento.isRevisao : undefined,
       conclusaoUnilateralCapacitacao:
-        concluirUnilateralmente ||
-        ocorrenciaOriginal?.conclusaoUnilateralCapacitacao ||
-        undefined,
+        role === "master" || role === "cs"
+          ? form.tipo === "Informativa" &&
+            form.conclusaoUnilateralCapacitacao === true
+          : ocorrenciaOriginal?.conclusaoUnilateralCapacitacao || undefined,
       temaForaEsteira:
         form.tipo === "Treinamento" ? temaForaEsteira : undefined,
       csatSuporte:
@@ -2392,11 +2393,14 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         ? {
             empresaId: empresaObjeto.id,
             dataFinalizacao:
-              role === "master" && form.createdAt
-                ? form.createdAt
-                : FORMATAR_DATA_BRASILIA.format(Date.now()),
+              FORMATAR_DATA_BRASILIA.format(finalCreatedAt ?? Date.now()),
           }
         : undefined;
+    const reverterConclusaoUnilateralmente =
+      !!editandoId &&
+      (role === "master" || role === "cs") &&
+      ocorrenciaOriginal?.conclusaoUnilateralCapacitacao === true &&
+      base.conclusaoUnilateralCapacitacao !== true;
     try {
       if (reservaEditando) {
         savedId = (
@@ -2424,6 +2428,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               ? {
                   concluirEsteiraUnilateralmente: opcoesConclusaoUnilateral,
                 }
+              : {}),
+            ...(reverterConclusaoUnilateralmente
+              ? { reverterConclusaoUnilateralmente: true }
               : {}),
           },
         );
@@ -6811,7 +6818,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               );
             })()}
 
-            {!editandoId &&
+            {!reservaEditando &&
               form.tipo === "Informativa" &&
               (role === "master" || role === "cs") &&
               (() => {
@@ -6820,7 +6827,16 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                     normalizar(empresa.nomeEmpresa) ===
                     normalizar(form.empresa),
                 );
-                const jaFinalizada = !!empresaConclusao?.dataFinalizacao;
+                const ocorrenciaOriginal = editandoId
+                  ? ocorrencias.find((ocorrencia) => ocorrencia.id === editandoId)
+                  : null;
+                const vinculadaAEstaOcorrencia =
+                  !!ocorrenciaOriginal?.conclusaoUnilateralCapacitacao &&
+                  empresaConclusao?.conclusaoUnilateralOcorrenciaId ===
+                    ocorrenciaOriginal.id;
+                const jaFinalizada =
+                  !!empresaConclusao?.dataFinalizacao &&
+                  !vinculadaAEstaOcorrencia;
                 return (
                   <div className="hist-campo">
                     <label className="checkbox-label">

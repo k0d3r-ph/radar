@@ -13,6 +13,26 @@ test('esteira finalizada fica vermelha a partir de 20 dias sem follow-up final',
   }
 });
 
+test('conclusão unilateral não gera alerta de follow-up após 20 dias', () => {
+  assert.equal(calcularFarol({
+    progresso: 100,
+    tme: 30,
+    conclusaoUnilateralCapacitacao: true,
+  }), 'verde');
+  assert.equal(calcularFarol({
+    progresso: 100,
+    tme: 30,
+    conclusaoUnilateralCapacitacao: true,
+    pendencia: { ativa: true, tipoId: 'p1', tipoNome: 'Aguardando retorno' },
+  }), 'laranja');
+  assert.equal(calcularFarol({
+    progresso: 100,
+    tme: 30,
+    conclusaoUnilateralCapacitacao: true,
+    alerta: true,
+  }), 'vermelho');
+});
+
 test('no limite de 20 dias, follow-up final mantém verde e pendência ativa prevalece em laranja', () => {
   const finalizada = { progresso: 100, tme: 20, dataFollowUpFinal: '2026-10-01' };
   assert.equal(calcularFarol(finalizada), 'verde');

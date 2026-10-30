@@ -1,11 +1,12 @@
 import type { Empresa, Ocorrencia } from '../types';
 
 /** Recebe a carteira sem empresas internas; mantém Esteira atual e Suspensos, conforme a Home. */
-export function filtrarEmpresasContatosSuporte<T extends Pick<Empresa, 'isOngoing' | 'isCancelled' | 'isSuspended' | 'dataFinalizacao' | 'dataFollowUpFinal'>>(empresas: T[]): T[] {
+export function filtrarEmpresasContatosSuporte<T extends Pick<Empresa, 'isOngoing' | 'isCancelled' | 'isSuspended' | 'dataFinalizacao' | 'dataFollowUpFinal' | 'conclusaoUnilateralCapacitacao'>>(empresas: T[]): T[] {
   return empresas.filter((empresa) => {
     if (empresa.isCancelled) return false;
     if (empresa.isSuspended) return true;
-    const concluida = !!empresa.dataFinalizacao?.trim() && !!empresa.dataFollowUpFinal?.trim();
+    const concluida = empresa.conclusaoUnilateralCapacitacao === true ||
+      (!!empresa.dataFinalizacao?.trim() && !!empresa.dataFollowUpFinal?.trim());
     return !empresa.isOngoing && !concluida;
   });
 }

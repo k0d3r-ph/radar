@@ -196,7 +196,7 @@ test('conclui unilateralmente a esteira na mesma transação da ocorrência info
   const ocorrencia = estado.documentos.get('ocorrencias/novo-documento');
   assert.equal(empresa.currentPhase, 3);
   assert.equal(empresa.dataFinalizacao, '2026-10-30');
-  assert.equal(empresa.dataFollowUpFinal, '2026-11-19');
+  assert.equal(empresa.dataFollowUpFinal, '');
   assert.equal(empresa.conclusaoUnilateralCapacitacao, true);
   assert.equal(empresa.conclusaoUnilateralOcorrenciaId, resultado.id);
   assert.deepEqual([...empresa.temasConcluidosUnilateralmente], [
@@ -218,6 +218,80 @@ test('conclui unilateralmente a esteira na mesma transação da ocorrência info
     [],
   );
   assert.equal(estado.documentos.has('ocorrencias/novo-documento'), false);
+});
+
+test('marca ocorrência informativa antiga e restaura a esteira ao desmarcar', async () => {
+  const estado = ambiente([]);
+  estado.documentos.set('empresas/empresa-1', {
+    nomeEmpresa: 'Empresa A',
+    temaText: 'Introdução\nCadastros\nRelatórios',
+    currentPhase: 0,
+    dataFollowUpFinal: '2026-09-10',
+  });
+  estado.documentos.set('ocorrencias/ocorrencia-antiga', {
+    empresa: 'Empresa A',
+    tipo: 'Informativa',
+    descricao: 'Registro histórico',
+    departamento: 'CS',
+    responsavel: 'CS',
+    createdAt: new Date('2026-10-01T15:00:00.000Z').getTime(),
+    updatedAt: 1,
+  });
+  const { servico } = await criarPagina(estado);
+
+  await servico.salvarOcorrencia(
+    {
+      id: 'ocorrencia-antiga',
+      empresa: 'Empresa A',
+      tipo: 'Informativa',
+      descricao: 'Registro histórico',
+      departamento: 'CS',
+      responsavel: 'CS',
+      conclusaoUnilateralCapacitacao: true,
+    },
+    {
+      concluirEsteiraUnilateralmente: {
+        empresaId: 'empresa-1',
+        dataFinalizacao: '2026-10-01',
+      },
+    },
+  );
+
+  const empresaConcluida = estado.documentos.get('empresas/empresa-1');
+  const ocorrenciaConcluida = estado.documentos.get(
+    'ocorrencias/ocorrencia-antiga',
+  );
+  assert.equal(empresaConcluida.dataFinalizacao, '2026-10-01');
+  assert.equal(empresaConcluida.dataFollowUpFinal, '');
+  assert.equal(empresaConcluida.conclusaoUnilateralOcorrenciaId, 'ocorrencia-antiga');
+  assert.equal(ocorrenciaConcluida.conclusaoUnilateralCapacitacao, true);
+  assert.equal(
+    ocorrenciaConcluida.conclusaoUnilateralEstadoAnterior.currentPhase,
+    0,
+  );
+
+  await servico.salvarOcorrencia(
+    {
+      id: 'ocorrencia-antiga',
+      empresa: 'Empresa A',
+      tipo: 'Informativa',
+      descricao: 'Registro histórico',
+      departamento: 'CS',
+      responsavel: 'CS',
+      conclusaoUnilateralCapacitacao: false,
+    },
+    { reverterConclusaoUnilateralmente: true },
+  );
+
+  const empresaRestaurada = estado.documentos.get('empresas/empresa-1');
+  const ocorrenciaRestaurada = estado.documentos.get(
+    'ocorrencias/ocorrencia-antiga',
+  );
+  assert.equal(empresaRestaurada.dataFinalizacao, '');
+  assert.equal(empresaRestaurada.dataFollowUpFinal, '2026-09-10');
+  assert.equal(empresaRestaurada.conclusaoUnilateralOcorrenciaId, '');
+  assert.equal(ocorrenciaRestaurada.conclusaoUnilateralCapacitacao, false);
+  assert.equal(ocorrenciaRestaurada.conclusaoUnilateralEstadoAnterior, null);
 });
 
 test('atualização forçada com mil registros busca somente três documentos alterados', async () => {

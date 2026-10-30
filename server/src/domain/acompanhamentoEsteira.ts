@@ -21,7 +21,7 @@ export function encontrarResponsavel<T extends { nome: string }>(responsavel: st
 }
 export interface ClienteAcompanhamento {
   nomeEmpresa: string; temaText: string; currentPhase: number; responsavel?: string;
-  dataFinalizacao?: string; dataFollowUpFinal?: string; isSuspended?: boolean; isCancelled?: boolean; isOngoing?: boolean;
+  dataFinalizacao?: string; dataFollowUpFinal?: string; conclusaoUnilateralCapacitacao?: boolean; isSuspended?: boolean; isCancelled?: boolean; isOngoing?: boolean;
 }
 export interface ContatoAcompanhamento { empresa: string; tipo?: string; dataOcorrencia?: number; createdAt?: number }
 export function timestampBrasilia(data?: string): number | undefined {
@@ -40,7 +40,7 @@ export function calcularSituacaoAcompanhamento(empresa: ClienteAcompanhamento, o
   const ultima = contatos.reduce((maior, o) => Math.max(maior, o.dataOcorrencia || o.createdAt || 0), 0);
   const base = baseAcompanhamento(progresso, empresa.dataFinalizacao, ultima || undefined);
   const dias = base ? Math.floor((agora - base) / 86_400_000) : null;
-  const tipo = empresa.isCancelled || empresa.isOngoing || empresa.dataFollowUpFinal?.trim() || dias === null || normalizarCliente(empresa.nomeEmpresa) === 'systemsat' ? null
+  const tipo = empresa.isCancelled || empresa.isOngoing || empresa.conclusaoUnilateralCapacitacao || empresa.dataFollowUpFinal?.trim() || dias === null || normalizarCliente(empresa.nomeEmpresa) === 'systemsat' ? null
     : progresso >= 100 && dias >= PRAZO_FOLLOW_UP_FINAL ? 'follow_up_final'
     : progresso < 100 && dias >= PRAZO_AGENDAR_TREINAMENTO ? 'agendar_treinamento' : null;
   return { progresso, dias, base, tipo, suspensa: !!empresa.isSuspended };

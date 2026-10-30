@@ -9,6 +9,7 @@ test('carteira dos contatos inclui apenas esteira atual e suspensos, conforme as
     { nomeEmpresa: 'Suspensa', isSuspended: true },
     { nomeEmpresa: 'Concluída', dataFinalizacao: '2026-10-20', dataFollowUpFinal: '2026-10-25' },
     { nomeEmpresa: 'Aguardando follow-up', dataFinalizacao: '2026-10-20' },
+    { nomeEmpresa: 'Conclusão unilateral', conclusaoUnilateralCapacitacao: true },
     { nomeEmpresa: 'Datas vazias', dataFinalizacao: ' ', dataFollowUpFinal: ' ' },
     { nomeEmpresa: 'Suspensa após conclusão', isSuspended: true, dataFinalizacao: '2026-10-20', dataFollowUpFinal: '2026-10-25' },
     { nomeEmpresa: 'Ongoing suspensa', isOngoing: true, isSuspended: true },

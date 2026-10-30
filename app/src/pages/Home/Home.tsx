@@ -500,6 +500,7 @@ export default function Home() {
   const [tabelaOngoingAberta, setTabelaOngoingAberta] = useState(false);
   const [tabelaSuspensaAberta, setTabelaSuspensaAberta] = useState(false);
   const [tabelaConcluidosAberta, setTabelaConcluidosAberta] = useState(false);
+  const [tabelaUnilateralAberta, setTabelaUnilateralAberta] = useState(false);
   const [tabelaCanceladosAberta, setTabelaCanceladosAberta] = useState(false);
 
   async function excluirCliente(id: string) {
@@ -1261,6 +1262,7 @@ export default function Home() {
   const dadosAtivos = useMemo(() => {
     return dados.filter(
       (e) =>
+        e.conclusaoUnilateralCapacitacao !== true &&
         !e.isOngoing &&
         !e.isSuspended &&
         !e.isCancelled &&
@@ -1271,9 +1273,21 @@ export default function Home() {
   const dadosConcluidos = useMemo(() => {
     return dados.filter(
       (e) =>
-        !e.isOngoing && !e.isSuspended && !e.isCancelled && clienteConcluido(e),
+        e.conclusaoUnilateralCapacitacao !== true &&
+        !e.isOngoing &&
+        !e.isSuspended &&
+        !e.isCancelled &&
+        clienteConcluido(e),
     );
   }, [dados]);
+
+  const dadosConcluidosUnilateralmente = useMemo(
+    () =>
+      dados.filter(
+        (e) => e.conclusaoUnilateralCapacitacao === true && !e.isCancelled,
+      ),
+    [dados],
+  );
 
   // Janela de exibição do aviso: depois de algumas horas sem ninguém marcar como
   // contatado, o aviso some por conta própria — segue sendo pendência, mas não
@@ -1387,12 +1401,21 @@ export default function Home() {
 
   const dadosOngoing = useMemo(() => {
     return dados.filter(
-      (e) => !!e.isOngoing && !e.isSuspended && !e.isCancelled,
+      (e) =>
+        e.conclusaoUnilateralCapacitacao !== true &&
+        !!e.isOngoing &&
+        !e.isSuspended &&
+        !e.isCancelled,
     );
   }, [dados]);
 
   const dadosSuspensos = useMemo(() => {
-    return dados.filter((e) => !!e.isSuspended && !e.isCancelled);
+    return dados.filter(
+      (e) =>
+        e.conclusaoUnilateralCapacitacao !== true &&
+        !!e.isSuspended &&
+        !e.isCancelled,
+    );
   }, [dados]);
 
   const dadosCancelados = useMemo(() => {
@@ -1758,16 +1781,20 @@ export default function Home() {
     filtroCardTipo,
     filtroCardAlerta,
     filtroSomenteSuspensos,
-    ordenacaoContrato,
-    ordenacaoScore,
     ordenacaoPrincipal,
     mapaComerciais,
     mapaResponsaveis,
   ]);
 
-  const dadosConcluidosFiltrados = useMemo(() => {
-    if (filtroSomenteSuspensos) return [];
-    return dadosConcluidos
+  const dadosConclusoesFiltrados = useMemo(() => {
+    if (filtroSomenteSuspensos) {
+      return {
+        regulares: [] as LinhaEsteira[],
+        unilaterais: [] as LinhaEsteira[],
+      };
+    }
+
+    const conclusoes = [...dadosConcluidos, ...dadosConcluidosUnilateralmente]
       .filter((e) => {
         const clienteOk =
           !filtroCliente ||
@@ -1808,24 +1835,32 @@ export default function Home() {
         );
       })
       .sort((a, b) => {
-        let prim = 0;
-        let sec = 0;
-
-        if (ordenacaoPrincipal === "score") {
-          prim = compararScore(a, b);
-          sec = compararContrato(a, b);
-        } else {
-          prim = compararContrato(a, b);
-          sec = compararScore(a, b);
-        }
+        const prim =
+          ordenacaoPrincipal === "score"
+            ? compararScore(a, b)
+            : compararContrato(a, b);
+        const sec =
+          ordenacaoPrincipal === "score"
+            ? compararContrato(a, b)
+            : compararScore(a, b);
 
         if (prim !== 0) return prim;
         if (sec !== 0) return sec;
 
         return a.nomeEmpresa.localeCompare(b.nomeEmpresa, "pt-BR");
       });
+
+    return {
+      regulares: conclusoes.filter(
+        (e) => e.conclusaoUnilateralCapacitacao !== true,
+      ),
+      unilaterais: conclusoes.filter(
+        (e) => e.conclusaoUnilateralCapacitacao === true,
+      ),
+    };
   }, [
     dadosConcluidos,
+    dadosConcluidosUnilateralmente,
     filtroCliente,
     filtroCs,
     filtroComercial,
@@ -1835,12 +1870,15 @@ export default function Home() {
     filtroCardTipo,
     filtroCardAlerta,
     filtroSomenteSuspensos,
-    ordenacaoContrato,
-    ordenacaoScore,
     ordenacaoPrincipal,
     mapaComerciais,
     mapaResponsaveis,
+    compararScore,
+    compararContrato,
   ]);
+  const dadosConcluidosFiltrados = dadosConclusoesFiltrados.regulares;
+  const dadosConcluidosUnilateralmenteFiltrados =
+    dadosConclusoesFiltrados.unilaterais;
 
   const dadosCanceladosFiltrados = useMemo(() => {
     if (filtroSomenteSuspensos) return [];
@@ -1941,6 +1979,9 @@ export default function Home() {
       filtroSomenteSuspensos || (abrir && dadosSuspensosFiltrados.length > 0),
     );
     setTabelaConcluidosAberta(abrir && dadosConcluidosFiltrados.length > 0);
+    setTabelaUnilateralAberta(
+      abrir && dadosConcluidosUnilateralmenteFiltrados.length > 0,
+    );
     setTabelaCanceladosAberta(abrir && dadosCanceladosFiltrados.length > 0);
   }, [
     filtroCliente,
@@ -1950,6 +1991,7 @@ export default function Home() {
     dadosOngoingFiltrados,
     dadosSuspensosFiltrados,
     dadosConcluidosFiltrados,
+    dadosConcluidosUnilateralmenteFiltrados,
     dadosCanceladosFiltrados,
   ]);
 
@@ -2021,6 +2063,17 @@ export default function Home() {
       ),
       "Clientes Concluídos",
       "clientes-concluidos",
+    );
+  }
+
+  function exportarConcluidosUnilateralmenteExcel() {
+    exportarEsteiraExcel(
+      exportarColunasVisiveis(
+        dadosConcluidosUnilateralmenteFiltrados,
+        colunasUnilateralPrefs.colunasVisiveis,
+      ),
+      "Clientes com Conclusão Unilateral",
+      "clientes-conclusao-unilateral",
     );
   }
 
@@ -2100,6 +2153,10 @@ export default function Home() {
     );
   }
 
+  function renderProgresso(empresa: LinhaEsteira) {
+    return <ProgressBar value={empresa.progresso} fillColor="#15803D" />;
+  }
+
   const colunasEsteiraAtual: ColumnDef<LinhaEsteira>[] = [
     {
       key: "status",
@@ -2145,7 +2202,7 @@ export default function Home() {
               fontSize: "0.8rem",
               fontWeight: 600,
               background:
-                obterTipoEfetivo(empresa) === "Fast" ? "#16a34a" : "#dc2626",
+                obterTipoEfetivo(empresa) === "Fast" ? "#15803D" : "#dc2626",
               color: "white",
             }}
           >
@@ -2241,7 +2298,7 @@ export default function Home() {
       label: "Progresso",
       defaultWidth: 170,
       className: "td-progresso",
-      render: (empresa) => <ProgressBar value={empresa.progresso} />,
+      render: renderProgresso,
       exportLabel: "Progresso (%)",
       exportValue: (empresa) => empresa.progresso,
     },
@@ -2351,7 +2408,7 @@ export default function Home() {
       label: "Progresso",
       defaultWidth: 170,
       className: "td-progresso",
-      render: (empresa) => <ProgressBar value={empresa.progresso} />,
+      render: renderProgresso,
       exportLabel: "Progresso (%)",
       exportValue: (empresa) => empresa.progresso,
     },
@@ -2479,6 +2536,7 @@ export default function Home() {
     ongoing: ampliarCatalogoColunas(colunasOngoing, catalogoColunas),
     suspensos: ampliarCatalogoColunas(colunasSuspensos, catalogoColunas),
     concluidos: ampliarCatalogoColunas(colunasConcluidos, catalogoColunas),
+    unilateral: ampliarCatalogoColunas(colunasConcluidos, catalogoColunas),
     cancelados: ampliarCatalogoColunas(colunasCancelados, catalogoColunas),
   };
 
@@ -2497,6 +2555,10 @@ export default function Home() {
   const colunasConcluidosPrefs = useColumnPreferences(
     "radar:colunas:concluidos",
     colunasDisponiveis.concluidos,
+  );
+  const colunasUnilateralPrefs = useColumnPreferences(
+    "radar:colunas:conclusao-unilateral",
+    colunasDisponiveis.unilateral,
   );
   const colunasCanceladosPrefs = useColumnPreferences(
     "radar:colunas:cancelados",
@@ -3518,6 +3580,141 @@ export default function Home() {
                 Mostrando <strong>{dadosSuspensosFiltrados.length}</strong> de{" "}
                 <strong>{dadosSuspensos.length}</strong>{" "}
                 {dadosSuspensos.length === 1 ? "cliente" : "clientes"}
+              </span>
+            </div>
+          </div>
+        </Recolhivel>
+      </div>
+
+      {/* Tabela de clientes com conclusão unilateral */}
+      <div className="collapsible-section" style={{ marginTop: "2rem" }}>
+        <div
+          className="collapsible-header"
+          onClick={() => setTabelaUnilateralAberta((prev) => !prev)}
+        >
+          <div className="collapsible-title-wrapper">
+            <h2>Conclusão Unilateral da Capacitação</h2>
+            <span
+              className="collapsible-count-badge"
+              style={{
+                background: "rgba(107, 114, 128, 0.2)",
+                color: "var(--lt-texto-9ca3af, #9ca3af)",
+              }}
+            >
+              {dadosConcluidosUnilateralmenteFiltrados.length}
+            </span>
+          </div>
+          <div className="collapsible-header-actions">
+            <div onClick={(e) => e.stopPropagation()}>
+              <ColumnSelector
+                columns={colunasDisponiveis.unilateral}
+                order={colunasUnilateralPrefs.order}
+                hidden={colunasUnilateralPrefs.hidden}
+                onChangeOrder={colunasUnilateralPrefs.setOrder}
+                onChangeHidden={colunasUnilateralPrefs.setHidden}
+                onRestaurarPadrao={colunasUnilateralPrefs.restaurarPadrao}
+              />
+            </div>
+            {role === "master" && (
+              <button
+                className="btn-exportar-excel"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  exportarConcluidosUnilateralmenteExcel();
+                }}
+                title="Exportar clientes com conclusão unilateral para Excel"
+              >
+                📥 Exportar Excel
+              </button>
+            )}
+            <span
+              className={`collapsible-arrow ${tabelaUnilateralAberta ? "aberta" : ""}`}
+              aria-hidden="true"
+            >
+              ▶
+            </span>
+          </div>
+        </div>
+
+        <Recolhivel aberta={!loading && tabelaUnilateralAberta}>
+          <div className="table-wrapper">
+            <table>
+              <colgroup>
+                {colunasUnilateralPrefs.colunasVisiveis.map((col) => (
+                  <col
+                    key={col.key}
+                    style={{
+                      width: `${colunasUnilateralPrefs.widths[col.key] ?? col.defaultWidth}px`,
+                    }}
+                  />
+                ))}
+              </colgroup>
+              <thead>
+                <tr>
+                  {colunasUnilateralPrefs.colunasVisiveis.map((col) => (
+                    <th
+                      key={col.key}
+                      className={col.className}
+                      style={
+                        col.align === "right"
+                          ? { textAlign: "right" }
+                          : undefined
+                      }
+                    >
+                      {col.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {dadosConcluidosUnilateralmenteFiltrados.map((empresa) => (
+                  <tr
+                    key={empresa.id}
+                    className="linha-cliente"
+                    onClick={() => abrirCliente(empresa)}
+                  >
+                    {colunasUnilateralPrefs.colunasVisiveis.map((col) => (
+                      <td
+                        key={col.key}
+                        className={col.className}
+                        style={
+                          col.align === "right"
+                            ? { textAlign: "right", fontWeight: 600 }
+                            : undefined
+                        }
+                      >
+                        {col.render(empresa)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+                {dadosConcluidosUnilateralmenteFiltrados.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={colunasUnilateralPrefs.colunasVisiveis.length}
+                      style={{
+                        textAlign: "center",
+                        color: "#64748b",
+                        padding: "2rem",
+                      }}
+                    >
+                      Nenhum cliente com conclusão unilateral.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+
+            <div className="table-footer">
+              <span>
+                Mostrando{" "}
+                <strong>
+                  {dadosConcluidosUnilateralmenteFiltrados.length}
+                </strong>{" "}
+                de <strong>{dadosConcluidosUnilateralmente.length}</strong>{" "}
+                {dadosConcluidosUnilateralmente.length === 1
+                  ? "cliente"
+                  : "clientes"}
               </span>
             </div>
           </div>

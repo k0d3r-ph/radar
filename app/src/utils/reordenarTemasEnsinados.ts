@@ -20,10 +20,12 @@ export function reordenarTemasEnsinados(
   indicesEnsinados: number[],
   dataStr: string,
   currentPhase?: number,
-): { newTemas: string[]; newDatas: string[]; ultimoIndice: number } {
+  linhasReagendamentos: number[] = [],
+): { newTemas: string[]; newDatas: string[]; newReagendamentos: number[]; ultimoIndice: number } {
   // Filtra tema e data juntos: linhas vazias não são fases pendentes.
   const indicesValidos = linhasTema.flatMap((tema, indice) => tema.trim() ? [indice] : []);
   linhasData = indicesValidos.map((indice) => linhasData[indice] ?? "");
+  linhasReagendamentos = indicesValidos.map((indice) => linhasReagendamentos[indice] ?? 0);
   linhasTema = indicesValidos.map((indice) => linhasTema[indice]);
   indicesEnsinados = indicesEnsinados.map((indice) => indicesValidos.indexOf(indice)).filter((indice) => indice !== -1);
 
@@ -32,11 +34,19 @@ export function reordenarTemasEnsinados(
 
   const inicioItem =
     idxInicio !== -1
-      ? { tema: linhasTema[idxInicio], data: linhasData[idxInicio] ?? "" }
+      ? {
+          tema: linhasTema[idxInicio],
+          data: linhasData[idxInicio] ?? "",
+          reagendamentos: linhasReagendamentos[idxInicio] ?? 0,
+        }
       : null;
   const conclusaoItem =
     idxConclusao !== -1
-      ? { tema: linhasTema[idxConclusao], data: linhasData[idxConclusao] ?? "" }
+      ? {
+          tema: linhasTema[idxConclusao],
+          data: linhasData[idxConclusao] ?? "",
+          reagendamentos: linhasReagendamentos[idxConclusao] ?? 0,
+        }
       : null;
 
   // "Meio": todos os temas exceto as âncoras fixas — é nele que a reordenação por sequência ocorre
@@ -47,6 +57,10 @@ export function reordenarTemasEnsinados(
     .map((_, idx) => idx)
     .filter((idx) => idx !== idxInicio && idx !== idxConclusao)
     .map((idx) => linhasData[idx] ?? "");
+  const newReagendamentos = linhasTema
+    .map((_, idx) => idx)
+    .filter((idx) => idx !== idxInicio && idx !== idxConclusao)
+    .map((idx) => linhasReagendamentos[idx] ?? 0);
 
   // Fronteira atual: quantos temas do meio já foram efetivamente ensinados.
   // `currentPhase` (quando informado) é a fonte confiável — é o mesmo índice já
@@ -102,8 +116,10 @@ export function reordenarTemasEnsinados(
     if (posAtual > frontIndex) {
       const [tRemovido] = newTemas.splice(posAtual, 1);
       const [dRemovido] = newDatas.splice(posAtual, 1);
+      const [reagendamentosRemovidos] = newReagendamentos.splice(posAtual, 1);
       newTemas.splice(frontIndex, 0, tRemovido);
       newDatas.splice(frontIndex, 0, dRemovido);
+      newReagendamentos.splice(frontIndex, 0, reagendamentosRemovidos);
     }
 
     frontIndex++;
@@ -118,6 +134,11 @@ export function reordenarTemasEnsinados(
     ...(inicioItem ? [inicioItem.data] : []),
     ...newDatas,
     ...(conclusaoItem ? [conclusaoItem.data] : []),
+  ];
+  const reagendamentosFinais = [
+    ...(inicioItem ? [inicioItem.reagendamentos] : []),
+    ...newReagendamentos,
+    ...(conclusaoItem ? [conclusaoItem.reagendamentos] : []),
   ];
 
   // Última posição (no array final) que faz parte do progresso já concluído.
@@ -134,6 +155,10 @@ export function reordenarTemasEnsinados(
     ultimoIndice = temasFinais.length - 1;
   }
 
-  return { newTemas: temasFinais, newDatas: datasFinais, ultimoIndice };
+  return {
+    newTemas: temasFinais,
+    newDatas: datasFinais,
+    newReagendamentos: reagendamentosFinais,
+    ultimoIndice,
+  };
 }
-

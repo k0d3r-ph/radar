@@ -4,6 +4,8 @@ import { CalendarClock, ChevronDown, ChevronUp, GripVertical, Link2, Plus, X } f
 import { toast } from "sonner";
 import {
   agruparLinhasEmBlocos,
+  formatarDataDigitada,
+  incrementarReagendamentoSeDataAlterada,
   linhasTemaParaTextos,
   textosParaLinhasTema,
 } from "../../utils/temasEsteira";
@@ -15,7 +17,13 @@ type Props = {
   temaText: string;
   dataText: string;
   blocoText: string;
-  onChange: (textos: { temaText: string; dataText: string; blocoText: string }) => void;
+  reagendamentosText?: string;
+  onChange: (textos: {
+    temaText: string;
+    dataText: string;
+    blocoText: string;
+    reagendamentosText: string;
+  }) => void;
   /** Cadência (dias úteis) usada para recalcular as datas das fases seguintes a
    * partir de uma data ajustada numa fase intermediária. */
   cadenciaDiasTreinamento?: string;
@@ -23,8 +31,8 @@ type Props = {
 };
 
 /** Campos de tema e data da esteira, um par por fase, adicionados pelo treinador. */
-export function TemasEsteiraEditor({ temaText, dataText, blocoText, onChange, cadenciaDiasTreinamento, disabled }: Props) {
-  const linhas = textosParaLinhasTema(temaText, dataText, blocoText);
+export function TemasEsteiraEditor({ temaText, dataText, blocoText, reagendamentosText, onChange, cadenciaDiasTreinamento, disabled }: Props) {
+  const linhas = textosParaLinhasTema(temaText, dataText, blocoText, reagendamentosText);
   const temaRefs = useRef<(HTMLInputElement | null)[]>([]);
   const moverCimaRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const moverBaixoRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -37,6 +45,9 @@ export function TemasEsteiraEditor({ temaText, dataText, blocoText, onChange, ca
   // a nova data (com ano) escolhida nele.
   const [recalculoAberto, setRecalculoAberto] = useState<number | null>(null);
   const [dataRecalculo, setDataRecalculo] = useState("");
+  const dataEmEdicaoRef = useRef<{ indice: number; original: string } | null>(
+    null,
+  );
   // Campo a focar depois que a linha nova/removida for renderizada.
   const focarLinhaRef = useRef<number | null>(null);
   const setFocarLinha = (indice: number) => {
@@ -65,13 +76,13 @@ export function TemasEsteiraEditor({ temaText, dataText, blocoText, onChange, ca
     aplicar(linhas.map((l, i) => (i === indice ? { ...l, [campo]: valor } : l)));
 
   const inserirDepois = (indice: number) => {
-    aplicar([...linhas.slice(0, indice + 1), { tema: "", data: "", mesmoDiaDoProximo: false }, ...linhas.slice(indice + 1)]);
+    aplicar([...linhas.slice(0, indice + 1), { tema: "", data: "", reagendamentos: 0, mesmoDiaDoProximo: false }, ...linhas.slice(indice + 1)]);
     setFocarLinha(indice + 1);
   };
 
   const remover = (indice: number) => {
     const restantes = linhas.filter((_, i) => i !== indice);
-    aplicar(restantes.length ? restantes : [{ tema: "", data: "", mesmoDiaDoProximo: false }]);
+    aplicar(restantes.length ? restantes : [{ tema: "", data: "", reagendamentos: 0, mesmoDiaDoProximo: false }]);
     setFocarLinha(Math.min(indice, Math.max(0, restantes.length - 1)));
   };
 
@@ -118,6 +129,7 @@ export function TemasEsteiraEditor({ temaText, dataText, blocoText, onChange, ca
     const novas = colados.map((tema, i) => ({
       tema,
       data: i === 0 ? atual.data : "",
+      reagendamentos: i === 0 ? atual.reagendamentos : 0,
       mesmoDiaDoProximo: i === 0 ? atual.mesmoDiaDoProximo : false,
     }));
     const substituiAtual = !atual.tema.trim();
@@ -165,7 +177,13 @@ export function TemasEsteiraEditor({ temaText, dataText, blocoText, onChange, ca
       });
     });
 
-    aplicar(novasLinhas);
+    const dataAnterior = linhas[indice].data;
+    const reagendadas = incrementarReagendamentoSeDataAlterada(
+      novasLinhas,
+      indice,
+      dataAnterior,
+    );
+    aplicar(reagendadas);
     setRecalculoAberto(null);
     setDataRecalculo("");
     toast.success("Data ajustada. As fases seguintes foram recalculadas pela cadência.");
@@ -285,7 +303,24 @@ export function TemasEsteiraEditor({ temaText, dataText, blocoText, onChange, ca
               <input
                 className="temas-editor-data"
                 value={linha.data}
-                onChange={(e) => alterar(i, "data", e.target.value)}
+                onFocus={() => {
+                  dataEmEdicaoRef.current = { indice: i, original: linha.data };
+                }}
+                onChange={(e) =>
+                  alterar(i, "data", formatarDataDigitada(e.target.value))
+                }
+                onBlur={() => {
+                  const edicao = dataEmEdicaoRef.current;
+                  if (!edicao || edicao.indice !== i) return;
+                  dataEmEdicaoRef.current = null;
+                  aplicar(
+                    incrementarReagendamentoSeDataAlterada(
+                      linhas,
+                      i,
+                      edicao.original,
+                    ),
+                  );
+                }}
                 onKeyDown={aoTeclar(i)}
                 placeholder="DD/MM"
                 aria-label={`Data da fase ${i + 1}`}

@@ -722,6 +722,22 @@ body {
   font-weight: 500;
 }
 
+.preview .tema-unilateral {
+  fill: #9ca3af;
+  text-decoration: line-through;
+}
+
+.preview .tema-unilateral-circle {
+  fill: #9ca3af;
+  stroke: #6b7280;
+}
+
+.preview .tema-reagendamentos {
+  fill: #ffecb3;
+  font-size: 14px;
+  font-weight: 700;
+}
+
 .active-badge {
   fill: #ffecb3;
   font-size: 20px;

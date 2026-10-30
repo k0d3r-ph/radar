@@ -3,9 +3,10 @@ import "./ProgressBar.css";
 
 interface Props {
   value: number;
+  fillColor?: string;
 }
 
-export default function ProgressBar({ value }: Props) {
+export default function ProgressBar({ value, fillColor }: Props) {
   const fillRef = useRef<HTMLDivElement>(null);
   const clamped = Math.min(value, 100);
 
@@ -30,7 +31,11 @@ export default function ProgressBar({ value }: Props) {
         role="img"
         aria-label={`Progresso: ${Math.round(value)}%`}
       >
-        <div ref={fillRef} className="progress-fill" />
+        <div
+          ref={fillRef}
+          className="progress-fill"
+          style={{ backgroundColor: fillColor }}
+        />
         <span className="progress-tooltip">
           {Math.round(value)}%
         </span>
@@ -38,4 +43,3 @@ export default function ProgressBar({ value }: Props) {
     </div>
   );
 }
-

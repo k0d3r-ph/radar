@@ -8,7 +8,7 @@ function ambiente(registros) {
   return {
     servidor: new Map(registros.map(d => [d.id, { ...d }])),
     cache: new Map(), storage: new Map(), versoes: new Map(registros.map(d => [d.id, '1'])),
-    consultas: [], documentosLidos: 0, chamadasApi: 0,
+    consultas: [], documentos: new Map(), documentosLidos: 0, chamadasApi: 0,
     usuario: { uid: 'u1', getIdToken: async () => 'token' },
   };
 }
@@ -34,10 +34,29 @@ async function criarPagina(estado) {
   ], function () {
     this.setExport('collection', (_db, nome) => ({ colecao: nome }));
     this.setExport('documentId', () => '__name__');
+    this.setExport('doc', (...args) => {
+      const segmentos = args.length === 1 && args[0]?.colecao
+        ? [args[0].colecao, 'novo-documento']
+        : args.slice(1);
+      return { id: segmentos.at(-1), path: segmentos.join('/') };
+    });
     this.setExport('where', (campo, operador, ids) => ({ campo, operador, ids }));
     this.setExport('query', (colecao, ...filtros) => ({ ...colecao, filtros }));
-    for (const nome of ['doc', 'orderBy', 'limit']) this.setExport(nome, (...args) => args);
-    for (const nome of ['addDoc', 'deleteDoc', 'runTransaction']) this.setExport(nome, async () => {});
+    for (const nome of ['orderBy', 'limit']) this.setExport(nome, (...args) => args);
+    for (const nome of ['addDoc', 'deleteDoc']) this.setExport(nome, async () => {});
+    this.setExport('runTransaction', async (_db, executar) => executar({
+      get: async ref => {
+        const dados = estado.documentos.get(ref.path);
+        return { data: () => dados, exists: () => dados !== undefined };
+      },
+      update: (ref, dados) => {
+        estado.documentos.set(ref.path, { ...estado.documentos.get(ref.path), ...dados });
+      },
+      delete: ref => estado.documentos.delete(ref.path),
+      set: (ref, dados) => {
+        estado.documentos.set(ref.path, dados);
+      },
+    }));
     this.setExport('getDocFromServer', () => { throw new Error('A sincronização não deve consultar o cadastro de treinamento.'); });
     this.setExport('getDocsFromCache', async () => snapshot([...estado.cache.values()]));
     this.setExport('getDocsFromServer', async consulta => {
@@ -55,10 +74,18 @@ async function criarPagina(estado) {
     this.setExport('auth', { get currentUser() { return estado.usuario; } });
     this.setExport('db', {});
   }, { context });
+  const gamificacao = new SyntheticModule(['invalidarCacheGamificacao'], function () {
+    this.setExport('invalidarCacheGamificacao', () => {});
+  }, { context });
+  const empresas = new SyntheticModule(['invalidarCacheEmpresas'], function () {
+    this.setExport('invalidarCacheEmpresas', () => {});
+  }, { context });
   const modules = new Map();
   async function carregar(nome) {
     if (nome === 'firebase/firestore') return firestore;
     if (nome === './firebase') return firebase;
+    if (nome === './gamificacao') return gamificacao;
+    if (nome === './empresas') return empresas;
     if (!['./ocorrencias', './sincronizacaoIncremental', './apiConfig.ts', '../utils/registroTreinamento'].includes(nome)) throw new Error(`Import inesperado: ${nome}`);
     if (modules.has(nome)) return modules.get(nome);
     const caminho = nome === '../utils/registroTreinamento' ? '../src/utils/registroTreinamento.ts' : `../src/services/${nome.slice(2).replace(/\.ts$/, '')}.ts`;
@@ -85,6 +112,112 @@ test('recarregar a página elimina exclusão de outro usuário sem reler documen
   assert.equal((await paginaRecarregada.servico.listarOcorrencias())[0].id, '2059');
   assert.equal(estado.documentosLidos, 2);
   assert.equal(estado.chamadasApi, 2); // Segunda chamada usou o cache em memória.
+});
+
+test('remove o desconto de suporte na transação da edição da ocorrência', async () => {
+  const estado = ambiente([]);
+  estado.documentos.set('ocorrencias/oc-1', {
+    tipo: 'Dúvida',
+    empresa: 'Empresa A',
+    gamificacaoDescontoPontoId: 'ponto-1',
+    updatedAt: 1,
+  });
+  estado.documentos.set('gamificacao_pontos/ponto-1', { pontos: -1 });
+  const { servico } = await criarPagina(estado);
+
+  await servico.salvarOcorrencia(
+    { id: 'oc-1', tipo: 'Problema' },
+    { updatedAtEsperado: 1, removerDescontoSuporteId: 'ponto-1' },
+  );
+
+  assert.equal(estado.documentos.has('gamificacao_pontos/ponto-1'), false);
+  assert.equal(
+    estado.documentos.get('ocorrencias/oc-1').gamificacaoDescontoPontoId,
+    '',
+  );
+  assert.equal(estado.documentos.get('ocorrencias/oc-1').tipo, 'Problema');
+});
+
+test('não remove ponto se o vínculo mudou durante a edição', async () => {
+  const estado = ambiente([]);
+  estado.documentos.set('ocorrencias/oc-1', {
+    tipo: 'Dúvida',
+    empresa: 'Empresa A',
+    gamificacaoDescontoPontoId: 'ponto-atual',
+    updatedAt: 1,
+  });
+  estado.documentos.set('gamificacao_pontos/ponto-antigo', { pontos: -1 });
+  const { servico } = await criarPagina(estado);
+
+  await assert.rejects(
+    servico.salvarOcorrencia(
+      { id: 'oc-1', tipo: 'Problema' },
+      { updatedAtEsperado: 1, removerDescontoSuporteId: 'ponto-antigo' },
+    ),
+    /desconto de gamificação desta ocorrência foi alterado/,
+  );
+
+  assert.equal(estado.documentos.has('gamificacao_pontos/ponto-antigo'), true);
+  assert.equal(
+    estado.documentos.get('ocorrencias/oc-1').gamificacaoDescontoPontoId,
+    'ponto-atual',
+  );
+});
+
+test('conclui unilateralmente a esteira na mesma transação da ocorrência informativa', async () => {
+  const estado = ambiente([]);
+  estado.documentos.set('empresas/empresa-1', {
+    nomeEmpresa: 'Empresa A',
+    temaText: 'Introdução\nCadastros\nRelatórios\nValidação',
+    currentPhase: 1,
+    dataFollowUpFinal: '2026-09-10',
+  });
+  const { servico } = await criarPagina(estado);
+
+  const resultado = await servico.salvarOcorrencia(
+    {
+      empresa: 'Empresa A',
+      tipo: 'Informativa',
+      descricao: 'Conclusão unilateral da capacitação',
+      departamento: 'CS',
+      responsavel: 'CS',
+      dataOcorrencia: 0,
+      conclusaoUnilateralCapacitacao: true,
+    },
+    {
+      concluirEsteiraUnilateralmente: {
+        empresaId: 'empresa-1',
+        dataFinalizacao: '2026-10-30',
+      },
+    },
+  );
+
+  const empresa = estado.documentos.get('empresas/empresa-1');
+  const ocorrencia = estado.documentos.get('ocorrencias/novo-documento');
+  assert.equal(empresa.currentPhase, 3);
+  assert.equal(empresa.dataFinalizacao, '2026-10-30');
+  assert.equal(empresa.dataFollowUpFinal, '2026-11-19');
+  assert.equal(empresa.conclusaoUnilateralCapacitacao, true);
+  assert.equal(empresa.conclusaoUnilateralOcorrenciaId, resultado.id);
+  assert.deepEqual([...empresa.temasConcluidosUnilateralmente], [
+    'Relatórios',
+    'Validação',
+  ]);
+  assert.equal(ocorrencia.tipo, 'Informativa');
+  assert.equal(ocorrencia.conclusaoUnilateralCapacitacao, true);
+
+  await servico.removerOcorrencia(resultado.id);
+  const empresaRestaurada = estado.documentos.get('empresas/empresa-1');
+  assert.equal(empresaRestaurada.currentPhase, 1);
+  assert.equal(empresaRestaurada.dataFinalizacao, '');
+  assert.equal(empresaRestaurada.dataFollowUpFinal, '2026-09-10');
+  assert.equal(empresaRestaurada.conclusaoUnilateralCapacitacao, false);
+  assert.equal(empresaRestaurada.conclusaoUnilateralOcorrenciaId, '');
+  assert.deepEqual(
+    [...empresaRestaurada.temasConcluidosUnilateralmente],
+    [],
+  );
+  assert.equal(estado.documentos.has('ocorrencias/novo-documento'), false);
 });
 
 test('atualização forçada com mil registros busca somente três documentos alterados', async () => {

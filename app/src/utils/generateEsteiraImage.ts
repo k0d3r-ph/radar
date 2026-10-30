@@ -116,10 +116,14 @@ export async function generateEsteiraImage(empresa: Empresa): Promise<string> {
 
   // Gera o HTML do SVG em string com as classes e estilos idênticos ao do arquivo Esteira.css
   const temaGol = (empresa.temaGol || "").trim();
+  const temasUnilaterais = new Set(
+    empresa.temasConcluidosUnilateralmente ?? [],
+  );
 
   const circlesHtml = pontos.map((ponto, i) => {
-    const isActive = i === empresa.currentPhase;
     const item = temas[i];
+    const isUnilateral = !!item && temasUnilaterais.has(item.tema);
+    const isActive = i === empresa.currentPhase && !isUnilateral;
     const isGol = !!temaGol && item?.tema?.trim() === temaGol;
 
     let golRingHtml = "";
@@ -194,7 +198,7 @@ export async function generateEsteiraImage(empresa: Empresa): Promise<string> {
           cx="${ponto.x}"
           cy="${ponto.y}"
           r="${isActive ? 16 : 12}"
-          class="${isActive ? 'active-circle' : 'normal-circle'}"
+          class="${isUnilateral ? 'tema-unilateral-circle' : isActive ? 'active-circle' : 'normal-circle'}"
           stroke-width="4"
         />
         ${golBadgeHtml}
@@ -203,7 +207,7 @@ export async function generateEsteiraImage(empresa: Empresa): Promise<string> {
           x="${ponto.x}"
           y="${ponto.y + 50}"
           text-anchor="middle"
-          class="temas"
+          class="temas${isUnilateral ? ' tema-unilateral' : ''}"
         >
           ${tspans}
         </text>
@@ -226,6 +230,14 @@ export async function generateEsteiraImage(empresa: Empresa): Promise<string> {
           fill: white;
           font-size: 18px;
           font-weight: 500;
+        }
+        .tema-unilateral {
+          fill: #9ca3af;
+          text-decoration: line-through;
+        }
+        .tema-unilateral-circle {
+          fill: #9ca3af;
+          stroke: #6b7280;
         }
         .active-badge {
           fill: #ffecb3;

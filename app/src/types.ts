@@ -62,6 +62,15 @@ export type Empresa = {
 
   dataText: string;
 
+  /** Contagem de reagendamentos por fase, alinhada às linhas de `temaText` e `dataText`. */
+  reagendamentosText?: string;
+  /** Temas dispensados ao concluir unilateralmente a capacitação. */
+  temasConcluidosUnilateralmente?: string[];
+  /** Marca que a capacitação foi encerrada sem ministrar os temas restantes. */
+  conclusaoUnilateralCapacitacao?: boolean;
+  /** Ocorrência Informativa que registrou a conclusão unilateral. */
+  conclusaoUnilateralOcorrenciaId?: string;
+
   /**
    * Uma linha por fase (alinhada com `temaText`/`dataText`): "1" quando esse tema
    * acontece no mesmo dia do próximo (mesmo bloco/encontro), vazio caso contrário.
@@ -107,6 +116,7 @@ export type Empresa = {
    * Editável diretamente pelo master no cadastro, ou preenchida automaticamente
    * pela ocorrência de tipo "Follow up final" quando o treinador marca
    * "Encaminhar pro suporte" (ver followUpEncaminharSuporte em Ocorrencia).
+   * Na conclusão unilateral, recebe a data de finalização mais 20 dias corridos.
    * Junto com dataFinalizacao, determina clienteConcluido() na Home.
    */
   dataFollowUpFinal?: string;
@@ -233,8 +243,19 @@ export type Ocorrencia = {
   alertaResolvidoPorId?: string;
   alertaOriginalId?: string;
   gamificacaoPontoId?: string;
-  /** Lançamento de desconto de pontos do treinador por contato de Suporte (ver gamificacaoDeducaoSuporte na Empresa), vinculado a esta ocorrência. */
+  /** Lançamento de desconto de pontos por contato com Suporte; string vazia indica que o desconto já foi revertido ou processado. */
   gamificacaoDescontoPontoId?: string;
+  /** Esta ocorrência Informativa concluiu unilateralmente a capacitação. */
+  conclusaoUnilateralCapacitacao?: boolean;
+  /** Estado da esteira antes da conclusão, usado para desfazer a ação se a ocorrência for excluída. */
+  conclusaoUnilateralEstadoAnterior?: {
+    empresaId: string;
+    currentPhase: number;
+    dataFinalizacao: string;
+    dataFollowUpFinal?: string;
+    conclusaoUnilateralCapacitacao: boolean;
+    temasConcluidosUnilateralmente: string[];
+  };
   /**
    * Uid de quem marcou como feito o aviso de "cliente em treinamento contatou o
    * Suporte" exibido na Home (ver painel de avisos em Home.tsx). Ausente enquanto
@@ -317,6 +338,7 @@ export type OcorrenciaForm = {
   retornarEsteira?: boolean;
   suspenderCliente?: boolean;
   temaForaEsteira?: boolean;
+  conclusaoUnilateralCapacitacao?: boolean;
   csatSuporte?: "Bom" | "Ruim" | "";
   chamadoAberto?: boolean;
   chamadoDescricao?: string;

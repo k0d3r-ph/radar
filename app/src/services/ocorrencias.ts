@@ -1,7 +1,6 @@
 import {
   collection,
   addDoc,
-  deleteDoc,
   runTransaction,
   doc,
   getDocsFromServer,
@@ -16,14 +15,31 @@ import {
 } from "firebase/firestore";
 
 import { auth, db } from "./firebase";
-import type { LancamentoPonto, Ocorrencia } from "../types";
+import type { Empresa, LancamentoPonto, Ocorrencia } from "../types";
 import { sincronizarColecao } from "./sincronizacaoIncremental";
 import { RADAR_API_URL } from './apiConfig.ts';
 import { exigeClienteAtivoParaTreinamento, MENSAGEM_TREINAMENTO_SUSPENSO, normalizarEmpresaOcorrencia } from "../utils/registroTreinamento";
 import { invalidarCacheGamificacao } from "./gamificacao";
+import { invalidarCacheEmpresas } from "./empresas";
 
 const COLLECTION = "ocorrencias";
 const COLLECTION_PONTOS = "gamificacao_pontos";
+const PRAZO_FOLLOW_UP_CONCLUSAO_UNILATERAL_DIAS = 20;
+
+function adicionarDiasCorridosISO(dataISO: string, dias: number): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dataISO) || !Number.isInteger(dias)) {
+    throw new Error("Informe uma data válida para calcular o follow-up final.");
+  }
+  const data = new Date(`${dataISO}T00:00:00.000Z`);
+  if (
+    Number.isNaN(data.getTime()) ||
+    data.toISOString().slice(0, 10) !== dataISO
+  ) {
+    throw new Error("Informe uma data válida para calcular o follow-up final.");
+  }
+  data.setUTCDate(data.getUTCDate() + dias);
+  return data.toISOString().slice(0, 10);
+}
 
 /**
  * Criação/atualização/remoção do lançamento de pontos da gamificação vinculado a esta
@@ -110,7 +126,16 @@ function removerUndefined<T>(valor: T): T {
 
 export async function salvarOcorrencia(
   ocorrencia: Ocorrencia,
-  opcoes?: { updatedAtEsperado?: number; empresaId?: string; lancamentoPonto?: AcaoLancamentoPonto },
+  opcoes?: {
+    updatedAtEsperado?: number;
+    empresaId?: string;
+    lancamentoPonto?: AcaoLancamentoPonto;
+    removerDescontoSuporteId?: string;
+    concluirEsteiraUnilateralmente?: {
+      empresaId: string;
+      dataFinalizacao: string;
+    };
+  },
 ) {
   // A estrela é alterada somente pelo endpoint que valida perfil e limite por cliente.
   const { horaOcorrencia, id, favorita, favoritadaPor, favoritadaEm, favoritaEmpresaId, ...dados } = ocorrencia as any;
@@ -118,6 +143,11 @@ export async function salvarOcorrencia(
   const dadosLimpos = removerUndefined(dados);
 
   if (id) {
+    if (opcoes?.concluirEsteiraUnilateralmente) {
+      throw new Error(
+        "A conclusão unilateral da capacitação só pode ser registrada ao criar uma ocorrência.",
+      );
+    }
     const ref = doc(db, COLLECTION, id);
     const updatedAt = Date.now();
     let gamificacaoPontoId: string | undefined;
@@ -134,6 +164,15 @@ export async function salvarOcorrencia(
       ) {
         throw new Error(
           'Esta ocorrência foi alterada por outra pessoa enquanto você editava. Recarregue a página e tente novamente.',
+        );
+      }
+      if (
+        opcoes?.removerDescontoSuporteId &&
+        atual.data()?.gamificacaoDescontoPontoId !==
+          opcoes.removerDescontoSuporteId
+      ) {
+        throw new Error(
+          "O desconto de gamificação desta ocorrência foi alterado. Recarregue a página e tente novamente.",
         );
       }
       const normalizarEmpresa = (nome: string) => nome.trim().toLowerCase().replace(/&amp;/g, '&').replace(/\s+/g, ' ');
@@ -156,17 +195,44 @@ export async function salvarOcorrencia(
       // ocorrência, para nunca ficar órfão se um dos dois falhar.
       gamificacaoPontoId = aplicarLancamentoPonto(transaction, opcoes?.lancamentoPonto);
       const gamificacao = opcoes?.lancamentoPonto ? { gamificacaoPontoId: gamificacaoPontoId ?? "" } : {};
-      transaction.update(ref, { ...dadosLimpos, ...csat, ...gamificacao, updatedAt });
+      if (opcoes?.removerDescontoSuporteId) {
+        transaction.delete(
+          doc(db, COLLECTION_PONTOS, opcoes.removerDescontoSuporteId),
+        );
+      }
+      const descontoSuporte = opcoes?.removerDescontoSuporteId
+        ? { gamificacaoDescontoPontoId: "" }
+        : {};
+      transaction.update(ref, {
+        ...dadosLimpos,
+        ...csat,
+        ...gamificacao,
+        ...descontoSuporte,
+        updatedAt,
+      });
     });
-    if (opcoes?.lancamentoPonto) invalidarCacheGamificacao();
+    if (opcoes?.lancamentoPonto || opcoes?.removerDescontoSuporteId) {
+      invalidarCacheGamificacao();
+    }
 
     // Atualização Otimista do Cache
     // Usa apenas dadosLimpos (sem campos undefined) para não sobrescrever
     // valores já corretos no cache (ex: createdAt) com undefined.
     if (cachedOcorrencias) {
       const gamificacao = opcoes?.lancamentoPonto ? { gamificacaoPontoId: gamificacaoPontoId ?? "" } : {};
+      const descontoSuporte = opcoes?.removerDescontoSuporteId
+        ? { gamificacaoDescontoPontoId: "" }
+        : {};
       cachedOcorrencias = cachedOcorrencias.map((o) =>
-        o.id === id ? ({ ...o, ...dadosLimpos, ...gamificacao, updatedAt } as Ocorrencia) : o
+        o.id === id
+          ? ({
+              ...o,
+              ...dadosLimpos,
+              ...gamificacao,
+              ...descontoSuporte,
+              updatedAt,
+            } as Ocorrencia)
+          : o
       );
     }
     return { id, gamificacaoPontoId };
@@ -179,17 +245,135 @@ export async function salvarOcorrencia(
     createdAt,
     updatedAt,
   };
+  if (
+    opcoes?.concluirEsteiraUnilateralmente &&
+    (ocorrencia.tipo !== "Informativa" ||
+      ocorrencia.conclusaoUnilateralCapacitacao !== true ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(
+        opcoes.concluirEsteiraUnilateralmente.dataFinalizacao,
+      ))
+  ) {
+    throw new Error(
+      "A conclusão unilateral exige uma ocorrência Informativa e uma data válida.",
+    );
+  }
+  const dataFollowUpUnilateral = opcoes?.concluirEsteiraUnilateralmente
+    ? adicionarDiasCorridosISO(
+        opcoes.concluirEsteiraUnilateralmente.dataFinalizacao,
+        PRAZO_FOLLOW_UP_CONCLUSAO_UNILATERAL_DIAS,
+      )
+    : undefined;
   let docRef: DocumentReference;
   let gamificacaoPontoId: string | undefined;
-  if (exigeClienteAtivoParaTreinamento(ocorrencia)) {
+  let estadoAnteriorConclusaoUnilateral:
+    | NonNullable<Ocorrencia["conclusaoUnilateralEstadoAnterior"]>
+    | undefined;
+  if (
+    exigeClienteAtivoParaTreinamento(ocorrencia) ||
+    opcoes?.concluirEsteiraUnilateralmente
+  ) {
     docRef = doc(collection(db, COLLECTION));
     await runTransaction(db, async transaction => {
-      await validarDestinoTreinamento(transaction, ocorrencia.empresa, opcoes?.empresaId);
+      if (exigeClienteAtivoParaTreinamento(ocorrencia)) {
+        await validarDestinoTreinamento(transaction, ocorrencia.empresa, opcoes?.empresaId);
+      }
+      let atualEmpresa: Empresa | undefined;
+      if (opcoes?.concluirEsteiraUnilateralmente) {
+        const empresaRef = doc(
+          db,
+          "empresas",
+          opcoes.concluirEsteiraUnilateralmente.empresaId,
+        );
+        const empresaSnapshot = await transaction.get(empresaRef);
+        if (!empresaSnapshot.exists()) {
+          throw new Error(
+            "Não foi possível localizar o cadastro do cliente para concluir a capacitação.",
+          );
+        }
+        atualEmpresa = empresaSnapshot.data() as Empresa;
+        const normalizar = (nome: string) =>
+          nome.trim().toLowerCase().replace(/&amp;/g, "&").replace(/\s+/g, " ");
+        if (
+          normalizar(atualEmpresa.nomeEmpresa) !==
+          normalizar(ocorrencia.empresa)
+        ) {
+          throw new Error(
+            "O cliente da ocorrência não corresponde ao cadastro selecionado.",
+          );
+        }
+        if (atualEmpresa.dataFinalizacao?.trim()) {
+          throw new Error(
+            "Este cliente já possui uma data de finalização da esteira.",
+          );
+        }
+        const temas = (atualEmpresa.temaText || "")
+          .split("\n")
+          .map((tema) => tema.trim())
+          .filter(Boolean);
+        if (temas.length === 0) {
+          throw new Error(
+            "Cadastre os temas da esteira antes de concluir a capacitação.",
+          );
+        }
+        estadoAnteriorConclusaoUnilateral = {
+          empresaId: opcoes.concluirEsteiraUnilateralmente.empresaId,
+          currentPhase: atualEmpresa.currentPhase || 0,
+          dataFinalizacao: atualEmpresa.dataFinalizacao || "",
+          dataFollowUpFinal: atualEmpresa.dataFollowUpFinal || "",
+          conclusaoUnilateralCapacitacao:
+            atualEmpresa.conclusaoUnilateralCapacitacao ?? false,
+          temasConcluidosUnilateralmente:
+            atualEmpresa.temasConcluidosUnilateralmente ?? [],
+        };
+      }
       gamificacaoPontoId = aplicarLancamentoPonto(transaction, opcoes?.lancamentoPonto);
       const gamificacao = opcoes?.lancamentoPonto ? { gamificacaoPontoId: gamificacaoPontoId ?? "" } : {};
-      transaction.set(docRef, { ...novoDocumento, ...gamificacao });
+      if (opcoes?.concluirEsteiraUnilateralmente && atualEmpresa) {
+        const temas = (atualEmpresa.temaText || "")
+          .split("\n")
+          .map((tema) => tema.trim())
+          .filter(Boolean);
+        const indiceAtual = Math.min(
+          Math.max(0, Math.trunc(atualEmpresa.currentPhase || 0)),
+          temas.length - 1,
+        );
+        const temasUnilaterais = Array.from(
+          new Set([
+            ...(atualEmpresa.temasConcluidosUnilateralmente ?? []),
+            ...temas.slice(indiceAtual + 1),
+          ]),
+        );
+        transaction.update(
+          doc(
+            db,
+            "empresas",
+            opcoes.concluirEsteiraUnilateralmente.empresaId,
+          ),
+          {
+            currentPhase: temas.length - 1,
+            dataFinalizacao:
+              opcoes.concluirEsteiraUnilateralmente.dataFinalizacao,
+            dataFollowUpFinal: dataFollowUpUnilateral,
+            conclusaoUnilateralCapacitacao: true,
+            conclusaoUnilateralOcorrenciaId: docRef.id,
+            temasConcluidosUnilateralmente: temasUnilaterais,
+            updatedAt: Date.now(),
+          },
+        );
+      }
+      transaction.set(docRef, {
+        ...novoDocumento,
+        ...gamificacao,
+        ...(estadoAnteriorConclusaoUnilateral
+          ? {
+              conclusaoUnilateralEstadoAnterior:
+                estadoAnteriorConclusaoUnilateral,
+            }
+          : {}),
+      });
     });
     if (opcoes?.lancamentoPonto) invalidarCacheGamificacao();
+    if (opcoes?.concluirEsteiraUnilateralmente) invalidarCacheEmpresas();
   } else docRef = await addDoc(collection(db, COLLECTION), novoDocumento);
 
   const novaOcorrencia = {
@@ -198,6 +382,12 @@ export async function salvarOcorrencia(
     createdAt,
     updatedAt,
     ...(opcoes?.lancamentoPonto ? { gamificacaoPontoId: gamificacaoPontoId ?? "" } : {}),
+    ...(estadoAnteriorConclusaoUnilateral
+      ? {
+          conclusaoUnilateralEstadoAnterior:
+            estadoAnteriorConclusaoUnilateral,
+        }
+      : {}),
   } as Ocorrencia;
 
   // Inserção Otimista do Cache (no início devido ao orderBy("createdAt", "desc"))
@@ -238,7 +428,45 @@ export async function listarOcorrencias(forceRefresh = false, limitCount?: numbe
 }
 
 export async function removerOcorrencia(id: string) {
-  await deleteDoc(doc(db, COLLECTION, id));
+  let reverteuConclusaoUnilateral = false;
+  await runTransaction(db, async (transaction) => {
+    const ocorrenciaRef = doc(db, COLLECTION, id);
+    const ocorrenciaSnapshot = await transaction.get(ocorrenciaRef);
+    if (!ocorrenciaSnapshot.exists()) return;
+
+    const ocorrencia = ocorrenciaSnapshot.data() as Ocorrencia;
+    const estadoAnterior = ocorrencia.conclusaoUnilateralEstadoAnterior;
+    if (ocorrencia.conclusaoUnilateralCapacitacao && estadoAnterior) {
+      const empresaRef = doc(db, "empresas", estadoAnterior.empresaId);
+      const empresaSnapshot = await transaction.get(empresaRef);
+      if (
+        empresaSnapshot.exists() &&
+        empresaSnapshot.data()?.conclusaoUnilateralOcorrenciaId === id
+      ) {
+        const empresa = empresaSnapshot.data() as Empresa;
+        const totalTemas = (empresa.temaText || "")
+          .split("\n")
+          .filter((tema) => tema.trim()).length;
+        transaction.update(empresaRef, {
+          currentPhase: totalTemas
+            ? Math.min(estadoAnterior.currentPhase, totalTemas - 1)
+            : 0,
+          dataFinalizacao: estadoAnterior.dataFinalizacao,
+          dataFollowUpFinal: estadoAnterior.dataFollowUpFinal ?? "",
+          conclusaoUnilateralCapacitacao:
+            estadoAnterior.conclusaoUnilateralCapacitacao,
+          conclusaoUnilateralOcorrenciaId: "",
+          temasConcluidosUnilateralmente:
+            estadoAnterior.temasConcluidosUnilateralmente,
+          updatedAt: Date.now(),
+        });
+        reverteuConclusaoUnilateral = true;
+      }
+    }
+
+    transaction.delete(ocorrenciaRef);
+  });
+  if (reverteuConclusaoUnilateral) invalidarCacheEmpresas();
 
   // Remoção Otimista do Cache
   if (cachedOcorrencias) {

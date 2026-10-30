@@ -112,6 +112,7 @@ function Esteira() {
   const [currentPhase, setCurrentPhase] = useState(0);
   const [temaGol, setTemaGol] = useState("");
   const [blocoText, setBlocoText] = useState("");
+  const [reagendamentosText, setReagendamentosText] = useState("");
   const [cadenciaDiasTreinamento, setCadenciaDiasTreinamento] =
     useState<string>("");
   // Data do primeiro treinamento combinado com o cliente, usada só para "Gerar
@@ -161,6 +162,7 @@ function Esteira() {
         setTemaText(empresa.temaText);
 
         setDataText(empresa.dataText);
+        setReagendamentosText(empresa.reagendamentosText || "");
 
         setCurrentPhase(empresa.currentPhase || 0);
 
@@ -202,6 +204,7 @@ function Esteira() {
 
   const aplicarTemplate = (template: TemplateEsteira) => {
     setTemaText(template.temas);
+    setReagendamentosText("");
     setTemplatesAbertos(false);
     toast.success(`${template.nome} aplicado!`);
   };
@@ -209,11 +212,15 @@ function Esteira() {
   type TemaItem = {
     tema: string;
     data?: string;
+    reagendamentos: number;
   };
 
   const temasArray = temaText.split("\n").map((linha) => linha.trim());
 
   const datasArray = dataText.split("\n").map((linha) => linha.trim());
+  const reagendamentosArray = reagendamentosText
+    .split("\n")
+    .map((valor) => Number(valor) || 0);
 
   const temas: TemaItem[] = temasArray
     .map((tema, index) => {
@@ -221,6 +228,7 @@ function Esteira() {
 
       const item: TemaItem = {
         tema,
+        reagendamentos: reagendamentosArray[index] ?? 0,
       };
 
       if (datasArray[index]) {
@@ -334,6 +342,7 @@ function Esteira() {
                 setIdCentral("");
                 setTemaText("");
                 setDataText("");
+                setReagendamentosText("");
                 setTemaGol("");
                 setBlocoText("");
                 setCadenciaDiasTreinamento("");
@@ -346,6 +355,7 @@ function Esteira() {
               setIdCentral(empresa.idCentral || "");
               setTemaText(empresa.temaText);
               setDataText(empresa.dataText);
+              setReagendamentosText(empresa.reagendamentosText || "");
               setCurrentPhase(empresa.currentPhase || 0);
               setTemaGol(empresa.temaGol || "");
               setBlocoText(empresa.blocoText || "");
@@ -471,6 +481,7 @@ function Esteira() {
                     temaText,
                     dataText,
                     blocoText,
+                    reagendamentosText,
                   );
                   const blocos = agruparLinhasEmBlocos(linhas);
                   const linhasGeradas = [...linhas];
@@ -500,6 +511,7 @@ function Esteira() {
                   setTemaText(textos.temaText);
                   setDataText(textos.dataText);
                   setBlocoText(textos.blocoText);
+                  setReagendamentosText(textos.reagendamentosText);
                   toast.success(
                     sobrescreverDatasPlanejamento
                       ? "Planejamento gerado. Todas as datas foram recalculadas."
@@ -571,13 +583,25 @@ function Esteira() {
                 const empresaExistente = empresas.find(
                   (e) => String(e.id) === empresaId,
                 );
-                const isFinished = currentPhase === temas.length - 1;
+                const currentPhaseFinal =
+                  empresaExistente?.conclusaoUnilateralCapacitacao &&
+                  temas.length > 0
+                    ? temas.length - 1
+                    : currentPhase;
+                const isFinished =
+                  currentPhaseFinal === temas.length - 1;
                 // Grava sem os campos de fase deixados em branco na tela.
                 const {
                   temaText: temaTextFinal,
                   dataText: dataTextFinal,
                   blocoText: blocoTextFinal,
-                } = normalizarTextosTema(temaText, dataText, blocoText);
+                  reagendamentosText: reagendamentosTextFinal,
+                } = normalizarTextosTema(
+                  temaText,
+                  dataText,
+                  blocoText,
+                  reagendamentosText,
+                );
 
                 const today = new Date();
                 const year = today.getFullYear();
@@ -599,7 +623,8 @@ function Esteira() {
                       temaText: temaTextFinal,
                       dataText: dataTextFinal,
                       blocoText: blocoTextFinal,
-                      currentPhase,
+                      reagendamentosText: reagendamentosTextFinal,
+                      currentPhase: currentPhaseFinal,
                       dataFinalizacao,
                       // Se o treinador esquecer de preencher a data de entrada
                       // (esse campo não existe neste formulário), assume hoje —
@@ -675,6 +700,7 @@ function Esteira() {
                 setNomeEmpresa("");
                 setTemaText("");
                 setDataText("");
+                setReagendamentosText("");
                 setCurrentPhase(0);
                 setTemaGol("");
                 setBlocoText("");
@@ -822,7 +848,10 @@ function Esteira() {
               max={Math.max(0, temas.length - 1)}
               value={currentPhase}
               onChange={(e) => setCurrentPhase(Number(e.target.value))}
-              disabled={!isTreinador}
+              disabled={
+                !isTreinador ||
+                !!empresaSelecionada?.conclusaoUnilateralCapacitacao
+              }
             />
 
             <button
@@ -923,8 +952,14 @@ function Esteira() {
           <path d={pathD} fill="none" stroke="white" strokeWidth={4} />
 
           {pontos.map((ponto, i) => {
-            const isActive = i === currentPhase;
             const item = temas[i];
+            const isUnilateral = !!(
+              item &&
+              empresaSelecionada?.temasConcluidosUnilateralmente?.includes(
+                item.tema,
+              )
+            );
+            const isActive = i === currentPhase && !isUnilateral;
             const isGol = !!temaGol && item?.tema?.trim() === temaGol.trim();
 
             return (
@@ -942,7 +977,11 @@ function Esteira() {
                   <g className="active-marker">
                     <text
                       x={ponto.x}
-                      y={item.data ? ponto.y - 80 : ponto.y - 40}
+                      y={
+                        item.data || item.reagendamentos > 0
+                          ? ponto.y - 94
+                          : ponto.y - 54
+                      }
                       textAnchor="middle"
                       className="active-badge"
                     >
@@ -961,7 +1000,13 @@ function Esteira() {
                   cx={ponto.x}
                   cy={ponto.y}
                   r={isActive ? 16 : 12}
-                  className={isActive ? "active-circle" : ""}
+                  className={
+                    isUnilateral
+                      ? "tema-unilateral-circle"
+                      : isActive
+                        ? "active-circle"
+                        : ""
+                  }
                   strokeWidth={isActive ? 4 : 4}
                 />
 
@@ -987,11 +1032,23 @@ function Esteira() {
                   </text>
                 )}
 
+                {item && item.reagendamentos > 0 && (
+                  <text
+                    x={ponto.x}
+                    y={ponto.y - (item.data ? 64 : 44)}
+                    textAnchor="middle"
+                    className="tema-reagendamentos"
+                  >
+                    (Reagendado {item.reagendamentos}{" "}
+                    {item.reagendamentos === 1 ? "vez" : "vezes"})
+                  </text>
+                )}
+
                 <text
                   x={ponto.x}
                   y={ponto.y + 50}
                   textAnchor="middle"
-                  className="temas"
+                  className={`temas${isUnilateral ? " tema-unilateral" : ""}`}
                 >
                   {quebrarTexto(item?.tema || "").map((linha, idx) => (
                     <tspan key={idx} x={ponto.x} dy={idx === 0 ? 0 : 24}>
@@ -1023,10 +1080,12 @@ function Esteira() {
           temaText={temaText}
           dataText={dataText}
           blocoText={blocoText}
+          reagendamentosText={reagendamentosText}
           onChange={(textos) => {
             setTemaText(textos.temaText);
             setDataText(textos.dataText);
             setBlocoText(textos.blocoText);
+            setReagendamentosText(textos.reagendamentosText);
           }}
           cadenciaDiasTreinamento={cadenciaDiasTreinamento}
           disabled={!isTreinador}

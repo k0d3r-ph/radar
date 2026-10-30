@@ -30,6 +30,19 @@ test('remove linhas vazias preservando datas e índices de temas fora de sequên
   assert.equal(resultado.ultimoIndice, 1);
 });
 
+test('mantém contagens de reagendamento associadas aos temas reordenados', () => {
+  const resultado = reordenarTemasEnsinados(
+    ['Início', 'Relatórios', 'Regras', 'Conclusão'],
+    ['01/10', '', '', ''],
+    [2],
+    '05/10',
+    0,
+    [0, 3, 5, 1],
+  );
+  assert.deepEqual(resultado.newTemas, ['Início', 'Regras', 'Relatórios', 'Conclusão']);
+  assert.deepEqual(resultado.newReagendamentos, [0, 5, 3, 1]);
+});
+
 test('esteira vazia não tem fase concluída', () => {
   const resultado = reordenarTemasEnsinados(['', ' '], ['', ''], [], '05/10');
   assert.deepEqual(resultado.newTemas, []);

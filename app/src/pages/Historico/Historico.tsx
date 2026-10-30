@@ -4,8 +4,15 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import "./CsatReservas.css";
-import { requisicaoCsat, linkCsat, editarRespostaCsat, editarRespostaCsatNota, buscarLinkCsatDaOcorrencia, gerarLinkCsatDaOcorrencia } from "../../services/csat";
-import { copiarTexto } from '../../utils/clipboard';
+import {
+  requisicaoCsat,
+  linkCsat,
+  editarRespostaCsat,
+  editarRespostaCsatNota,
+  buscarLinkCsatDaOcorrencia,
+  gerarLinkCsatDaOcorrencia,
+} from "../../services/csat";
+import { copiarTexto } from "../../utils/clipboard";
 import type { ReservaCsat } from "../../services/csat";
 import { GerarCsatModal } from "./GerarCsatModal";
 import * as XLSX from "xlsx";
@@ -51,14 +58,29 @@ import {
   TIPOS_PADRAO_SISTEMA,
 } from "../../services/temasOcorrencia";
 import { generateEsteiraImage } from "../../utils/generateEsteiraImage";
-import { obterDataRealizacaoTreinamento, obterInstanteRealizacaoTreinamento } from "../../utils/dataTreinamento";
+import {
+  obterDataRealizacaoTreinamento,
+  obterInstanteRealizacaoTreinamento,
+} from "../../utils/dataTreinamento";
 import { GestaoNotificacaoModal } from "../../components/GestaoNotificacaoModal";
 import { ConfirmarDescarteModal } from "../../components/ConfirmarDescarteModal";
 import { ConfirmarNovoFollowUpModal } from "../../components/ConfirmarNovoFollowUpModal";
 import { MotivoEsperaTreinamentoModal } from "../../components/MotivoEsperaTreinamentoModal";
-import { bloquearTreinamentoSuspenso, exigeClienteAtivoParaTreinamento, MENSAGEM_TREINAMENTO_SUSPENSO } from "../../utils/registroTreinamento";
-import { avaliarMotivoEsperaTreinamento, descreverMotivoEsperaTreinamento, motivoEsperaValido } from "../../utils/esperaTreinamento";
+import {
+  bloquearTreinamentoSuspenso,
+  exigeClienteAtivoParaTreinamento,
+  MENSAGEM_TREINAMENTO_SUSPENSO,
+} from "../../utils/registroTreinamento";
+import {
+  avaliarMotivoEsperaTreinamento,
+  descreverMotivoEsperaTreinamento,
+  motivoEsperaValido,
+} from "../../utils/esperaTreinamento";
 import { camposResultadoConclusao } from "../../utils/notificacaoConclusao";
+import {
+  descontoSuporteJaProcessado,
+  deveRemoverDescontoSuporte,
+} from "../../utils/gamificacaoSuporte";
 
 import {
   salvarLancamentoPonto,
@@ -350,11 +372,15 @@ function obterUltimoFollowUpFinal(
 ): Ocorrencia | undefined {
   const nome = empresaNome.trim().toLowerCase();
   const registros = historico.filter(
-    (item) => item.empresa.trim().toLowerCase() === nome && item.tipo === "Follow up final",
+    (item) =>
+      item.empresa.trim().toLowerCase() === nome &&
+      item.tipo === "Follow up final",
   );
   if (!registros.length) return undefined;
   return registros.sort(
-    (a, b) => (b.dataOcorrencia || b.createdAt || 0) - (a.dataOcorrencia || a.createdAt || 0),
+    (a, b) =>
+      (b.dataOcorrencia || b.createdAt || 0) -
+      (a.dataOcorrencia || a.createdAt || 0),
   )[0];
 }
 
@@ -391,7 +417,15 @@ const EMPTY: OcorrenciaForm = {
   followUpStatusContato: "",
   followUpProximaAcao: "",
   followUpEncaminharSuporte: false,
+  conclusaoUnilateralCapacitacao: false,
 };
+
+const FORMATAR_DATA_BRASILIA = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/Sao_Paulo",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
 
 interface ScoreFormAnswers {
   entraComputador: "Sim" | "Não" | "";
@@ -559,7 +593,8 @@ export function Historico() {
   const [modalCsatAberto, setModalCsatAberto] = useState(false);
   const [erroGerarCsat, setErroGerarCsat] = useState("");
   const [erroReservasCsat, setErroReservasCsat] = useState("");
-  const [carregandoLinkCsatOcorrencia, setCarregandoLinkCsatOcorrencia] = useState(false);
+  const [carregandoLinkCsatOcorrencia, setCarregandoLinkCsatOcorrencia] =
+    useState(false);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [modalScoreAberto, setModalScoreAberto] = useState(false);
@@ -777,7 +812,9 @@ export function Historico() {
   const [editingUpdateIdx, setEditingUpdateIdx] = useState<number | null>(null);
   const [editingUpdateText, setEditingUpdateText] = useState("");
   const [editingCsatIdx, setEditingCsatIdx] = useState<number | null>(null);
-  const [editingCsatExperiencia, setEditingCsatExperiencia] = useState<"Bom" | "Ruim">("Bom");
+  const [editingCsatExperiencia, setEditingCsatExperiencia] = useState<
+    "Bom" | "Ruim"
+  >("Bom");
   /** >0 enquanto edita uma resposta no modelo de estrelas; 0 usa o modelo antigo (Bom/Ruim) via editingCsatExperiencia. */
   const [editingCsatNota, setEditingCsatNota] = useState(0);
   const [editingCsatOpiniao, setEditingCsatOpiniao] = useState("");
@@ -805,7 +842,9 @@ export function Historico() {
   const [filtroAssuntoDuvida, setFiltroAssuntoDuvida] = useState(
     () => searchParams.get("assuntoDuvida") || "",
   );
-  const [filtroFavoritas, setFiltroFavoritas] = useState(() => searchParams.get("favoritas") === "1");
+  const [filtroFavoritas, setFiltroFavoritas] = useState(
+    () => searchParams.get("favoritas") === "1",
+  );
   const [salvandoFavorita, setSalvandoFavorita] = useState(false);
   const [filtroDepto, setFiltroDepto] = useState(
     () => searchParams.get("depto") || "",
@@ -820,14 +859,23 @@ export function Historico() {
   const [loading, setLoading] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const salvarEmAndamentoRef = useRef(false);
-  const [diasConfirmacaoEspera, setDiasConfirmacaoEspera] = useState<number | null>(null);
-  const respostaEsperaRef = useRef<((motivo: MotivoEsperaTreinamento | null) => void) | null>(null);
-  useEffect(() => () => {
-    respostaEsperaRef.current?.(null);
-    respostaEsperaRef.current = null;
-  }, []);
+  const [diasConfirmacaoEspera, setDiasConfirmacaoEspera] = useState<
+    number | null
+  >(null);
+  const respostaEsperaRef = useRef<
+    ((motivo: MotivoEsperaTreinamento | null) => void) | null
+  >(null);
+  useEffect(
+    () => () => {
+      respostaEsperaRef.current?.(null);
+      respostaEsperaRef.current = null;
+    },
+    [],
+  );
 
-  function perguntarMotivoEspera(dias: number): Promise<MotivoEsperaTreinamento | null> {
+  function perguntarMotivoEspera(
+    dias: number,
+  ): Promise<MotivoEsperaTreinamento | null> {
     if (respostaEsperaRef.current) return Promise.resolve(null);
     return new Promise((resolve) => {
       respostaEsperaRef.current = resolve;
@@ -925,16 +973,22 @@ export function Historico() {
   const templateTreinamentoAtual = montarTemplateTreinamento(
     nomesParticipantesReserva || undefined,
   );
-  function reservaDeClienteSuspenso(reserva: Pick<ReservaCsat, "empresa" | "empresaId">) {
-    return empresasList.some((e) => (reserva.empresaId ? e.id === reserva.empresaId : normalizar(e.nomeEmpresa) === normalizar(reserva.empresa)) && e.isSuspended);
+  function reservaDeClienteSuspenso(
+    reserva: Pick<ReservaCsat, "empresa" | "empresaId">,
+  ) {
+    return empresasList.some(
+      (e) =>
+        (reserva.empresaId
+          ? e.id === reserva.empresaId
+          : normalizar(e.nomeEmpresa) === normalizar(reserva.empresa)) &&
+        e.isSuspended,
+    );
   }
-  const ultimaReservaCsat = reservasCsat.filter((r) => !reservaDeClienteSuspenso(r)).reduce<ReservaCsat | undefined>(
-    (ultima, reserva) =>
-      !ultima || (reserva.createdAt || 0) > (ultima.createdAt || 0)
-        ? reserva
-        : ultima,
-    undefined,
-  );
+  const ultimaReservaCsat = reservasCsat
+    .filter((r) => !reservaDeClienteSuspenso(r))
+    .reduce<
+      ReservaCsat | undefined
+    >((ultima, reserva) => (!ultima || (reserva.createdAt || 0) > (ultima.createdAt || 0) ? reserva : ultima), undefined);
   function registrarUltimoCsat() {
     if (!ultimaReservaCsat) return;
     setErroGerarCsat("");
@@ -961,13 +1015,10 @@ export function Historico() {
       return;
     }
     if (carregandoReservasCsat || erroReservasCsat) return;
-    const empresa = empresasList.find(
-      (e) => e.id === empresaId,
-    );
+    const empresa = empresasList.find((e) => e.id === empresaId);
     setErroGerarCsat("");
     if (!empresa?.id) {
-      const mensagem =
-        "Selecione um cliente cadastrado para gerar o link.";
+      const mensagem = "Selecione um cliente cadastrado para gerar o link.";
       setErroGerarCsat(mensagem);
       toast.error(mensagem);
       return;
@@ -987,14 +1038,19 @@ export function Historico() {
       setModalCsatAberto(false);
       const copiado = await copiarTexto(linkCsat(reserva.token));
       toast.success(
-        `Link gerado${copiado ? ' e copiado' : ''}. Ocorrência ${reserva.idSeqFormatted} reservada.`,
+        `Link gerado${copiado ? " e copiado" : ""}. Ocorrência ${reserva.idSeqFormatted} reservada.`,
       );
-      if (!copiado) toast.warning('O navegador não permitiu copiar automaticamente. Use “Copiar link” ou selecione o endereço no campo do CSAT.');
+      if (!copiado)
+        toast.warning(
+          "O navegador não permitiu copiar automaticamente. Use “Copiar link” ou selecione o endereço no campo do CSAT.",
+        );
       // Uma falha ao atualizar os cadastros não invalida o link já criado.
       try {
         setEmpresasList(await listarEmpresas(true));
       } catch {
-        toast.warning("O link foi gerado, mas os cadastros não foram atualizados. Atualize a página antes de registrar a ocorrência.");
+        toast.warning(
+          "O link foi gerado, mas os cadastros não foram atualizados. Atualize a página antes de registrar a ocorrência.",
+        );
       }
     } catch (error) {
       const mensagem =
@@ -1005,7 +1061,11 @@ export function Historico() {
       toast.error(mensagem);
       // Recupera também uma reserva criada em outra aba enquanto esta tela estava aberta.
       try {
-        const reservas = await requisicaoCsat("reservas", undefined, true) as ReservaCsat[];
+        const reservas = (await requisicaoCsat(
+          "reservas",
+          undefined,
+          true,
+        )) as ReservaCsat[];
         setReservasCsat(reservas);
         if (reservas.length > 0) setModalCsatAberto(false);
       } catch {
@@ -1017,7 +1077,8 @@ export function Historico() {
   }
   /** Copia o link do CSAT já existente da ocorrência ou, se ainda não houver, gera um novo a partir dela. */
   async function gerarOuCopiarLinkCsatDaOcorrencia() {
-    if (!selecionada?.id || !isTreinador || carregandoLinkCsatOcorrencia) return;
+    if (!selecionada?.id || !isTreinador || carregandoLinkCsatOcorrencia)
+      return;
     setCarregandoLinkCsatOcorrencia(true);
     try {
       const existente = selecionada.csatReservaId
@@ -1027,24 +1088,37 @@ export function Historico() {
         ? existente
         : await gerarLinkCsatDaOcorrencia(selecionada.id);
       if (!resultado.token) {
-        toast.error("Não foi possível localizar o link do CSAT desta ocorrência.");
+        toast.error(
+          "Não foi possível localizar o link do CSAT desta ocorrência.",
+        );
         return;
       }
       const copiado = await copiarTexto(linkCsat(resultado.token));
       if (!selecionada.csatReservaId) {
-        const reservaId = "reservaId" in resultado ? resultado.reservaId : selecionada.id;
-        setSelecionada((prev) => (prev ? { ...prev, csatReservaId: reservaId } : prev));
+        const reservaId =
+          "reservaId" in resultado ? resultado.reservaId : selecionada.id;
+        setSelecionada((prev) =>
+          prev ? { ...prev, csatReservaId: reservaId } : prev,
+        );
         setOcorrencias((lista) =>
-          lista.map((o) => (o.id === selecionada.id ? { ...o, csatReservaId: reservaId } : o)),
+          lista.map((o) =>
+            o.id === selecionada.id ? { ...o, csatReservaId: reservaId } : o,
+          ),
         );
       }
       toast.success(
         copiado
-          ? (existente.token ? "Link do CSAT copiado!" : "Link do CSAT gerado e copiado!")
+          ? existente.token
+            ? "Link do CSAT copiado!"
+            : "Link do CSAT gerado e copiado!"
           : "Link do CSAT pronto, mas o navegador não permitiu copiar automaticamente. Copie manualmente.",
       );
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Não foi possível obter o link do CSAT.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível obter o link do CSAT.",
+      );
     } finally {
       setCarregandoLinkCsatOcorrencia(false);
     }
@@ -1398,19 +1472,20 @@ export function Historico() {
     if (!selecionada?.id) return;
     setSalvando(true);
     try {
-      const dados = editingCsatNota > 0
-        ? await editarRespostaCsatNota(
-            selecionada.id,
-            index,
-            editingCsatNota,
-            editingCsatOpiniao.trim(),
-          )
-        : await editarRespostaCsat(
-            selecionada.id,
-            index,
-            editingCsatExperiencia,
-            editingCsatOpiniao.trim(),
-          );
+      const dados =
+        editingCsatNota > 0
+          ? await editarRespostaCsatNota(
+              selecionada.id,
+              index,
+              editingCsatNota,
+              editingCsatOpiniao.trim(),
+            )
+          : await editarRespostaCsat(
+              selecionada.id,
+              index,
+              editingCsatExperiencia,
+              editingCsatOpiniao.trim(),
+            );
       setSelecionada({
         ...selecionada,
         csatRespostas: dados.csatRespostas,
@@ -1480,6 +1555,7 @@ export function Historico() {
       const next = { ...f, [campo]: valor };
       if (campo === "empresa") {
         next.temaOcorrencia = [];
+        next.conclusaoUnilateralCapacitacao = false;
         setTemasRevisados([]);
         setIsRevisao(false);
         setTemaOcorrenciaOngoingText("");
@@ -1505,12 +1581,18 @@ export function Historico() {
         next.followUpProximaAcao = "";
         next.followUpEncaminharSuporte = false;
       }
+      if (campo === "tipo" && valor !== "Informativa") {
+        next.conclusaoUnilateralCapacitacao = false;
+      }
       return next;
     });
   }
 
   function abrirNovo() {
-    origemPainelRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    origemPainelRef.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
     const deptos = getAllowedDepartments();
     const deptoPadrao = deptos.length === 1 ? deptos[0] : "";
     const novoForm = {
@@ -1536,18 +1618,33 @@ export function Historico() {
   }
 
   function abrirValidacao(nomeEmpresa: string) {
-    const empresa = empresasList.find((e) => normalizar(e.nomeEmpresa) === normalizar(nomeEmpresa));
-    navigate(empresa?.id ? `/validacao-conhecimento?empresa=${encodeURIComponent(empresa.id)}` : "/validacao-conhecimento");
+    const empresa = empresasList.find(
+      (e) => normalizar(e.nomeEmpresa) === normalizar(nomeEmpresa),
+    );
+    navigate(
+      empresa?.id
+        ? `/validacao-conhecimento?empresa=${encodeURIComponent(empresa.id)}`
+        : "/validacao-conhecimento",
+    );
   }
 
   function abrirEdicao(o: Ocorrencia) {
     if (o.validacaoTentativaId) {
-      toast.info('Esta ocorrência registra uma tentativa concluída da Validação do conhecimento e não pode ser editada aqui.', {
-        action: { label: 'Abrir validação', onClick: () => abrirValidacao(o.empresa) },
-      });
+      toast.info(
+        "Esta ocorrência registra uma tentativa concluída da Validação do conhecimento e não pode ser editada aqui.",
+        {
+          action: {
+            label: "Abrir validação",
+            onClick: () => abrirValidacao(o.empresa),
+          },
+        },
+      );
       return;
     }
-    origemPainelRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    origemPainelRef.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
     const treinamento = lerTemasTreinamento(
       o.temaOcorrencia ?? [],
       o.isRevisao,
@@ -1602,7 +1699,9 @@ export function Historico() {
       alertaOriginalId: o.alertaOriginalId || "",
       gamificacaoPontoId: o.gamificacaoPontoId || "",
       treinamentoDataSolicitacao: o.treinamentoDataSolicitacao || "",
-      treinamentoMotivoEspera: motivoEsperaValido(o.treinamentoMotivoEspera) ? o.treinamentoMotivoEspera : null,
+      treinamentoMotivoEspera: motivoEsperaValido(o.treinamentoMotivoEspera)
+        ? o.treinamentoMotivoEspera
+        : null,
       treinamentoTempoAgenda: o.treinamentoTempoAgenda || "",
       treinamentoSolicitante: o.treinamentoSolicitante || "CS",
       treinamentoNotas: o.treinamentoNotas
@@ -1621,6 +1720,7 @@ export function Historico() {
       followUpStatusContato: o.followUpStatusContato ?? "",
       followUpProximaAcao: o.followUpProximaAcao ?? "",
       followUpEncaminharSuporte: o.followUpEncaminharSuporte ?? false,
+      conclusaoUnilateralCapacitacao: o.conclusaoUnilateralCapacitacao ?? false,
     };
     setForm(formEdicao);
     formSnapshotRef.current = JSON.stringify(formEdicao);
@@ -1660,7 +1760,9 @@ export function Historico() {
     setNovaDuvidaTemaHistorico("");
     setIsRevisao(false);
     setTemaForaEsteira(false);
-    const destinoFoco = origemPainelRef.current?.isConnected ? origemPainelRef.current : novaOcorrenciaRef.current;
+    const destinoFoco = origemPainelRef.current?.isConnected
+      ? origemPainelRef.current
+      : novaOcorrenciaRef.current;
     destinoFoco?.focus({ preventScroll: true });
   }
 
@@ -1675,7 +1777,11 @@ export function Historico() {
       await salvarFormulario();
     } catch (error) {
       console.error("Erro ao salvar ocorrência:", error);
-      toast.error(error instanceof Error ? error.message : "Não foi possível salvar a ocorrência. Tente novamente.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível salvar a ocorrência. Tente novamente.",
+      );
     } finally {
       salvarEmAndamentoRef.current = false;
       setSalvando(false);
@@ -1698,8 +1804,15 @@ export function Historico() {
       editandoId ? form.responsavel : userName,
     );
 
-    if (form.tipo === 'Treinamento' && (form.temaOcorrencia ?? []).some(t => normalizar(t) === normalizar('Validação do conhecimento'))) {
-      toast.error('Registre este tema pelo módulo Validação do conhecimento. A esteira avança apenas após aprovação na avaliação.');
+    if (
+      form.tipo === "Treinamento" &&
+      (form.temaOcorrencia ?? []).some(
+        (t) => normalizar(t) === normalizar("Validação do conhecimento"),
+      )
+    ) {
+      toast.error(
+        "Registre este tema pelo módulo Validação do conhecimento. A esteira avança apenas após aprovação na avaliação.",
+      );
       return;
     }
 
@@ -1721,10 +1834,22 @@ export function Historico() {
       ? ocorrencias.find((o) => o.id === editandoId) || reservaEditando
       : null;
     const origemTreinamento = reservaEditando ? null : ocorrenciaOriginal;
+    const concluirUnilateralmente =
+      !editandoId &&
+      !reservaEditando &&
+      (role === "master" || role === "cs") &&
+      form.tipo === "Informativa" &&
+      form.conclusaoUnilateralCapacitacao === true;
 
     if (!empresaObjeto) {
       toast.error(
         "A empresa especificada não foi encontrada. Selecione uma empresa cadastrada válida.",
+      );
+      return;
+    }
+    if (concluirUnilateralmente && !empresaObjeto.id) {
+      toast.error(
+        "Selecione um cadastro válido para concluir a capacitação unilateralmente.",
       );
       return;
     }
@@ -1894,19 +2019,30 @@ export function Historico() {
         : "";
 
     const avaliacaoEspera = avaliarMotivoEsperaTreinamento({
-      tipo: form.tipo, temas: form.temaOcorrencia,
-      solicitacao: form.treinamentoDataSolicitacao, realizacao: dataRealizacaoStr,
+      tipo: form.tipo,
+      temas: form.temaOcorrencia,
+      solicitacao: form.treinamentoDataSolicitacao,
+      realizacao: dataRealizacaoStr,
       motivo: form.treinamentoMotivoEspera,
     });
-    if (form.tipo === "Treinamento" && !CanceladoOuAusente && avaliacaoEspera.dias === null) {
-      toast.error("Confira as datas: a solicitação deve ser válida e não pode ser posterior à realização do treinamento.");
+    if (
+      form.tipo === "Treinamento" &&
+      !CanceladoOuAusente &&
+      avaliacaoEspera.dias === null
+    ) {
+      toast.error(
+        "Confira as datas: a solicitação deve ser válida e não pode ser posterior à realização do treinamento.",
+      );
       return;
     }
     let motivoEspera = avaliacaoEspera.motivo;
     if (avaliacaoEspera.precisaConfirmar && avaliacaoEspera.dias !== null) {
       motivoEspera = await perguntarMotivoEspera(avaliacaoEspera.dias);
       if (!motivoEsperaValido(motivoEspera)) return;
-      setForm((anterior) => ({ ...anterior, treinamentoMotivoEspera: motivoEspera }));
+      setForm((anterior) => ({
+        ...anterior,
+        treinamentoMotivoEspera: motivoEspera,
+      }));
     }
 
     const base: Ocorrencia = {
@@ -1931,6 +2067,10 @@ export function Historico() {
       temaOcorrencia: temaOcorrenciaFinal,
       isRevisao:
         form.tipo === "Treinamento" ? treinamento.isRevisao : undefined,
+      conclusaoUnilateralCapacitacao:
+        concluirUnilateralmente ||
+        ocorrenciaOriginal?.conclusaoUnilateralCapacitacao ||
+        undefined,
       temaForaEsteira:
         form.tipo === "Treinamento" ? temaForaEsteira : undefined,
       csatSuporte:
@@ -1991,12 +2131,17 @@ export function Historico() {
 
     if (exigeClienteAtivoParaTreinamento(form, origemTreinamento)) {
       if (!empresaObjeto.id) {
-        toast.error("Selecione um cliente cadastrado válido para registrar o treinamento.");
+        toast.error(
+          "Selecione um cliente cadastrado válido para registrar o treinamento.",
+        );
         return;
       }
       // Confere o cadastro atual antes de qualquer ponto, cálculo ou notificação.
       setSalvando(true);
-      await validarClienteParaNovoTreinamento(empresaObjeto.id, empresaObjeto.nomeEmpresa);
+      await validarClienteParaNovoTreinamento(
+        empresaObjeto.id,
+        empresaObjeto.nomeEmpresa,
+      );
     }
     setSalvando(true);
 
@@ -2110,6 +2255,23 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
     // para os dois nunca ficarem dessincronizados se um dos dois falhar. A conclusão de
     // reserva CSAT (reservaEditando) continua tratada à parte, pelo endpoint do servidor.
     let acaoLancamentoPonto: AcaoLancamentoPonto | undefined;
+    const descontoSuporteJaTratado =
+      descontoSuporteJaProcessado(ocorrenciaOriginal);
+    const qualificaParaDescontoSuporte =
+      !empresaInterna &&
+      !!empresaObjeto?.gamificacaoDeducaoSuporte?.ativo &&
+      !!empresaObjeto.responsavel &&
+      form.departamento === "Suporte" &&
+      (form.tipo === "Dúvida" ||
+        form.tipo === "Problema" ||
+        form.tipo === "Solicitação");
+    const removerDescontoSuporteId = deveRemoverDescontoSuporte(
+      ocorrenciaOriginal,
+      form.tipo,
+      qualificaParaDescontoSuporte,
+    )
+      ? ocorrenciaOriginal?.gamificacaoDescontoPontoId
+      : undefined;
 
     if (form.tipo === "Treinamento" && user?.uid) {
       const isZeroPoints = (form.temaOcorrencia ?? []).some(
@@ -2183,7 +2345,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
       const dadosComData = {
         ...lancamentoDados,
-        ...(finalCreatedAt !== undefined ? { dataLancamento: finalCreatedAt } : {}),
+        ...(finalCreatedAt !== undefined
+          ? { dataLancamento: finalCreatedAt }
+          : {}),
       };
 
       if (reservaEditando) {
@@ -2215,11 +2379,24 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         }
         base.gamificacaoPontoId = "";
       } else {
-        acaoLancamentoPonto = { acao: "remover", id: ocorrenciaOriginal.gamificacaoPontoId };
+        acaoLancamentoPonto = {
+          acao: "remover",
+          id: ocorrenciaOriginal.gamificacaoPontoId,
+        };
       }
     }
 
     let savedId: string;
+    const opcoesConclusaoUnilateral =
+      concluirUnilateralmente && empresaObjeto.id
+        ? {
+            empresaId: empresaObjeto.id,
+            dataFinalizacao:
+              role === "master" && form.createdAt
+                ? form.createdAt
+                : FORMATAR_DATA_BRASILIA.format(Date.now()),
+          }
+        : undefined;
     try {
       if (reservaEditando) {
         savedId = (
@@ -2234,8 +2411,20 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
           editandoId ? { ...base, id: editandoId } : base,
           {
             empresaId: empresaObjeto.id,
-            ...(editandoId ? { updatedAtEsperado: ocorrenciaOriginal?.updatedAt } : {}),
-            ...(acaoLancamentoPonto ? { lancamentoPonto: acaoLancamentoPonto } : {}),
+            ...(editandoId
+              ? { updatedAtEsperado: ocorrenciaOriginal?.updatedAt }
+              : {}),
+            ...(acaoLancamentoPonto
+              ? { lancamentoPonto: acaoLancamentoPonto }
+              : {}),
+            ...(!reservaEditando && removerDescontoSuporteId
+              ? { removerDescontoSuporteId }
+              : {}),
+            ...(opcoesConclusaoUnilateral
+              ? {
+                  concluirEsteiraUnilateralmente: opcoesConclusaoUnilateral,
+                }
+              : {}),
           },
         );
         savedId = resultado.id;
@@ -2401,7 +2590,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
           }
         } catch (error) {
           console.error("Erro ao aplicar redução temporária de score:", error);
-          toast.warning("Ocorrência salva, mas não foi possível atualizar a redução de score. Confira o score do cliente.");
+          toast.warning(
+            "Ocorrência salva, mas não foi possível atualizar a redução de score. Confira o score do cliente.",
+          );
         }
       }
     }
@@ -2434,7 +2625,8 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
           (24 * 60 * 60 * 1000);
         if (diffDias > LIMITE_DIAS_GAP_AGENDA) {
           try {
-            if (!empresaObjeto.id) throw new Error("Cliente sem identificador.");
+            if (!empresaObjeto.id)
+              throw new Error("Cliente sem identificador.");
             const quedaParaSafety = await aplicarReducaoScoreEmpresa(
               empresaObjeto.id,
               criarAjusteTemporarioScore(
@@ -2460,32 +2652,20 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               "Erro ao aplicar redução temporária de score (gap de agenda):",
               error,
             );
-            toast.warning("Ocorrência salva, mas não foi possível atualizar a redução de score pelo intervalo entre agendas. Confira o score do cliente.");
+            toast.warning(
+              "Ocorrência salva, mas não foi possível atualizar a redução de score pelo intervalo entre agendas. Confira o score do cliente.",
+            );
           }
         }
       }
     }
 
-    // Cliente marcado (Master-only, no cadastro) como elegível para dedução de pontos
-    // do treinador responsável quando entra em contato com o Suporte por Dúvida,
-    // Problema ou Solicitação. Reavaliado também na edição (comparando com
-    // `ocorrenciaOriginal`) para que corrigir o departamento/tipo depois de
-    // registrar a ocorrência não deixe de aplicar — ou devolva o ponto — o
-    // desconto; `jaTinhaDesconto` evita reaplicar duas vezes a mesma dedução.
-    const jaTinhaDesconto = !!ocorrenciaOriginal?.gamificacaoDescontoPontoId;
-    const qualificaParaDescontoSuporte =
-      !empresaInterna &&
-      !!empresaObjeto?.gamificacaoDeducaoSuporte?.ativo &&
-      !!empresaObjeto.responsavel &&
-      form.departamento === "Suporte" &&
-      (form.tipo === "Dúvida" ||
-        form.tipo === "Problema" ||
-        form.tipo === "Solicitação");
-
-    if (editandoId && jaTinhaDesconto && !qualificaParaDescontoSuporte) {
-      // Deixou de qualificar (ex.: corrigiram o departamento/tipo): devolve o ponto.
+    // A reserva CSAT é gravada pelo servidor, então a reversão do desconto é
+    // feita à parte nesse fluxo; ocorrências comuns removem o ponto na transação
+    // que atualiza a ocorrência.
+    if (reservaEditando && removerDescontoSuporteId) {
       try {
-        await removerLancamentoPonto(ocorrenciaOriginal!.gamificacaoDescontoPontoId!);
+        await removerLancamentoPonto(removerDescontoSuporteId);
         await salvarOcorrencia({
           id: savedId,
           gamificacaoDescontoPontoId: "",
@@ -2495,10 +2675,13 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
           "Erro ao reverter desconto de gamificação por contato com Suporte:",
           error,
         );
+        toast.warning(
+          "A ocorrência foi salva, mas não foi possível remover o desconto de gamificação. Atualize a página e tente novamente.",
+        );
       }
     }
 
-    if (qualificaParaDescontoSuporte && !jaTinhaDesconto) {
+    if (qualificaParaDescontoSuporte && !descontoSuporteJaTratado) {
       const chavePorTipo = {
         Dúvida: "duvida",
         Problema: "problema",
@@ -2824,9 +3007,15 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         const linhasData = (empresaObjeto.dataText || "")
           .split("\n")
           .map((l) => l.trim());
+        const linhasReagendamentos = (empresaObjeto.reagendamentosText || "")
+          .split("\n")
+          .map((valor) => Number(valor) || 0);
 
         // Garante que dataText tem o mesmo número de linhas que temaText
         while (linhasData.length < linhasTema.length) linhasData.push("");
+        while (linhasReagendamentos.length < linhasTema.length) {
+          linhasReagendamentos.push(0);
+        }
 
         // Formata data da ocorrência como dd/mm
         let dataStr = "";
@@ -2851,13 +3040,15 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         });
 
         if (indicesEnsinados.length > 0) {
-          const { newTemas, newDatas, ultimoIndice } = reordenarTemasEnsinados(
-            linhasTema,
-            linhasData,
-            indicesEnsinados,
-            dataStr,
-            empresaObjeto.currentPhase,
-          );
+          const { newTemas, newDatas, newReagendamentos, ultimoIndice } =
+            reordenarTemasEnsinados(
+              linhasTema,
+              linhasData,
+              indicesEnsinados,
+              dataStr,
+              empresaObjeto.currentPhase,
+              linhasReagendamentos,
+            );
           const novoTemaText = newTemas.join("\n");
           const novoDataText = newDatas.join("\n");
 
@@ -2876,6 +3067,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
           const alteracoesEsteira: Partial<Empresa> = {
             temaText: novoTemaText,
             dataText: novoDataText,
+            reagendamentosText: newReagendamentos.join("\n"),
             currentPhase: Math.max(
               empresaObjeto.currentPhase ?? 0,
               ultimoIndice,
@@ -2979,6 +3171,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         // Encontra o novo temaText e dataText (que foram atualizados logo acima)
         let novoTemaText = empresaObjeto.temaText;
         let novoDataText = empresaObjeto.dataText;
+        let novoReagendamentosText = empresaObjeto.reagendamentosText || "";
         let ultimoIndice = empresaObjeto.currentPhase ?? 0;
 
         const normTema = (s: string) =>
@@ -2993,7 +3186,13 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         const linhasData = (empresaObjeto.dataText || "")
           .split("\n")
           .map((l) => l.trim());
+        const linhasReagendamentos = (empresaObjeto.reagendamentosText || "")
+          .split("\n")
+          .map((valor) => Number(valor) || 0);
         while (linhasData.length < linhasTema.length) linhasData.push("");
+        while (linhasReagendamentos.length < linhasTema.length) {
+          linhasReagendamentos.push(0);
+        }
 
         let dataStr = "";
         if (dataRealizacaoStr) {
@@ -3021,10 +3220,12 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             indicesEnsinados,
             dataStr,
             empresaObjeto.currentPhase,
+            linhasReagendamentos,
           );
           ultimoIndice = reordenado.ultimoIndice;
           novoTemaText = reordenado.newTemas.join("\n");
           novoDataText = reordenado.newDatas.join("\n");
+          novoReagendamentosText = reordenado.newReagendamentos.join("\n");
         }
 
         const empresaAtualizada: Empresa = {
@@ -3046,6 +3247,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             : {}),
           temaText: novoTemaText,
           dataText: novoDataText,
+          reagendamentosText: novoReagendamentosText,
           currentPhase: Math.max(empresaObjeto.currentPhase ?? 0, ultimoIndice),
           updatedAt: Date.now(),
         };
@@ -3259,7 +3461,11 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
     return DEPARTAMENTO;
   };
 
-  const obterFiltradas = (ignoreTipo = false, ignoreDepto = false, ignoreAssuntoDuvida = false) => {
+  const obterFiltradas = (
+    ignoreTipo = false,
+    ignoreDepto = false,
+    ignoreAssuntoDuvida = false,
+  ) => {
     return ocorrencias.filter((o) => {
       const texto = busca.toLowerCase();
 
@@ -3338,7 +3544,8 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       const assuntoDuvidaOk =
         ignoreAssuntoDuvida ||
         !filtroAssuntoDuvida ||
-        (o.tipo === "Dúvida" && (o.temaOcorrencia ?? []).includes(filtroAssuntoDuvida));
+        (o.tipo === "Dúvida" &&
+          (o.temaOcorrencia ?? []).includes(filtroAssuntoDuvida));
 
       const timestamp = getOcorrenciaTimestamp(o);
       let dataOk = true;
@@ -3439,7 +3646,16 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
   // às ocorrências que também continham o assunto anteriormente selecionado.
   const filtradasSemAssuntoDuvida = useMemo(
     () => obterFiltradas(true, false, true),
-    [ocorrencias, busca, filtroDepto, dataInicio, dataFim, empresaFiltro, expedienteFiltro, filtroFavoritas],
+    [
+      ocorrencias,
+      busca,
+      filtroDepto,
+      dataInicio,
+      dataFim,
+      empresaFiltro,
+      expedienteFiltro,
+      filtroFavoritas,
+    ],
   );
 
   const selectedEmpresaObj = empresasList.find(
@@ -3449,7 +3665,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
   const treinamentoIndisponivel = bloquearTreinamentoSuspenso(
     selectedEmpresaObj,
     { tipo: "Treinamento", empresa: form.empresa },
-    editandoId && !reservaEditando ? ocorrencias.find((o) => o.id === editandoId) : null,
+    editandoId && !reservaEditando
+      ? ocorrencias.find((o) => o.id === editandoId)
+      : null,
   );
 
   const tipoChartData = useMemo(() => {
@@ -3532,7 +3750,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       .slice(0, 10);
   }, [filtradasSemTipo]);
 
-  function linkOcorrenciasDuvidas(filtro: { empresa?: string; assunto?: string }) {
+  function linkOcorrenciasDuvidas(filtro: {
+    empresa?: string;
+    assunto?: string;
+  }) {
     const params = new URLSearchParams();
     params.set("tipo", "Dúvida");
     const empresa = filtro.empresa ?? empresaFiltro;
@@ -3617,7 +3838,14 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               Registro e acompanhamento de ocorrências
             </p>
           </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", alignItems: "center" }}>
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: "12px",
+              alignItems: "center",
+            }}
+          >
             {empresaFiltro && (
               <button
                 className="btn-secondary"
@@ -3678,7 +3906,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               className={`btn-secondary btn-dashboard-toggle ${dashboardAberto ? "active" : ""}`}
               onClick={() => setDashboardAberto((prev) => !prev)}
               style={{
-                background: dashboardAberto ? "var(--lt-fundo-475569, #475569)" : "var(--lt-fundo-0f2a5e, #0f2a5e)",
+                background: dashboardAberto
+                  ? "var(--lt-fundo-475569, #475569)"
+                  : "var(--lt-fundo-0f2a5e, #0f2a5e)",
               }}
             >
               📊 {dashboardAberto ? "Ocultar Dashboard" : "Mostrar Dashboard"}
@@ -3692,7 +3922,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 }
               }}
               style={{
-                background: painelIaAberto ? "var(--lt-fundo-4c1d95, #4c1d95)" : "var(--lt-fundo-2e1065, #2e1065)",
+                background: painelIaAberto
+                  ? "var(--lt-fundo-4c1d95, #4c1d95)"
+                  : "var(--lt-fundo-2e1065, #2e1065)",
               }}
             >
               ✨ {painelIaAberto ? "Fechar Resumo IA" : "Resumir com IA"}
@@ -3705,7 +3937,11 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             >
               📥 Exportar Excel
             </button>
-            <button ref={novaOcorrenciaRef} className="btn-primary hist-btn-novo" onClick={abrirNovo}>
+            <button
+              ref={novaOcorrenciaRef}
+              className="btn-primary hist-btn-novo"
+              onClick={abrirNovo}
+            >
               + Nova ocorrência
             </button>
             {isTreinador && (
@@ -3714,7 +3950,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 className="btn-primary"
                 disabled={
                   (gerandoCsat && !ultimaReservaCsat) ||
-                  (!ultimaReservaCsat && loading && empresasList.length === 0) ||
+                  (!ultimaReservaCsat &&
+                    loading &&
+                    empresasList.length === 0) ||
                   carregandoReservasCsat ||
                   !!erroReservasCsat
                 }
@@ -3737,7 +3975,11 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       {isTreinador && modalCsatAberto && (
         <GerarCsatModal
           empresas={empresasList}
-          empresaInicialId={empresasList.find((e) => normalizar(e.nomeEmpresa) === normalizar(empresaFiltro))?.id}
+          empresaInicialId={
+            empresasList.find(
+              (e) => normalizar(e.nomeEmpresa) === normalizar(empresaFiltro),
+            )?.id
+          }
           gerando={gerandoCsat}
           erro={erroGerarCsat}
           onGerar={gerarCsat}
@@ -3760,71 +4002,73 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         <p role="alert">Reservas CSAT: {erroReservasCsat}</p>
       )}
       {isTreinador && reservasCsat.length > 0 && (
-          <section
-            className="hist-csat-reservas"
-            aria-label="Minhas ocorrências reservadas para CSAT"
-          >
-            <h2>Minhas ocorrências reservadas para CSAT</h2>
-            <p>
-              Clique no ID para registrar o restante da ocorrência. Compartilhe
-              o link com os participantes.
-            </p>
-            {reservasCsat
-              .map((reserva) => (
-                <div key={reserva.id} className="hist-csat-reserva">
-                  <button
-                    className="btn-secondary"
-                    disabled={reservaDeClienteSuspenso(reserva)}
-                    title={reservaDeClienteSuspenso(reserva) ? MENSAGEM_TREINAMENTO_SUSPENSO : undefined}
-                    onClick={() =>
-                      abrirEdicao({
-                        ...reserva,
-                        treinamentoResultados: reserva.respostas.map(
-                          (r) => r.experiencia,
-                        ),
-                      })
-                    }
-                  >
-                    {reserva.idSeqFormatted}
-                  </button>
-                  <span>
-                    {reserva.empresa} · {reserva.respostas.length}{" "}
-                    avaliação(ões)
-                    {reservaDeClienteSuspenso(reserva) ? " · Cliente suspenso: registro pausado" : ""}
-                  </span>
-                  <input
-                    aria-label={`Link CSAT ${reserva.idSeqFormatted}`}
-                    readOnly
-                    value={linkCsat(reserva.token)}
-                    onFocus={(e) => e.target.select()}
-                  />
-                  <button
-                    className="btn-secondary"
-                    onClick={async () => {
-                      if (await copiarTexto(linkCsat(reserva.token))) {
-                        toast.success("Link copiado.");
-                      } else {
-                        toast.error(
-                          "Selecione e copie o link no campo ao lado.",
-                        );
-                      }
-                    }}
-                  >
-                    Copiar link
-                  </button>
-                  {reserva.respostas.map((r, index) => (
-                    <p key={index}>
-                      {r.nome}: {r.experiencia}
-                      {r.opiniao && ` — ${r.opiniao}`}
-                    </p>
-                  ))}
-                </div>
+        <section
+          className="hist-csat-reservas"
+          aria-label="Minhas ocorrências reservadas para CSAT"
+        >
+          <h2>Minhas ocorrências reservadas para CSAT</h2>
+          <p>
+            Clique no ID para registrar o restante da ocorrência. Compartilhe o
+            link com os participantes.
+          </p>
+          {reservasCsat.map((reserva) => (
+            <div key={reserva.id} className="hist-csat-reserva">
+              <button
+                className="btn-secondary"
+                disabled={reservaDeClienteSuspenso(reserva)}
+                title={
+                  reservaDeClienteSuspenso(reserva)
+                    ? MENSAGEM_TREINAMENTO_SUSPENSO
+                    : undefined
+                }
+                onClick={() =>
+                  abrirEdicao({
+                    ...reserva,
+                    treinamentoResultados: reserva.respostas.map(
+                      (r) => r.experiencia,
+                    ),
+                  })
+                }
+              >
+                {reserva.idSeqFormatted}
+              </button>
+              <span>
+                {reserva.empresa} · {reserva.respostas.length} avaliação(ões)
+                {reservaDeClienteSuspenso(reserva)
+                  ? " · Cliente suspenso: registro pausado"
+                  : ""}
+              </span>
+              <input
+                aria-label={`Link CSAT ${reserva.idSeqFormatted}`}
+                readOnly
+                value={linkCsat(reserva.token)}
+                onFocus={(e) => e.target.select()}
+              />
+              <button
+                className="btn-secondary"
+                onClick={async () => {
+                  if (await copiarTexto(linkCsat(reserva.token))) {
+                    toast.success("Link copiado.");
+                  } else {
+                    toast.error("Selecione e copie o link no campo ao lado.");
+                  }
+                }}
+              >
+                Copiar link
+              </button>
+              {reserva.respostas.map((r, index) => (
+                <p key={index}>
+                  {r.nome}: {r.experiencia}
+                  {r.opiniao && ` — ${r.opiniao}`}
+                </p>
               ))}
-            <button className="btn-secondary" onClick={() => carregar()}>
-              Atualizar respostas
-            </button>
-          </section>
-        )}
+            </div>
+          ))}
+          <button className="btn-secondary" onClick={() => carregar()}>
+            Atualizar respostas
+          </button>
+        </section>
+      )}
 
       {/* Popup do Dashboard */}
       {dashboardAberto && (
@@ -3853,7 +4097,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   title="Ocorrências por Tipo"
                   data={tipoChartData}
                   onItemClick={(tipo) => {
-                    const filtro = tipo === "Sem classificação" ? FILTRO_SEM_CLASSIFICACAO : tipo;
+                    const filtro =
+                      tipo === "Sem classificação"
+                        ? FILTRO_SEM_CLASSIFICACAO
+                        : tipo;
                     alterarFiltroTipo(filtroTipo === filtro ? "" : filtro);
                   }}
                   selectedLabel={
@@ -4038,9 +4285,15 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               onChange={(event) => setFiltroAssuntoDuvida(event.target.value)}
             >
               <option value="">Todos os assuntos de dúvida</option>
-              {Array.from(new Set([...duvidaOpcoes, filtroAssuntoDuvida].filter(Boolean)))
+              {Array.from(
+                new Set([...duvidaOpcoes, filtroAssuntoDuvida].filter(Boolean)),
+              )
                 .sort((a, b) => a.localeCompare(b, "pt-BR"))
-                .map((assunto) => <option key={assunto} value={assunto}>{assunto}</option>)}
+                .map((assunto) => (
+                  <option key={assunto} value={assunto}>
+                    {assunto}
+                  </option>
+                ))}
             </select>
           )}
 
@@ -4120,7 +4373,13 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       </div>
 
       {/* Lista */}
-      <div ref={listaOcorrenciasRef} className="hist-table-wrapper" tabIndex={-1} role="region" aria-label="Lista de ocorrências">
+      <div
+        ref={listaOcorrenciasRef}
+        className="hist-table-wrapper"
+        tabIndex={-1}
+        role="region"
+        aria-label="Lista de ocorrências"
+      >
         <table className="hist-table">
           <thead>
             <tr>
@@ -4157,6 +4416,16 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   >
                     <td>
                       {o.empresa}
+                      {o.conclusaoUnilateralCapacitacao && (
+                        <span
+                          role="img"
+                          aria-label="Conclusão unilateral da capacitação"
+                          title="Conclusão unilateral da capacitação"
+                          style={{ marginLeft: "6px" }}
+                        >
+                          🤝
+                        </span>
+                      )}
                       {o.favorita && (
                         <Star
                           className="hist-estrela-indicador"
@@ -4272,11 +4541,13 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       {(() => {
                         const tipoInfo = obterInfoTipoOcorrencia(o);
                         return (
-                          <span
-                            className={`hist-item-tipo ${tipoInfo.className}`}
-                          >
-                            {tipoInfo.label}
-                          </span>
+                          <>
+                            <span
+                              className={`hist-item-tipo ${tipoInfo.className}`}
+                            >
+                              {tipoInfo.label}
+                            </span>
+                          </>
                         );
                       })()}
                     </td>
@@ -4285,7 +4556,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       <td>
                         {o.whatsappStatus === "enviado" && (
                           <span
-                            style={{ color: "var(--lt-texto-16a34a, #16a34a)", fontWeight: "bold" }}
+                            style={{
+                              color: "var(--lt-texto-16a34a, #16a34a)",
+                              fontWeight: "bold",
+                            }}
                             title={`Enviado${o.whatsappEnviadoEm ? " em " + new Date(o.whatsappEnviadoEm).toLocaleString("pt-BR") : ""}`}
                           >
                             ✅ Enviado
@@ -4293,7 +4567,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                         )}
                         {o.whatsappStatus === "parcial" && (
                           <span
-                            style={{ color: "var(--lt-texto-d97706, #d97706)", fontWeight: "bold" }}
+                            style={{
+                              color: "var(--lt-texto-d97706, #d97706)",
+                              fontWeight: "bold",
+                            }}
                             title={(o.whatsappDestinatarios || [])
                               .map(
                                 (d) =>
@@ -4325,7 +4602,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                         )}
                         {o.whatsappStatus === "sem_destinatario" && (
                           <span
-                            style={{ color: "var(--lt-texto-d97706, #d97706)", fontWeight: "bold" }}
+                            style={{
+                              color: "var(--lt-texto-d97706, #d97706)",
+                              fontWeight: "bold",
+                            }}
                             title="Nenhum destinatário encontrado (telefone do cliente ou destinatário de gestão não cadastrado)"
                           >
                             📵 Sem destinatário
@@ -4697,11 +4977,15 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   <>
                     <div>
                       <span>Resultado da análise</span>
-                      <strong>{selecionada.followUpResultadoAnalise || "—"}</strong>
+                      <strong>
+                        {selecionada.followUpResultadoAnalise || "—"}
+                      </strong>
                     </div>
                     <div>
                       <span>Status do contato</span>
-                      <strong>{selecionada.followUpStatusContato || "—"}</strong>
+                      <strong>
+                        {selecionada.followUpStatusContato || "—"}
+                      </strong>
                     </div>
                     {selecionada.followUpProximaAcao && (
                       <div>
@@ -4724,8 +5008,11 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       <div>
                         <span>Validação do conhecimento</span>
                         <strong>
-                          {selecionada.validacaoAprovada ? "Aprovado" : "Não aprovado"}
-                          {typeof selecionada.validacaoPercentual === "number" &&
+                          {selecionada.validacaoAprovada
+                            ? "Aprovado"
+                            : "Não aprovado"}
+                          {typeof selecionada.validacaoPercentual ===
+                            "number" &&
                             ` · ${selecionada.validacaoPercentual.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`}
                           {typeof selecionada.validacaoNota === "number" &&
                             ` · ${selecionada.validacaoNota.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}/10`}
@@ -4766,10 +5053,16 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                         <strong>{selecionada.treinamentoTempoAgenda}</strong>
                       </div>
                     )}
-                    {motivoEsperaValido(selecionada.treinamentoMotivoEspera) && (
+                    {motivoEsperaValido(
+                      selecionada.treinamentoMotivoEspera,
+                    ) && (
                       <div>
                         <span>Motivo da espera</span>
-                        <strong>{descreverMotivoEsperaTreinamento(selecionada.treinamentoMotivoEspera)}</strong>
+                        <strong>
+                          {descreverMotivoEsperaTreinamento(
+                            selecionada.treinamentoMotivoEspera,
+                          )}
+                        </strong>
                       </div>
                     )}
                     {selecionada.treinamentoSolicitante && (
@@ -4824,28 +5117,68 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                               <span>{resposta.nome}</span>
                               {editingCsatNota > 0 || resposta.nota ? (
                                 <fieldset
-                                  style={{ display: "flex", gap: "4px", border: "none", padding: 0, margin: 0 }}
+                                  style={{
+                                    display: "flex",
+                                    gap: "4px",
+                                    border: "none",
+                                    padding: 0,
+                                    margin: 0,
+                                  }}
                                 >
-                                  <legend style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0,0,0,0)" }}>Nota de 1 a 5 estrelas</legend>
+                                  <legend
+                                    style={{
+                                      position: "absolute",
+                                      width: 1,
+                                      height: 1,
+                                      overflow: "hidden",
+                                      clip: "rect(0,0,0,0)",
+                                    }}
+                                  >
+                                    Nota de 1 a 5 estrelas
+                                  </legend>
                                   {[1, 2, 3, 4, 5].map((valor) => (
                                     <label
                                       key={valor}
                                       title={`${valor} de 5`}
-                                      style={{ display: "flex", alignItems: "center", cursor: "pointer" }}
+                                      style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        cursor: "pointer",
+                                      }}
                                     >
                                       <input
                                         type="radio"
                                         name={`csat-nota-${index}`}
                                         value={valor}
                                         checked={editingCsatNota === valor}
-                                        onChange={() => setEditingCsatNota(valor)}
-                                        style={{ position: "absolute", opacity: 0, width: 1, height: 1 }}
+                                        onChange={() =>
+                                          setEditingCsatNota(valor)
+                                        }
+                                        style={{
+                                          position: "absolute",
+                                          opacity: 0,
+                                          width: 1,
+                                          height: 1,
+                                        }}
                                       />
-                                      <Star size={20} fill={editingCsatNota >= valor ? "#eab308" : "none"} color="#eab308" />
+                                      <Star
+                                        size={20}
+                                        fill={
+                                          editingCsatNota >= valor
+                                            ? "#eab308"
+                                            : "none"
+                                        }
+                                        color="#eab308"
+                                      />
                                     </label>
                                   ))}
-                                  <span aria-hidden="true" style={{ marginLeft: "4px" }}>
-                                    {editingCsatNota > 0 ? `${editingCsatNota}/5` : "—"}
+                                  <span
+                                    aria-hidden="true"
+                                    style={{ marginLeft: "4px" }}
+                                  >
+                                    {editingCsatNota > 0
+                                      ? `${editingCsatNota}/5`
+                                      : "—"}
                                   </span>
                                 </fieldset>
                               ) : (
@@ -4871,7 +5204,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                                         type="radio"
                                         name={`csat-experiencia-${index}`}
                                         value={valor}
-                                        checked={editingCsatExperiencia === valor}
+                                        checked={
+                                          editingCsatExperiencia === valor
+                                        }
                                         onChange={() =>
                                           setEditingCsatExperiencia(
                                             valor as "Bom" | "Ruim",
@@ -4924,14 +5259,39 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                               }}
                             >
                               <div>
-                                <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                                <span
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "4px",
+                                  }}
+                                >
                                   {resposta.nome} —{" "}
                                   {resposta.nota ? (
-                                    <span style={{ display: "inline-flex", alignItems: "center", gap: "2px" }} aria-label={`Nota ${resposta.nota} de 5`}>
+                                    <span
+                                      style={{
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: "2px",
+                                      }}
+                                      aria-label={`Nota ${resposta.nota} de 5`}
+                                    >
                                       {[1, 2, 3, 4, 5].map((valor) => (
-                                        <Star key={valor} size={14} fill={resposta.nota! >= valor ? "#eab308" : "none"} color="#eab308" aria-hidden="true" />
+                                        <Star
+                                          key={valor}
+                                          size={14}
+                                          fill={
+                                            resposta.nota! >= valor
+                                              ? "#eab308"
+                                              : "none"
+                                          }
+                                          color="#eab308"
+                                          aria-hidden="true"
+                                        />
                                       ))}
-                                      <span aria-hidden="true">({resposta.nota}/5)</span>
+                                      <span aria-hidden="true">
+                                        ({resposta.nota}/5)
+                                      </span>
                                     </span>
                                   ) : (
                                     resposta.experiencia
@@ -4946,9 +5306,14 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                                       marginTop: "2px",
                                     }}
                                   >
-                                    Editado por {formatarNome(resposta.editadoPor)} em{" "}
-                                    {new Date(resposta.editadoEm).toLocaleDateString("pt-BR")}{" "}
-                                    {new Date(resposta.editadoEm).toLocaleTimeString("pt-BR", {
+                                    Editado por{" "}
+                                    {formatarNome(resposta.editadoPor)} em{" "}
+                                    {new Date(
+                                      resposta.editadoEm,
+                                    ).toLocaleDateString("pt-BR")}{" "}
+                                    {new Date(
+                                      resposta.editadoEm,
+                                    ).toLocaleTimeString("pt-BR", {
                                       hour: "2-digit",
                                       minute: "2-digit",
                                     })}
@@ -5180,7 +5545,8 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                     marginTop: "16px",
                     padding: "14px 16px",
                     borderRadius: "10px",
-                    background: "var(--lt-fundo-ffffff08, rgba(255,255,255,0.03))",
+                    background:
+                      "var(--lt-fundo-ffffff08, rgba(255,255,255,0.03))",
                     border:
                       selecionada.whatsappStatus === "enviado"
                         ? "1px solid rgba(34,197,94,0.25)"
@@ -5241,7 +5607,8 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                         <span
                           style={{
                             fontWeight: 400,
-                            color: "var(--text-muted, var(--lt-texto-94a3b8, #94a3b8))",
+                            color:
+                              "var(--text-muted, var(--lt-texto-94a3b8, #94a3b8))",
                             marginLeft: "6px",
                           }}
                         >
@@ -5335,7 +5702,8 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                             <span
                               style={{
                                 fontSize: "0.82rem",
-                                color: "var(--text-color, var(--lt-texto-ffffff, #fff))",
+                                color:
+                                  "var(--text-color, var(--lt-texto-ffffff, #fff))",
                                 fontWeight: 500,
                               }}
                             >
@@ -5577,13 +5945,20 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   {editandoImportadaSsx ? "Sem classificação" : "Selecione..."}
                 </option>
                 {getAllowedTypes().map((t) => (
-                  <option key={t} value={t} disabled={t === "Treinamento" && treinamentoIndisponivel}>
+                  <option
+                    key={t}
+                    value={t}
+                    disabled={t === "Treinamento" && treinamentoIndisponivel}
+                  >
                     {t}
                   </option>
                 ))}
               </select>
               {treinamentoIndisponivel && (
-                <small role="status">Cliente suspenso: Treinamento está indisponível. Os demais tipos continuam disponíveis.</small>
+                <small role="status">
+                  Cliente suspenso: Treinamento está indisponível. Os demais
+                  tipos continuam disponíveis.
+                </small>
               )}
             </div>
 
@@ -5770,7 +6145,11 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 <label>Resultado da análise *</label>
                 <div className="radio-group-score">
                   {(
-                    ["Aplicado", "Sem evidência de aplicação", "Parcialmente aplicado"] as const
+                    [
+                      "Aplicado",
+                      "Sem evidência de aplicação",
+                      "Parcialmente aplicado",
+                    ] as const
                   ).map((opcao) => (
                     <label key={opcao}>
                       <input
@@ -5789,33 +6168,36 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   Status do contato *
                 </label>
                 <div className="radio-group-score">
-                  {(["Aguardando retorno", "Contato bem-sucedido"] as const).map(
-                    (opcao) => (
-                      <label key={opcao}>
-                        <input
-                          type="radio"
-                          name="followUpStatusContato"
-                          value={opcao}
-                          checked={form.followUpStatusContato === opcao}
-                          onChange={() =>
-                            setForm({
-                              ...form,
-                              followUpStatusContato: opcao,
-                              ...(opcao === "Aguardando retorno"
-                                ? { followUpProximaAcao: "", followUpEncaminharSuporte: false }
-                                : {}),
-                            })
-                          }
-                        />
-                        {opcao}
-                      </label>
-                    ),
-                  )}
+                  {(
+                    ["Aguardando retorno", "Contato bem-sucedido"] as const
+                  ).map((opcao) => (
+                    <label key={opcao}>
+                      <input
+                        type="radio"
+                        name="followUpStatusContato"
+                        value={opcao}
+                        checked={form.followUpStatusContato === opcao}
+                        onChange={() =>
+                          setForm({
+                            ...form,
+                            followUpStatusContato: opcao,
+                            ...(opcao === "Aguardando retorno"
+                              ? {
+                                  followUpProximaAcao: "",
+                                  followUpEncaminharSuporte: false,
+                                }
+                              : {}),
+                          })
+                        }
+                      />
+                      {opcao}
+                    </label>
+                  ))}
                 </div>
                 {form.followUpStatusContato === "Aguardando retorno" && (
                   <small role="status">
-                    A ocorrência pode ser salva assim. Edite-a depois para registrar o
-                    resultado do contato.
+                    A ocorrência pode ser salva assim. Edite-a depois para
+                    registrar o resultado do contato.
                   </small>
                 )}
 
@@ -5875,12 +6257,14 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                               })
                             }
                           />
-                          Encaminhar pro suporte (conclui o acompanhamento do cliente) ✅
+                          Encaminhar pro suporte (conclui o acompanhamento do
+                          cliente) ✅
                         </label>
                       )}
                     {form.followUpProximaAcao === "Reforço de treinamento" && (
                       <small role="status">
-                        O cliente permanece na esteira até um novo follow up final.
+                        O cliente permanece na esteira até um novo follow up
+                        final.
                       </small>
                     )}
                   </>
@@ -5954,7 +6338,12 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       style={{ cursor: "pointer" }}
                     />
                     <span>📝 Todos os temas são revisão</span>
-                    <small style={{ color: "var(--lt-texto-94a3b8, #94a3b8)", fontWeight: 400 }}>
+                    <small
+                      style={{
+                        color: "var(--lt-texto-94a3b8, #94a3b8)",
+                        fontWeight: 400,
+                      }}
+                    >
                       {isRevisao
                         ? '(não avança a esteira — tags: "Revisão de...")'
                         : "(para revisão parcial, selecione os temas abaixo)"}
@@ -6001,7 +6390,12 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       style={{ cursor: "pointer" }}
                     />
                     <span>🆕 Tema fora da esteira</span>
-                    <small style={{ color: "var(--lt-texto-94a3b8, #94a3b8)", fontWeight: 400 }}>
+                    <small
+                      style={{
+                        color: "var(--lt-texto-94a3b8, #94a3b8)",
+                        fontWeight: 400,
+                      }}
+                    >
                       {temaForaEsteira
                         ? "(não avança a esteira — digite o tema livremente)"
                         : "(marque para treinar um tema que não está previsto na esteira)"}
@@ -6047,65 +6441,80 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                         ...(form.temaOcorrencia ?? []),
                       ]);
 
-                      return opcoes.map((tema) => normalizar(tema) === normalizar("Validação do conhecimento") ? (
-                        <label key={tema} className="tema-opcao tema-opcao-bloqueada" title="Registrado pelo módulo Validação do conhecimento">
-                          <input type="checkbox" checked={false} disabled aria-describedby="hist-tema-validacao-ajuda" />
-                          {tema}
-                          <small id="hist-tema-validacao-ajuda">
-                            Registre pelo menu Validação do conhecimento
-                          </small>
-                        </label>
-                      ) : (
-                        <label key={tema} className="tema-opcao">
-                          <input
-                            type="checkbox"
-                            checked={
-                              form.temaOcorrencia?.includes(tema) ?? false
-                            }
-                            onChange={(e) => {
-                              const atual = form.temaOcorrencia ?? [];
-                              if (!e.target.checked) {
-                                setTemasRevisados((temas) =>
-                                  temas.filter((t) => t !== tema),
-                                );
+                      return opcoes.map((tema) =>
+                        normalizar(tema) ===
+                        normalizar("Validação do conhecimento") ? (
+                          <label
+                            key={tema}
+                            className="tema-opcao tema-opcao-bloqueada"
+                            title="Registrado pelo módulo Validação do conhecimento"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={false}
+                              disabled
+                              aria-describedby="hist-tema-validacao-ajuda"
+                            />
+                            {tema}
+                            <small id="hist-tema-validacao-ajuda">
+                              Registre pelo menu Validação do conhecimento
+                            </small>
+                          </label>
+                        ) : (
+                          <label key={tema} className="tema-opcao">
+                            <input
+                              type="checkbox"
+                              checked={
+                                form.temaOcorrencia?.includes(tema) ?? false
                               }
-                              const novoTema = e.target.checked
-                                ? normalizarTemasTreinamento([...atual, tema])
-                                : atual.filter((t) => t !== tema);
-                              setForm({
-                                ...form,
-                                temaOcorrencia: novoTema,
-                              });
-                              setTemaOcorrenciaOngoingText(novoTema.join(", "));
-                            }}
-                          />
-                          {tema}
-                          {form.temaOcorrencia?.includes(tema) &&
-                            (isRevisao || temasRevisados.includes(tema)) &&
-                            !["ausente", "cancelado"].includes(
-                              tema.trim().toLowerCase(),
-                            ) && (
-                              <small
-                                style={{
-                                  padding: "2px 6px",
-                                  borderRadius: "4px",
-                                  background: "rgba(99, 102, 241, 0.15)",
-                                  fontWeight: 600,
-                                }}
-                              >
-                                Revisão
-                              </small>
-                            )}
-                          {temaGolEmpresa && tema.trim() === temaGolEmpresa && (
-                            <span
-                              className="tema-gol-badge"
-                              title="Tema marcado como Gol na Esteira"
-                            >
-                              ⚽
-                            </span>
-                          )}
-                        </label>
-                      ));
+                              onChange={(e) => {
+                                const atual = form.temaOcorrencia ?? [];
+                                if (!e.target.checked) {
+                                  setTemasRevisados((temas) =>
+                                    temas.filter((t) => t !== tema),
+                                  );
+                                }
+                                const novoTema = e.target.checked
+                                  ? normalizarTemasTreinamento([...atual, tema])
+                                  : atual.filter((t) => t !== tema);
+                                setForm({
+                                  ...form,
+                                  temaOcorrencia: novoTema,
+                                });
+                                setTemaOcorrenciaOngoingText(
+                                  novoTema.join(", "),
+                                );
+                              }}
+                            />
+                            {tema}
+                            {form.temaOcorrencia?.includes(tema) &&
+                              (isRevisao || temasRevisados.includes(tema)) &&
+                              !["ausente", "cancelado"].includes(
+                                tema.trim().toLowerCase(),
+                              ) && (
+                                <small
+                                  style={{
+                                    padding: "2px 6px",
+                                    borderRadius: "4px",
+                                    background: "rgba(99, 102, 241, 0.15)",
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  Revisão
+                                </small>
+                              )}
+                            {temaGolEmpresa &&
+                              tema.trim() === temaGolEmpresa && (
+                                <span
+                                  className="tema-gol-badge"
+                                  title="Tema marcado como Gol na Esteira"
+                                >
+                                  ⚽
+                                </span>
+                              )}
+                          </label>
+                        ),
+                      );
                     })()}
                   </div>
                 )}
@@ -6212,14 +6621,28 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 {motivoEsperaValido(form.treinamentoMotivoEspera) && (
                   <div className="hist-campo">
                     <label htmlFor="hist-motivo-espera">Motivo da espera</label>
-                    <select id="hist-motivo-espera" value={form.treinamentoMotivoEspera}
+                    <select
+                      id="hist-motivo-espera"
+                      value={form.treinamentoMotivoEspera}
                       onChange={(event) => {
-                        if (motivoEsperaValido(event.target.value)) setForm({ ...form, treinamentoMotivoEspera: event.target.value });
-                      }}>
-                      <option value="cliente">Data distante a pedido do cliente</option>
-                      <option value="agenda_treinador">Disponibilidade da agenda do treinador</option>
+                        if (motivoEsperaValido(event.target.value))
+                          setForm({
+                            ...form,
+                            treinamentoMotivoEspera: event.target.value,
+                          });
+                      }}
+                    >
+                      <option value="cliente">
+                        Data distante a pedido do cliente
+                      </option>
+                      <option value="agenda_treinador">
+                        Disponibilidade da agenda do treinador
+                      </option>
                     </select>
-                    <small>A espera continua na média geral do relatório. Ao alterar as datas, o motivo será solicitado novamente.</small>
+                    <small>
+                      A espera continua na média geral do relatório. Ao alterar
+                      as datas, o motivo será solicitado novamente.
+                    </small>
                   </div>
                 )}
 
@@ -6341,7 +6764,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   <div className="hist-campo hist-campo-row">
                     <label
                       className="checkbox-label"
-                      style={{ fontWeight: 600, color: "var(--lt-texto-6366f1, #6366f1)" }}
+                      style={{
+                        fontWeight: 600,
+                        color: "var(--lt-texto-6366f1, #6366f1)",
+                      }}
                     >
                       <input
                         type="checkbox"
@@ -6364,7 +6790,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 <div className="hist-campo hist-campo-row">
                   <label
                     className="checkbox-label"
-                    style={{ fontWeight: 600, color: "var(--lt-texto-ef4444, #ef4444)" }}
+                    style={{
+                      fontWeight: 600,
+                      color: "var(--lt-texto-ef4444, #ef4444)",
+                    }}
                   >
                     <input
                       type="checkbox"
@@ -6381,6 +6810,38 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 </div>
               );
             })()}
+
+            {!editandoId &&
+              form.tipo === "Informativa" &&
+              (role === "master" || role === "cs") &&
+              (() => {
+                const empresaConclusao = empresasList.find(
+                  (empresa) =>
+                    normalizar(empresa.nomeEmpresa) ===
+                    normalizar(form.empresa),
+                );
+                const jaFinalizada = !!empresaConclusao?.dataFinalizacao;
+                return (
+                  <div className="hist-campo">
+                    <label className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={form.conclusaoUnilateralCapacitacao ?? false}
+                        disabled={
+                          salvando || !empresaConclusao?.id || jaFinalizada
+                        }
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            conclusaoUnilateralCapacitacao: e.target.checked,
+                          })
+                        }
+                      />
+                      Concluir capacitação unilateralmente
+                    </label>
+                  </div>
+                );
+              })()}
 
             <div className="hist-campo">
               <div
@@ -6421,7 +6882,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                     }
                   }
                 }}
-                readOnly={editandoId && !reservaEditando ? role !== "master" : false}
+                readOnly={
+                  editandoId && !reservaEditando ? role !== "master" : false
+                }
                 placeholder="Descreva a ocorrência com detalhes..."
                 rows={Math.max(6, form.descricao.split("\n").length + 2)}
                 style={
@@ -6439,13 +6902,20 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             </div>
 
             <div className="hist-painel-actions">
-              <button className="btn-ghost" onClick={() => cancelar()} disabled={salvando}>
+              <button
+                className="btn-ghost"
+                onClick={() => cancelar()}
+                disabled={salvando}
+              >
                 Cancelar
               </button>
               <button
                 className="btn-primary"
                 onClick={salvar}
-                disabled={salvando || (form.tipo === "Treinamento" && treinamentoIndisponivel)}
+                disabled={
+                  salvando ||
+                  (form.tipo === "Treinamento" && treinamentoIndisponivel)
+                }
               >
                 {salvando
                   ? "Salvando..."
@@ -6473,8 +6943,11 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         />
       )}
       {diasConfirmacaoEspera !== null && (
-        <MotivoEsperaTreinamentoModal dias={diasConfirmacaoEspera}
-          onConfirmar={responderMotivoEspera} onCancelar={() => responderMotivoEspera(null)} />
+        <MotivoEsperaTreinamentoModal
+          dias={diasConfirmacaoEspera}
+          onConfirmar={responderMotivoEspera}
+          onCancelar={() => responderMotivoEspera(null)}
+        />
       )}
       {modalScoreAberto && (
         <div className="score-modal-overlay">
@@ -7105,7 +7578,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             </div>
             <div
               className="score-modal-body"
-              style={{ color: "var(--text-color, var(--lt-texto-ffffff, #ffffff))" }}
+              style={{
+                color: "var(--text-color, var(--lt-texto-ffffff, #ffffff))",
+              }}
             >
               <p
                 style={{
@@ -7214,7 +7689,8 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   style={{
                     width: "100%",
                     boxSizing: "border-box",
-                    background: "var(--lt-fundo-ffffff08, rgba(255, 255, 255, 0.03))",
+                    background:
+                      "var(--lt-fundo-ffffff08, rgba(255, 255, 255, 0.03))",
                     border:
                       "1px solid var(--border-color, var(--lt-borda-ffffff14, rgba(255,255,255,0.08)))",
                     borderRadius: "8px",
@@ -7233,7 +7709,8 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   Use{" "}
                   <code
                     style={{
-                      background: "var(--lt-fundo-ffffff12, rgba(255,255,255,0.07))",
+                      background:
+                        "var(--lt-fundo-ffffff12, rgba(255,255,255,0.07))",
                       padding: "1px 5px",
                       borderRadius: "4px",
                     }}
@@ -7254,7 +7731,8 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                         fontSize: "0.8rem",
                         fontWeight: "600",
                         marginBottom: "6px",
-                        color: "var(--text-color, var(--lt-texto-ffffff, #ffffff))",
+                        color:
+                          "var(--text-color, var(--lt-texto-ffffff, #ffffff))",
                       }}
                     >
                       Prévia — {destinatariosWhatsAppSelecionados.length}{" "}
@@ -7271,7 +7749,8 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                         <div
                           key={`${d.telefone}-${idx}`}
                           style={{
-                            background: "var(--lt-fundo-ffffff08, rgba(255, 255, 255, 0.03))",
+                            background:
+                              "var(--lt-fundo-ffffff08, rgba(255, 255, 255, 0.03))",
                             border:
                               "1px solid var(--border-color, var(--lt-borda-ffffff14, rgba(255,255,255,0.08)))",
                             borderRadius: "8px",
@@ -7282,7 +7761,8 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                             style={{
                               fontSize: "0.7rem",
                               fontWeight: 600,
-                              color: "var(--text-muted, var(--lt-texto-94a3b8, #94a3b8))",
+                              color:
+                                "var(--text-muted, var(--lt-texto-94a3b8, #94a3b8))",
                               textTransform: "uppercase",
                               letterSpacing: "0.05em",
                               marginBottom: "4px",
@@ -7294,7 +7774,8 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                           <div
                             style={{
                               fontSize: "0.8rem",
-                              color: "var(--text-color, var(--lt-texto-ffffff, #ffffff))",
+                              color:
+                                "var(--text-color, var(--lt-texto-ffffff, #ffffff))",
                               whiteSpace: "pre-wrap",
                               lineHeight: "1.4",
                             }}

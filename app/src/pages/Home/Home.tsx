@@ -2,7 +2,7 @@ import { baseAcompanhamento } from "../../../../server/src/domain/acompanhamento
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
-import { RotateCw } from "lucide-react";
+import { RotateCw, FileSpreadsheet } from "lucide-react";
 
 import "./Home.css";
 
@@ -308,6 +308,11 @@ export default function Home() {
   const [filtroSomenteSuspensos, setFiltroSomenteSuspensos] = useState<boolean>(
     () => sessionStorage.getItem("filtroSomenteSuspensos") === "true",
   );
+  // Esvazia as demais esteiras e deixa só a de Acompanhamento (aberta).
+  const [filtroSomenteEsteiraAtual, setFiltroSomenteEsteiraAtual] =
+    useState<boolean>(
+      () => sessionStorage.getItem("filtroSomenteEsteiraAtual") === "true",
+    );
   // Mostra só clientes dentro do prazo do Gol (até o 30º dia na esteira).
   const [filtroDia30, setFiltroDia30] = useState<boolean>(
     () => sessionStorage.getItem("filtroDia30") === "true",
@@ -1117,6 +1122,10 @@ export default function Home() {
       "filtroSomenteSuspensos",
       String(filtroSomenteSuspensos),
     );
+    sessionStorage.setItem(
+      "filtroSomenteEsteiraAtual",
+      String(filtroSomenteEsteiraAtual),
+    );
     sessionStorage.setItem("ordenacaoContrato", ordenacaoContrato);
     sessionStorage.setItem("ordenacaoScore", ordenacaoScore);
     sessionStorage.setItem("ordenacaoPrincipal", ordenacaoPrincipal);
@@ -1134,6 +1143,7 @@ export default function Home() {
     filtroDia30,
     filtroLoboSolitario,
     filtroSomenteSuspensos,
+    filtroSomenteEsteiraAtual,
     ordenacaoContrato,
     ordenacaoScore,
     ordenacaoPrincipal,
@@ -1432,8 +1442,11 @@ export default function Home() {
     ).length;
     // O filtro de churn vale para todas as esteiras, então a contagem também.
     const alerta = dados.filter((e) => e.alerta).length;
-    return { total, concluidos, emAndamento, alerta };
-  }, [dadosAtivos, dados]);
+    // Base de comparação dos painéis de percentual: mesmo total do card
+    // "Clientes no Radar" (todas as esteiras, exceto Ongoing).
+    const totalRadar = dados.length - dadosOngoing.length;
+    return { total, concluidos, emAndamento, alerta, totalRadar };
+  }, [dadosAtivos, dados, dadosOngoing]);
 
   // Suspensos esvazia as demais seções (ver comentário acima de
   // filtroSomenteSuspensos), então não combina com Status/Alerta e é desligado
@@ -1638,7 +1651,7 @@ export default function Home() {
   ]);
 
   const dadosOngoingFiltrados = useMemo(() => {
-    if (filtroSomenteSuspensos) return [];
+    if (filtroSomenteSuspensos || filtroSomenteEsteiraAtual) return [];
     return dadosOngoing
       .filter((e) => {
         const clienteOk =
@@ -1707,6 +1720,7 @@ export default function Home() {
     filtroCardTipo,
     filtroCardAlerta,
     filtroSomenteSuspensos,
+    filtroSomenteEsteiraAtual,
     ordenacaoContrato,
     ordenacaoScore,
     ordenacaoPrincipal,
@@ -1715,6 +1729,7 @@ export default function Home() {
   ]);
 
   const dadosSuspensosFiltrados = useMemo(() => {
+    if (filtroSomenteEsteiraAtual) return [];
     return dadosSuspensos
       .filter((e) => {
         const clienteOk =
@@ -1783,13 +1798,14 @@ export default function Home() {
     filtroCardTipo,
     filtroCardAlerta,
     filtroSomenteSuspensos,
+    filtroSomenteEsteiraAtual,
     ordenacaoPrincipal,
     mapaComerciais,
     mapaResponsaveis,
   ]);
 
   const dadosConclusoesFiltrados = useMemo(() => {
-    if (filtroSomenteSuspensos) {
+    if (filtroSomenteSuspensos || filtroSomenteEsteiraAtual) {
       return {
         regulares: [] as LinhaEsteira[],
         unilaterais: [] as LinhaEsteira[],
@@ -1872,6 +1888,7 @@ export default function Home() {
     filtroCardTipo,
     filtroCardAlerta,
     filtroSomenteSuspensos,
+    filtroSomenteEsteiraAtual,
     ordenacaoPrincipal,
     mapaComerciais,
     mapaResponsaveis,
@@ -1883,7 +1900,7 @@ export default function Home() {
     dadosConclusoesFiltrados.unilaterais;
 
   const dadosCanceladosFiltrados = useMemo(() => {
-    if (filtroSomenteSuspensos) return [];
+    if (filtroSomenteSuspensos || filtroSomenteEsteiraAtual) return [];
     return dadosCancelados
       .filter((e) => {
         const clienteOk =
@@ -1952,6 +1969,7 @@ export default function Home() {
     filtroCardTipo,
     filtroCardAlerta,
     filtroSomenteSuspensos,
+    filtroSomenteEsteiraAtual,
     ordenacaoContrato,
     ordenacaoScore,
     ordenacaoPrincipal,
@@ -1970,11 +1988,20 @@ export default function Home() {
   // volta uma esteira que o usuário abriu manualmente.
   const gatilhoAberturaAnteriorRef = useRef<string | null>(null);
   useEffect(() => {
-    const gatilho = `${filtroCliente}|${filtroCardAlerta}|${filtroSomenteSuspensos}`;
+    const gatilho = `${filtroCliente}|${filtroCardAlerta}|${filtroCardStatus}|${filtroLoboSolitario}|${filtroSomenteSuspensos}|${filtroSomenteEsteiraAtual}`;
     if (gatilhoAberturaAnteriorRef.current === gatilho) return;
     gatilhoAberturaAnteriorRef.current = gatilho;
-    const abrir = !!filtroCliente || filtroCardAlerta === "alerta";
-    setTabelaAtivaAberta(abrir && dadosAtivosFiltrados.length > 0);
+    const abrir =
+      !!filtroCliente || filtroCardAlerta === "alerta" || filtroLoboSolitario;
+    // Concluídos/Em andamento só valem para a Esteira de Acompanhamento, então abrem
+    // só ela — igual ao clique no card "Clientes na esteira de acompanhamento".
+    const abrirEsteiraAtual = !!filtroCardStatus;
+    // Com "Somente esteira de acompanhamento" a esteira abre mesmo vazia, para mostrar o aviso de lista vazia.
+    setTabelaAtivaAberta(
+      filtroSomenteEsteiraAtual ||
+        abrirEsteiraAtual ||
+        (abrir && dadosAtivosFiltrados.length > 0),
+    );
     setTabelaOngoingAberta(abrir && dadosOngoingFiltrados.length > 0);
     // Com "Somente suspensos" a esteira abre mesmo vazia, para mostrar o aviso de lista vazia.
     setTabelaSuspensaAberta(
@@ -1988,7 +2015,10 @@ export default function Home() {
   }, [
     filtroCliente,
     filtroCardAlerta,
+    filtroCardStatus,
+    filtroLoboSolitario,
     filtroSomenteSuspensos,
+    filtroSomenteEsteiraAtual,
     dadosAtivosFiltrados,
     dadosOngoingFiltrados,
     dadosSuspensosFiltrados,
@@ -2030,7 +2060,7 @@ export default function Home() {
         dadosAtivosFiltrados,
         colunasAtivasPrefs.colunasVisiveis,
       ),
-      "Esteira Atual",
+      "Esteira de Acompanhamento",
       "esteira-atual",
     );
   }
@@ -2437,7 +2467,7 @@ export default function Home() {
       label: "Cliente",
       defaultWidth: 220,
       locked: true,
-      render: (empresa) => empresa.nomeEmpresa,
+      render: renderClienteComAlerta,
       exportValue: (empresa) => empresa.nomeEmpresa,
     },
     {
@@ -2620,23 +2650,38 @@ export default function Home() {
       )}
 
       <div className="home-stats">
-        <div
-          className={`stat-card clickable ${filtroCardStatus === "" && filtroCardAlerta === "" && !filtroSomenteSuspensos && !filtroLoboSolitario ? "active-total" : ""}`}
-          onClick={() => {
-            setFiltroCardStatus("");
-            setFiltroCardAlerta("");
-            setFiltroSomenteSuspensos(false);
-            setFiltroLoboSolitario(false);
-          }}
-        >
+        <div className="stat-card stat-card-estatico">
           <div className="stat-card-texto">
             <div className="stat-value-row">
-              <h3 className="stat-value">{stats.total}</h3>
-              <p className="stat-label">Clientes na esteira</p>
+              <h3 className="stat-value">{stats.totalRadar}</h3>
+              <p className="stat-label">Clientes no Radar</p>
             </div>
-            <p className="stat-sub">Total de clientes</p>
           </div>
         </div>
+
+        <button
+          type="button"
+          className={`stat-card clickable stat-card-suspensos ${filtroSomenteEsteiraAtual ? "active-total" : ""}`}
+          aria-pressed={filtroSomenteEsteiraAtual}
+          title="Mostra apenas a Esteira de Acompanhamento, já aberta, mantendo os demais filtros."
+          onClick={() => {
+            setFiltroSomenteEsteiraAtual((anterior) => !anterior);
+            setFiltroSomenteSuspensos(false);
+          }}
+        >
+          <span className="stat-card-texto">
+            <span className="stat-value-row">
+              <span className="stat-value">{stats.total}</span>
+              <span className="stat-label">Em acompanhamento</span>
+            </span>
+            <span className="stat-sub">
+              {stats.totalRadar > 0
+                ? ((stats.total / stats.totalRadar) * 100).toFixed(1)
+                : "0.0"}
+              % do total
+            </span>
+          </span>
+        </button>
 
         <div
           className={`stat-card clickable ${filtroCardStatus === "concluidos" ? "active-concluidos" : ""}`}
@@ -2645,7 +2690,11 @@ export default function Home() {
           <div className="stat-card-texto">
             <div className="stat-value-row">
               <h3 className="stat-value">{stats.concluidos}</h3>
-              <p className="stat-label">Concluídos</p>
+              <p className="stat-label">
+                {stats.concluidos > 1
+                  ? "Concluíram a esteira"
+                  : "Concluiu a esteira"}
+              </p>
             </div>
             <p className="stat-sub">
               {stats.total > 0
@@ -2679,17 +2728,23 @@ export default function Home() {
           className={`stat-card clickable stat-card-suspensos ${filtroSomenteSuspensos ? "active-suspensos" : ""}`}
           aria-pressed={filtroSomenteSuspensos}
           title="Mostra apenas a esteira de Clientes Suspensos, já aberta, mantendo os demais filtros."
-          onClick={() => setFiltroSomenteSuspensos((anterior) => !anterior)}
+          onClick={() => {
+            setFiltroSomenteSuspensos((anterior) => !anterior);
+            setFiltroSomenteEsteiraAtual(false);
+          }}
         >
           <span className="stat-card-texto">
             <span className="stat-value-row">
               <span className="stat-value">{dadosSuspensos.length}</span>
-              <span className="stat-label">Suspensos</span>
+              <span className="stat-label">
+                {dadosSuspensos.length === 1 ? "Suspenso" : "Suspensos"}
+              </span>
             </span>
             <span className="stat-sub">
-              {filtroSomenteSuspensos
-                ? "Filtro ativo · clique para remover"
-                : "Exibir somente suspensos"}
+              {stats.totalRadar > 0
+                ? ((dadosSuspensos.length / stats.totalRadar) * 100).toFixed(1)
+                : "0.0"}
+              % do total
             </span>
           </span>
         </button>
@@ -2704,12 +2759,17 @@ export default function Home() {
           <span className="stat-card-texto">
             <span className="stat-value-row">
               <span className="stat-value">{totalLobosSolitarios}</span>
-              <span className="stat-label">Lobos Solitários</span>
+              <span className="stat-label">
+                {totalLobosSolitarios > 1
+                  ? "Lobos Solitários"
+                  : "Lobo solitário"}
+              </span>
             </span>
             <span className="stat-sub">
-              {filtroLoboSolitario
-                ? "Filtro ativo · clique para remover"
-                : "Exibir somente lobos solitários"}
+              {stats.totalRadar > 0
+                ? ((totalLobosSolitarios / stats.totalRadar) * 100).toFixed(1)
+                : "0.0"}
+              % do total
             </span>
           </span>
         </button>
@@ -2721,9 +2781,14 @@ export default function Home() {
           <div className="stat-card-texto">
             <div className="stat-value-row">
               <h3 className="stat-value">{stats.alerta}</h3>
-              <p className="stat-label">Clientes em risco de Churn</p>
+              <p className="stat-label">Em risco de Churn</p>
             </div>
-            <p className="stat-sub">Necessitam atenção</p>
+            <p className="stat-sub">
+              {stats.totalRadar > 0
+                ? ((stats.alerta / stats.totalRadar) * 100).toFixed(1)
+                : "0.0"}
+              % do total
+            </p>
           </div>
         </div>
       </div>
@@ -3060,6 +3125,7 @@ export default function Home() {
                     filtroElegivelDeducao ||
                     filtroLoboSolitario ||
                     filtroSomenteSuspensos ||
+                    filtroSomenteEsteiraAtual ||
                     ordenacaoContrato ||
                     ordenacaoScore
                   )
@@ -3077,6 +3143,7 @@ export default function Home() {
                   setFiltroElegivelDeducao(false);
                   setFiltroLoboSolitario(false);
                   setFiltroSomenteSuspensos(false);
+                  setFiltroSomenteEsteiraAtual(false);
                   setOrdenacaoContrato("");
                   setOrdenacaoScore("");
                   setOrdenacaoPrincipal("");
@@ -3103,7 +3170,7 @@ export default function Home() {
           onClick={() => setTabelaAtivaAberta((prev) => !prev)}
         >
           <div className="collapsible-title-wrapper">
-            <h2>Esteira Atual</h2>
+            <h2>Esteira de Acompanhamento</h2>
             <span className="collapsible-count-badge">
               {dadosAtivosFiltrados.length}
             </span>
@@ -3117,6 +3184,7 @@ export default function Home() {
                 onChangeOrder={colunasAtivasPrefs.setOrder}
                 onChangeHidden={colunasAtivasPrefs.setHidden}
                 onRestaurarPadrao={colunasAtivasPrefs.restaurarPadrao}
+                iconOnly
               />
             </div>
             {role === "master" && (
@@ -3126,9 +3194,10 @@ export default function Home() {
                   e.stopPropagation();
                   exportarAtivosExcel();
                 }}
-                title="Exportar Esteira Atual para Excel"
+                title="Exportar Esteira de Acompanhamento para Excel"
+                aria-label="Exportar Esteira de Acompanhamento para Excel"
               >
-                📥 Exportar Excel
+                <FileSpreadsheet size={16} aria-hidden="true" />
               </button>
             )}
             <span
@@ -3285,6 +3354,7 @@ export default function Home() {
                 onChangeOrder={colunasOngoingPrefs.setOrder}
                 onChangeHidden={colunasOngoingPrefs.setHidden}
                 onRestaurarPadrao={colunasOngoingPrefs.restaurarPadrao}
+                iconOnly
               />
             </div>
             {role === "master" && (
@@ -3295,8 +3365,9 @@ export default function Home() {
                   exportarOngoingExcel();
                 }}
                 title="Exportar Clientes Ongoing para Excel"
+                aria-label="Exportar Clientes Ongoing para Excel"
               >
-                📥 Exportar Excel
+                <FileSpreadsheet size={16} aria-hidden="true" />
               </button>
             )}
             <span
@@ -3453,6 +3524,7 @@ export default function Home() {
                 onChangeOrder={colunasSuspensosPrefs.setOrder}
                 onChangeHidden={colunasSuspensosPrefs.setHidden}
                 onRestaurarPadrao={colunasSuspensosPrefs.restaurarPadrao}
+                iconOnly
               />
             </div>
             {role === "master" && (
@@ -3463,8 +3535,9 @@ export default function Home() {
                   exportarSuspensosExcel();
                 }}
                 title="Exportar Clientes Suspensos para Excel"
+                aria-label="Exportar Clientes Suspensos para Excel"
               >
-                📥 Exportar Excel
+                <FileSpreadsheet size={16} aria-hidden="true" />
               </button>
             )}
             <span
@@ -3621,6 +3694,7 @@ export default function Home() {
                 onChangeOrder={colunasConcluidosPrefs.setOrder}
                 onChangeHidden={colunasConcluidosPrefs.setHidden}
                 onRestaurarPadrao={colunasConcluidosPrefs.restaurarPadrao}
+                iconOnly
               />
             </div>
             {role === "master" && (
@@ -3631,8 +3705,9 @@ export default function Home() {
                   exportarConcluidosExcel();
                 }}
                 title="Exportar Clientes Concluídos para Excel"
+                aria-label="Exportar Clientes Concluídos para Excel"
               >
-                📥 Exportar Excel
+                <FileSpreadsheet size={16} aria-hidden="true" />
               </button>
             )}
             <span
@@ -3789,6 +3864,7 @@ export default function Home() {
                 onChangeOrder={colunasCanceladosPrefs.setOrder}
                 onChangeHidden={colunasCanceladosPrefs.setHidden}
                 onRestaurarPadrao={colunasCanceladosPrefs.restaurarPadrao}
+                iconOnly
               />
             </div>
             {role === "master" && (
@@ -3799,8 +3875,9 @@ export default function Home() {
                   exportarCanceladosExcel();
                 }}
                 title="Exportar Clientes Cancelados para Excel"
+                aria-label="Exportar Clientes Cancelados para Excel"
               >
-                📥 Exportar Excel
+                <FileSpreadsheet size={16} aria-hidden="true" />
               </button>
             )}
             <span
@@ -3941,7 +4018,7 @@ export default function Home() {
             <span
               className="collapsible-count-badge"
               style={{
-                background: "rgba(107, 114, 128, 0.2)",
+                background: "var(--lt-fundo-6b728033, rgba(107, 114, 128, 0.2))",
                 color: "var(--lt-texto-9ca3af, #9ca3af)",
               }}
             >
@@ -3957,6 +4034,7 @@ export default function Home() {
                 onChangeOrder={colunasUnilateralPrefs.setOrder}
                 onChangeHidden={colunasUnilateralPrefs.setHidden}
                 onRestaurarPadrao={colunasUnilateralPrefs.restaurarPadrao}
+                iconOnly
               />
             </div>
             {role === "master" && (
@@ -3967,8 +4045,9 @@ export default function Home() {
                   exportarConcluidosUnilateralmenteExcel();
                 }}
                 title="Exportar clientes com conclusão unilateral para Excel"
+                aria-label="Exportar clientes com conclusão unilateral para Excel"
               >
-                📥 Exportar Excel
+                <FileSpreadsheet size={16} aria-hidden="true" />
               </button>
             )}
             <span
@@ -4516,18 +4595,18 @@ export default function Home() {
                     )}
                     {!clienteSelecionado.conclusaoUnilateralCapacitacao &&
                       clienteSelecionado.dataFollowUpFinal && (
-                      <div className="info-item">
-                        <span
-                          className="info-label"
-                          style={{ fontSize: "0.68rem" }}
-                        >
-                          Follow-up Final
-                        </span>
-                        <span className="info-value">
-                          {formatarData(clienteSelecionado.dataFollowUpFinal)}
-                        </span>
-                      </div>
-                    )}
+                        <div className="info-item">
+                          <span
+                            className="info-label"
+                            style={{ fontSize: "0.68rem" }}
+                          >
+                            Follow-up Final
+                          </span>
+                          <span className="info-value">
+                            {formatarData(clienteSelecionado.dataFollowUpFinal)}
+                          </span>
+                        </div>
+                      )}
                   </>
                 );
               })()}

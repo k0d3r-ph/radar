@@ -1440,14 +1440,14 @@ button.stat-card-suspensos { font: inherit; text-align: left; }
 .btn-exportar-excel {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
   background: #107c41;
   color: #fff;
   border: none;
   border-radius: 8px;
-  padding: 6px 12px;
-  font-size: 0.8rem;
-  font-weight: 600;
+  width: 32px;
+  height: 32px;
+  padding: 0;
   cursor: pointer;
   transition: background 0.2s ease;
 }

@@ -1,5 +1,5 @@
 import { baseAcompanhamento } from "../../../../server/src/domain/acompanhamentoEsteira.ts";
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import { LineChart } from "../../components/LineChart";
 import {
@@ -41,7 +41,7 @@ import type { StatusFarolType } from "../../utils/monitoramento";
 import { formatarNome } from "../../utils/formatarNome";
 import { estaDentroDoExpediente } from "../../utils/expediente";
 import { obterInfoTipoOcorrencia } from "../../utils/empresaUtils";
-import { filtrarEmpresasContatosSuporte, obterCategoriaContatoSuporte } from "../../utils/contatosSuporte";
+import { filtrarEmpresasContatosSuporte, obterCategoriaContatoSuporte, obterEsteiraContatoSuporte } from "../../utils/contatosSuporte";
 import "./Relatorios.css";
 import { RelatorioScore } from "../RelatorioScore/RelatorioScore";
 import { RelatorioJornadaCliente } from "../RelatorioJornadaCliente/RelatorioJornadaCliente";
@@ -77,6 +77,19 @@ const TIPO_CLASS: Record<string, string> = {
   Dúvida: "tipo--duvida",
   Solicitação: "tipo--solicitacao",
 };
+
+function labelEsteiraSuporte(valor: string): string {
+  switch (valor) {
+    case "ativa":
+      return "Esteira de Acompanhamento";
+    case "suspenso":
+      return "Suspensos";
+    case "concluido":
+      return "Concluídos";
+    default:
+      return valor;
+  }
+}
 
 const DEPARTAMENTO_CLASS: Record<string, string> = {
   Treinamento: "departamento-treinamento",
@@ -188,6 +201,28 @@ export const Relatorios: React.FC = () => {
   });
   const [clienteFiltroGrafico, setClienteFiltroGrafico] = useState<string>("");
   const [expedienteFiltroGrafico, setExpedienteFiltroGrafico] = useState<"ambos" | "dentro" | "fora">("ambos");
+  // Filtra a lista de "Contato com Suporte" por esteira (múltipla escolha; vazio = todas).
+  const [filtroEsteiraSuporte, setFiltroEsteiraSuporte] = useState<string[]>([]);
+  const [filtroEsteiraSuporteAberto, setFiltroEsteiraSuporteAberto] = useState(false);
+  const filtroEsteiraSuporteRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!filtroEsteiraSuporteAberto) return;
+    function handleClickFora(e: MouseEvent) {
+      if (!filtroEsteiraSuporteRef.current?.contains(e.target as Node)) {
+        setFiltroEsteiraSuporteAberto(false);
+      }
+    }
+    function handleEsc(e: KeyboardEvent) {
+      if (e.key === "Escape") setFiltroEsteiraSuporteAberto(false);
+    }
+    document.addEventListener("mousedown", handleClickFora);
+    document.addEventListener("keydown", handleEsc);
+    return () => {
+      document.removeEventListener("mousedown", handleClickFora);
+      document.removeEventListener("keydown", handleEsc);
+    };
+  }, [filtroEsteiraSuporteAberto]);
   // Switch (desativado por padrão): quando ativo, cada tipo (Dúvidas/Problemas/Solicitações)
   // ganha uma segunda linha com os mesmos totais registrados pelo Treinamento, para comparar.
   const [compararTreinamento, setCompararTreinamento] = useState<boolean>(false);
@@ -419,8 +454,9 @@ export const Relatorios: React.FC = () => {
   }, [dadosEmpresas, limitesSemana]);
 
   // Total, lista e gráfico compartilham a mesma carteira, inclusive no comparativo.
+  // Inclui concluídos para o filtro por esteira da lista de detalhamento (ver filtroEsteiraSuporte).
   const empresasContatosSuporte = useMemo(
-    () => filtrarEmpresasContatosSuporte(dadosEmpresas),
+    () => filtrarEmpresasContatosSuporte(dadosEmpresas, { incluirConcluidos: true }),
     [dadosEmpresas],
   );
   const nomesEmpresasContatosSuporte = useMemo(
@@ -1341,11 +1377,14 @@ ${riscoChurn.length > 0
   const listaTabelaFiltrada = useMemo(() => {
     if (kpiSelecionado !== 2) return selectedKpi.lista;
     const termo = clienteFiltroGrafico.trim().toLowerCase();
-    if (!termo) return selectedKpi.lista;
-    return selectedKpi.lista.filter((e) =>
-      e.nomeEmpresa.trim().toLowerCase().includes(termo)
-    );
-  }, [selectedKpi, kpiSelecionado, clienteFiltroGrafico]);
+    return selectedKpi.lista.filter((e) => {
+      const nomeOk = !termo || e.nomeEmpresa.trim().toLowerCase().includes(termo);
+      const esteiraOk =
+        filtroEsteiraSuporte.length === 0 ||
+        filtroEsteiraSuporte.includes(obterEsteiraContatoSuporte(e));
+      return nomeOk && esteiraOk;
+    });
+  }, [selectedKpi, kpiSelecionado, clienteFiltroGrafico, filtroEsteiraSuporte]);
 
   return (
     <div className="relatorios-page">
@@ -1626,6 +1665,58 @@ ${riscoChurn.length > 0
                       <option key={nome} value={nome} />
                     ))}
                   </datalist>
+                  <label htmlFor="esteira-filtro-suporte">Esteira:</label>
+                  <div className="esteira-filtro-suporte-dropdown" ref={filtroEsteiraSuporteRef}>
+                    <button
+                      type="button"
+                      id="esteira-filtro-suporte"
+                      className="esteira-filtro-suporte-trigger"
+                      onClick={() => setFiltroEsteiraSuporteAberto((prev) => !prev)}
+                      aria-haspopup="true"
+                      aria-expanded={filtroEsteiraSuporteAberto}
+                      title="Filtra a lista de clientes abaixo por esteira"
+                    >
+                      {filtroEsteiraSuporte.length === 0
+                        ? "Todas as esteiras"
+                        : filtroEsteiraSuporte.length === 1
+                          ? labelEsteiraSuporte(filtroEsteiraSuporte[0])
+                          : `${filtroEsteiraSuporte.length} esteiras selecionadas`}
+                    </button>
+
+                    {filtroEsteiraSuporteAberto && (
+                      <div
+                        className="esteira-filtro-suporte-painel"
+                        role="group"
+                        aria-label="Filtrar por esteira"
+                      >
+                        {(["ativa", "suspenso", "concluido"] as const).map((valor) => (
+                          <label key={valor} className="esteira-filtro-suporte-item">
+                            <input
+                              type="checkbox"
+                              checked={filtroEsteiraSuporte.includes(valor)}
+                              onChange={() =>
+                                setFiltroEsteiraSuporte((prev) =>
+                                  prev.includes(valor)
+                                    ? prev.filter((v) => v !== valor)
+                                    : [...prev, valor],
+                                )
+                              }
+                            />
+                            {labelEsteiraSuporte(valor)}
+                          </label>
+                        ))}
+                        {filtroEsteiraSuporte.length > 0 && (
+                          <button
+                            type="button"
+                            className="esteira-filtro-suporte-limpar"
+                            onClick={() => setFiltroEsteiraSuporte([])}
+                          >
+                            Limpar seleção
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                   <div className="line-chart-filtro-tipos">
                     {(
                       [

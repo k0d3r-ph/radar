@@ -100,6 +100,79 @@
   border-color: #3b82f6;
 }
 
+.esteira-filtro-suporte-dropdown {
+  position: relative;
+}
+
+.esteira-filtro-suporte-trigger {
+  padding: 0.5rem 0.9rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #0f172a;
+  color: white;
+  font-size: 0.9rem;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s;
+  white-space: nowrap;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.esteira-filtro-suporte-trigger:focus,
+.esteira-filtro-suporte-trigger:hover {
+  border-color: #3b82f6;
+}
+
+.esteira-filtro-suporte-painel {
+  position: absolute;
+  z-index: 50;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 240px;
+  background: #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.esteira-filtro-suporte-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  color: white;
+  cursor: pointer;
+}
+
+.esteira-filtro-suporte-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.esteira-filtro-suporte-limpar {
+  margin-top: 6px;
+  padding-top: 8px;
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  background: none;
+  color: #60a5fa;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+
+.esteira-filtro-suporte-limpar:hover {
+  text-decoration: underline;
+}
+
 .line-chart-filtro-tipos {
   display: flex;
   align-items: center;

@@ -155,6 +155,67 @@ const FILTRO_TREINAMENTO_CAN = "__treinamento_can__";
 const FILTRO_TREINAMENTO_AUS = "__treinamento_aus__";
 const FILTRO_TREINAMENTO_REA = "__treinamento_rea__";
 
+/** O filtro de tipo aceita múltiplas seleções; o parâmetro de URL "tipo" guarda os
+ * valores separados por vírgula (compatível com links antigos de valor único). */
+function parseFiltroTipoParam(raw: string | null): string[] {
+  return (raw || "").split(",").map((v) => v.trim()).filter(Boolean);
+}
+
+/** Indica se uma ocorrência corresponde a um dos valores selecionados no filtro de tipo
+ * (inclui os valores especiais de alerta/suspensão/treinamento acima). */
+function ocorrenciaCombinaTipo(o: Ocorrencia, valor: string): boolean {
+  if (valor === FILTRO_SEM_CLASSIFICACAO) return !o.tipo;
+  if (valor === FILTRO_ALERTAS) return !!o.alerta;
+  if (valor === FILTRO_SUSPENSOES) return !!o.suspenderCliente;
+  if (valor === FILTRO_TREINAMENTO_CAN) {
+    return (
+      o.tipo === "Treinamento" &&
+      (o.temaOcorrencia || []).some(
+        (t) => t.trim().toLowerCase() === "cancelado",
+      )
+    );
+  }
+  if (valor === FILTRO_TREINAMENTO_AUS) {
+    return (
+      o.tipo === "Treinamento" &&
+      (o.temaOcorrencia || []).some(
+        (t) => t.trim().toLowerCase() === "ausente",
+      )
+    );
+  }
+  if (valor === FILTRO_TREINAMENTO_REA) {
+    return (
+      o.tipo === "Treinamento" &&
+      !(o.temaOcorrencia || []).some(
+        (t) =>
+          t.trim().toLowerCase() === "cancelado" ||
+          t.trim().toLowerCase() === "ausente",
+      )
+    );
+  }
+  return o.tipo === valor;
+}
+
+/** Rótulo exibido para cada valor selecionável no filtro de tipo. */
+function labelFiltroTipo(valor: string): string {
+  switch (valor) {
+    case FILTRO_SEM_CLASSIFICACAO:
+      return "Sem classificação";
+    case FILTRO_ALERTAS:
+      return "Alertas 🔥";
+    case FILTRO_SUSPENSOES:
+      return "Suspensões ⏸️";
+    case FILTRO_TREINAMENTO_REA:
+      return "Treinamento (Rea.)";
+    case FILTRO_TREINAMENTO_CAN:
+      return "Treinamento (Can.)";
+    case FILTRO_TREINAMENTO_AUS:
+      return "Treinamento (Aus.)";
+    default:
+      return valor;
+  }
+}
+
 const DEPARTAMENTO = ["Treinamento", "CS", "Suporte", "Hardware", "Comercial"];
 
 // Listas padrão usadas apenas como fallback antes do primeiro carregamento
@@ -837,9 +898,11 @@ export function Historico() {
     ocorrencias.some((o) => o.id === editandoId && o.origem === "ssx-desk");
   const [busca, setBusca] = useState(() => searchParams.get("busca") || "");
   const [buscaAssunto, setBuscaAssunto] = useState("");
-  const [filtroTipo, setFiltroTipo] = useState(
-    () => searchParams.get("tipo") || "",
+  const [filtroTipo, setFiltroTipo] = useState<string[]>(
+    () => parseFiltroTipoParam(searchParams.get("tipo")),
   );
+  const [filtroTipoAberto, setFiltroTipoAberto] = useState(false);
+  const filtroTipoRef = useRef<HTMLDivElement>(null);
   const [filtroAssuntoDuvida, setFiltroAssuntoDuvida] = useState(
     () => searchParams.get("assuntoDuvida") || "",
   );
@@ -929,7 +992,7 @@ export function Historico() {
   }
 
   useEffect(() => {
-    const tipo = searchParams.get("tipo") || "";
+    const tipo = parseFiltroTipoParam(searchParams.get("tipo"));
     const start = searchParams.get("dataInicio") || "";
     const end = searchParams.get("dataFim") || "";
     setFiltroTipo(tipo);
@@ -3537,39 +3600,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       const empresaOk =
         !empresaFiltro || normalizar(o.empresa) === normalizar(empresaFiltro);
 
-      let tipoOk = ignoreTipo || !filtroTipo;
-
-      if (!tipoOk) {
-        if (filtroTipo === FILTRO_SEM_CLASSIFICACAO) {
-          tipoOk = !o.tipo;
-        } else if (filtroTipo === FILTRO_ALERTAS) {
-          tipoOk = !!o.alerta;
-        } else if (filtroTipo === FILTRO_SUSPENSOES) {
-          tipoOk = !!o.suspenderCliente;
-        } else if (filtroTipo === FILTRO_TREINAMENTO_CAN) {
-          tipoOk =
-            o.tipo === "Treinamento" &&
-            (o.temaOcorrencia || []).some(
-              (t) => t.trim().toLowerCase() === "cancelado",
-            );
-        } else if (filtroTipo === FILTRO_TREINAMENTO_AUS) {
-          tipoOk =
-            o.tipo === "Treinamento" &&
-            (o.temaOcorrencia || []).some(
-              (t) => t.trim().toLowerCase() === "ausente",
-            );
-        } else if (filtroTipo === FILTRO_TREINAMENTO_REA) {
-          tipoOk =
-            o.tipo === "Treinamento" &&
-            !(o.temaOcorrencia || []).some(
-              (t) =>
-                t.trim().toLowerCase() === "cancelado" ||
-                t.trim().toLowerCase() === "ausente",
-            );
-        } else {
-          tipoOk = o.tipo === filtroTipo; // Funciona para pesquisa geral de "Treinamento" e outros tipos
-        }
-      }
+      const tipoOk =
+        ignoreTipo ||
+        filtroTipo.length === 0 ||
+        filtroTipo.some((valor) => ocorrenciaCombinaTipo(o, valor));
 
       const deptoOk =
         ignoreDepto || !filtroDepto || o.departamento === filtroDepto;
@@ -3808,10 +3842,38 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
     listaOcorrenciasRef.current?.scrollIntoView({ block: "start" });
   }
 
-  function alterarFiltroTipo(tipo: string) {
-    setFiltroTipo(tipo);
-    if (tipo !== "Dúvida") setFiltroAssuntoDuvida("");
+  function alterarFiltroTipo(tipos: string[]) {
+    setFiltroTipo(tipos);
+    if (!tipos.includes("Dúvida")) setFiltroAssuntoDuvida("");
   }
+
+  function alternarTipoNoFiltro(tipo: string) {
+    alterarFiltroTipo(
+      filtroTipo.includes(tipo)
+        ? filtroTipo.filter((t) => t !== tipo)
+        : [...filtroTipo, tipo],
+    );
+  }
+
+  useEffect(() => {
+    if (!filtroTipoAberto) return;
+
+    function handleClickFora(e: MouseEvent) {
+      if (!filtroTipoRef.current?.contains(e.target as Node)) {
+        setFiltroTipoAberto(false);
+      }
+    }
+    function handleEsc(e: KeyboardEvent) {
+      if (e.key === "Escape") setFiltroTipoAberto(false);
+    }
+
+    document.addEventListener("mousedown", handleClickFora);
+    document.addEventListener("keydown", handleEsc);
+    return () => {
+      document.removeEventListener("mousedown", handleClickFora);
+      document.removeEventListener("keydown", handleEsc);
+    };
+  }, [filtroTipoAberto]);
 
   const totalItems = filtradas.length;
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE) || 1;
@@ -4133,12 +4195,16 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       tipo === "Sem classificação"
                         ? FILTRO_SEM_CLASSIFICACAO
                         : tipo;
-                    alterarFiltroTipo(filtroTipo === filtro ? "" : filtro);
+                    const jaUnico =
+                      filtroTipo.length === 1 && filtroTipo[0] === filtro;
+                    alterarFiltroTipo(jaUnico ? [] : [filtro]);
                   }}
                   selectedLabel={
-                    filtroTipo === FILTRO_SEM_CLASSIFICACAO
-                      ? "Sem classificação"
-                      : filtroTipo
+                    filtroTipo.length === 1
+                      ? filtroTipo[0] === FILTRO_SEM_CLASSIFICACAO
+                        ? "Sem classificação"
+                        : filtroTipo[0]
+                      : undefined
                   }
                 />
                 <DoughnutChart
@@ -4287,29 +4353,62 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             Somente com estrela
           </label>
 
-          <select
-            className="hist-select-filtro"
-            value={filtroTipo}
-            onChange={(e) => alterarFiltroTipo(e.target.value)}
-          >
-            <option value="">Todos os tipos</option>
-            <option value={FILTRO_SEM_CLASSIFICACAO}>Sem classificação</option>
-            <option value={FILTRO_ALERTAS}>Alertas 🔥</option>
-            <option value={FILTRO_SUSPENSOES}>Suspensões ⏸️</option>
-            {tipos
-              .filter((t) => t !== "Gol" || isTreinador)
-              .map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            {/* Opções específicas de Treinamento */}
-            <option value={FILTRO_TREINAMENTO_REA}>Treinamento (Rea.)</option>
-            <option value={FILTRO_TREINAMENTO_CAN}>Treinamento (Can.)</option>
-            <option value={FILTRO_TREINAMENTO_AUS}>Treinamento (Aus.)</option>
-          </select>
+          <div className="hist-filtro-tipo-dropdown" ref={filtroTipoRef}>
+            <button
+              type="button"
+              className="hist-filtro-tipo-trigger"
+              onClick={() => setFiltroTipoAberto((prev) => !prev)}
+              aria-haspopup="true"
+              aria-expanded={filtroTipoAberto}
+              title="Selecione um ou mais tipos de ocorrência"
+            >
+              {filtroTipo.length === 0
+                ? "Todos os tipos"
+                : filtroTipo.length === 1
+                  ? labelFiltroTipo(filtroTipo[0])
+                  : `${filtroTipo.length} tipos selecionados`}
+            </button>
 
-          {(filtroTipo === "Dúvida" || filtroAssuntoDuvida) && (
+            {filtroTipoAberto && (
+              <div
+                className="hist-filtro-tipo-painel"
+                role="group"
+                aria-label="Filtrar por tipos de ocorrência"
+              >
+                {(
+                  [
+                    FILTRO_SEM_CLASSIFICACAO,
+                    FILTRO_ALERTAS,
+                    FILTRO_SUSPENSOES,
+                    ...tipos.filter((t) => t !== "Gol" || isTreinador),
+                    FILTRO_TREINAMENTO_REA,
+                    FILTRO_TREINAMENTO_CAN,
+                    FILTRO_TREINAMENTO_AUS,
+                  ] as string[]
+                ).map((valor) => (
+                  <label key={valor} className="hist-filtro-tipo-item">
+                    <input
+                      type="checkbox"
+                      checked={filtroTipo.includes(valor)}
+                      onChange={() => alternarTipoNoFiltro(valor)}
+                    />
+                    {labelFiltroTipo(valor)}
+                  </label>
+                ))}
+                {filtroTipo.length > 0 && (
+                  <button
+                    type="button"
+                    className="hist-filtro-tipo-limpar"
+                    onClick={() => alterarFiltroTipo([])}
+                  >
+                    Limpar seleção
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {(filtroTipo.includes("Dúvida") || filtroAssuntoDuvida) && (
             <select
               className="hist-select-filtro"
               aria-label="Assunto da dúvida"
@@ -4367,7 +4466,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
           </div>
 
           {(busca ||
-            filtroTipo ||
+            filtroTipo.length > 0 ||
             filtroAssuntoDuvida ||
             filtroFavoritas ||
             filtroDepto ||
@@ -4379,7 +4478,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               className="btn-limpar-filtros"
               onClick={() => {
                 setBusca("");
-                setFiltroTipo("");
+                setFiltroTipo([]);
                 setFiltroAssuntoDuvida("");
                 setFiltroFavoritas(false);
                 setFiltroDepto("");

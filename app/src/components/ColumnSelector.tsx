@@ -1,5 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { Columns3 } from "lucide-react";
 import "./ColumnSelector.css";
 
 export interface ColumnSelectorItem {
@@ -25,6 +26,8 @@ interface ColumnSelectorProps {
   painelDica?: string;
   /** aria-label do painel (grupo). Padrão: "Escolher colunas desta esteira". */
   ariaLabel?: string;
+  /** Quando true, o botão mostra apenas o ícone (estilo SSX), sem texto. */
+  iconOnly?: boolean;
 }
 
 const LARGURA_PAINEL = 280;
@@ -42,6 +45,7 @@ export function ColumnSelector({
   painelTitulo = "Colunas desta esteira",
   painelDica = "Inclua ou oculte colunas de qualquer esteira. Arraste para reordenar.",
   ariaLabel = "Escolher colunas desta esteira",
+  iconOnly = false,
 }: ColumnSelectorProps) {
   const [aberto, setAberto] = useState(false);
   const [arrastandoIndex, setArrastandoIndex] = useState<number | null>(null);
@@ -134,13 +138,14 @@ export function ColumnSelector({
       <button
         ref={triggerRef}
         type="button"
-        className="column-selector-trigger"
+        className={`column-selector-trigger ${iconOnly ? "column-selector-trigger-icon" : ""}`.trim()}
         onClick={() => setAberto((prev) => !prev)}
         title={triggerTitulo}
+        aria-label={iconOnly ? triggerTitulo : undefined}
         aria-expanded={aberto}
         aria-controls={aberto ? painelId : undefined}
       >
-        {label}
+        {iconOnly ? <Columns3 size={16} aria-hidden="true" /> : label}
       </button>
 
       {aberto &&

@@ -23,6 +23,13 @@
   border-color: rgba(255, 255, 255, 0.2);
 }
 
+.column-selector-trigger-icon {
+  padding: 0.4rem;
+  width: 32px;
+  height: 32px;
+  justify-content: center;
+}
+
 .column-selector-painel {
   position: fixed;
   z-index: 99999;

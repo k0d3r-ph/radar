@@ -19,6 +19,7 @@ body.light-theme {
     --lt-fundo-475569: #e2e8f0;
     --lt-fundo-4c1d95: #f0eafb;
     --lt-fundo-64748b: #cbd5e1;
+    --lt-fundo-6b728033: #f1f5f9;
     --lt-fundo-ffffff08: #f8fafc;
     --lt-fundo-ffffff0a: #f1f5f9;
     --lt-fundo-ffffff12: #f1f5f9;
@@ -716,6 +717,21 @@ body.light-theme .csat-card fieldset {
 body.light-theme .csat-card button {
     background: #1d4ed8;
     color: white
+}
+body.light-theme .csat-estrela {
+    color: #475569
+}
+body.light-theme .csat-estrela:has(input:focus-visible) {
+    outline: 2px solid #1d4ed8
+}
+body.light-theme .csat-estrela--marcada {
+    color: #ab630e
+}
+body.light-theme .csat-estrela-rotulo {
+    color: #475569
+}
+body.light-theme .csat-nota-selecionada {
+    color: #475569
 }
 
 /* ── pages/Esteira/Esteira.css ── */
@@ -1926,6 +1942,30 @@ body.light-theme .hist-select-filtro {
 body.light-theme .hist-select-filtro:focus {
     border-color: #1e90ff;
     box-shadow: 0 0 0 3px rgba(30, 144, 255, 0.068)
+}
+body.light-theme .hist-filtro-tipo-trigger {
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    color: #0f172a
+}
+body.light-theme .hist-filtro-tipo-trigger:focus,
+body.light-theme .hist-filtro-tipo-trigger:hover {
+    border-color: #3b82f6
+}
+body.light-theme .hist-filtro-tipo-painel {
+    background: #f8fafc;
+    border: 1px solid #d5dce5;
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.099)
+}
+body.light-theme .hist-filtro-tipo-item {
+    color: #0f172a
+}
+body.light-theme .hist-filtro-tipo-item:hover {
+    background: #f1f5f9
+}
+body.light-theme .hist-filtro-tipo-limpar {
+    border-top: 1px solid #d5dce5;
+    color: #126fe2
 }
 body.light-theme .hist-filtro-date-group label {
     color: #64748b
@@ -3513,7 +3553,7 @@ body.light-theme .aging-legenda {
 }
 
 /* ── pages/RelatorioIndicadoresTreinamento/RelatorioIndicadoresTreinamento.css ── */
-body.light-theme .indicadores-resumo-grid .relatorio-kpi-card {
+body.light-theme .relatorio-kpi-card.indicadores-cartao-estatico {
     border-left-color: #3b82f6
 }
 body.light-theme .indicadores-secao-header p {
@@ -4469,6 +4509,30 @@ body.light-theme .line-chart-filtro-semanas input[type="text"]::placeholder {
 body.light-theme .line-chart-filtro-semanas select:focus,
 body.light-theme .line-chart-filtro-semanas input[type="text"]:focus {
     border-color: #3b82f6
+}
+body.light-theme .esteira-filtro-suporte-trigger {
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    color: #0f172a
+}
+body.light-theme .esteira-filtro-suporte-trigger:focus,
+body.light-theme .esteira-filtro-suporte-trigger:hover {
+    border-color: #3b82f6
+}
+body.light-theme .esteira-filtro-suporte-painel {
+    background: #f8fafc;
+    border: 1px solid #d5dce5;
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.099)
+}
+body.light-theme .esteira-filtro-suporte-item {
+    color: #0f172a
+}
+body.light-theme .esteira-filtro-suporte-item:hover {
+    background: #f1f5f9
+}
+body.light-theme .esteira-filtro-suporte-limpar {
+    border-top: 1px solid #d5dce5;
+    color: #126fe2
 }
 body.light-theme .relatorio-switch-label {
     color: #475569

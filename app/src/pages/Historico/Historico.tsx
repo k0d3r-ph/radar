@@ -1427,10 +1427,14 @@ export function Historico() {
       toast.error("Preencha a descrição da atualização.");
       return;
     }
+    if (!selecionada?.id) {
+      toast.error("Não foi possível localizar a ocorrência para registrar a atualização.");
+      return;
+    }
 
-    const atualizacoesAntigas = selecionada!.atualizacoes ?? [];
+    const atualizacoesAntigas = selecionada.atualizacoes ?? [];
     const atualizado = {
-      ...selecionada!,
+      ...selecionada,
       atualizacoes: [
         ...atualizacoesAntigas,
         {
@@ -1442,15 +1446,29 @@ export function Historico() {
     };
 
     setSalvando(true);
-    await salvarOcorrencia(atualizado);
-    const novasOcs = await carregar();
-    setSalvando(false);
-    setNovaAtualizacaoAberta(false);
-    setNovaDescricaoAtual("");
-    setNovoResponsavelAtual("");
-    const updatedSelected = novasOcs.find((o) => o.id === selecionada!.id);
-    setSelecionada(updatedSelected || atualizado);
-    toast.success("Atualização incluída!");
+    try {
+      await salvarOcorrencia(atualizado);
+      const atualizadoLocal = { ...atualizado, updatedAt: Date.now() };
+      setOcorrencias((atuais) =>
+        atuais.map((ocorrencia) =>
+          ocorrencia.id === atualizado.id ? atualizadoLocal : ocorrencia,
+        ),
+      );
+      setSelecionada(atualizadoLocal);
+      setNovaAtualizacaoAberta(false);
+      setNovaDescricaoAtual("");
+      setNovoResponsavelAtual("");
+      toast.success("Atualização incluída!");
+    } catch (error) {
+      console.error("Erro ao registrar atualização:", error);
+      toast.error(
+        error instanceof Error
+          ? `Não foi possível registrar a atualização: ${error.message}`
+          : "Não foi possível registrar a atualização.",
+      );
+    } finally {
+      setSalvando(false);
+    }
   }
 
   async function salvarEdicaoAtualizacao(index: number) {
@@ -2027,6 +2045,15 @@ export function Historico() {
     }
 
     const isOngoing = empresaObjeto.isOngoing ?? false;
+    // Mesma regra do botão "Calcular Score do Cliente": não exige score de quem já
+    // está na esteira "Clientes concluídos" (ver isSelectedEmpresaConcluida).
+    const isConcluida =
+      !empresaObjeto.isOngoing &&
+      !empresaObjeto.isSuspended &&
+      !empresaObjeto.isCancelled &&
+      empresaObjeto.conclusaoUnilateralCapacitacao !== true &&
+      !!empresaObjeto.dataFinalizacao?.trim() &&
+      !!empresaObjeto.dataFollowUpFinal?.trim();
 
     if (
       isTreinador &&
@@ -2034,6 +2061,7 @@ export function Historico() {
       form.tipo === "Treinamento" &&
       !calculoScoreResult &&
       !isOngoing &&
+      !isConcluida &&
       !CanceladoOuAusente
     ) {
       toast.error(
@@ -3728,6 +3756,16 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
     (e) => normalizar(e.nomeEmpresa) === normalizar(form.empresa),
   );
   const isSelectedEmpresaOngoing = selectedEmpresaObj?.isOngoing ?? false;
+  // Esteira "Clientes concluídos" da Home: já tem data de finalização e follow up
+  // final registrados (e não é conclusão unilateral, que é outra esteira). Não faz
+  // sentido calcular score de novo para quem já concluiu o acompanhamento.
+  const isSelectedEmpresaConcluida =
+    !selectedEmpresaObj?.isOngoing &&
+    !selectedEmpresaObj?.isSuspended &&
+    !selectedEmpresaObj?.isCancelled &&
+    selectedEmpresaObj?.conclusaoUnilateralCapacitacao !== true &&
+    !!selectedEmpresaObj?.dataFinalizacao?.trim() &&
+    !!selectedEmpresaObj?.dataFollowUpFinal?.trim();
   const treinamentoIndisponivel = bloquearTreinamentoSuspenso(
     selectedEmpresaObj,
     { tipo: "Treinamento", empresa: form.empresa },
@@ -6087,7 +6125,8 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             {(!editandoId || reservaEditando) &&
               isTreinador &&
               form.tipo === "Treinamento" &&
-              !isSelectedEmpresaOngoing && (
+              !isSelectedEmpresaOngoing &&
+              !isSelectedEmpresaConcluida && (
                 <div className="hist-campo score-btn-container">
                   <button
                     type="button"

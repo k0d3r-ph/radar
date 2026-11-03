@@ -15,11 +15,13 @@ import { calcularResultadoValidacao, identificarConteudoAvaliacao, isSolicitante
 import { duracaoAgendaValida } from '../../../../server/src/domain/duracaoAgenda';
 import { BancoPerguntas } from './BancoPerguntas';
 import { GestaoNotificacaoModal } from '../../components/GestaoNotificacaoModal';
+import { NotificacaoProgressoEsteiraModal } from '../../components/NotificacaoProgressoEsteiraModal';
 import { obterDestinatariosGestao, montarMensagemConclusaoEsteiraGestao } from '../../services/notificacoes';
 import type { ResultadoDestinatariosGestao } from '../../services/notificacoes';
 import { camposResultadoConclusao } from '../../utils/notificacaoConclusao';
 import type { PerguntaConhecimento, QuestaoValidacao, TentativaValidacao } from '../../../../server/src/domain/validacaoConhecimento';
 import type { Empresa, Ocorrencia } from '../../types';
+import { salvarOcorrencia } from '../../services/ocorrencias';
 import './ValidacaoConhecimento.css';
 import { QuestaoConhecimentoCard } from './QuestaoConhecimentoCard';
 
@@ -36,6 +38,11 @@ export function ValidacaoConhecimento() {
   const [atual, setAtual] = useState<TentativaValidacao | null>(null);
   const [manutencao, setManutencao] = useState<'basica' | 'avancada'>('basica');
   const [gestao, setGestao] = useState<(ResultadoDestinatariosGestao & { cliente: Empresa; mensagem: string }) | null>(null);
+  const [notificacaoProgresso, setNotificacaoProgresso] = useState<{
+    cliente: Empresa;
+    tentativa: TentativaValidacao;
+    ocorridoEm: number;
+  } | null>(null);
   const [busca, setBusca] = useState('');
   const [carregando, setCarregando] = useState(true);
   const [ocupado, setOcupado] = useState(false);
@@ -183,7 +190,24 @@ export function ValidacaoConhecimento() {
             const copiado = !!concluida.csatToken && await copiarTexto(linkCsat(concluida.csatToken));
             toast.success(copiado ? 'Tentativa concluída. Link do CSAT copiado.' : 'Tentativa concluída. Treinamento e CSAT registrados.');
             if (concluida.csatToken && !copiado) toast.warning('O navegador não permitiu copiar automaticamente. Use “Copiar link” ou selecione o endereço no campo do CSAT.');
-            if (concluida.concluiuEsteira) await prepararAvisoConclusao(concluida);
+            if (concluida.aprovada) {
+              try {
+                const lista = await listarEmpresas(true);
+                setEmpresas(lista);
+                const clienteAtualizado = lista.find(e => e.id === concluida.empresaId);
+                if (!clienteAtualizado) throw new Error('Validação concluída, mas o cliente não foi localizado para preparar o envio do progresso.');
+                setNotificacaoProgresso({
+                  cliente: clienteAtualizado,
+                  tentativa: concluida,
+                  ocorridoEm: concluida.concluidaEm || Date.now(),
+                });
+              } catch (error) {
+                setErro(error instanceof Error ? error.message : 'Validação concluída, mas não foi possível preparar o envio do progresso.');
+                if (concluida.concluiuEsteira) await prepararAvisoConclusao(concluida);
+              }
+            } else if (concluida.concluiuEsteira) {
+              await prepararAvisoConclusao(concluida);
+            }
           });
         }}>Concluir avaliação</button></>}{atual.status === 'pausada' && (role === 'master' || atual.treinadorId === user?.uid) && <button type="button" disabled={ocupado} onClick={() => executar(async () => guardar(await salvarTentativaConhecimento(atual, 'andamento')))}>Retomar avaliação</button>}{cancelavel && <button className="validacao-cancelar" type="button" disabled={ocupado} onClick={async () => {
           if (!await confirmar({ titulo: 'Cancelar a avaliação?', descricao: `${atual.empresa} · Tentativa ${atual.numero}\n\nO formulário e suas respostas serão excluídos, sem contar como tentativa. Nenhum treinamento será registrado, e você poderá gerar outra avaliação com o mesmo número.`, textoConfirmar: 'Cancelar avaliação', textoCancelar: 'Manter avaliação', destrutivo: true })) return;
@@ -209,6 +233,26 @@ export function ValidacaoConhecimento() {
       </>}
     </>}
     {modalConfirmacao}
+    {notificacaoProgresso && <NotificacaoProgressoEsteiraModal
+      open
+      empresa={notificacaoProgresso.cliente}
+      ocorridoEm={notificacaoProgresso.ocorridoEm}
+      onClose={() => {
+        const tentativa = notificacaoProgresso.tentativa;
+        setNotificacaoProgresso(null);
+        if (tentativa.concluiuEsteira) void executar(() => prepararAvisoConclusao(tentativa));
+      }}
+      onResultado={async resultado => {
+        const tentativa = notificacaoProgresso.tentativa;
+        if (!tentativa.ocorrenciaId) throw new Error('Não foi possível localizar a ocorrência da validação.');
+        await salvarOcorrencia({
+          id: tentativa.ocorrenciaId,
+          whatsappStatus: resultado.status,
+          whatsappEnviadoEm: resultado.enviadoEm,
+          whatsappDestinatarios: resultado.destinatarios,
+        } as Ocorrencia);
+      }}
+    />}
     <GestaoNotificacaoModal open={!!gestao} titulo="Avisar gestão da conclusão da esteira" destinatarios={gestao?.destinatarios || []} avisos={gestao?.avisos} mensagem={gestao?.mensagem || ''} onChangeMensagem={mensagem => setGestao(g => g ? { ...g, mensagem } : null)} onClose={() => setGestao(null)} onResultado={async resultado => {
       if (!gestao?.cliente.id) return;
       await salvarEmpresas({ id: gestao.cliente.id, ...camposResultadoConclusao(resultado) });

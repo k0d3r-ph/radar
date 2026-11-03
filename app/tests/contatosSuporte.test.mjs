@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { filtrarEmpresasContatosSuporte, obterCategoriaContatoSuporte } from '../src/utils/contatosSuporte.ts';
+import { filtrarEmpresasContatosSuporte, filtrarEmpresasPorEsteiraContatoSuporte, obterCategoriaContatoSuporte } from '../src/utils/contatosSuporte.ts';
 import { obterInfoTipoOcorrencia } from '../src/utils/empresaUtils.ts';
 
 test('carteira dos contatos inclui apenas esteira atual e suspensos, conforme as tabelas da Home', () => {
@@ -23,6 +23,20 @@ test('carteira dos contatos inclui apenas esteira atual e suspensos, conforme as
     filtrarEmpresasContatosSuporte(empresas).map((empresa) => empresa.nomeEmpresa),
     ['Implantação', 'Suspensa', 'Aguardando follow-up', 'Datas vazias', 'Suspensa após conclusão', 'Ongoing suspensa', 'Cadastro antigo'],
   );
+});
+
+test('filtro de esteira retorna apenas os status selecionados e vazio mantém todos', () => {
+  const empresas = [
+    { nomeEmpresa: 'Ativa' },
+    { nomeEmpresa: 'Suspensa', isSuspended: true },
+    { nomeEmpresa: 'Concluída', dataFinalizacao: '2026-10-20', dataFollowUpFinal: '2026-10-25' },
+  ];
+
+  assert.deepEqual(
+    filtrarEmpresasPorEsteiraContatoSuporte(empresas, ['suspenso', 'concluido']).map(({ nomeEmpresa }) => nomeEmpresa),
+    ['Suspensa', 'Concluída'],
+  );
+  assert.deepEqual(filtrarEmpresasPorEsteiraContatoSuporte(empresas, []), empresas);
 });
 
 test('contato importado sem tipo aparece nas contagens e tem rótulo legível', () => {

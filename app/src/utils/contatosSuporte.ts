@@ -31,6 +31,14 @@ export function obterEsteiraContatoSuporte(empresa: Pick<Empresa, 'isSuspended' 
   return concluida ? 'concluido' : 'ativa';
 }
 
+export function filtrarEmpresasPorEsteiraContatoSuporte<T extends Pick<Empresa, 'isSuspended' | 'dataFinalizacao' | 'dataFollowUpFinal' | 'conclusaoUnilateralCapacitacao'>>(
+  empresas: T[],
+  esteiras: EsteiraContatoSuporte[],
+): T[] {
+  if (esteiras.length === 0) return empresas;
+  return empresas.filter((empresa) => esteiras.includes(obterEsteiraContatoSuporte(empresa)));
+}
+
 export type CategoriaContatoSuporte = 'duvidas' | 'problemas' | 'solicitacoes' | 'semClassificacao';
 
 /** A classificação atual do Radar prevalece sobre as tags originais do SSX Desk. */

@@ -41,7 +41,13 @@ import type { StatusFarolType } from "../../utils/monitoramento";
 import { formatarNome } from "../../utils/formatarNome";
 import { estaDentroDoExpediente } from "../../utils/expediente";
 import { obterInfoTipoOcorrencia } from "../../utils/empresaUtils";
-import { filtrarEmpresasContatosSuporte, obterCategoriaContatoSuporte, obterEsteiraContatoSuporte } from "../../utils/contatosSuporte";
+import {
+  filtrarEmpresasContatosSuporte,
+  filtrarEmpresasPorEsteiraContatoSuporte,
+  obterCategoriaContatoSuporte,
+  obterEsteiraContatoSuporte,
+  type EsteiraContatoSuporte,
+} from "../../utils/contatosSuporte";
 import "./Relatorios.css";
 import { RelatorioScore } from "../RelatorioScore/RelatorioScore";
 import { RelatorioJornadaCliente } from "../RelatorioJornadaCliente/RelatorioJornadaCliente";
@@ -201,8 +207,8 @@ export const Relatorios: React.FC = () => {
   });
   const [clienteFiltroGrafico, setClienteFiltroGrafico] = useState<string>("");
   const [expedienteFiltroGrafico, setExpedienteFiltroGrafico] = useState<"ambos" | "dentro" | "fora">("ambos");
-  // Filtra a lista de "Contato com Suporte" por esteira (múltipla escolha; vazio = todas).
-  const [filtroEsteiraSuporte, setFiltroEsteiraSuporte] = useState<string[]>([]);
+  // Filtra a lista e o gráfico de "Contato com Suporte" por esteira (vazio = todas).
+  const [filtroEsteiraSuporte, setFiltroEsteiraSuporte] = useState<EsteiraContatoSuporte[]>([]);
   const [filtroEsteiraSuporteAberto, setFiltroEsteiraSuporteAberto] = useState(false);
   const filtroEsteiraSuporteRef = useRef<HTMLDivElement>(null);
 
@@ -459,9 +465,13 @@ export const Relatorios: React.FC = () => {
     () => filtrarEmpresasContatosSuporte(dadosEmpresas, { incluirConcluidos: true }),
     [dadosEmpresas],
   );
+  const empresasContatosSuportePorEsteira = useMemo(
+    () => filtrarEmpresasPorEsteiraContatoSuporte(empresasContatosSuporte, filtroEsteiraSuporte),
+    [empresasContatosSuporte, filtroEsteiraSuporte],
+  );
   const nomesEmpresasContatosSuporte = useMemo(
-    () => new Set(empresasContatosSuporte.map((e) => e.nomeEmpresa.trim().toLowerCase())),
-    [empresasContatosSuporte],
+    () => new Set(empresasContatosSuportePorEsteira.map((e) => e.nomeEmpresa.trim().toLowerCase())),
+    [empresasContatosSuportePorEsteira],
   );
 
   const contatosSuporte = useMemo(() => {
@@ -1118,12 +1128,15 @@ export const Relatorios: React.FC = () => {
     const listaTipos =
       nomes.length <= 1 ? nomes.join("") : `${nomes.slice(0, -1).join(", ")} e ${nomes[nomes.length - 1]}`;
     const sufixoComparacao = compararTreinamento ? " — Suporte vs. Treinamento" : "";
+    const sufixoEsteira = filtroEsteiraSuporte.length > 0
+      ? ` — ${filtroEsteiraSuporte.map(labelEsteiraSuporte).join(", ")}`
+      : "";
     const sufixoExpediente = expedienteFiltroGrafico === "ambos"
       ? ""
       : expedienteFiltroGrafico === "dentro" ? " — Dentro do expediente" : " — Fora do expediente";
-    const base = `Evolução ${granularidadeGrafico === "dia" ? "diária" : "semanal"} de ${listaTipos}${sufixoComparacao}${sufixoExpediente}`;
+    const base = `Evolução ${granularidadeGrafico === "dia" ? "diária" : "semanal"} de ${listaTipos}${sufixoComparacao}${sufixoEsteira}${sufixoExpediente}`;
     return clienteFiltroGrafico ? `${base} — ${clienteFiltroGrafico}` : base;
-  }, [tiposVisiveisGrafico, compararTreinamento, granularidadeGrafico, clienteFiltroGrafico, expedienteFiltroGrafico]);
+  }, [tiposVisiveisGrafico, compararTreinamento, granularidadeGrafico, clienteFiltroGrafico, expedienteFiltroGrafico, filtroEsteiraSuporte]);
 
   // Lista de clientes com contato de suporte ou treinamento registrado (para o filtro do gráfico)
   const clientesComContatoSuporte = useMemo(() => {
@@ -1374,17 +1387,18 @@ ${riscoChurn.length > 0
 
   // Filtra a lista do KPI selecionado pelo mesmo filtro de cliente usado no gráfico
   // de evolução de dúvidas/problemas/solicitações (kpiSelecionado === 2).
+  const listaKpiSelecionado = selectedKpi.lista;
   const listaTabelaFiltrada = useMemo(() => {
-    if (kpiSelecionado !== 2) return selectedKpi.lista;
+    if (kpiSelecionado !== 2) return listaKpiSelecionado;
     const termo = clienteFiltroGrafico.trim().toLowerCase();
-    return selectedKpi.lista.filter((e) => {
+    return listaKpiSelecionado.filter((e) => {
       const nomeOk = !termo || e.nomeEmpresa.trim().toLowerCase().includes(termo);
       const esteiraOk =
         filtroEsteiraSuporte.length === 0 ||
         filtroEsteiraSuporte.includes(obterEsteiraContatoSuporte(e));
       return nomeOk && esteiraOk;
     });
-  }, [selectedKpi, kpiSelecionado, clienteFiltroGrafico, filtroEsteiraSuporte]);
+  }, [listaKpiSelecionado, kpiSelecionado, clienteFiltroGrafico, filtroEsteiraSuporte]);
 
   return (
     <div className="relatorios-page">

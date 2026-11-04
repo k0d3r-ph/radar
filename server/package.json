@@ -13,6 +13,7 @@
     "vincular-id-central": "tsx scripts/vincularIdCentral.ts",
     "atualizar-valores-contrato": "tsx scripts/atualizarValoresContrato.ts",
     "sincronizar-ssx-desk": "tsx scripts/sincronizarSsxDesk.ts",
+    "sincronizar-manager-ops": "tsx scripts/sincronizarManagerOps.ts",
     "emulators": "firebase emulators:start --config ../firebase.json --import ../.emulator-data --export-on-exit",
     "seed:emulador": "tsx scripts/seedEmulador.ts",
     "seed:jornada": "tsx scripts/seedJornadaEmulador.ts",

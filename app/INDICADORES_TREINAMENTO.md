@@ -8,6 +8,10 @@ Clientes de todos os status são considerados, incluindo ongoing, suspensos e ca
 
 O indicador **Clientes Suspensos** conta apenas clientes que ainda pertencem à esteira: exclui cancelados e clientes concluídos (conclusão unilateral ou finalização com follow up final). Para snapshots anteriores, a suspensão termina na data do cancelamento ou da conclusão; assim, o cliente permanece contado nos períodos anteriores à saída da esteira.
 
+O painel sincroniza empresas, ocorrências e pontos a cada minuto enquanto a aba está visível, e também ao retornar o foco se já passou um minuto. Usa a sincronização incremental compartilhada: consulta o índice das coleções e baixa somente documentos novos ou alterados. Em caso de falha, mantém os dados atuais, informa o erro e tenta novamente no próximo ciclo.
+
+Quando um valor exibido muda entre duas atualizações, os dígitos afetados giram com um efeito "flip clock" (estilo painel de aeroporto mecânico); dígitos que continuam iguais não reanimam. Respeita `prefers-reduced-motion`.
+
 Lançamentos da gamificação complementam CSAT e solicitação ausentes na ocorrência, somente por vínculo explícito (`gamificacaoPontoId` ou `ocorrenciaId`). Não geram treinamentos adicionais. Isso evita duplicar os registros antigos de junho, que possuem ocorrências e lançamentos sem vínculo. Não há casamento automático por empresa/data, pois podem existir sessões distintas no mesmo dia. Campos explicitamente vazios na ocorrência prevalecem sobre o lançamento. Dados persistidos e pontos da gamificação não são alterados.
 
 O filtro e os detalhamentos incluem treinadores ativos e autores históricos das ocorrências e lançamentos, mesmo após mudança de perfil ou inativação. **Natália Teixeira** permanece disponível após sua mudança para CS; o primeiro nome é resolvido quando existe um único candidato. A autoria do treinamento é a da ocorrência, sem transferi-la ao responsável atual pelo cliente. Ausência de autor aparece como **Não informado**. Nenhuma dessas regras exige novas consultas ao Firebase.

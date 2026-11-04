@@ -19,26 +19,34 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
   const [lancamentos, setLancamentos] = useState<LancamentoPonto[]>([]);
   const [treinadoresEquipe, setTreinadoresEquipe] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [atualizadoEm, setAtualizadoEm] = useState(() => Date.now());
 
   useEffect(() => {
-    // forceRefresh: este é o painel "ao vivo" — não deve herdar o cache de até 5 minutos
-    // que outras telas do app possam ter deixado em memória.
-    Promise.all([
-      listarEmpresas(true),
-      listarOcorrencias(true),
-      listarLancamentosPontos(true),
-      listarUsuarios(true),
-    ])
-      .then(
-        ([
-          empresasLista,
-          ocorrenciasLista,
-          lancamentosLista,
-          usuariosLista,
-        ]) => {
-          setEmpresas(empresasLista.filter((e) => !isEmpresaInterna(e)));
-          setOcorrencias(ocorrenciasLista);
-          setLancamentos(lancamentosLista);
+    let ativo = true;
+    let sincronizando = false;
+    let ultimaTentativa = 0;
+    let falhaNotificada = false;
+
+    const atualizar = async (inicial = false) => {
+      if (sincronizando || (!inicial && Date.now() - ultimaTentativa < 60_000)) return;
+      sincronizando = true;
+      ultimaTentativa = Date.now();
+
+      try {
+        // A sincronização incremental consulta o índice e baixa somente documentos
+        // novos ou alterados; não relê todas as coleções a cada atualização.
+        const [empresasLista, ocorrenciasLista, lancamentosLista] = await Promise.all([
+          listarEmpresas(true),
+          listarOcorrencias(true),
+          listarLancamentosPontos(true),
+        ]);
+        const usuariosLista = inicial ? await listarUsuarios(true) : null;
+        if (!ativo) return;
+
+        setEmpresas(empresasLista.filter((e) => !isEmpresaInterna(e)));
+        setOcorrencias(ocorrenciasLista);
+        setLancamentos(lancamentosLista);
+        if (usuariosLista) {
           setTreinadoresEquipe(
             listarTreinadoresIndicadoresTreinamento(
               usuariosLista
@@ -55,16 +63,39 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
               ocorrenciasLista,
             ),
           );
-        },
-      )
-      .catch((error) => {
-        console.error(
-          "Erro ao carregar dados dos indicadores de treinamento:",
-          error,
-        );
-        toast.error("Erro ao carregar os indicadores de treinamento.");
-      })
-      .finally(() => setLoading(false));
+        }
+        setAtualizadoEm(Date.now());
+        falhaNotificada = false;
+      } catch (error) {
+        console.error("Erro ao sincronizar os indicadores de treinamento:", error);
+        if (!falhaNotificada) {
+          toast.error(
+            inicial
+              ? "Erro ao carregar os indicadores de treinamento."
+              : "Não foi possível atualizar os indicadores. Tentaremos novamente em breve.",
+          );
+          falhaNotificada = true;
+        }
+      } finally {
+        sincronizando = false;
+        if (ativo && inicial) setLoading(false);
+      }
+    };
+
+    const atualizarSeVisivel = () => {
+      if (document.visibilityState === "visible") void atualizar();
+    };
+
+    void atualizar(true);
+    const intervalo = window.setInterval(atualizarSeVisivel, 60_000);
+    window.addEventListener("focus", atualizarSeVisivel);
+    document.addEventListener("visibilitychange", atualizarSeVisivel);
+    return () => {
+      ativo = false;
+      window.clearInterval(intervalo);
+      window.removeEventListener("focus", atualizarSeVisivel);
+      document.removeEventListener("visibilitychange", atualizarSeVisivel);
+    };
   }, []);
 
   const eventos = useMemo(
@@ -91,6 +122,7 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
           empresas={empresas}
           ocorrencias={ocorrencias}
           treinador={null}
+          atualizadoEm={atualizadoEm}
         />
       )}
     </div>

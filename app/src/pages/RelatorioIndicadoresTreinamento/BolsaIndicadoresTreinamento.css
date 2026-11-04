@@ -289,6 +289,41 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Efeito "flip clock": cada caractere vira seu próprio compartimento com perspectiva 3D;
+   só o(s) que mudou(aram) entre duas atualizações recebe(m) a animação de giro — ver
+   FlipDigits em BolsaIndicadoresTreinamento.tsx, que controla isso pela "geração" de
+   cada posição. Os demais caracteres ficam parados, como num painel mecânico real. */
+.bolsa-flip {
+  display: inline-flex;
+  perspective: 240px;
+}
+
+.bolsa-flip-slot {
+  display: inline-block;
+  overflow: hidden;
+}
+
+.bolsa-flip-digito {
+  display: inline-block;
+  transform-origin: 50% 20%;
+  animation: bolsa-flip-girar 1.1s cubic-bezier(0.3, 0.75, 0.3, 1);
+}
+
+@keyframes bolsa-flip-girar {
+  0% {
+    transform: rotateX(70deg);
+    opacity: 0.2;
+  }
+  55% {
+    transform: rotateX(-12deg);
+    opacity: 1;
+  }
+  100% {
+    transform: rotateX(0deg);
+    opacity: 1;
+  }
+}
+
 .bolsa-card-unidade {
   font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
   font-weight: 600;
@@ -468,7 +503,8 @@
 @media (prefers-reduced-motion: reduce) {
   .bolsa-ao-vivo-dot,
   .bolsa-card--alerta,
-  .bolsa-ticker-trilha {
+  .bolsa-ticker-trilha,
+  .bolsa-flip-digito {
     animation: none;
   }
 }

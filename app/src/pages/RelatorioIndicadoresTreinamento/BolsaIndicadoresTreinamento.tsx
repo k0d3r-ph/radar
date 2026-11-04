@@ -226,6 +226,38 @@ function MiniSparkline({ pontos, cor }: { pontos: Ponto[]; cor: string }) {
   );
 }
 
+/**
+ * Efeito "flip clock": cada caractere é um slot independente que só reanima quando o
+ * valor naquela posição muda (geração incrementada) — dígitos que continuam iguais entre
+ * duas atualizações ficam parados, igual num painel de aeroporto mecânico de verdade.
+ */
+function FlipDigits({ texto, className }: { texto: string; className?: string }) {
+  const caracteres = texto.split("");
+  const [prevTexto, setPrevTexto] = useState(texto);
+  const [geracoes, setGeracoes] = useState<number[]>(() => caracteres.map(() => 0));
+
+  if (prevTexto !== texto) {
+    const prevCaracteres = prevTexto.split("");
+    const novasGeracoes = caracteres.map((c, i) =>
+      prevCaracteres[i] === c ? geracoes[i] ?? 0 : (geracoes[i] ?? 0) + 1,
+    );
+    setPrevTexto(texto);
+    setGeracoes(novasGeracoes);
+  }
+
+  return (
+    <span className={`bolsa-flip ${className || ""}`}>
+      {caracteres.map((c, i) => (
+        <span className="bolsa-flip-slot" key={i}>
+          <span className="bolsa-flip-digito" key={geracoes[i] ?? 0}>
+            {c}
+          </span>
+        </span>
+      ))}
+    </span>
+  );
+}
+
 const COR_NEUTRA = "#64748b";
 const COR_FAVORAVEL = "#22c55e";
 const COR_DESFAVORAVEL = "#ef4444";
@@ -377,7 +409,7 @@ function CardIndicador({
 
       <div className="bolsa-card-valor-bloco">
         <div className="bolsa-card-valor-linha" style={{ color: corPrincipal }}>
-          <span className="bolsa-card-valor">{valorSplit.main}</span>
+          <FlipDigits texto={valorSplit.main} className="bolsa-card-valor" />
           {valorSplit.unit && <span className="bolsa-card-unidade">{valorSplit.unit}</span>}
         </div>
         <span className="bolsa-card-meta-label">{metaLabel}</span>
@@ -409,6 +441,7 @@ interface Props {
   empresas: Empresa[];
   ocorrencias: Ocorrencia[];
   treinador: string | null;
+  atualizadoEm: number;
 }
 
 /**
@@ -422,14 +455,11 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
   empresas,
   ocorrencias,
   treinador,
+  atualizadoEm,
 }) => {
   const [agora, setAgora] = useState(() => new Date());
   const [modoFoco, setModoFoco] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
-  // Momento em que o painel carregou os dados — a página-mãe busca uma vez só (sem
-  // recarregar em segundo plano), então "atualizado há Xs" é o tempo desde essa carga.
-  const [carregadoEm] = useState(() => Date.now());
-
   useEffect(() => {
     const id = window.setInterval(() => setAgora(new Date()), 1000);
     return () => window.clearInterval(id);
@@ -548,7 +578,7 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
   );
   const tickerDuplicado = [...ticker, ...ticker, ...ticker];
 
-  const sinceUpdate = Math.max(0, Math.round((agora.getTime() - carregadoEm) / 1000));
+  const sinceUpdate = Math.max(0, Math.round((agora.getTime() - atualizadoEm) / 1000));
   const diaSemana = agora.toLocaleDateString("pt-BR", { weekday: "long" });
   const diaSemanaCapitalizado = diaSemana.charAt(0).toUpperCase() + diaSemana.slice(1);
   const dataCurta = agora.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
@@ -614,7 +644,7 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
           {tickerDuplicado.map((item, idx) => (
             <span className="bolsa-ticker-item" key={`${item.chave}-${idx}`}>
               <span className="bolsa-ticker-titulo">{item.titulo}</span>
-              <span className="bolsa-ticker-valor">{item.valor}</span>
+              <FlipDigits texto={item.valor} className="bolsa-ticker-valor" />
               <span className="bolsa-ticker-delta" style={{ color: item.cor }}>
                 {item.arrow} {item.deltaStr}
               </span>

@@ -18,6 +18,11 @@
 .validacao-page details > form { display: grid; gap: 18px; }
 .validacao-selecao:has(> label) { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto; }
 .validacao-agenda { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; padding-top: 20px; border-top: 1px solid #334155; }
+.validacao-cronometro-controle { display: flex; align-items: stretch; gap: 8px; min-width: 0; }
+.validacao-page .validacao-cronometro-controle input { flex: 1; }
+.validacao-page .validacao-cronometro-botao { flex-shrink: 0; }
+.validacao-cronometro-tempo { color: #93c5fd; font-size: 15px; font-variant-numeric: tabular-nums; letter-spacing: .04em; }
+.validacao-ajuda-campo { color: #94a3b8; font-size: 11px; line-height: 1.5; font-weight: 400; }
 .validacao-erro-campo { color: #fca5a5; font-size: 11px; line-height: 1.5; font-weight: 400; }
 .validacao-acoes, .validacao-historico { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .validacao-historico { margin-bottom: 18px; }
@@ -47,7 +52,24 @@
 .validacao-questao--parcial { border-left-color: #fbbf24; }
 .validacao-questao--incorreto { border-left-color: #f87171; }
 .validacao-questao-cabecalho { display: flex; align-items: center; gap: 11px; }
-.validacao-questao-numero { display: grid; place-items: center; width: 34px; height: 34px; flex-shrink: 0; border: 1px solid #334155; border-radius: 9px; background: #1e293b; color: #94a3b8; font-size: 12px; font-weight: 600; }
+.validacao-questao-numero { display: grid; place-items: center; width: 34px; height: 34px; flex-shrink: 0; border: 1px solid #334155; border-radius: 9px; background: #1e293b; color: #94a3b8; font-size: 12px; font-weight: 600; font-family: inherit; }
+button.validacao-questao-numero:not(:disabled) { cursor: pointer; }
+button.validacao-questao-numero:hover:not(:disabled) { border-color: #64748b; color: #e2e8f0; background: rgba(148,163,184,.12); }
+button.validacao-questao-numero:focus-visible { outline: 2px solid #38bdf8; outline-offset: 2px; }
+.validacao-page input.validacao-questao-numero--edicao { width: 34px; padding: 0; text-align: center; font-size: 12px; -moz-appearance: textfield; }
+input.validacao-questao-numero--edicao::-webkit-outer-spin-button, input.validacao-questao-numero--edicao::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.validacao-questao-mover { display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
+.validacao-page .validacao-questao-mover button { display: grid; place-items: center; width: 22px; height: 18px; padding: 0; border: 1px solid #334155; border-radius: 4px; background: #1e293b; color: #94a3b8; }
+.validacao-page .validacao-questao-mover button:hover:not(:disabled) { background: rgba(148,163,184,.18); color: #e2e8f0; }
+.validacao-page .validacao-questao-mover button:disabled { opacity: .35; cursor: not-allowed; }
+.validacao-questao-handle { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; color: rgba(148,163,184,.55); cursor: grab; }
+.validacao-questao.arrastando { opacity: .5; }
+.validacao-questao.arrastando .validacao-questao-handle { cursor: grabbing; }
+/* Indica onde a pergunta arrastada vai cair: uma linha acima ou abaixo da pergunta
+   sobrevoada, conforme a metade em que o cursor está. box-shadow em vez de border
+   pra não deslocar o layout ao ligar/desligar o indicador. */
+.validacao-questao--alvo-antes { box-shadow: 0 -2px 0 0 #38bdf8; }
+.validacao-questao--alvo-depois { box-shadow: 0 2px 0 0 #38bdf8; }
 .validacao-questao-secao { display: block; color: #cbd5e1; font-size: 12px; font-weight: 600; }
 .validacao-questao-origem { display: block; margin-top: 3px; color: #94a3b8; font-size: 11px; }
 .validacao-preferida { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; padding: 3px 8px; border-radius: 99px; background: rgba(251,191,36,.1); color: #fbbf24; font-size: 11px; font-weight: 600; }
@@ -120,4 +142,15 @@
 .validacao-banco-etiquetas > span { padding: 2px 8px; border-radius: 99px; background: #1e293b; color: #cbd5e1; font-size: 11px; font-weight: 600; }
 .validacao-banco-etiquetas .validacao-etiqueta-preferida { background: rgba(251,191,36,.1); color: #fbbf24; }
 .validacao-banco-etiquetas .validacao-etiqueta-inativa { background: rgba(148,163,184,.15); color: #94a3b8; }
+.validacao-impressao-dialog { width: min(620px, calc(100vw - 32px)); max-height: min(90dvh, 760px); padding: 24px; border: 1px solid #475569; border-radius: 14px; background: #111827; color: #e2e8f0; box-shadow: 0 24px 80px rgba(0,0,0,.45); }
+.validacao-impressao-dialog::backdrop { background: rgba(2,6,23,.72); backdrop-filter: blur(3px); }
+.validacao-impressao-dialog form { display: grid; gap: 14px; }
+.validacao-impressao-dialog h2 { margin: 0; font-size: 19px; }
+.validacao-impressao-dialog p { margin: 0; color: #94a3b8; font-size: 13px; }
+.validacao-impressao-dialog label { display: block; margin-top: 6px; }
+.validacao-impressao-dialog label span { color: #94a3b8; font-weight: 400; }
+.validacao-page .validacao-impressao-dialog textarea { min-height: 180px; margin: 0; }
+.validacao-page .validacao-impressao-dialog .validacao-template { justify-self: start; }
+.validacao-impressao-dialog .validacao-impressao-erro { color: #fca5a5; }
+.validacao-impressao-acoes { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
 @media (max-width: 720px) { .validacao-banco-filtros { grid-template-columns: 1fr; } }

@@ -298,6 +298,28 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
 }
 
+.hist-resultados-resumo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  color: #64748b;
+  font-size: 0.88rem;
+}
+
+.hist-resultados-resumo strong {
+  color: #1e293b;
+  font-size: 1.08rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.hist-resultados-resumo span {
+  margin-left: auto;
+  color: #475569;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
 .hist-filtros-main {
   display: flex;
   gap: 12px;
@@ -3037,6 +3059,5 @@ body:not(.dark-theme) .hist-ia-copy-btn {
   background: rgba(124, 58, 237, 0.1);
   color: #7c3aed;
 }
-
 
 

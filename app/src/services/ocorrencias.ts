@@ -631,3 +631,46 @@ export async function definirOcorrenciaFavorita(id: string, favorita: boolean) {
   if (cachedOcorrencias) cachedOcorrencias = cachedOcorrencias.map(o => o.id === id ? { ...o, ...dados } : o);
   return dados as Pick<Ocorrencia, 'favorita' | 'favoritaEmpresaId' | 'favoritadaPor' | 'favoritadaEm' | 'updatedAt'>;
 }
+
+export async function adicionarAtualizacaoValidacao(
+  id: string,
+  descricao: string,
+): Promise<Pick<Ocorrencia, "atualizacoes" | "updatedAt">> {
+  if (!auth.currentUser) throw new Error("Entre no Radar para registrar uma atualização.");
+  const token = await auth.currentUser.getIdToken();
+  let response: Response;
+  try {
+    response = await fetch(`${RADAR_API_URL}/api/ocorrencias/${encodeURIComponent(id)}/atualizacoes`, {
+      method: "POST",
+      headers: { Authorization: ["Bearer", token].join(" "), "Content-Type": "application/json" },
+      body: JSON.stringify({ descricao }),
+      signal: AbortSignal.timeout(20_000),
+    });
+  } catch {
+    throw new Error("Não foi possível conectar à API para registrar a atualização. Tente novamente.");
+  }
+
+  const dados: unknown = await response.json().catch(() => null);
+  if (!response.ok) {
+    const mensagem = dados && typeof dados === "object" && "error" in dados && typeof dados.error === "string"
+      ? dados.error
+      : "Não foi possível registrar a atualização.";
+    throw new Error(mensagem);
+  }
+  if (!dados || typeof dados !== "object" || !("atualizacoes" in dados) || !Array.isArray(dados.atualizacoes)
+    || !dados.atualizacoes.every((item: unknown) =>
+      !!item && typeof item === "object" && "descricao" in item && typeof item.descricao === "string"
+      && "updatedAt" in item && typeof item.updatedAt === "number"
+      && (!("responsavel" in item) || typeof item.responsavel === "string"))
+    || !("updatedAt" in dados) || typeof dados.updatedAt !== "number") {
+    throw new Error("A API retornou uma resposta inválida. Confira se o backend está atualizado.");
+  }
+  const resultado = {
+    atualizacoes: dados.atualizacoes as NonNullable<Ocorrencia["atualizacoes"]>,
+    updatedAt: dados.updatedAt,
+  };
+  if (cachedOcorrencias) {
+    cachedOcorrencias = cachedOcorrencias.map(o => o.id === id ? { ...o, ...resultado } : o);
+  }
+  return resultado;
+}

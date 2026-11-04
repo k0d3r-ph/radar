@@ -3,7 +3,7 @@ import { calcularDiasSuspensaoAtual } from "../../utils/monitoramento";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { podeEditarOcorrencia } from "../../utils/permissoesOcorrencia";
+import { podeEditarOcorrencia, podeIncluirAtualizacaoOcorrencia } from "../../utils/permissoesOcorrencia";
 import "./CsatReservas.css";
 import {
   requisicaoCsat,
@@ -14,6 +14,7 @@ import {
   gerarLinkCsatDaOcorrencia,
 } from "../../services/csat";
 import { copiarTexto } from "../../utils/clipboard";
+import { montarTemplateTreinamento } from "../../utils/templateTreinamento";
 import type { ReservaCsat } from "../../services/csat";
 import { GerarCsatModal } from "./GerarCsatModal";
 import * as XLSX from "xlsx";
@@ -22,6 +23,7 @@ import {
   listarOcorrencias,
   removerOcorrencia,
   definirOcorrenciaFavorita,
+  adicionarAtualizacaoValidacao,
   validarClienteParaNovoTreinamento,
   type AcaoLancamentoPonto,
 } from "../../services/ocorrencias";
@@ -421,8 +423,6 @@ const renderMarkdown = (text: string) => {
   });
 };
 
-const montarTemplateTreinamento = (participantes?: string) =>
-  `Participantes: ${participantes ?? ""}\n\nNOTA: \n\nRelatório de treinamento:\n\n• Cliente se manteve atento? \n• Cliente absorveu o conteúdo aplicado?\n• Cliente foi participativo?\n• Houve alguma interrupção?\n• Ambiente favorável (Som)?\n• Manifestou alguma insatisfação?\n• Treinamento foi gravado?\n\nRelatório do atendimento:`;
 const TEMPLATE_TREINAMENTO = montarTemplateTreinamento();
 
 /** Ocorrência de Follow up final mais recente do cliente, para decidir se um novo
@@ -1447,8 +1447,14 @@ export function Historico() {
 
     setSalvando(true);
     try {
-      await salvarOcorrencia(atualizado);
-      const atualizadoLocal = { ...atualizado, updatedAt: Date.now() };
+      let atualizadoLocal: Ocorrencia;
+      if (selecionada.validacaoTentativaId) {
+        const resultado = await adicionarAtualizacaoValidacao(selecionada.id, novaDescricaoAtual.trim());
+        atualizadoLocal = { ...selecionada, ...resultado };
+      } else {
+        await salvarOcorrencia(atualizado);
+        atualizadoLocal = { ...atualizado, updatedAt: Date.now() };
+      }
       setOcorrencias((atuais) =>
         atuais.map((ocorrencia) =>
           ocorrencia.id === atualizado.id ? atualizadoLocal : ocorrencia,
@@ -3918,6 +3924,17 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, totalItems);
   const filtradasExibidas = filtradas.slice(startIndex, endIndex);
+  const filtrosAtivosCount = [
+    busca.trim(),
+    filtroTipo.length > 0,
+    filtroAssuntoDuvida,
+    filtroFavoritas,
+    filtroDepto,
+    dataInicio,
+    dataFim,
+    empresaFiltro,
+    expedienteFiltro,
+  ].filter(Boolean).length;
 
   function exportarParaExcel() {
     if (filtradas.length === 0) {
@@ -4373,9 +4390,17 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
       {/* Barra de filtros */}
       <div className="hist-filtros">
+        <div className="hist-resultados-resumo" role="status" aria-live="polite">
+          <strong>{totalItems}</strong>{" "}
+          {totalItems === 1 ? "ocorrência encontrada" : "ocorrências encontradas"}
+          {filtrosAtivosCount > 0 && (
+            <span>{filtrosAtivosCount} {filtrosAtivosCount === 1 ? "filtro ativo" : "filtros ativos"}</span>
+          )}
+        </div>
         <div className="hist-filtros-main">
           <input
             className="hist-busca"
+            aria-label="Buscar ocorrências por empresa, tipo ou responsável"
             placeholder="Buscar por empresa, tipo, responsável..."
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
@@ -4535,7 +4560,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               }}
               title="Limpar todos os filtros"
             >
-              Limpar Filtros
+              Limpar filtros ({filtrosAtivosCount})
             </button>
           )}
         </div>
@@ -5914,7 +5939,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
               <div className="botoes">
                 {!novaAtualizacaoAberta &&
-                  podeEditarOcorrencia(role, cargo, selecionada) && (
+                  podeIncluirAtualizacaoOcorrencia(role, cargo, selecionada) && (
                     <button
                       className="btn-secondary btn-small"
                       onClick={() => setNovaAtualizacaoAberta(true)}

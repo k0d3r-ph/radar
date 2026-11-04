@@ -30,3 +30,15 @@ export function podeEditarOcorrencia(
     normalizar(ocorrencia.departamento) === normalizar(departamento)
   );
 }
+
+export function podeIncluirAtualizacaoOcorrencia(
+  role: string,
+  cargo: string,
+  ocorrencia: Pick<Ocorrencia, "departamento" | "validacaoTentativaId">,
+): boolean {
+  if (ocorrencia.validacaoTentativaId) {
+    const perfil = normalizar(role);
+    return perfil === "master" || perfil === "treinador";
+  }
+  return podeEditarOcorrencia(role, cargo, ocorrencia);
+}

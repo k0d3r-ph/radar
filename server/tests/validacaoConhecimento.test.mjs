@@ -16,9 +16,9 @@ function setup() {
   ]);
   return { ...memoria, repo: new GerenciarValidacaoConhecimento(memoria.db) };
 }
-const concluir = async (repo, t, corretas) => {
+const concluir = async (repo, t, corretas, impressoesAgenda) => {
   const salva = await repo.salvar(t.id, { ...t, treinamentoTempoAgenda: '01:00', treinamentoSolicitante: 'Cliente', questoes: t.questoes.map((q, i) => ({ ...q, resposta: i < corretas ? 'correto' : 'parcial' })) }, usuario);
-  return repo.concluir(t.id, salva.revisao, usuario);
+  return repo.concluir(t.id, salva.revisao, usuario, impressoesAgenda);
 };
 test('distribuição por módulos: 0, 1, 2, 4 e mais módulos; básicas priorizam preferidas', () => {
   const avancadas = SECOES.filter(s => s !== 'Temas iniciais' && !s.startsWith('Manutenção'));
@@ -449,6 +449,21 @@ test('rascunho antigo com duração inválida precisa ser corrigido antes de con
   data.get(`validacao_tentativas/${t.id}`).treinamentoTempoAgenda = 'duas horas';
   await assert.rejects(repo.concluir(t.id, t.revisao, usuario), /duração da agenda em HH:MM/);
   assert.equal(data.has(`ocorrencias/${t.id}`), false);
+});
+test('conclusão inclui impressões livres na ocorrência sem substituir perguntas e respostas', async () => {
+  const { repo, data } = setup();
+  const t = await repo.iniciar({ empresaId: 'e1', manutencao: 'basica' }, usuario);
+  const impressao = 'Cliente acompanhou bem a agenda e pediu reforço no módulo.';
+  await concluir(repo, t, t.questoes.length, impressao);
+  const ocorrencia = data.get(`ocorrencias/${t.id}`);
+  assert.match(ocorrencia.descricao, /Cliente acompanhou bem a agenda e pediu reforço no módulo\./);
+  assert.doesNotMatch(ocorrencia.descricao, /Impressões da agenda/);
+  assert.match(ocorrencia.descricao, /Perguntas e respostas:/);
+});
+test('impressões da agenda são opcionais e limitadas a 4.000 caracteres', async () => {
+  const { repo } = setup();
+  const t = await repo.iniciar({ empresaId: 'e1', manutencao: 'basica' }, usuario);
+  await assert.rejects(repo.concluir(t.id, t.revisao, usuario, 'x'.repeat(4001)), /4.000 caracteres/);
 });
 test('aprovação com temas pendentes registra a data da validação sem avançar a fase', async () => {
   const { repo, data } = setup();

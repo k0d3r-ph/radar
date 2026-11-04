@@ -28,7 +28,7 @@ export class ValidacaoConhecimentoController {
         case 'listar': result = await this.repo.listar(String(req.query.empresaId || '')); break;
         case 'iniciar': result = await this.repo.iniciar(body, user); break;
         case 'salvar': result = await this.repo.salvar(req.params.id, body, user); break;
-        case 'concluir': result = await this.repo.concluir(req.params.id, body.revisao, user); break;
+        case 'concluir': result = await this.repo.concluir(req.params.id, body.revisao, user, body.impressoesAgenda); break;
         case 'cancelar': result = await this.repo.cancelar(req.params.id, body.revisao, user); break;
       }
       res.json(result);

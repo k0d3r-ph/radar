@@ -34,8 +34,8 @@ export const salvarTentativaConhecimento = (t: TentativaValidacao, status: 'anda
   revisao: t.revisao, status, questoes: t.questoes, treinamentoDataSolicitacao: t.treinamentoDataSolicitacao, treinamentoTempoAgenda: t.treinamentoTempoAgenda, // Rascunhos antigos guardavam texto livre; só as opções padrão são aceitas.
   treinamentoSolicitante: isSolicitanteTreinamento(t.treinamentoSolicitante) ? t.treinamentoSolicitante : '',
 });
-export async function concluirTentativaConhecimento(t: TentativaValidacao): Promise<TentativaValidacao> {
-  const concluida = await requisicao<TentativaValidacao>(`tentativas/${t.id}/concluir`, { revisao: t.revisao });
+export async function concluirTentativaConhecimento(t: TentativaValidacao, impressoesAgenda = ''): Promise<TentativaValidacao> {
+  const concluida = await requisicao<TentativaValidacao>(`tentativas/${t.id}/concluir`, { revisao: t.revisao, impressoesAgenda });
   invalidarCacheEmpresas(); invalidarCacheOcorrencias(); invalidarCacheGamificacao();
   return concluida;
 }

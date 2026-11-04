@@ -203,7 +203,10 @@ export class GerenciarValidacaoConhecimento {
       return { id };
     });
   }
-  async concluir(id: string, revisao: unknown, user: UsuarioValidacao) {
+  async concluir(id: string, revisao: unknown, user: UsuarioValidacao, impressoesAgenda?: unknown) {
+    if (impressoesAgenda !== undefined && typeof impressoesAgenda !== 'string') throw new CsatError(400, 'As impressões da agenda devem ser um texto.');
+    const impressoes = typeof impressoesAgenda === 'string' ? impressoesAgenda.trim() : '';
+    if (impressoes.length > 4000) throw new CsatError(400, 'As impressões da agenda devem ter até 4.000 caracteres.');
     const ref = this.db.collection('validacao_tentativas').doc(validarIdConhecimento(id));
     const token = randomBytes(32).toString('hex');
     return this.db.runTransaction(async tx => {
@@ -242,6 +245,7 @@ export class GerenciarValidacaoConhecimento {
         `Pontuação total: ${formatar(resultado.nota)}/10`,
         `Aproveitamento: ${formatar(resultado.percentual)}%`,
         `Resultado: ${resultado.aprovada ? 'Aprovado — atingiu o mínimo de 80%.' : 'Não aprovado — não atingiu o mínimo de 80%. Nova tentativa disponível.'}`,
+        ...(impressoes ? ['', impressoes] : []),
         '', 'Perguntas e respostas:', perguntas,
       ].join('\n');
       const pontoId = id;

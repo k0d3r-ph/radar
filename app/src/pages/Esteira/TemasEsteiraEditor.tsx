@@ -13,6 +13,7 @@ import {
 import type { LinhaTemaEsteira } from "../../utils/temasEsteira";
 import { isDiaUtilComFeriados } from "../../utils/feriados";
 import { avancarDiasUteisComFeriados } from "../../utils/prazoTreinamento";
+import { useAutoScrollDuringDrag } from "../../hooks/useAutoScrollDuringDrag";
 
 type Props = {
   temaText: string;
@@ -38,6 +39,7 @@ export function TemasEsteiraEditor({ temaText, dataText, blocoText, reagendament
   const moverCimaRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const moverBaixoRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [arrastandoIndex, setArrastandoIndex] = useState<number | null>(null);
+  useAutoScrollDuringDrag(arrastandoIndex !== null);
   // Linha sobre a qual o item arrastado está, e se ele cairia antes ou depois
   // dela — decidido pela metade (acima/abaixo) em que o cursor está dentro da
   // linha, para o indicador mostrar exatamente onde a fase vai ficar.

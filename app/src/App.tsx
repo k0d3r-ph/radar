@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Routes, Route, Navigate, NavLink, useNavigate } from "react-router-dom";
+import { Routes, Route, Navigate, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { Esteira } from "./pages/Esteira/Esteira";
 import { Historico } from "./pages/Historico/Historico";
 import Home from "./pages/Home/Home";
@@ -35,6 +35,7 @@ import { TiposOcorrencia } from "./pages/TiposOcorrencia/TiposOcorrencia";
 import ChecklistTarefas from "./components/ChecklistTarefas";
 import { useVerificaVersao } from "./utils/useVerificaVersao";
 import { ValidacaoConhecimento } from "./pages/ValidacaoConhecimento/ValidacaoConhecimento";
+import { RelatorioIndicadoresTreinamento } from "./pages/RelatorioIndicadoresTreinamento/RelatorioIndicadoresTreinamento";
 import { PerfilUsuarioModal } from "./components/PerfilUsuarioModal";
 import { obterFotoPerfil } from "./services/profilePhotos";
 import { toast } from "sonner";
@@ -44,6 +45,7 @@ function AppRoutes() {
   const { user, loading, needsPasswordChange, role, logout, userName } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
   const [modalPerfilAberto, setModalPerfilAberto] = useState(false);
   const [menuAberto, setMenuAberto] = useState(false);
   const [menuRecolhido, setMenuRecolhido] = useState(false);
@@ -147,6 +149,17 @@ function AppRoutes() {
         <Route path="/alterar-senha" element={<AlterarSenha />} />
         <Route path="*" element={<Navigate to="/alterar-senha" replace />} />
       </Routes>
+    );
+  }
+
+  // Tela isolada para TV/monitor: sem menu, sem chrome do app, numa aba/janela própria.
+  // Evita depender da Fullscreen API do "modo foco" (que alguns programas de alt+tab
+  // encerram) — a própria aba, maximizada, já cumpre o papel de tela dedicada.
+  if (location.pathname === "/indicadores-treinamento-tv") {
+    return (
+      <div className="indicadores-treinamento-container--tv">
+        <RelatorioIndicadoresTreinamento />
+      </div>
     );
   }
 

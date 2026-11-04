@@ -160,6 +160,13 @@ body.light-theme .tarefas-abas button[aria-pressed=true] {
 body.light-theme .tarefas-abas button > span {
     background: rgba(148, 163, 184, 0.15)
 }
+body.light-theme .tarefas-limpar button {
+    color: #eb1313
+}
+body.light-theme .tarefas-limpar button:hover:not(:disabled) {
+    background: rgba(239, 68, 68, 0.12);
+    border-color: rgba(239, 68, 68, 0.3)
+}
 body.light-theme .tarefa-card {
     border: 1px solid #e2e8f0;
     background: #f8fafc
@@ -3733,6 +3740,11 @@ body.light-theme .bolsa-ticker-rotulo {
     color: #51759c
 }
 
+/* ── pages/RelatorioIndicadoresTreinamento/RelatorioIndicadoresTreinamento.css ── */
+body.light-theme .indicadores-treinamento-container--tv {
+    background: #f8fafc
+}
+
 /* ── pages/RelatorioJornadaCliente/RelatorioJornadaCliente.css ── */
 body.light-theme .jornada-kpi-card.tom-info {
     border-left-color: #3b82f6
@@ -4540,6 +4552,13 @@ body.light-theme .validacao-relatorio-vazio {
 /* ── pages/Relatorios/Relatorios.css ── */
 body.light-theme .relatorios-page {
     background: #f8fafc;
+    color: #0f172a
+}
+body.light-theme .relatorios-indicadores-tv-link a {
+    color: #475569
+}
+body.light-theme .relatorios-indicadores-tv-link a:hover,
+body.light-theme .relatorios-indicadores-tv-link a:focus-visible {
     color: #0f172a
 }
 body.light-theme .relatorios-header h1 {

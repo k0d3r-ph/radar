@@ -2,6 +2,7 @@ import type { Empresa, LancamentoPonto, Ocorrencia, MotivoEsperaTreinamento } fr
 import { filtrarEmpresasContatosSuporte, obterCategoriaContatoSuporte } from "./contatosSuporte";
 import { calcularDiasEsperaTreinamento, LIMITE_ESPERA_LONGA_TREINAMENTO, motivoEsperaValido } from "./esperaTreinamento";
 import { obterPrimeiroTreinamentoRealizado } from "./prazoTreinamento";
+import { estaDentroDoExpediente } from "./expediente";
 
 const DIACRITICOS = new RegExp("[\\u0300-\\u036f]", "g");
 
@@ -483,7 +484,14 @@ export function construirEventosIndicadoresTreinamento(
       // do cliente, não para quem eventualmente registrou a ocorrência.
       const dono = responsavelPorEmpresa.get(normalizarNome(o.empresa));
       if (dono) contatosSuporte.push({ data, treinador: dono });
-      if (o.origem === "ssx-desk" && dono && empresasEmTreinamentoPorNome.get(normalizarNome(o.empresa))) {
+      // Indicador da Bolsa (painel de TV): só dúvidas, e só as recebidas dentro do
+      // expediente — contato fora do horário de atendimento não reflete a carga do dia.
+      if (
+        o.origem === "ssx-desk" && dono &&
+        empresasEmTreinamentoPorNome.get(normalizarNome(o.empresa)) &&
+        obterCategoriaContatoSuporte(o) === "duvidas" &&
+        estaDentroDoExpediente(timestamp)
+      ) {
         contatosSuporteTreinamento.push({ data, treinador: dono });
       }
       return;

@@ -58,12 +58,15 @@ const INDICADORES_BOLSA: ConfigBolsa[] = [
     titulo: "Treinamentos",
     descricao: "Sessões de treinamento concluídas com os clientes no período.",
     menorEhMelhor: false,
+    meta: 6,
   },
   {
     chave: "contatosSuporteTreinamento",
     titulo: "Contatos Suporte",
-    descricao: "Ocorrências de Suporte do SSX Desk atribuídas a clientes em treinamento.",
+    descricao: "Dúvidas de Suporte do SSX Desk, recebidas dentro do expediente, de clientes em treinamento.",
     menorEhMelhor: true,
+    // Tolerância de 2: até 1 contato no dia fica dentro da meta; 2 ou mais, fora.
+    meta: 1,
   },
   {
     chave: "csatTreinamento",
@@ -359,8 +362,8 @@ function CardIndicador({
   );
   const comparacaoDia = comparacoes[0];
 
-  // Com meta oficial do negócio (hoje só o CSAT): a pílula reflete se o valor atual bate a
-  // meta. Sem meta: segue a tendência diária (hoje vs. ontem) — o mesmo número em destaque,
+  // Com meta oficial do negócio: a pílula reflete se o valor atual bate a meta. Sem
+  // meta: segue a tendência diária (hoje vs. ontem) — o mesmo número em destaque,
   // para nunca contradizer o que se vê.
   let statusTexto: string;
   let statusClasse: "ok" | "bad" | "neutro";

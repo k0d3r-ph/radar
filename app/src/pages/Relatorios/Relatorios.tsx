@@ -2176,7 +2176,14 @@ ${riscoChurn.length > 0
       ) : activeTab === "aging" ? (
         <RelatorioAging />
       ) : activeTab === "indicadores" ? (
-        <RelatorioIndicadoresTreinamento />
+        <>
+          <div className="relatorios-indicadores-tv-link">
+            <a href="/indicadores-treinamento-tv" target="_blank" rel="noopener noreferrer">
+              Abrir em tela separada (abre em nova aba, ideal para TV) ↗
+            </a>
+          </div>
+          <RelatorioIndicadoresTreinamento />
+        </>
       ) : activeTab === "validacao" ? (
         <RelatorioValidacaoConhecimento />
       ) : (

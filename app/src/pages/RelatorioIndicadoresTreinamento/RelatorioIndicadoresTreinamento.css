@@ -3,3 +3,11 @@
   flex-direction: column;
   gap: 1.5rem;
 }
+
+/* Tela isolada (/indicadores-treinamento-tv): sem o chrome do app, para abrir numa
+   aba ou janela própria de TV/monitor. */
+.indicadores-treinamento-container--tv {
+  min-height: 100vh;
+  padding: 1.5rem;
+  background: #0f172a;
+}

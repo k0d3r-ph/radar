@@ -26,6 +26,14 @@ O cache em memória dos serviços dura cinco minutos. Atualização forçada con
 
 Não exige uma nova coleção, novos índices compostos nem alteração das regras do Firestore. O carregamento dessas listas passa a depender da disponibilidade do backend. Os demais serviços e a integração SSX ainda podem gerar leituras; esta mudança não garante ficar abaixo da cota em qualquer volume de usuários ou alterações.
 
+## Conteúdo dos documentos pelo backend (`/api/sincronizacao/:colecao/documentos`)
+
+O índice acima resolve só IDs/versões — o navegador ainda lê o conteúdo dos documentos alterados diretamente no Firestore. Para quem já pede a coleção inteira com frequência (hoje: o painel ao vivo de indicadores de treinamento, a cada 60s), isso multiplica as leituras por tela aberta: N telas custam N× mais que uma só.
+
+`POST /api/sincronizacao/:colecao/documentos` (mesma autenticação/autorização do índice) serve o conteúdo direto do `IndiceSincronizacao`, que já mantém a coleção inteira em memória por um único listener compartilhado no processo. Não dispara nenhuma leitura adicional do Firestore — custa o mesmo com 1 ou 100 chamadas simultâneas. Corpo opcional `{ "ids": ["..."] }` filtra o retorno; sem `ids`, devolve a coleção inteira.
+
+No frontend, `obterColecaoCompleta<T>(nomeColecao)` (`app/src/services/sincronizacaoIncremental.ts`) consome essa rota. Hoje só o painel ao vivo (`RelatorioIndicadoresTreinamento.tsx`) usa esse caminho, como piloto. As demais telas continuam no fluxo de índice + leitura direta do Firestore (`sincronizarColecao`), que já é incremental e barato para quem abre a página ocasionalmente — a amplificação por N telas só é um problema real para consumidores de alta frequência como o painel. Generalizar esse caminho para `sincronizarColecao` exigiria repensar o cache local (hoje `getDocsFromCache` reaproveita a persistência do próprio SDK do Firestore entre recarregamentos; o conteúdo servido pelo backend não alimenta esse cache).
+
 Em ambientes antigos com um domínio único e proxy para os dois processos, a ausência de `VITE_RADAR_API_URL` mantém o uso de `VITE_WHATSAPP_API_URL` para compatibilidade. Ao usar endereços separados, configure as duas variáveis explicitamente. Alterações em `app/.env` exigem reiniciar o Vite; em produção, gerar e publicar uma nova build do frontend.
 
 ## Validação

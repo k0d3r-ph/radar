@@ -37,6 +37,30 @@ export function invalidarSincronizacao(nomeColecao: string): void {
   catch { /* localStorage indisponível. */ }
 }
 
+/**
+ * Lê a coleção inteira a partir do índice já mantido em memória pelo backend
+ * (ver IndiceSincronizacao), sem nenhuma consulta ao Firestore pelo navegador.
+ * Pensada para quem já pede a coleção inteira com frequência (ex.: painel ao
+ * vivo): a leitura direta pelo SDK multiplicaria o consumo do Firestore por
+ * tela aberta; aqui o custo fica fixo, pago uma única vez pelo listener do
+ * backend e compartilhado por qualquer número de telas.
+ */
+export async function obterColecaoCompleta<T>(nomeColecao: string): Promise<T[]> {
+  if (!auth.currentUser) throw new Error('Entre novamente no Radar.');
+  const token = await auth.currentUser.getIdToken();
+  const response = await fetch(`${RADAR_API_URL}/api/sincronizacao/${encodeURIComponent(nomeColecao)}/documentos`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: '{}',
+    cache: 'no-store',
+    signal: AbortSignal.timeout(20_000),
+  });
+  const dados = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(dados.error || 'Não foi possível sincronizar os dados.');
+  if (!Array.isArray(dados.documentos)) throw new Error('Resposta de sincronização inválida.');
+  return dados.documentos as T[];
+}
+
 function mapearDocumentos<T>(snapshot: QuerySnapshot): T[] {
   return snapshot.docs.map(documento => ({ ...documento.data(), id: documento.id })) as T[];
 }

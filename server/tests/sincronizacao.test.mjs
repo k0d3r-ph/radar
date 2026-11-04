@@ -72,7 +72,7 @@ function response() {
   return { code: 200, headers: {}, set(k, v) { this.headers[k] = v; return this; },
     status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } };
 }
-const req = colecao => ({ params: { colecao }, headers: { authorization: 'Bearer token' } });
+const req = (colecao, body) => ({ params: { colecao }, headers: { authorization: 'Bearer token' }, body });
 const auth = { verifyIdToken: async () => ({ uid: 'u1' }) };
 const usuariosRepoFrom = db => ({ buscarPorUid: async uid => (await db.collection('usuarios').doc(uid).get()).data() });
 
@@ -102,4 +102,38 @@ test('API retorna somente IDs e versões e desabilita cache HTTP', async () => {
   assert.equal(res.code, 200);
   assert.equal(res.headers['Cache-Control'], 'no-store');
   assert.deepEqual(res.body, { documentos: [{ id: 'a', versao: '1:123' }] });
+});
+
+test('rota de documentos também bloqueia tokens inválidos, usuários não cadastrados e coleções privadas', async () => {
+  for (const [db, tokenAuth, request, status] of [
+    [database(), { verifyIdToken: async () => { throw new Error('token'); } }, req('ocorrencias'), 401],
+    [database(undefined), auth, req('csatReservas'), 400],
+    [database(null), auth, req('ocorrencias'), 403],
+    [database({ role: 'cs' }), auth, req('gamificacao_pontos'), 403],
+  ]) {
+    const res = response();
+    await new SincronizacaoController(db, tokenAuth, usuariosRepoFrom(db)).documentos(request, res);
+    assert.equal(res.code, status);
+  }
+});
+
+test('rota de documentos serve o conteúdo já em memória, filtra por IDs e valida o formato', async () => {
+  const db = database(), controller = new SincronizacaoController(db, auth, usuariosRepoFrom(db));
+  const res = response();
+  const chamada = controller.documentos(req('ocorrencias', {}), res);
+  await new Promise(resolve => setImmediate(resolve));
+  db.emitir('ocorrencias', [{ id: 'a', dados: { titulo: 'Dúvida' } }, { id: 'b', dados: { titulo: 'Problema' } }]);
+  await chamada;
+  assert.equal(res.code, 200);
+  assert.equal(res.headers['Cache-Control'], 'no-store');
+  assert.deepEqual(res.body, { documentos: [{ id: 'a', titulo: 'Dúvida' }, { id: 'b', titulo: 'Problema' }] });
+  assert.equal(db.inscricoes(), 1); // Nenhuma nova inscrição: reaproveitou o listener já aberto.
+
+  const resFiltrada = response();
+  await controller.documentos(req('ocorrencias', { ids: ['a'] }), resFiltrada);
+  assert.deepEqual(resFiltrada.body, { documentos: [{ id: 'a', titulo: 'Dúvida' }] });
+
+  const resInvalida = response();
+  await controller.documentos(req('ocorrencias', { ids: 'a' }), resInvalida);
+  assert.equal(resInvalida.code, 400);
 });

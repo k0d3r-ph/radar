@@ -123,6 +123,7 @@ export function createApiApp({ tarefasAutomaticas = false }: { tarefasAutomatica
   }
   const sincronizacaoController = new SincronizacaoController(adminDb, adminAuth, usuariosRepo, indice);
   app.get('/api/sincronizacao/:colecao', (req, res) => sincronizacaoController.listar(req, res));
+  app.post('/api/sincronizacao/:colecao/documentos', (req, res) => sincronizacaoController.documentos(req, res));
 
   const iaController = new IaController();
   app.post('/api/ia/resumir', (req, res) => iaController.resumir(req, res));

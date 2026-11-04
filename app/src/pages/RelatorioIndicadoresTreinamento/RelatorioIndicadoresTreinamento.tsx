@@ -1,9 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { BolsaIndicadoresTreinamento } from "./BolsaIndicadoresTreinamento";
-import { listarEmpresas, isEmpresaInterna } from "../../services/empresas";
-import { listarOcorrencias } from "../../services/ocorrencias";
-import { listarLancamentosPontos } from "../../services/gamificacao";
+import { isEmpresaInterna } from "../../services/empresas";
+import { obterColecaoCompleta } from "../../services/sincronizacaoIncremental";
 import { listarUsuarios } from "../../services/auth";
 import { atuaComoTreinador } from "../../utils/perfis";
 import {
@@ -33,12 +32,13 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
       ultimaTentativa = Date.now();
 
       try {
-        // A sincronização incremental consulta o índice e baixa somente documentos
-        // novos ou alterados; não relê todas as coleções a cada atualização.
+        // Lê direto do índice em memória do backend (ver IndiceSincronizacao),
+        // não do Firestore: evita que cada tela aberta do painel multiplique
+        // as leituras a cada atualização (ver server/SINCRONIZACAO.md).
         const [empresasLista, ocorrenciasLista, lancamentosLista] = await Promise.all([
-          listarEmpresas(true),
-          listarOcorrencias(true),
-          listarLancamentosPontos(true),
+          obterColecaoCompleta<Empresa>("empresas"),
+          obterColecaoCompleta<Ocorrencia>("ocorrencias"),
+          obterColecaoCompleta<LancamentoPonto>("gamificacao_pontos"),
         ]);
         const usuariosLista = inicial ? await listarUsuarios(true) : null;
         if (!ativo) return;

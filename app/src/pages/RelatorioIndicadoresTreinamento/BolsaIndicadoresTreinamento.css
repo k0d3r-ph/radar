@@ -3,11 +3,12 @@
   flex-direction: column;
   gap: 1.1rem;
   color: #eaf2fa;
+  font-family: "Barlow", "Segoe UI", system-ui, sans-serif;
   /* Escala do painel: acompanha a largura real do próprio painel (não da janela — fora do
      modo foco ele divide a tela com o menu lateral) e a altura da janela, pensado para TVs
      vistas de longe. Os elementos abaixo usam em, não rem, por isso. */
   container-type: inline-size;
-  font-size: clamp(11px, min(0.95cqw, 1.62vh), 44px);
+  font-size: clamp(11px, min(0.95cqw, 1.62vh), 48px);
 }
 
 .bolsa-indicadores-wrapper--foco {
@@ -80,6 +81,7 @@
 
 .bolsa-indicadores-titulo-pagina {
   margin: 0;
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
   font-weight: 700;
   font-size: 2.6em;
   line-height: 1;
@@ -137,6 +139,7 @@
 }
 
 .bolsa-indicadores-hora {
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
   font-weight: 700;
   font-size: 2.6em;
   line-height: 1;
@@ -242,6 +245,7 @@
 
 .bolsa-card-titulo {
   margin: 0;
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
   font-weight: 700;
   font-size: 2.4em;
   line-height: 1.02;
@@ -277,22 +281,24 @@
 }
 
 .bolsa-card-valor {
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
   font-weight: 700;
-  font-size: 3.2em;
+  font-size: 5.4em;
   line-height: 0.92;
   letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
 }
 
 .bolsa-card-unidade {
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
   font-weight: 600;
-  font-size: 1.3em;
+  font-size: 2em;
   color: #a3b8cf;
 }
 
 .bolsa-card-meta-label {
-  font-size: 1.1em;
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+  font-size: 2.2em;
   font-weight: 600;
   color: #a3b8cf;
 }

@@ -647,6 +647,40 @@ export interface PeriodoIndicador {
   categoria: string;
 }
 
+export interface ReferenciasSnapshotSuspensos {
+  atual: Date;
+  ontem: Date;
+  semanaPassada: Date;
+  mesPassado: Date;
+}
+
+/** Marcos para comparar a contagem atual com snapshots de calendário em Brasília. */
+export function gerarReferenciasSnapshotSuspensos(agora: Date): ReferenciasSnapshotSuspensos {
+  const partes = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+  }).formatToParts(agora);
+  const obterParte = (tipo: Intl.DateTimeFormatPartTypes) =>
+    Number(partes.find((parte) => parte.type === tipo)?.value);
+  const ano = obterParte("year");
+  const mes = obterParte("month");
+  const dia = obterParte("day");
+  const inicioHoje = Date.UTC(ano, mes - 1, dia, 3);
+  const diaDaSemana = new Date(Date.UTC(ano, mes - 1, dia)).getUTCDay();
+  const diasDesdeSegunda = diaDaSemana === 0 ? 6 : diaDaSemana - 1;
+  const inicioSemanaAtual = inicioHoje - diasDesdeSegunda * 86_400_000;
+  const inicioMesAtual = Date.UTC(ano, mes - 1, 1, 3);
+
+  return {
+    atual: new Date(agora),
+    ontem: new Date(inicioHoje - 1),
+    semanaPassada: new Date(inicioSemanaAtual - 1),
+    mesPassado: new Date(inicioMesAtual - 1),
+  };
+}
+
 export function listarEsperasLongasTreinamento(
   eventos: EventosIndicadoresTreinamento, inicio: Date, fim: Date, treinador: string | null,
 ): EventoEspera[] {

@@ -34,6 +34,7 @@ await module.link((specifier, importador) => carregar(new URL(specifier, importa
 await module.evaluate();
 const { construirEventosIndicadoresTreinamento: construir, calcularValorKpiTreinamento: calcular,
   listarTreinadoresIndicadoresTreinamento: listar, gerarPeriodosIndicadoresEntreDatas: periodos,
+  gerarReferenciasSnapshotSuspensos: referenciasSuspensos,
   listarEsperasLongasTreinamento: listarEsperas, recortarPeriodosIndicadores: recortar } = module.namespace;
 const { calcularResumoCardsTreinamento: resumoCards } = module.namespace;
 
@@ -261,6 +262,45 @@ test('conta suspensão ativa sem data cadastrada no período atual, mas não em 
 
   assert.equal(calcular('clientesSuspensos', eventos, inicioMesAtual, fimMesAtual, null), 1);
   assert.equal(calcular('clientesSuspensos', eventos, new Date(agora.getFullYear(), agora.getMonth() - 1, 1), fimMesAnterior, null), 0);
+});
+
+test('compara a contagem atual de suspensos com snapshots de ontem, semana passada e mês passado em Brasília', () => {
+  const agora = new Date('2026-11-04T15:00:00.000Z');
+  const referencias = referenciasSuspensos(agora);
+  const empresas = [
+    ...Array.from({ length: 4 }, (_, i) => ({
+      nomeEmpresa: `Suspenso antigo ${i}`,
+      responsavel: 'Natália Teixeira',
+      isSuspended: true,
+      dataSuspensao: '2026-09-10',
+    })),
+    ...Array.from({ length: 2 }, (_, i) => ({
+      nomeEmpresa: `Suspenso semana passada ${i}`,
+      responsavel: 'Natália Teixeira',
+      isSuspended: true,
+      dataSuspensao: '2026-11-01',
+    })),
+    ...Array.from({ length: 2 }, (_, i) => ({
+      nomeEmpresa: `Suspenso nesta semana ${i}`,
+      responsavel: 'Natália Teixeira',
+      isSuspended: true,
+      dataSuspensao: '2026-11-02',
+    })),
+    ...Array.from({ length: 2 }, (_, i) => ({
+      nomeEmpresa: `Suspenso hoje ${i}`,
+      responsavel: 'Natália Teixeira',
+      isSuspended: true,
+      dataSuspensao: '2026-11-04',
+    })),
+  ];
+  const eventos = construir(empresas, [], [], [{ nome: 'Natália Teixeira' }]);
+  const contar = (fim) => calcular('clientesSuspensos', eventos, new Date(0), fim, null);
+
+  assert.equal(referencias.atual.toISOString(), agora.toISOString());
+  assert.equal(contar(referencias.atual), 10);
+  assert.equal(contar(referencias.ontem), 8);
+  assert.equal(contar(referencias.semanaPassada), 6);
+  assert.equal(contar(referencias.mesPassado), 4);
 });
 
 test('preserva pessoas com o mesmo primeiro nome e sobrenomes diferentes', () => {

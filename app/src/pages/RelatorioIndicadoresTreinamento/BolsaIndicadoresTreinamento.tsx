@@ -4,6 +4,7 @@ import {
   calcularValorKpiTreinamento,
   gerarPeriodosIndicadoresEntreDatas,
   formatarValorKpiTreinamento,
+  gerarReferenciasSnapshotSuspensos,
   KPI_POR_CHAVE,
   type EventosIndicadoresTreinamento,
   type PeriodoIndicador,
@@ -244,24 +245,36 @@ interface LinhaComparacao {
   serie: Ponto[];
 }
 
+interface ComparacaoSnapshot {
+  atual: number | null;
+  anterior: number | null;
+  label: string;
+}
+
 function construirComparacao(
   config: ConfigBolsa,
   granularidade: Granularidade,
   serie: Ponto[],
   valorHoje: number | null,
+  snapshot?: ComparacaoSnapshot,
 ): LinhaComparacao {
   // Para contagens, "semana"/"mês" comparam hoje contra a MÉDIA DIÁRIA do período anterior
   // completo (total ÷ dias do período) — não o total acumulado, que inflaria o "antes" e
   // faria o dia parecer sempre pior. Taxas/notas (Gol, CSAT) continuam comparando total do
   // período atual vs. total do período anterior, já que são comparáveis entre si.
-  const usarMediaDiaria = granularidade !== "dia" && CHAVES_CONTAGEM_BOLSA.has(config.chave);
+  const usarMediaDiaria = !snapshot && granularidade !== "dia" && CHAVES_CONTAGEM_BOLSA.has(config.chave);
 
   let atual: number | null;
   let anterior: number | null;
   let prevStr: string;
   let formatarDelta: (absoluto: number) => string;
 
-  if (usarMediaDiaria) {
+  if (snapshot) {
+    atual = snapshot.atual;
+    anterior = snapshot.anterior;
+    prevStr = anterior === null ? "—" : formatarValorBolsa(config.chave, anterior);
+    formatarDelta = (absoluto) => formatarValorBolsa(config.chave, absoluto);
+  } else if (usarMediaDiaria) {
     const periodoAnterior = serie[serie.length - 2] ?? null;
     const dias = periodoAnterior ? diasNoPeriodo(periodoAnterior) : 0;
     atual = valorHoje;
@@ -285,11 +298,11 @@ function construirComparacao(
   const cor = corPorFavorabilidade(favoravel);
   return {
     granularidade,
-    label: usarMediaDiaria
+    label: snapshot?.label ?? (usarMediaDiaria
       ? granularidade === "semana"
         ? "vs. média da semana anterior"
         : "vs. média do mês anterior"
-      : ROTULO_COMPARACAO[granularidade],
+      : ROTULO_COMPARACAO[granularidade]),
     prevStr,
     deltaStr: delta === null ? "—" : formatarDelta(Math.abs(delta)),
     arrow: delta === null || delta === 0 ? "■" : delta > 0 ? "▲" : "▼",
@@ -302,12 +315,16 @@ function construirComparacao(
 function CardIndicador({
   config,
   series,
+  snapshotsSuspensos,
 }: {
   config: ConfigBolsa;
   series: Record<Granularidade, Ponto[]>;
+  snapshotsSuspensos?: Record<Granularidade, ComparacaoSnapshot>;
 }) {
-  const ultimo = series.dia[series.dia.length - 1]?.valor ?? null;
-  const comparacoes = ORDEM_GRANULARIDADES.map((g) => construirComparacao(config, g, series[g], ultimo));
+  const ultimo = snapshotsSuspensos?.dia.atual ?? series.dia[series.dia.length - 1]?.valor ?? null;
+  const comparacoes = ORDEM_GRANULARIDADES.map((g) =>
+    construirComparacao(config, g, series[g], ultimo, snapshotsSuspensos?.[g]),
+  );
   const comparacaoDia = comparacoes[0];
 
   // Com meta oficial do negócio (hoje só o CSAT): a pílula reflete se o valor atual bate a
@@ -493,12 +510,31 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
     return resultado;
   }, [eventos, empresas, ocorrencias, treinador, periodosPorGranularidade]);
 
+  const snapshotsSuspensos = useMemo(() => {
+    const referencias = gerarReferenciasSnapshotSuspensos(new Date(minutoAtual * 60000 + 59_999));
+    const contarNoMomento = (fim: Date) =>
+      calcularValorKpiTreinamento(
+        "clientesSuspensos",
+        eventos,
+        new Date(0),
+        fim,
+        treinador,
+      );
+    const atual = contarNoMomento(referencias.atual);
+    return {
+      dia: { atual, anterior: contarNoMomento(referencias.ontem), label: "vs. ontem" },
+      semana: { atual, anterior: contarNoMomento(referencias.semanaPassada), label: "vs. semana passada" },
+      mes: { atual, anterior: contarNoMomento(referencias.mesPassado), label: "vs. mês passado" },
+    } satisfies Record<Granularidade, ComparacaoSnapshot>;
+  }, [eventos, treinador, minutoAtual]);
+
   const ticker = useMemo(
     () =>
       INDICADORES_BOLSA.map((config) => {
         const serieDia = seriesPorIndicador[config.chave].dia;
-        const valorHoje = serieDia[serieDia.length - 1]?.valor ?? null;
-        const comparacao = construirComparacao(config, "dia", serieDia, valorHoje);
+        const snapshotSuspensos = config.chave === "clientesSuspensos" ? snapshotsSuspensos.dia : undefined;
+        const valorHoje = snapshotSuspensos?.atual ?? serieDia[serieDia.length - 1]?.valor ?? null;
+        const comparacao = construirComparacao(config, "dia", serieDia, valorHoje, snapshotSuspensos);
         return {
           chave: config.chave,
           titulo: config.titulo,
@@ -508,7 +544,7 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
           cor: comparacao.cor,
         };
       }),
-    [seriesPorIndicador],
+    [seriesPorIndicador, snapshotsSuspensos],
   );
   const tickerDuplicado = [...ticker, ...ticker, ...ticker];
 
@@ -554,7 +590,12 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
 
       <div className="bolsa-indicadores-grid-cards">
         {INDICADORES_BOLSA.map((config) => (
-          <CardIndicador key={config.chave} config={config} series={seriesPorIndicador[config.chave]} />
+          <CardIndicador
+            key={config.chave}
+            config={config}
+            series={seriesPorIndicador[config.chave]}
+            snapshotsSuspensos={config.chave === "clientesSuspensos" ? snapshotsSuspensos : undefined}
+          />
         ))}
       </div>
 

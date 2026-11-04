@@ -1,19 +1,36 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { SourceTextModule } from 'node:vm';
+import { join } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import ts from 'typescript';
 
-async function carregar(nome) {
-  const source = readFileSync(new URL(`../src/utils/${nome}.ts`, import.meta.url), 'utf8');
+const modulos = new Map();
+
+function resolverArquivo(url) {
+  const caminho = fileURLToPath(url);
+  if (existsSync(caminho) && statSync(caminho).isFile()) return caminho;
+  if (existsSync(`${caminho}.ts`)) return `${caminho}.ts`;
+  const indice = join(caminho, 'index.ts');
+  if (existsSync(indice)) return indice;
+  throw new Error(`Módulo de teste não encontrado: ${caminho}`);
+}
+
+function carregar(url) {
+  const caminho = resolverArquivo(url);
+  const identificador = pathToFileURL(caminho).href;
+  if (modulos.has(identificador)) return modulos.get(identificador);
+  const source = readFileSync(caminho, 'utf8');
   const code = ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
   }).outputText;
-  const module = new SourceTextModule(code);
-  await module.link(specifier => carregar(specifier.replace('./', '')));
+  const module = new SourceTextModule(code, { identifier: identificador });
+  modulos.set(identificador, module);
   return module;
 }
-const module = await carregar('indicadoresTreinamento');
+const module = carregar(new URL('../src/utils/indicadoresTreinamento.ts', import.meta.url));
+await module.link((specifier, importador) => carregar(new URL(specifier, importador.identifier)));
 await module.evaluate();
 const { construirEventosIndicadoresTreinamento: construir, calcularValorKpiTreinamento: calcular,
   listarTreinadoresIndicadoresTreinamento: listar, gerarPeriodosIndicadoresEntreDatas: periodos,
@@ -202,7 +219,7 @@ test('unifica Jeff Borges da Costa e Jeff Costa no filtro e em todos os eventos 
     ocorrencia('Cliente', ['Cadastro'], { responsavel: 'Jeff Borges da Costa' }),
     ocorrencia('Cliente', ['Cadastro'], { responsavel: 'Jeff Costa' }),
     ocorrencia('Cliente', ['Cadastro'], { responsavel: 'Jeff' }),
-    { tipo: 'Dúvida', departamento: 'Treinamento', responsavel: 'Jeff Borges da Costa', dataOcorrencia: new Date(2026, 9, 15).getTime() },
+    { tipo: 'Dúvida', departamento: 'Treinamento', empresa: '', responsavel: 'Jeff Borges da Costa', dataOcorrencia: new Date(2026, 9, 15).getTime() },
     { tipo: 'Dúvida', departamento: 'Suporte', empresa: 'Cliente', dataOcorrencia: new Date(2026, 9, 15).getTime() },
   ];
   const nomes = listar(['Jeff Costa'], [lancamento('Cliente', 'Cadastro', ' JEFF BORGES DA COSTA ')], ocorrencias);
@@ -215,6 +232,35 @@ test('unifica Jeff Borges da Costa e Jeff Costa no filtro e em todos os eventos 
     assert.equal(calcular(chave, eventos, inicio, fim, 'Jeff Costa'), 1, chave);
   }
   assert.equal(calcular('treinamentosRealizados', eventos, inicio, fim, null), 3);
+});
+
+test('Suspensos conta quem estava com acesso suspenso no fim do período', () => {
+  const empresas = [
+    { nomeEmpresa: 'Suspenso desde setembro', responsavel: 'Natália Teixeira', isSuspended: true, dataSuspensao: '2026-09-10' },
+    { nomeEmpresa: 'Suspenso em outubro', responsavel: 'Natália Teixeira', isSuspended: true, dataSuspensao: '2026-10-10' },
+    { nomeEmpresa: 'Retornou em outubro', responsavel: 'Natália Teixeira', isSuspended: false, updatedAt: new Date(2026, 9, 20).getTime() },
+  ];
+  const ocorrencias = [
+    { empresa: 'Retornou em outubro', suspenderCliente: true, createdAt: new Date(2026, 9, 5).getTime() },
+    { empresa: 'Retornou em outubro', retornarEsteira: true, createdAt: new Date(2026, 9, 20).getTime() },
+  ];
+  const eventos = construir(empresas, ocorrencias, [], [{ nome: 'Natália Teixeira' }]);
+
+  assert.equal(calcular('clientesSuspensos', eventos, new Date(2026, 9, 1), new Date(2026, 9, 15, 23, 59, 59), null), 3);
+  assert.equal(calcular('clientesSuspensos', eventos, new Date(2026, 9, 1), new Date(2026, 9, 31, 23, 59, 59), null), 2);
+});
+
+test('conta suspensão ativa sem data cadastrada no período atual, mas não em períodos anteriores', () => {
+  const agora = new Date();
+  const eventos = construir([
+    { nomeEmpresa: 'Data ausente', responsavel: 'Natália Teixeira', isSuspended: true },
+  ], [], [], [{ nome: 'Natália Teixeira' }]);
+  const inicioMesAtual = new Date(agora.getFullYear(), agora.getMonth(), 1);
+  const fimMesAtual = new Date(agora.getFullYear(), agora.getMonth() + 1, 0, 23, 59, 59);
+  const fimMesAnterior = new Date(agora.getFullYear(), agora.getMonth(), 0, 23, 59, 59);
+
+  assert.equal(calcular('clientesSuspensos', eventos, inicioMesAtual, fimMesAtual, null), 1);
+  assert.equal(calcular('clientesSuspensos', eventos, new Date(agora.getFullYear(), agora.getMonth() - 1, 1), fimMesAnterior, null), 0);
 });
 
 test('preserva pessoas com o mesmo primeiro nome e sobrenomes diferentes', () => {

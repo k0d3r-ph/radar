@@ -49,7 +49,7 @@ const INDICADORES_BOLSA: ConfigBolsa[] = [
   {
     chave: "clientesSuspensos",
     titulo: "Suspensos",
-    descricao: "Clientes em treinamento com o acesso suspenso neste momento.",
+    descricao: "Clientes em treinamento que estavam suspensos ao fim de cada período.",
     menorEhMelhor: true,
   },
   {
@@ -145,7 +145,6 @@ interface Ponto {
  * são taxas/notas — comparáveis entre períodos de tamanhos diferentes sem esse ajuste. */
 const CHAVES_CONTAGEM_BOLSA = new Set<ChaveBolsa>([
   "treinamentosRealizados",
-  "clientesSuspensos",
   "contatosSuporteTreinamento",
 ]);
 

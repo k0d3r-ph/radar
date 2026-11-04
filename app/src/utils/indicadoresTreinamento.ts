@@ -56,6 +56,10 @@ export interface EventoEspera extends EventoIndicador {
 
 export interface EventoClienteSuspenso extends EventoIndicador {
   empresa: string;
+  /** Fim da suspensão; ausente enquanto o cliente continua suspenso. */
+  dataFim?: Date;
+  /** O cadastro está suspenso, mas não há data nem ocorrência para datar o início. */
+  inicioDesconhecido?: boolean;
 }
 
 export interface EventoTempoPrimeiroTreinamento extends EventoIndicador {
@@ -213,7 +217,7 @@ export const KPIS_TREINAMENTO: ConfigKpiTreinamento[] = [
   {
     chave: "clientesSuspensos",
     titulo: "Clientes Suspensos",
-    descricao: "Clientes suspensos temporariamente, pela data de suspensão registrada.",
+    descricao: "Clientes que estavam suspensos no fim do período selecionado.",
     formato: "contagem",
     menorEhMelhor: true,
   },
@@ -310,11 +314,20 @@ export function construirEventosIndicadoresTreinamento(
   };
 
   const responsavelPorEmpresa = new Map<string, string>();
+  const historicoSuspensoesPorEmpresa = new Map<string, Ocorrencia[]>();
   empresas.forEach((e) => {
     const chaveEmpresa = normalizarNome(e.nomeEmpresa);
     if (!chaveEmpresa) return;
     const dono = resolverTreinador(e.responsavel);
     if (dono) responsavelPorEmpresa.set(chaveEmpresa, dono);
+  });
+  ocorrencias.forEach((ocorrencia) => {
+    if (!ocorrencia.suspenderCliente && !ocorrencia.retornarEsteira) return;
+    const chaveEmpresa = normalizarNome(ocorrencia.empresa);
+    if (!chaveEmpresa) return;
+    const historico = historicoSuspensoesPorEmpresa.get(chaveEmpresa) ?? [];
+    historico.push(ocorrencia);
+    historicoSuspensoesPorEmpresa.set(chaveEmpresa, historico);
   });
 
   // Clientes de todos os status, inclusive ongoing: o treinamento é dado da equipe
@@ -465,9 +478,56 @@ export function construirEventosIndicadoresTreinamento(
     const treinador = resolverTreinador(e.responsavel);
     if (!treinador) return;
 
+    const transicoes = (historicoSuspensoesPorEmpresa.get(normalizarNome(e.nomeEmpresa)) ?? [])
+      .map((ocorrencia) => ({
+        ocorrencia,
+        instante: ocorrencia.updatedAt || ocorrencia.createdAt || ocorrencia.dataOcorrencia || 0,
+      }))
+      .filter(({ instante }) => Number.isFinite(instante) && instante > 0)
+      .sort((a, b) => a.instante - b.instante);
+    let inicioSuspensao: Date | null = null;
+    for (const { ocorrencia, instante } of transicoes) {
+      if (ocorrencia.suspenderCliente) {
+        if (!inicioSuspensao) inicioSuspensao = new Date(instante);
+      } else if (ocorrencia.retornarEsteira && inicioSuspensao) {
+        clientesSuspensos.push({
+          data: inicioSuspensao,
+          dataFim: new Date(instante),
+          treinador,
+          empresa: e.nomeEmpresa,
+        });
+        inicioSuspensao = null;
+      }
+    }
+
     if (e.isSuspended) {
-      const data = parseDataLocalISO(e.dataSuspensao);
-      if (data) clientesSuspensos.push({ data, treinador, empresa: e.nomeEmpresa });
+      const inicioCadastrado = parseDataLocalISO(e.dataSuspensao);
+      if (inicioSuspensao) {
+        clientesSuspensos.push({
+          data: inicioCadastrado ?? inicioSuspensao,
+          treinador,
+          empresa: e.nomeEmpresa,
+        });
+      } else {
+        clientesSuspensos.push({
+          data: inicioCadastrado ?? new Date(),
+          treinador,
+          empresa: e.nomeEmpresa,
+          inicioDesconhecido: !inicioCadastrado,
+        });
+      }
+    } else if (inicioSuspensao) {
+      const fimCadastro = e.updatedAt && Number.isFinite(e.updatedAt)
+        ? new Date(e.updatedAt)
+        : null;
+      if (fimCadastro && fimCadastro > inicioSuspensao) {
+        clientesSuspensos.push({
+          data: inicioSuspensao,
+          dataFim: fimCadastro,
+          treinador,
+          empresa: e.nomeEmpresa,
+        });
+      }
     }
 
     const dataEntrada = parseDataLocalISO(e.dataEntrada);
@@ -513,6 +573,11 @@ function filtrarPorTreinador<T extends EventoIndicador>(lista: T[], treinador: s
   return lista.filter((e) => normalizarNome(padronizarNomeTreinador(e.treinador)) === chave);
 }
 
+function estavaSuspensoNoFim(evento: EventoClienteSuspenso, fim: Date): boolean {
+  return evento.data.getTime() <= fim.getTime()
+    && (!evento.dataFim || evento.dataFim.getTime() > fim.getTime());
+}
+
 /**
  * Valor de um KPI de treinamento num período e, opcionalmente, para um único
  * treinador. Retorna `null` quando não há amostra suficiente (taxa CSAT e tempo
@@ -544,7 +609,8 @@ export function calcularValorKpiTreinamento(
     case "atendimentosWhatsApp":
       return filtra(eventos.atendimentosWhatsApp).length;
     case "clientesSuspensos":
-      return filtra(eventos.clientesSuspensos).length;
+      return filtrarPorTreinador(eventos.clientesSuspensos, treinador)
+        .filter((evento) => estavaSuspensoNoFim(evento, fim)).length;
     case "clientesCancelados":
       return filtra(eventos.clientesCancelados).length;
     case "taxaCsat": {
@@ -589,12 +655,13 @@ export function listarEsperasLongasTreinamento(
     .sort((a, b) => b.data.getTime() - a.data.getTime());
 }
 
-/** Clientes suspensos no período, para o detalhamento do indicador "Clientes Suspensos". */
+/** Clientes que estavam suspensos ao fim do período, para o detalhamento do indicador. */
 export function listarClientesSuspensosNoPeriodo(
-  eventos: EventosIndicadoresTreinamento, inicio: Date, fim: Date, treinador: string | null,
+  eventos: EventosIndicadoresTreinamento, _inicio: Date, fim: Date, treinador: string | null,
 ): EventoClienteSuspenso[] {
   return filtrarPorTreinador(eventos.clientesSuspensos, treinador)
-    .filter((evento) => dentroDoPeriodo(evento, inicio, fim))
+    .filter((evento) => evento.data.getTime() <= fim.getTime()
+      && (!evento.dataFim || evento.dataFim.getTime() > fim.getTime()))
     .sort((a, b) => b.data.getTime() - a.data.getTime());
 }
 

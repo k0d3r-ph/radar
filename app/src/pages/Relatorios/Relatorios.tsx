@@ -2,6 +2,7 @@ import { baseAcompanhamento } from "../../../../server/src/domain/acompanhamento
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import { LineChart } from "../../components/LineChart";
+import { AvaliacaoCsat } from "../../components/AvaliacaoCsat";
 import {
   Download,
   Calendar,
@@ -2357,7 +2358,21 @@ ${riscoChurn.length > 0
                       <strong>{ocorrenciaSelecionada.treinamentoSolicitante}</strong>
                     </div>
                   )}
-                  {ocorrenciaSelecionada.treinamentoResultados && ocorrenciaSelecionada.treinamentoResultados.length > 0 && (
+                  {ocorrenciaSelecionada.csatRespostas && ocorrenciaSelecionada.csatRespostas.length > 0 && (
+                    <div style={{ gridColumn: "span 2", alignItems: "flex-start", textAlign: "left" }}>
+                      <span style={{ textAlign: "left" }}>Avaliações CSAT</span>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "8px", alignItems: "flex-start", justifyContent: "flex-start", marginTop: "4px", width: "100%" }}>
+                        {ocorrenciaSelecionada.csatRespostas.map((resposta, idx) => (
+                          <div key={idx}>
+                            <strong>{resposta.nome}: </strong>
+                            <AvaliacaoCsat nota={resposta.nota} experiencia={resposta.experiencia} />
+                            {resposta.opiniao && <p>{resposta.opiniao}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {(!ocorrenciaSelecionada.csatRespostas || ocorrenciaSelecionada.csatRespostas.length === 0) && ocorrenciaSelecionada.treinamentoResultados && ocorrenciaSelecionada.treinamentoResultados.length > 0 && (
                     <div style={{ gridColumn: "span 2", alignItems: "flex-start", textAlign: "left" }}>
                       <span style={{ textAlign: "left" }}>Resultado do CSAT</span>
                       <div style={{ display: "flex", flexDirection: "row", gap: "8px", alignItems: "center", justifyContent: "flex-start", marginTop: "4px", flexWrap: "wrap", width: "100%" }}>
@@ -2380,7 +2395,7 @@ ${riscoChurn.length > 0
                       </div>
                     </div>
                   )}
-                  {ocorrenciaSelecionada.treinamentoNotas && ocorrenciaSelecionada.treinamentoNotas.length > 0 && (
+                  {(!ocorrenciaSelecionada.csatRespostas || ocorrenciaSelecionada.csatRespostas.length === 0) && ocorrenciaSelecionada.treinamentoNotas && ocorrenciaSelecionada.treinamentoNotas.length > 0 && (
                     <div style={{ gridColumn: "span 2", alignItems: "flex-start", textAlign: "left" }}>
                       <span style={{ textAlign: "left" }}>Notas do Treinamento (CSAT, modelo antigo)</span>
                       <div style={{ display: "flex", flexDirection: "row", gap: "8px", alignItems: "center", justifyContent: "flex-start", marginTop: "4px", flexWrap: "wrap", width: "100%" }}>

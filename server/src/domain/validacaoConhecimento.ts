@@ -18,7 +18,7 @@ export interface TentativaValidacao {
   nota?: number; percentual?: number; aprovada?: boolean; ocorrenciaId?: string; csatToken?: string;
   concluiuEsteira?: boolean;
   treinamentoDataSolicitacao: string; treinamentoTempoAgenda: string; treinamentoSolicitante: string;
-  csatRespostas?: { nome: string; experiencia: 'Bom' | 'Ruim'; opiniao: string; respondidoEm: number }[];
+  csatRespostas?: { nome: string; nota?: number; experiencia: 'Bom' | 'Ruim'; opiniao: string; respondidoEm: number }[];
 }
 export const normalizarConhecimento = (texto: string) => texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase().replace(/\s+/g, ' ');
 export function indiceTemaFinal(temas: string[]): number {

@@ -69,6 +69,7 @@ import { GestaoNotificacaoModal } from "../../components/GestaoNotificacaoModal"
 import { ConfirmarDescarteModal } from "../../components/ConfirmarDescarteModal";
 import { ConfirmarNovoFollowUpModal } from "../../components/ConfirmarNovoFollowUpModal";
 import { MotivoEsperaTreinamentoModal } from "../../components/MotivoEsperaTreinamentoModal";
+import { AvaliacaoCsat } from "../../components/AvaliacaoCsat";
 import {
   bloquearTreinamentoSuspenso,
   exigeClienteAtivoParaTreinamento,
@@ -4207,7 +4208,8 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               </button>
               {reserva.respostas.map((r, index) => (
                 <p key={index}>
-                  {r.nome}: {r.experiencia}
+                  {r.nome}:{" "}
+                  <AvaliacaoCsat nota={r.nota} experiencia={r.experiencia} />
                   {r.opiniao && ` — ${r.opiniao}`}
                 </p>
               ))}
@@ -5461,35 +5463,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                                   }}
                                 >
                                   {resposta.nome} —{" "}
-                                  {resposta.nota ? (
-                                    <span
-                                      style={{
-                                        display: "inline-flex",
-                                        alignItems: "center",
-                                        gap: "2px",
-                                      }}
-                                      aria-label={`Nota ${resposta.nota} de 5`}
-                                    >
-                                      {[1, 2, 3, 4, 5].map((valor) => (
-                                        <Star
-                                          key={valor}
-                                          size={14}
-                                          fill={
-                                            resposta.nota! >= valor
-                                              ? "#eab308"
-                                              : "none"
-                                          }
-                                          color="#eab308"
-                                          aria-hidden="true"
-                                        />
-                                      ))}
-                                      <span aria-hidden="true">
-                                        ({resposta.nota}/5)
-                                      </span>
-                                    </span>
-                                  ) : (
-                                    resposta.experiencia
-                                  )}
+                                  <AvaliacaoCsat
+                                    nota={resposta.nota}
+                                    experiencia={resposta.experiencia}
+                                  />
                                 </span>
                                 {resposta.opiniao && <p>{resposta.opiniao}</p>}
                                 {resposta.editadoPor && resposta.editadoEm && (
@@ -6855,17 +6832,41 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
                 <div className="hist-campo training-notes-container">
                   <div className="training-notes-header">
-                    <label>Resultado do CSAT (Opcional)</label>
-                    <button
-                      type="button"
-                      className="btn-add-nota-icon"
-                      onClick={handleAddResultado}
-                    >
-                      + Adicionar Resultado
-                    </button>
+                    <label>
+                      {reservaEditando
+                        ? "Avaliações recebidas no CSAT"
+                        : "Resultado do CSAT (Opcional)"}
+                    </label>
+                    {!reservaEditando && (
+                      <button
+                        type="button"
+                        className="btn-add-nota-icon"
+                        onClick={handleAddResultado}
+                      >
+                        + Adicionar Resultado
+                      </button>
+                    )}
                   </div>
-                  {!form.treinamentoResultados ||
-                  form.treinamentoResultados.length === 0 ? (
+                  {reservaEditando ? (
+                    reservaEditando.respostas.length > 0 ? (
+                      <div className="training-notes-list">
+                        {reservaEditando.respostas.map((resposta, idx) => (
+                          <div key={idx} className="training-note-item">
+                            <span>{resposta.nome}: </span>
+                            <AvaliacaoCsat
+                              nota={resposta.nota}
+                              experiencia={resposta.experiencia}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="training-no-notes-text">
+                        Nenhuma avaliação recebida até o momento.
+                      </span>
+                    )
+                  ) : !form.treinamentoResultados ||
+                    form.treinamentoResultados.length === 0 ? (
                     <span className="training-no-notes-text">
                       Nenhum resultado registrado (treinamento sem resposta
                       CSAT).
@@ -6898,7 +6899,8 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       ))}
                     </div>
                   )}
-                  {form.treinamentoNotas &&
+                  {!reservaEditando &&
+                    form.treinamentoNotas &&
                     form.treinamentoNotas.length > 0 && (
                       <span className="training-no-notes-text">
                         Notas antigas (modelo 1 a 5) já registradas neste

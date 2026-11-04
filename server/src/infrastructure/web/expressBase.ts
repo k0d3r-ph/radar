@@ -21,7 +21,7 @@ export function criarAppBase(): express.Express {
         callback(null, false);
       }
     },
-    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     credentials: true
   }));
 

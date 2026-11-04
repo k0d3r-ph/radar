@@ -25,5 +25,5 @@ export const config = {
   managerOpsApiKey: process.env.MANAGER_OPS_API_KEY?.trim() || '',
   // Mínimo de um minuto; padrão: cinco minutos.
   managerOpsSyncIntervalMs: Math.max(60_000, Number(process.env.MANAGER_OPS_SYNC_INTERVAL_MS) || 300_000),
+  profilePhotosDir: process.env.PROFILE_PHOTOS_DIR || path.resolve(process.cwd(), 'data/profile-photos'),
 };
-

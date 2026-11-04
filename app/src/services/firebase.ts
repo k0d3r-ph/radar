@@ -6,7 +6,6 @@ import {
   connectFirestoreEmulator,
 } from "firebase/firestore";
 import { getAuth, connectAuthEmulator } from "firebase/auth";
-import { connectStorageEmulator, getStorage } from "firebase/storage";
 
 export const firebaseConfig = {
   apiKey: "AIzaSyBrHOHIZE8zre7wpGOb8qYCgcSlmUuZu4c",
@@ -34,11 +33,9 @@ export const db = usarEmulador
       }),
     });
 export const auth = getAuth(app);
-export const storage = getStorage(app);
 
 if (usarEmulador) {
   connectFirestoreEmulator(db, "127.0.0.1", 8080);
   connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
-  connectStorageEmulator(storage, "127.0.0.1", 9199);
-  console.info("[Firebase] Emulator Suite local ativo (Firestore :8080, Auth :9099, Storage :9199) — nenhuma leitura ou gravação vai para produção.");
+  console.info("[Firebase] Emulator Suite local ativo (Firestore :8080, Auth :9099) — dados do Firebase não acessam produção.");
 }

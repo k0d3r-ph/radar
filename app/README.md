@@ -13,7 +13,7 @@ VITE_WHATSAPP_API_URL=http://localhost:5000
 
 | Variável | Processo | Funcionalidades |
 | --- | --- | --- |
-| `VITE_RADAR_API_URL` | API do Radar | Sincronização de clientes, ocorrências, pontos e checklist; CSAT, estrelas, IA e Centrais |
+| `VITE_RADAR_API_URL` | API do Radar | Sincronização de clientes, ocorrências, pontos e checklist; CSAT, estrelas, fotos de perfil, IA e Centrais |
 | `VITE_WHATSAPP_API_URL` | Bot do WhatsApp | Mensagens, status, Socket.IO e demais rotas `/api/whatsapp` |
 
 Em `server/`, `npm run dev:api` inicia a API na porta 5001 e `npm run dev` inicia o bot na porta 5000. Em `app/`, `npm run dev` inicia o frontend. O bot sozinho não atende as rotas de sincronização usadas pela Home e pelo Histórico.

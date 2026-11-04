@@ -12,6 +12,29 @@ import { adminAuth, adminDb } from '../firebase/firebaseAdmin.js';
 import { ValidacaoConhecimentoController } from '../../adapters/controllers/ValidacaoConhecimentoController.js';
 import { IndiceSincronizacao } from '../firebase/IndiceSincronizacao.js';
 import { SincronizarTarefasAutomaticas } from '../../application/use-cases/SincronizarTarefasAutomaticas.js';
+import { ProfilePhotosController } from '../../adapters/controllers/ProfilePhotosController.js';
+import { config } from '../config/env.js';
+
+const profilePhotoParser = express.raw({
+  type: ['image/jpeg', 'image/png', 'image/webp'],
+  limit: '2mb',
+});
+
+const parseProfilePhoto: express.RequestHandler = (req, res, next) => {
+  profilePhotoParser(req, res, (error) => {
+    if (!error) {
+      next();
+      return;
+    }
+    const tipo = typeof error === 'object' && error !== null && 'type' in error ? error.type : undefined;
+    if (tipo === 'entity.too.large') {
+      res.status(413).json({ error: 'A imagem deve ter até 2 MB.' });
+      return;
+    }
+    console.error('[Fotos de perfil] Requisição de imagem inválida.');
+    res.status(400).json({ error: 'Não foi possível ler a imagem enviada.' });
+  });
+};
 
 /**
  * Processo leve: CSAT, ocorrências, sincronização, IA e Centrais. Não inicializa
@@ -22,6 +45,16 @@ export function createApiApp({ tarefasAutomaticas = false }: { tarefasAutomatica
   const app = criarAppBase();
 
   const usuariosRepo = adminDb ? new FirestoreUsuariosRepository(adminDb) : null;
+
+  const profilePhotosController = new ProfilePhotosController(adminAuth, config.profilePhotosDir);
+  app.get('/api/profile-photos', (req, res) => profilePhotosController.listar(req, res));
+  app.get('/api/profile-photos/:uid', (req, res) => profilePhotosController.obter(req, res));
+  app.put(
+    '/api/profile-photos/:uid',
+    parseProfilePhoto,
+    (req, res) => profilePhotosController.enviar(req, res),
+  );
+  app.delete('/api/profile-photos/:uid', (req, res) => profilePhotosController.remover(req, res));
 
   registrarCsat(app, adminDb, adminAuth);
   const validacao = new ValidacaoConhecimentoController(adminDb, adminAuth);

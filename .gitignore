@@ -6,6 +6,7 @@ dist/
 dist-ssr/
 app/dist/
 server/dist/
+server/data/
 
 # Logs
 logs

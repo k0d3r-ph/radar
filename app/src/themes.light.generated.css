@@ -536,6 +536,16 @@ body.light-theme .perfil-usuario-dialog button:focus-visible {
 body.light-theme .perfil-usuario-previa span {
     color: #475569
 }
+body.light-theme .perfil-usuario-recorte > p {
+    color: #334155
+}
+body.light-theme .perfil-usuario-recorte-area {
+    background: #f4f6fa;
+    box-shadow: inset 0 0 0 2px rgba(96, 165, 250, 0.45)
+}
+body.light-theme .perfil-usuario-zoom {
+    color: #334155
+}
 body.light-theme .perfil-usuario-dialog .perfil-usuario-primario {
     background: #2563eb;
     border-color: #2563eb

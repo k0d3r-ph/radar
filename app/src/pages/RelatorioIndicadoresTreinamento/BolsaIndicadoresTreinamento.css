@@ -2,205 +2,467 @@
   display: flex;
   flex-direction: column;
   gap: 1.1rem;
+  color: #eaf2fa;
+  /* Escala do painel: acompanha a largura real do próprio painel (não da janela — fora do
+     modo foco ele divide a tela com o menu lateral) e a altura da janela, pensado para TVs
+     vistas de longe. Os elementos abaixo usam em, não rem, por isso. */
+  container-type: inline-size;
+  font-size: clamp(11px, min(0.95cqw, 1.62vh), 44px);
+}
+
+.bolsa-indicadores-wrapper--foco {
+  background: #061629;
+  padding: 1.1rem 1.4rem;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.bolsa-indicadores-wrapper--foco .bolsa-indicadores-header {
+  flex: 0 0 auto;
+}
+
+.bolsa-indicadores-wrapper--foco .bolsa-indicadores-grid-cards {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.bolsa-indicadores-wrapper--foco .bolsa-legenda,
+.bolsa-indicadores-wrapper--foco .bolsa-ticker {
+  flex: 0 0 auto;
 }
 
 .bolsa-indicadores-header {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
-  gap: 0.75rem;
+  flex-wrap: wrap;
+  gap: 1em 2em;
 }
 
-.bolsa-indicadores-titulo {
+.bolsa-indicadores-coluna-titulo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35em;
+  min-width: 0;
+}
+
+.bolsa-indicadores-eyebrow {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  color: #e2e8f0;
-}
-
-.bolsa-indicadores-titulo h2 {
-  font-size: 1.1rem;
+  gap: 0.6em;
+  font-size: 0.8em;
   font-weight: 700;
-  letter-spacing: 0.02em;
-  margin: 0;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #a3b8cf;
 }
 
 .bolsa-ao-vivo-dot {
-  width: 8px;
-  height: 8px;
+  width: 0.62em;
+  height: 0.62em;
   border-radius: 50%;
-  background: #34d399;
-  box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.6);
-  animation: bolsa-pulso 1.8s infinite;
+  background: #ff6b6b;
+  box-shadow: 0 0 0 0 rgba(255, 107, 107, 0.6);
+  animation: bolsa-pulso 1.6s ease-in-out infinite;
 }
 
 @keyframes bolsa-pulso {
-  0% {
-    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.55);
-  }
-  70% {
-    box-shadow: 0 0 0 8px rgba(52, 211, 153, 0);
-  }
+  0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0);
+    box-shadow: 0 0 0 0 rgba(255, 107, 107, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 0 0.5em rgba(255, 107, 107, 0);
   }
 }
 
-.bolsa-granularidade-toggle {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 999px;
-  color: #94a3b8;
-  font-size: 0.75rem;
+.bolsa-indicadores-titulo-pagina {
+  margin: 0;
+  font-weight: 700;
+  font-size: 2.6em;
+  line-height: 1;
+  letter-spacing: 0.01em;
+}
+
+.bolsa-indicadores-subtitulo {
+  margin: 0;
+  font-size: 1em;
+  color: #a3b8cf;
+}
+
+.bolsa-indicadores-header-direita {
+  display: flex;
+  align-items: flex-end;
+  gap: 1.4em;
+}
+
+.bolsa-modo-foco-btn {
+  font: inherit;
+  font-size: 0.85em;
   font-weight: 600;
-  letter-spacing: 0.03em;
-  padding: 0.35rem 0.85rem;
+  min-height: 2.4em;
+  padding: 0 1.1em;
+  border-radius: 0.6em;
+  border: 1px solid #22c7b2;
+  background: #22c7b2;
+  color: #04211d;
   cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
   white-space: nowrap;
+  transition: opacity 0.2s ease;
 }
 
-.bolsa-granularidade-toggle:hover {
-  background: rgba(255, 255, 255, 0.1);
+.bolsa-modo-foco-btn[aria-pressed="true"] {
+  background: transparent;
   color: #e2e8f0;
-  border-color: rgba(255, 255, 255, 0.2);
+  border-color: #1d3d63;
 }
 
-.bolsa-granularidade-label {
-  display: inline-block;
-  animation: bolsa-fade-in 0.4s ease;
+.bolsa-modo-foco-btn:hover {
+  opacity: 0.85;
 }
 
-@keyframes bolsa-fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(3px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.bolsa-modo-foco-btn:focus-visible {
+  outline: 2px solid #9cf0e4;
+  outline-offset: 2px;
 }
 
-/* Cinco cards independentes lado a lado — cada um verticalmente orientado (cabeçalho em
-   cima, valor em destaque no meio, gráfico embaixo), quebrando linha em telas estreitas. */
+.bolsa-indicadores-relogio {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.15em;
+  font-variant-numeric: tabular-nums;
+}
+
+.bolsa-indicadores-hora {
+  font-weight: 700;
+  font-size: 2.6em;
+  line-height: 1;
+}
+
+.bolsa-indicadores-data {
+  font-size: 0.95em;
+  color: #a3b8cf;
+}
+
+.bolsa-indicadores-atualizado {
+  font-size: 0.85em;
+  color: #64748b;
+}
+
+/* Cinco cards lado a lado. As 4 fileiras (cabeçalho, descrição, valor, comparações) são
+   compartilhadas entre eles via subgrid: cada fileira usa a altura do maior conteúdo entre
+   todos os cards da linha, então título, valor e comparações ficam alinhados mesmo quando
+   um card tem mais texto que o outro. A fileira do valor é a elástica (1fr) — ela absorve o
+   espaço sobrando, como no painel de referência. */
 .bolsa-indicadores-grid-cards {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 1.75rem;
+  grid-template-rows: auto auto 1fr auto;
+  column-gap: 1.1em;
+  row-gap: 0;
   width: 100%;
 }
 
 .bolsa-card {
   width: 100%;
-  min-height: 75vh;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  justify-content: space-between;
-  gap: 1.5rem;
-  background: linear-gradient(160deg, #0b1120 0%, #111827 55%, #0b1120 100%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 28px;
-  padding: 2.5rem 2rem 2.25rem;
-  box-shadow:
-    0 28px 60px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  gap: 1.1em;
+  background: #0b2340;
+  border: 2px solid #1d3d63;
+  border-radius: 1em;
+  padding: 1.4em 1.4em 1em;
+  transition: border-color 0.3s ease;
 }
 
-.bolsa-card:hover {
-  transform: translateY(-3px);
-  box-shadow:
-    0 20px 44px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+@supports (grid-template-rows: subgrid) {
+  .bolsa-card {
+    display: grid;
+    grid-row: span 4;
+    grid-template-rows: subgrid;
+    row-gap: 1.1em;
+  }
 }
 
-.bolsa-card-topo {
+.bolsa-card--alerta {
+  border-color: rgba(255, 107, 107, 0.7);
+  animation: bolsa-alerta-anel 2.4s ease-in-out infinite;
+}
+
+@keyframes bolsa-alerta-anel {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 107, 107, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 0.4em rgba(255, 107, 107, 0.16);
+  }
+}
+
+/* Cabeçalho: pílula de status acima do título curto, os dois centralizados. */
+.bolsa-card-cabecalho {
   display: flex;
-  align-items: flex-start;
-  gap: 0.7rem;
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #cbd5e1;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  min-height: 3.6em;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45em;
+  text-align: center;
 }
 
-.bolsa-card-icone {
+.bolsa-card-pill {
   display: inline-flex;
-  flex-shrink: 0;
+  align-items: center;
+  gap: 0.4em;
+  font-size: 0.72em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.4em 0.75em;
+  border-radius: 999px;
+  white-space: nowrap;
 }
 
-.bolsa-card-icone svg {
-  width: 40px;
-  height: 40px;
+.bolsa-card-pill--ok {
+  color: #35d98e;
+  background: rgba(53, 217, 142, 0.14);
 }
 
+.bolsa-card-pill--bad {
+  color: #ff6b6b;
+  background: rgba(255, 107, 107, 0.16);
+}
+
+.bolsa-card-pill--neutro {
+  color: #94a3b8;
+  background: rgba(148, 163, 184, 0.14);
+}
+
+.bolsa-card-titulo {
+  margin: 0;
+  font-weight: 700;
+  font-size: 2.4em;
+  line-height: 1.02;
+  letter-spacing: 0.005em;
+}
+
+/* Descrição: parágrafo curto explicando o indicador — à esquerda, abaixo do título
+   centralizado, igual ao painel de referência. */
+.bolsa-card-descricao {
+  margin: 0;
+  font-size: 0.95em;
+  line-height: 1.35;
+  color: #a3b8cf;
+}
+
+/* Valor: fileira elástica do subgrid — cresce para preencher o espaço sobrando e centraliza
+   o número, a unidade e a legenda de meta nesse espaço, como no original. */
 .bolsa-card-valor-bloco {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  animation: bolsa-fade-in 0.35s ease;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4em;
+  text-align: center;
+  padding: 0.4em 0;
+}
+
+.bolsa-card-valor-linha {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.3em;
 }
 
 .bolsa-card-valor {
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-  font-size: 5rem;
-  font-weight: 800;
-  color: #f8fafc;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-}
-
-.bolsa-card-badge {
-  align-self: flex-start;
-  font-size: 1rem;
   font-weight: 700;
-  border-radius: 8px;
-  padding: 0.25rem 0.65rem;
+  font-size: 3.2em;
+  line-height: 0.92;
+  letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
 }
 
-.bolsa-card-badge--up {
-  color: #22c55e;
-  background: rgba(34, 197, 94, 0.14);
+.bolsa-card-unidade {
+  font-weight: 600;
+  font-size: 1.3em;
+  color: #a3b8cf;
 }
-
-.bolsa-card-badge--down {
-  color: #ef4444;
-  background: rgba(239, 68, 68, 0.14);
-}
-
-.bolsa-sparkline {
-  width: 100%;
-  flex: 1 1 auto;
-  min-height: 180px;
-  max-height: 260px;
-}
-
 
 .bolsa-card-meta-label {
-  flex: 0 0 auto;
-  font-size: 0.85rem;
-  color: #64748b;
+  font-size: 1.1em;
+  font-weight: 600;
+  color: #a3b8cf;
 }
 
-@media (max-width: 1500px) {
+/* Comparações: uma linha por período (dia/semana/mês anterior), com texto à esquerda,
+   mini-gráfico no meio e variação colorida à direita — tudo numa única linha, como no
+   painel de referência. */
+.bolsa-card-comparacoes {
+  display: flex;
+  flex-direction: column;
+}
+
+.bolsa-card-comparacao {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 6.4em minmax(5.2em, auto);
+  align-items: center;
+  gap: 0.7em;
+  min-height: 3.3em;
+  padding: 0.5em 0;
+  border-top: 1px solid #1d3d63;
+}
+
+.bolsa-card-comparacao-texto {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.bolsa-card-comparacao-label {
+  font-size: 0.95em;
+  font-weight: 600;
+  color: #eaf2fa;
+  overflow-wrap: anywhere;
+}
+
+.bolsa-card-comparacao-antes {
+  font-size: 0.82em;
+  color: #a3b8cf;
+  font-variant-numeric: tabular-nums;
+}
+
+.bolsa-mini-sparkline {
+  display: block;
+  width: 100%;
+  height: 2em;
+}
+
+.bolsa-card-comparacao-delta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-variant-numeric: tabular-nums;
+}
+
+.bolsa-card-comparacao-seta {
+  font-size: 1.1em;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.bolsa-card-comparacao-palavra {
+  font-size: 0.72em;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Legenda explicando cor e seta, igual ao rodapé do painel de referência. */
+.bolsa-legenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4em 1.6em;
+  font-size: 0.85em;
+  color: #a3b8cf;
+}
+
+.bolsa-legenda-verde {
+  color: #35d98e;
+}
+
+.bolsa-legenda-vermelho {
+  color: #ff6b6b;
+}
+
+/* Fita de indicadores rolando no rodapé, como um ticker de bolsa. */
+.bolsa-ticker {
+  overflow: hidden;
+  background: #0b2340;
+  border-top: 1px solid #1d3d63;
+  padding: 0.75em 0;
+}
+
+.bolsa-ticker-trilha {
+  display: flex;
+  width: max-content;
+  animation: bolsa-ticker-scroll 42s linear infinite;
+}
+
+@keyframes bolsa-ticker-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-33.333%);
+  }
+}
+
+.bolsa-ticker-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.6em;
+  padding: 0 1.7em;
+  border-right: 1px solid #1d3d63;
+  white-space: nowrap;
+  font-size: 1.1em;
+  font-variant-numeric: tabular-nums;
+}
+
+.bolsa-ticker-titulo {
+  color: #a3b8cf;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.8em;
+}
+
+.bolsa-ticker-valor {
+  font-weight: 700;
+  color: #eaf2fa;
+}
+
+.bolsa-ticker-delta {
+  font-weight: 700;
+}
+
+.bolsa-ticker-rotulo {
+  font-size: 0.75em;
+  color: #a3b8cf;
+}
+
+@container (max-width: 1500px) {
   .bolsa-indicadores-grid-cards {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 900px) {
+@container (max-width: 950px) {
   .bolsa-indicadores-grid-cards {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 560px) {
+@container (max-width: 550px) {
   .bolsa-indicadores-grid-cards {
     grid-template-columns: 1fr;
+  }
+
+  .bolsa-mini-sparkline {
+    display: none;
+  }
+
+  .bolsa-card-comparacao {
+    grid-template-columns: minmax(0, 1fr) minmax(4.6em, auto);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bolsa-ao-vivo-dot,
+  .bolsa-card--alerta,
+  .bolsa-ticker-trilha {
+    animation: none;
   }
 }

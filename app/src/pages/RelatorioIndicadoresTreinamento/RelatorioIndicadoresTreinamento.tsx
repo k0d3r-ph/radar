@@ -80,11 +80,6 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
 
   return (
     <div className="indicadores-treinamento-container">
-      <div className="indicadores-bolsa-pagina-header">
-        <h1>Indicadores de Treinamento</h1>
-        <p>Painel ao vivo — atualiza sozinho, sem consumir leituras do Firebase.</p>
-      </div>
-
       {loading ? (
         <div className="relatorio-loader">
           <div className="spinner"></div>

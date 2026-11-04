@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { Flag, PauseCircle, Hourglass, Headphones, Star, Activity } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import {
   calcularValorKpiTreinamento,
   gerarPeriodosIndicadoresEntreDatas,
@@ -15,57 +15,61 @@ import "./BolsaIndicadoresTreinamento.css";
 type Granularidade = "dia" | "semana" | "mes";
 
 const ORDEM_GRANULARIDADES: Granularidade[] = ["dia", "semana", "mes"];
-const ROTULO_GRANULARIDADE: Record<Granularidade, string> = {
-  dia: "Dia a dia",
-  semana: "Semana a semana",
-  mes: "Mês a mês",
+const ROTULO_COMPARACAO: Record<Granularidade, string> = {
+  dia: "vs. dia anterior",
+  semana: "vs. semana anterior",
+  mes: "vs. mês anterior",
 };
-const INTERVALO_ROTACAO_MS = 5000;
 
 type ChaveBolsa =
   | "golNoPrazo"
   | "clientesSuspensos"
-  | "tempoPrimeiroTreinamento"
+  | "treinamentosRealizados"
   | "contatosSuporteTreinamento"
   | "csatTreinamento";
 
 interface ConfigBolsa {
   chave: ChaveBolsa;
+  /** Curto de propósito — o card é lido de longe; a explicação completa vai em `descricao`. */
   titulo: string;
-  icone: React.ReactNode;
+  descricao: string;
   menorEhMelhor: boolean;
+  /** Só definido quando existe um alvo oficial do negócio (ex.: CSAT ≥ 4,8). Sem isso, o
+   * card mostra "maior/menor é melhor" e a pílula segue a tendência, não uma meta fixa. */
+  meta?: number;
 }
 
 const INDICADORES_BOLSA: ConfigBolsa[] = [
   {
     chave: "golNoPrazo",
-    titulo: "Gol atingido no prazo",
-    icone: <Flag size={20} />,
+    titulo: "Gol no Prazo",
+    descricao: "Clientes que bateram a meta combinada (Gol) dentro dos 30 dias de prazo.",
     menorEhMelhor: false,
   },
   {
     chave: "clientesSuspensos",
-    titulo: "Clientes suspensos",
-    icone: <PauseCircle size={20} />,
+    titulo: "Suspensos",
+    descricao: "Clientes em treinamento com o acesso suspenso neste momento.",
     menorEhMelhor: true,
   },
   {
-    chave: "tempoPrimeiroTreinamento",
-    titulo: "Tempo até o 1º treinamento",
-    icone: <Hourglass size={20} />,
-    menorEhMelhor: true,
+    chave: "treinamentosRealizados",
+    titulo: "Treinamentos",
+    descricao: "Sessões de treinamento concluídas com os clientes no período.",
+    menorEhMelhor: false,
   },
   {
     chave: "contatosSuporteTreinamento",
-    titulo: "Contatos com Suporte atribuíveis a treinamento",
-    icone: <Headphones size={20} />,
+    titulo: "Contatos Suporte",
+    descricao: "Ocorrências de Suporte do SSX Desk atribuídas a clientes em treinamento.",
     menorEhMelhor: true,
   },
   {
     chave: "csatTreinamento",
-    titulo: "CSAT do treinamento",
-    icone: <Star size={20} />,
+    titulo: "CSAT",
+    descricao: "Nota média (1 a 5) dada pelos clientes para o atendimento de treinamento.",
     menorEhMelhor: false,
+    meta: 4.8,
   },
 ];
 
@@ -117,9 +121,41 @@ function formatarValorBolsa(chave: ChaveBolsa, valor: number | null): string {
   return formatarValorKpiTreinamento(chave, valor);
 }
 
+/** Separa o valor em número + unidade (ex.: "82,4" + "%"), para o número grande do card
+ * ficar maior que a unidade ao lado — igual ao painel de referência. */
+function dividirValorBolsa(chave: ChaveBolsa, valor: number | null): { main: string; unit: string } {
+  if (valor === null) return { main: "—", unit: "" };
+  if (chave === "golNoPrazo") return { main: `${Math.round(valor)}`, unit: "%" };
+  const formato = KPI_POR_CHAVE[chave].formato;
+  if (formato === "percentual") return { main: valor.toFixed(1).replace(".", ","), unit: "%" };
+  if (formato === "nota") return { main: valor.toFixed(1).replace(".", ","), unit: "/ 5" };
+  return { main: `${Math.round(valor)}`, unit: "" };
+}
+
 interface Ponto {
   categoria: string;
   valor: number | null;
+  inicio: Date;
+  fim: Date;
+}
+
+/** Indicadores de contagem (não taxa/nota) — comparar o total de uma semana ou mês inteiro
+ * contra o valor de hoje seria injusto (uma soma de 7 ou 30 dias é sempre maior que 1 dia),
+ * então essas comparações usam a média diária do período anterior. Gol no Prazo e CSAT já
+ * são taxas/notas — comparáveis entre períodos de tamanhos diferentes sem esse ajuste. */
+const CHAVES_CONTAGEM_BOLSA = new Set<ChaveBolsa>([
+  "treinamentosRealizados",
+  "clientesSuspensos",
+  "contatosSuporteTreinamento",
+]);
+
+function diasNoPeriodo(p: Ponto): number {
+  return Math.round((p.fim.getTime() - p.inicio.getTime()) / 86_400_000) + 1;
+}
+
+function formatarMediaDiariaBolsa(valor: number | null): string {
+  if (valor === null) return "—";
+  return `${valor.toFixed(1).replace(".", ",")}/dia`;
 }
 
 /** Caminho SVG suavizado (curva), não serrilhado — mesmo truque de relatórios financeiros:
@@ -138,158 +174,217 @@ function caminhoSuave(coords: { x: number; y: number }[]): string {
   return d;
 }
 
-/**
- * Gráfico de linha em SVG puro, estilo ticker (TradingView): curva suavizada, área
- * preenchida em degradê, brilho na linha e grade pontilhada de fundo.
- */
-function Sparkline({ pontos, cor }: { pontos: Ponto[]; cor: string }) {
-  const largura = 320;
-  const altura = 200;
-  const margem = 10;
+function construirCoordenadas(pontos: Ponto[], largura: number, altura: number, margem: number) {
   const valores = pontos.map((p) => p.valor ?? 0);
   const min = Math.min(...valores, 0);
   const max = Math.max(...valores, 1);
   const amplitude = max - min || 1;
   const passo = pontos.length > 1 ? largura / (pontos.length - 1) : 0;
+  return valores.map((v, i) => ({
+    x: i * passo,
+    y: altura - margem - ((v - min) / amplitude) * (altura - margem * 2),
+  }));
+}
 
-  const coords = valores.map((v, i) => {
-    const x = i * passo;
-    const y = altura - margem - ((v - min) / amplitude) * (altura - margem * 2);
-    return { x, y };
-  });
-
+/** Sparkline compacto usado dentro de cada linha de comparação (estilo o
+ * "spark" do painel de bolsa: só a linha e a área, sem grade nem brilho). */
+function MiniSparkline({ pontos, cor }: { pontos: Ponto[]; cor: string }) {
+  const largura = 96;
+  const altura = 30;
+  const margem = 3;
+  const coords = construirCoordenadas(pontos, largura, altura, margem);
   const linha = caminhoSuave(coords);
   const area = `${linha} L ${largura},${altura} L 0,${altura} Z`;
-  const idGradiente = `bolsa-grad-${cor.replace("#", "")}`;
-  const idGlow = `bolsa-glow-${cor.replace("#", "")}`;
-  const linhasGradeY = [0.25, 0.5, 0.75].map((f) => margem + (altura - margem * 2) * f);
+  const idGradiente = `bolsa-mini-grad-${cor.replace("#", "")}`;
 
   return (
     <svg
-      className="bolsa-sparkline"
+      className="bolsa-mini-sparkline"
       viewBox={`0 0 ${largura} ${altura}`}
       preserveAspectRatio="none"
       aria-hidden="true"
     >
       <defs>
         <linearGradient id={idGradiente} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={cor} stopOpacity="0.4" />
+          <stop offset="0%" stopColor={cor} stopOpacity="0.35" />
           <stop offset="100%" stopColor={cor} stopOpacity="0" />
         </linearGradient>
-        <filter id={idGlow} x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="3.5" result="blur" />
-          <feMerge>
-            <feMergeNode in="blur" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
       </defs>
-      {linhasGradeY.map((y) => (
-        <line
-          key={y}
-          x1="0"
-          y1={y}
-          x2={largura}
-          y2={y}
-          stroke="rgba(255,255,255,0.07)"
-          strokeWidth="1"
-          strokeDasharray="4 6"
-        />
-      ))}
       <path d={area} fill={`url(#${idGradiente})`} stroke="none" />
       <path
         d={linha}
         fill="none"
         stroke={cor}
-        strokeWidth="3"
+        strokeWidth="2"
         strokeLinejoin="round"
         strokeLinecap="round"
-        filter={`url(#${idGlow})`}
       />
       {coords.length > 0 && (
-        <circle
-          cx={coords[coords.length - 1].x}
-          cy={coords[coords.length - 1].y}
-          r="5"
-          fill={cor}
-          stroke="#0b1120"
-          strokeWidth="2"
-        />
+        <circle cx={coords[coords.length - 1].x} cy={coords[coords.length - 1].y} r="2.6" fill={cor} />
       )}
     </svg>
   );
 }
 
+const COR_NEUTRA = "#64748b";
+const COR_FAVORAVEL = "#22c55e";
+const COR_DESFAVORAVEL = "#ef4444";
+
+function corPorFavorabilidade(favoravel: boolean | null): string {
+  return favoravel === null ? COR_NEUTRA : favoravel ? COR_FAVORAVEL : COR_DESFAVORAVEL;
+}
+
+interface LinhaComparacao {
+  granularidade: Granularidade;
+  label: string;
+  prevStr: string;
+  deltaStr: string;
+  arrow: string;
+  word: string;
+  cor: string;
+  serie: Ponto[];
+}
+
+function construirComparacao(
+  config: ConfigBolsa,
+  granularidade: Granularidade,
+  serie: Ponto[],
+  valorHoje: number | null,
+): LinhaComparacao {
+  // Para contagens, "semana"/"mês" comparam hoje contra a MÉDIA DIÁRIA do período anterior
+  // completo (total ÷ dias do período) — não o total acumulado, que inflaria o "antes" e
+  // faria o dia parecer sempre pior. Taxas/notas (Gol, CSAT) continuam comparando total do
+  // período atual vs. total do período anterior, já que são comparáveis entre si.
+  const usarMediaDiaria = granularidade !== "dia" && CHAVES_CONTAGEM_BOLSA.has(config.chave);
+
+  let atual: number | null;
+  let anterior: number | null;
+  let prevStr: string;
+  let formatarDelta: (absoluto: number) => string;
+
+  if (usarMediaDiaria) {
+    const periodoAnterior = serie[serie.length - 2] ?? null;
+    const dias = periodoAnterior ? diasNoPeriodo(periodoAnterior) : 0;
+    atual = valorHoje;
+    anterior =
+      periodoAnterior && periodoAnterior.valor !== null && dias > 0
+        ? periodoAnterior.valor / dias
+        : null;
+    prevStr = formatarMediaDiariaBolsa(anterior);
+    formatarDelta = (absoluto) => absoluto.toFixed(1).replace(".", ",");
+  } else {
+    atual = serie[serie.length - 1]?.valor ?? null;
+    anterior = serie[serie.length - 2]?.valor ?? null;
+    prevStr = anterior === null ? "—" : formatarValorBolsa(config.chave, anterior);
+    formatarDelta = (absoluto) => formatarValorBolsa(config.chave, absoluto);
+  }
+
+  const temComparacao = atual !== null && anterior !== null;
+  const delta = temComparacao ? atual! - anterior! : null;
+  const favoravel =
+    delta === null || delta === 0 ? null : config.menorEhMelhor ? delta < 0 : delta > 0;
+  const cor = corPorFavorabilidade(favoravel);
+  return {
+    granularidade,
+    label: usarMediaDiaria
+      ? granularidade === "semana"
+        ? "vs. média da semana anterior"
+        : "vs. média do mês anterior"
+      : ROTULO_COMPARACAO[granularidade],
+    prevStr,
+    deltaStr: delta === null ? "—" : formatarDelta(Math.abs(delta)),
+    arrow: delta === null || delta === 0 ? "■" : delta > 0 ? "▲" : "▼",
+    word: favoravel === null ? "estável" : favoravel ? "melhor" : "pior",
+    cor,
+    serie,
+  };
+}
+
 function CardIndicador({
   config,
-  serie,
-  granularidade,
+  series,
 }: {
   config: ConfigBolsa;
-  serie: Ponto[];
-  granularidade: Granularidade;
+  series: Record<Granularidade, Ponto[]>;
 }) {
-  const ultimo = serie[serie.length - 1]?.valor ?? null;
-  const penultimo = serie[serie.length - 2]?.valor ?? null;
-  const temComparacao = ultimo !== null && penultimo !== null;
-  const deltaPasso = temComparacao ? ultimo! - penultimo! : null;
-  const deltaPercentual =
-    temComparacao && penultimo !== 0 ? (deltaPasso! / Math.abs(penultimo!)) * 100 : null;
-  // Favorabilidade do selo: sempre em cima do mesmo número que ele exibe (o último passo),
-  // nunca da tendência do período inteiro — senão a seta/cor podem contradizer o valor.
-  const favoravelPasso =
-    deltaPasso === null || deltaPasso === 0
-      ? null
-      : config.menorEhMelhor
-        ? deltaPasso < 0
-        : deltaPasso > 0;
+  const ultimo = series.dia[series.dia.length - 1]?.valor ?? null;
+  const comparacoes = ORDEM_GRANULARIDADES.map((g) => construirComparacao(config, g, series[g], ultimo));
+  const comparacaoDia = comparacoes[0];
 
-  // A cor do ícone/gráfico reflete a tendência do período inteiro exibido (primeiro vs.
-  // último ponto com dado) — igual a um ticker de bolsa mostrando a variação do dia/período,
-  // não só o último passo, que costuma ficar neutro quando os dados são esparsos.
-  const valoresValidos = serie.map((p) => p.valor).filter((v): v is number => v !== null);
-  const deltaTendencia =
-    valoresValidos.length >= 2
-      ? valoresValidos[valoresValidos.length - 1] - valoresValidos[0]
-      : null;
-  const favoravel =
-    deltaTendencia === null || deltaTendencia === 0
-      ? null
-      : config.menorEhMelhor
-        ? deltaTendencia < 0
-        : deltaTendencia > 0;
-  const cor = favoravel === null ? "#64748b" : favoravel ? "#22c55e" : "#ef4444";
+  // Com meta oficial do negócio (hoje só o CSAT): a pílula reflete se o valor atual bate a
+  // meta. Sem meta: segue a tendência diária (hoje vs. ontem) — o mesmo número em destaque,
+  // para nunca contradizer o que se vê.
+  let statusTexto: string;
+  let statusClasse: "ok" | "bad" | "neutro";
+  let corPrincipal: string;
+  if (config.meta !== undefined) {
+    if (ultimo === null) {
+      statusTexto = "Sem dados";
+      statusClasse = "neutro";
+      corPrincipal = COR_NEUTRA;
+    } else {
+      const atingiuMeta = config.menorEhMelhor ? ultimo <= config.meta : ultimo >= config.meta;
+      statusTexto = atingiuMeta ? "Dentro da meta" : "Fora da meta";
+      statusClasse = atingiuMeta ? "ok" : "bad";
+      corPrincipal = atingiuMeta ? COR_FAVORAVEL : COR_DESFAVORAVEL;
+    }
+  } else {
+    const favoravelDia =
+      comparacaoDia.arrow === "■"
+        ? null
+        : comparacaoDia.arrow === "▲"
+          ? !config.menorEhMelhor
+          : config.menorEhMelhor;
+    statusTexto = favoravelDia === null ? "Estável" : favoravelDia ? "Favorável" : "Desfavorável";
+    statusClasse = favoravelDia === null ? "neutro" : favoravelDia ? "ok" : "bad";
+    corPrincipal = corPorFavorabilidade(favoravelDia);
+  }
+
+  const valorSplit = dividirValorBolsa(config.chave, ultimo);
+  const metaSplit = config.meta !== undefined ? dividirValorBolsa(config.chave, config.meta) : null;
+  const metaLabel = metaSplit
+    ? `Meta ${config.menorEhMelhor ? "≤" : "≥"} ${metaSplit.main}${metaSplit.unit}`
+    : config.menorEhMelhor
+      ? "Menor é melhor"
+      : "Maior é melhor";
 
   return (
-    <div className="bolsa-card">
-      <div className="bolsa-card-topo">
-        <span className="bolsa-card-icone" style={{ color: cor }}>
-          {config.icone}
+    <article className={`bolsa-card ${statusClasse === "bad" ? "bolsa-card--alerta" : ""}`}>
+      <div className="bolsa-card-cabecalho">
+        <span className={`bolsa-card-pill bolsa-card-pill--${statusClasse}`}>
+          <span aria-hidden="true">●</span> {statusTexto}
         </span>
-        <span className="bolsa-card-titulo">{config.titulo}</span>
+        <h3 className="bolsa-card-titulo">{config.titulo}</h3>
       </div>
 
-      <div className="bolsa-card-valor-bloco" key={`${config.chave}-${granularidade}`}>
-        <span className="bolsa-card-valor">{formatarValorBolsa(config.chave, ultimo)}</span>
-        {favoravelPasso !== null && deltaPercentual !== null && (
-          <span
-            className={`bolsa-card-badge ${favoravelPasso ? "bolsa-card-badge--up" : "bolsa-card-badge--down"}`}
-          >
-            {deltaPasso! > 0 ? "▲" : "▼"} {Math.abs(deltaPercentual).toFixed(1).replace(".", ",")}%
-          </span>
-        )}
+      <p className="bolsa-card-descricao">{config.descricao}</p>
+
+      <div className="bolsa-card-valor-bloco">
+        <div className="bolsa-card-valor-linha" style={{ color: corPrincipal }}>
+          <span className="bolsa-card-valor">{valorSplit.main}</span>
+          {valorSplit.unit && <span className="bolsa-card-unidade">{valorSplit.unit}</span>}
+        </div>
+        <span className="bolsa-card-meta-label">{metaLabel}</span>
       </div>
 
-      <Sparkline pontos={serie} cor={cor} />
-
-      <span className="bolsa-card-meta-label">
-        {config.chave === "golNoPrazo"
-          ? "Maior é melhor"
-          : KPI_POR_CHAVE[config.chave].menorEhMelhor
-            ? "Menor é melhor"
-            : "Maior é melhor"}
-      </span>
-    </div>
+      <div className="bolsa-card-comparacoes">
+        {comparacoes.map((c) => (
+          <div className="bolsa-card-comparacao" key={c.granularidade}>
+            <div className="bolsa-card-comparacao-texto">
+              <span className="bolsa-card-comparacao-label">{c.label}</span>
+              <span className="bolsa-card-comparacao-antes">Antes: {c.prevStr}</span>
+            </div>
+            <MiniSparkline pontos={c.serie} cor={c.cor} />
+            <div className="bolsa-card-comparacao-delta" style={{ color: c.cor }}>
+              <span className="bolsa-card-comparacao-seta">
+                {c.arrow} {c.deltaStr}
+              </span>
+              <span className="bolsa-card-comparacao-palavra">{c.word}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </article>
   );
 }
 
@@ -301,9 +396,10 @@ interface Props {
 }
 
 /**
- * Cinco cards independentes, estilo "bolsa de valores" (ticker), alternando automaticamente
- * entre dia/semana/mês. Todo o cálculo roda em cima de `eventos`/`empresas`/`ocorrencias` já
- * carregados pela página-mãe — não dispara nenhuma leitura adicional no Firestore.
+ * Painel "ao vivo" estilo bolsa de valores: cada card mostra o valor do dia, a meta (quando
+ * existe uma oficial) e as três comparações (dia/semana/mês anterior) com mini-gráfico de
+ * tendência. Todo o cálculo roda em cima de `eventos`/`empresas`/`ocorrencias` já carregados
+ * pela página-mãe — não dispara nenhuma leitura adicional no Firestore.
  */
 export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
   eventos,
@@ -311,33 +407,68 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
   ocorrencias,
   treinador,
 }) => {
-  const [granularidade, setGranularidade] = useState<Granularidade>("dia");
-  const [pausado, setPausado] = useState(false);
+  const [agora, setAgora] = useState(() => new Date());
+  const [modoFoco, setModoFoco] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  // Momento em que o painel carregou os dados — a página-mãe busca uma vez só (sem
+  // recarregar em segundo plano), então "atualizado há Xs" é o tempo desde essa carga.
+  const [carregadoEm] = useState(() => Date.now());
 
   useEffect(() => {
-    if (pausado) return;
-    const id = window.setInterval(() => {
-      setGranularidade((atual) => {
-        const idx = ORDEM_GRANULARIDADES.indexOf(atual);
-        return ORDEM_GRANULARIDADES[(idx + 1) % ORDEM_GRANULARIDADES.length];
-      });
-    }, INTERVALO_ROTACAO_MS);
+    const id = window.setInterval(() => setAgora(new Date()), 1000);
     return () => window.clearInterval(id);
-  }, [pausado]);
+  }, []);
 
+  useEffect(() => {
+    function aoSairDoFullscreen() {
+      if (!document.fullscreenElement) setModoFoco(false);
+    }
+    document.addEventListener("fullscreenchange", aoSairDoFullscreen);
+    return () => document.removeEventListener("fullscreenchange", aoSairDoFullscreen);
+  }, []);
+
+  async function alternarModoFoco() {
+    const elemento = wrapperRef.current;
+    if (!elemento) return;
+    if (!document.fullscreenElement) {
+      if (!elemento.requestFullscreen) {
+        toast.error("O modo foco não está disponível neste navegador.");
+        return;
+      }
+      try {
+        await elemento.requestFullscreen();
+        setModoFoco(true);
+      } catch (error) {
+        console.error("Não foi possível ativar o modo foco do painel:", error);
+        toast.error("Não foi possível ativar o modo foco. Tente novamente.");
+      }
+    } else {
+      try {
+        await document.exitFullscreen();
+        setModoFoco(false);
+      } catch (error) {
+        console.error("Não foi possível sair do modo foco do painel:", error);
+        toast.error("Não foi possível sair do modo foco. Tente novamente.");
+      }
+    }
+  }
+
+  // Recalculado a cada minuto junto do relógio, para a janela "últimos N dias" avançar
+  // sozinha sem precisar recarregar a página.
+  const minutoAtual = Math.floor(agora.getTime() / 60000);
   const periodosPorGranularidade = useMemo(() => {
-    const agora = new Date();
-    const inicioJanelaDia = new Date(agora);
+    const referencia = new Date(minutoAtual * 60000);
+    const inicioJanelaDia = new Date(referencia);
     inicioJanelaDia.setDate(inicioJanelaDia.getDate() - 20);
-    const inicioJanelaSemana = new Date(agora);
+    const inicioJanelaSemana = new Date(referencia);
     inicioJanelaSemana.setDate(inicioJanelaSemana.getDate() - 70);
 
     return {
-      dia: gerarPeriodosIndicadoresEntreDatas(inicioJanelaDia, agora, "dia").slice(-10),
-      semana: gerarPeriodosIndicadoresEntreDatas(inicioJanelaSemana, agora, "semana").slice(-8),
+      dia: gerarPeriodosIndicadoresEntreDatas(inicioJanelaDia, referencia, "dia").slice(-10),
+      semana: gerarPeriodosIndicadoresEntreDatas(inicioJanelaSemana, referencia, "semana").slice(-8),
       mes: gerarUltimosMeses(6),
     } satisfies Record<Granularidade, PeriodoIndicador[]>;
-  }, []);
+  }, [minutoAtual]);
 
   const seriesPorIndicador = useMemo(() => {
     const resultado = {} as Record<ChaveBolsa, Record<Granularidade, Ponto[]>>;
@@ -355,43 +486,102 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
             p.fim,
             treinador,
           ),
+          inicio: p.inicio,
+          fim: p.fim,
         }));
       });
     });
     return resultado;
   }, [eventos, empresas, ocorrencias, treinador, periodosPorGranularidade]);
 
+  const ticker = useMemo(
+    () =>
+      INDICADORES_BOLSA.map((config) => {
+        const serieDia = seriesPorIndicador[config.chave].dia;
+        const valorHoje = serieDia[serieDia.length - 1]?.valor ?? null;
+        const comparacao = construirComparacao(config, "dia", serieDia, valorHoje);
+        return {
+          chave: config.chave,
+          titulo: config.titulo,
+          valor: formatarValorBolsa(config.chave, valorHoje),
+          arrow: comparacao.arrow,
+          deltaStr: comparacao.deltaStr,
+          cor: comparacao.cor,
+        };
+      }),
+    [seriesPorIndicador],
+  );
+  const tickerDuplicado = [...ticker, ...ticker, ...ticker];
+
+  const sinceUpdate = Math.max(0, Math.round((agora.getTime() - carregadoEm) / 1000));
+  const diaSemana = agora.toLocaleDateString("pt-BR", { weekday: "long" });
+  const diaSemanaCapitalizado = diaSemana.charAt(0).toUpperCase() + diaSemana.slice(1);
+  const dataCurta = agora.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+
   return (
-    <div className="bolsa-indicadores-wrapper">
+    <div className={`bolsa-indicadores-wrapper ${modoFoco ? "bolsa-indicadores-wrapper--foco" : ""}`} ref={wrapperRef}>
       <div className="bolsa-indicadores-header">
-        <div className="bolsa-indicadores-titulo">
-          <Activity size={18} />
-          <h2>Painel ao vivo</h2>
-          <span className="bolsa-ao-vivo-dot" aria-hidden="true" />
+        <div className="bolsa-indicadores-coluna-titulo">
+          <div className="bolsa-indicadores-eyebrow">
+            <span className="bolsa-ao-vivo-dot" aria-hidden="true" />
+            <span>Ao vivo · Treinamento</span>
+          </div>
+          <h1 className="bolsa-indicadores-titulo-pagina">Indicadores de Treinamento</h1>
+          <p className="bolsa-indicadores-subtitulo">
+            Painel ao vivo — atualiza sozinho, sem consumir leituras do Firebase.
+          </p>
         </div>
-        <button
-          type="button"
-          className="bolsa-granularidade-toggle"
-          onClick={() => setPausado((p) => !p)}
-          aria-pressed={pausado}
-          title={pausado ? "Retomar rotação automática" : "Pausar rotação automática"}
-        >
-          <span key={granularidade} className="bolsa-granularidade-label">
-            {ROTULO_GRANULARIDADE[granularidade]}
-          </span>
-          {pausado ? " · pausado" : ""}
-        </button>
+        <div className="bolsa-indicadores-header-direita">
+          <button
+            type="button"
+            className="bolsa-modo-foco-btn"
+            onClick={alternarModoFoco}
+            aria-pressed={modoFoco}
+            title={modoFoco ? "Sair do modo foco" : "Modo foco (tela cheia)"}
+          >
+            {modoFoco ? "Sair do modo foco" : "Modo foco"}
+          </button>
+          <div className="bolsa-indicadores-relogio">
+            <span className="bolsa-indicadores-hora">
+              {agora.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+            </span>
+            <span className="bolsa-indicadores-data">
+              {diaSemanaCapitalizado}, {dataCurta}
+            </span>
+            <span className="bolsa-indicadores-atualizado">Atualizado há {sinceUpdate}s</span>
+          </div>
+        </div>
       </div>
 
       <div className="bolsa-indicadores-grid-cards">
         {INDICADORES_BOLSA.map((config) => (
-          <CardIndicador
-            key={config.chave}
-            config={config}
-            serie={seriesPorIndicador[config.chave][granularidade]}
-            granularidade={granularidade}
-          />
+          <CardIndicador key={config.chave} config={config} series={seriesPorIndicador[config.chave]} />
         ))}
+      </div>
+
+      <div className="bolsa-legenda">
+        <span>
+          <strong className="bolsa-legenda-verde">▲▼ Verde</strong> melhor que o período anterior
+        </span>
+        <span>
+          <strong className="bolsa-legenda-vermelho">▲▼ Vermelho</strong> pior que o período anterior
+        </span>
+        <span>A seta indica se o número subiu ou caiu</span>
+      </div>
+
+      <div className="bolsa-ticker" role="presentation">
+        <div className="bolsa-ticker-trilha">
+          {tickerDuplicado.map((item, idx) => (
+            <span className="bolsa-ticker-item" key={`${item.chave}-${idx}`}>
+              <span className="bolsa-ticker-titulo">{item.titulo}</span>
+              <span className="bolsa-ticker-valor">{item.valor}</span>
+              <span className="bolsa-ticker-delta" style={{ color: item.cor }}>
+                {item.arrow} {item.deltaStr}
+              </span>
+              <span className="bolsa-ticker-rotulo">vs. dia anterior</span>
+            </span>
+          ))}
+        </div>
       </div>
     </div>
   );

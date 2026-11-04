@@ -1405,6 +1405,7 @@ ${riscoChurn.length > 0
       <div className="relatorios-glow"></div>
 
       <header className="relatorios-header">
+        <span className="relatorios-eyebrow">Central de análise</span>
         <h1>
           {activeTab === "esteira"
             ? "Visão Geral"
@@ -1438,13 +1439,15 @@ ${riscoChurn.length > 0
       </header>
 
       {/* Sub-abas de Navegação */}
-      <div className="relatorios-tabs">
+      <div className="relatorios-tabs" role="group" aria-label="Seções do relatório">
         {abasVisiveis.map((key) => {
           const aba = ABAS_RELATORIO.find((a) => a.key === key)!;
           return (
             <button
+              type="button"
               key={key}
               className={`relatorios-tab-btn ${activeTab === key ? "active" : ""}`}
+              aria-pressed={activeTab === key}
               onClick={() => setActiveTab(key)}
             >
               {aba.label}

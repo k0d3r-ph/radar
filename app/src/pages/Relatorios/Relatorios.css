@@ -494,13 +494,17 @@
 /* Sub-tabs styles */
 .relatorios-tabs {
   display: flex;
-  gap: 1rem;
+  align-items: center;
+  gap: 0.35rem;
+  overflow-x: auto;
+  scrollbar-width: thin;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   margin-bottom: 2rem;
   padding-bottom: 2px;
 }
 
 .relatorios-tab-btn {
+  flex: 0 0 auto;
   background: none;
   border: none;
   color: #94a3b8;
@@ -510,6 +514,12 @@
   cursor: pointer;
   position: relative;
   transition: color 0.2s ease;
+}
+
+.relatorios-tab-btn:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: -2px;
+  border-radius: 6px;
 }
 
 .relatorios-tab-btn:hover {
@@ -535,7 +545,129 @@
   .relatorios-page {
     padding: 1rem;
   }
-  
+}
+
+/* Uma hierarquia única para navegar e entender o contexto do relatório. */
+.relatorios-page {
+  width: min(100%, 1720px);
+  margin: 0 auto;
+  padding: clamp(1rem, 3vw, 2.75rem);
+  background: #0b1220;
+}
+
+.relatorios-header {
+  position: relative;
+  margin: 0 0 1.25rem;
+  padding: clamp(1.25rem, 3vw, 2rem);
+  overflow: hidden;
+  border: 1px solid rgba(96, 165, 250, 0.16);
+  border-radius: 22px;
+  background:
+    radial-gradient(ellipse at 95% 0, rgba(59, 130, 246, 0.18), transparent 36%),
+    linear-gradient(125deg, #111c30, #101827 62%, #14233a);
+}
+
+.relatorios-header h1 {
+  margin: 0;
+  font-size: clamp(1.8rem, 3.5vw, 2.55rem);
+  letter-spacing: -0.045em;
+  line-height: 1.12;
+}
+
+.relatorios-header p {
+  max-width: 760px;
+  margin: 0.65rem 0 0;
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.relatorios-eyebrow {
+  display: inline-flex;
+  margin-bottom: 0.55rem;
+  color: #93c5fd;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.relatorios-tabs {
+  position: sticky;
+  z-index: 20;
+  top: 0.5rem;
+  gap: 0.4rem;
+  margin: 0 0 1.5rem;
+  padding: 0.55rem;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.94);
+  box-shadow: 0 12px 30px rgba(2, 6, 23, 0.22);
+  backdrop-filter: blur(14px);
+}
+
+.relatorios-tabs > div {
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+.relatorios-tab-btn {
+  min-height: 40px;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  color: #a7b3c6;
+  font-size: 0.82rem;
+  font-weight: 650;
+  transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+
+.relatorios-tab-btn:hover {
+  background: rgba(148, 163, 184, 0.08);
+  color: #f1f5f9;
+}
+
+.relatorios-tab-btn.active {
+  border-color: rgba(96, 165, 250, 0.28);
+  background: rgba(37, 99, 235, 0.16);
+  color: #bfdbfe;
+}
+
+.relatorios-tab-btn.active::after { display: none; }
+
+.relatorios-filtros {
+  width: 100%;
+  max-width: 100%;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  border-color: rgba(148, 163, 184, 0.14);
+  background: #111c30;
+  box-shadow: 0 8px 22px rgba(2, 6, 23, 0.14);
+}
+
+.relatorios-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+  gap: 0.9rem;
+}
+
+.relatorio-kpi-card {
+  min-height: 145px;
+  padding: 1.2rem;
+  border-color: rgba(148, 163, 184, 0.14);
+  border-radius: 14px;
+  background: linear-gradient(145deg, #152238, #111b2b);
+}
+
+.relatorio-kpi-card:hover { transform: translateY(-2px); }
+
+@media (max-width: 768px) {
+  .relatorios-page { padding: 0.9rem; }
+  .relatorios-header { margin-bottom: 0.9rem; padding: 1.2rem; border-radius: 16px; }
+  .relatorios-tabs { top: 0; margin-bottom: 1rem; padding: 0.4rem; border-radius: 12px; }
+  .relatorios-tab-btn { min-height: 38px; padding: 0.5rem 0.7rem; font-size: 0.76rem; }
+  .relatorios-tabs > div { margin-left: 0; }
+}
+
+@media (max-width: 768px) {
   .relatorios-header h1 {
     font-size: 1.5rem;
   }
@@ -840,6 +972,3 @@
   font-weight: 700;
   margin-left: 4px;
 }
-
-
-

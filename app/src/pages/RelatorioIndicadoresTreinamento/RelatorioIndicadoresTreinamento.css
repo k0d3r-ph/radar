@@ -3,14 +3,3 @@
   flex-direction: column;
   gap: 1.5rem;
 }
-
-.indicadores-bolsa-pagina-header h1 {
-  margin: 0 0 0.3rem;
-  font-size: 1.3rem;
-}
-
-.indicadores-bolsa-pagina-header p {
-  margin: 0;
-  font-size: 0.85rem;
-  color: #94a3b8;
-}

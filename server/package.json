@@ -18,6 +18,7 @@
     "seed:jornada": "tsx scripts/seedJornadaEmulador.ts",
     "test:validacao": "npm run build && node --test tests/validacaoConhecimento.test.mjs tests/tarefasAutomaticas.test.mjs tests/excluirTarefaConcluida.test.mjs tests/csat.test.mjs",
     "test:ssx-desk": "npm run build && node --test tests/ssxDesk.test.mjs",
+    "test:manager-ops": "npm run build && node --test tests/managerOps.test.mjs",
     "test:favoritos": "npm run build && node --test tests/favoritos.test.mjs",
     "test:sincronizacao": "npm run build && node --test tests/sincronizacao.test.mjs",
     "test:whatsapp-media": "npm run build && node --test tests/whatsappMedia.test.mjs",

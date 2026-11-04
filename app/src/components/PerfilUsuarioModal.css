@@ -1,0 +1,28 @@
+.perfil-usuario-dialog {
+  width: min(460px, calc(100vw - 32px));
+  padding: 24px;
+  border: 1px solid #475569;
+  border-radius: 16px;
+  background: #111827;
+  color: #e2e8f0;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, .45);
+}
+
+.perfil-usuario-dialog::backdrop { background: rgba(2, 6, 23, .72); backdrop-filter: blur(3px); }
+.perfil-usuario-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.perfil-usuario-header h2 { margin: 0; font-size: 19px; }
+.perfil-usuario-header p { margin: 7px 0 0; color: #94a3b8; font-size: 13px; line-height: 1.5; }
+.perfil-usuario-dialog button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 40px; padding: 9px 12px; border: 1px solid #475569; border-radius: 8px; background: #1e293b; color: #e2e8f0; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.perfil-usuario-dialog button:disabled { opacity: .55; cursor: default; }
+.perfil-usuario-dialog button:focus-visible { outline: 2px solid #60a5fa; outline-offset: 3px; }
+.perfil-usuario-dialog .perfil-usuario-fechar { min-width: 40px; padding: 8px; }
+.perfil-usuario-previa { display: flex; align-items: center; gap: 14px; padding: 20px 0; }
+.perfil-usuario-avatar { width: 68px; height: 68px; font-size: 20px; }
+.perfil-usuario-previa > div:last-child { display: grid; gap: 5px; }
+.perfil-usuario-previa span { color: #94a3b8; font-size: 12px; }
+.perfil-usuario-arquivo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
+.perfil-usuario-acoes { display: flex; flex-wrap: wrap; gap: 10px; }
+.perfil-usuario-dialog .perfil-usuario-primario { background: #2563eb; border-color: #2563eb; }
+.perfil-usuario-dialog .perfil-usuario-remover { background: transparent; border-color: rgba(239, 68, 68, .4); color: #fca5a5; }
+.perfil-usuario-erro { margin: 0 0 14px; color: #fca5a5; font-size: 13px; line-height: 1.5; }
+@media (max-width: 480px) { .perfil-usuario-dialog { padding: 20px; } .perfil-usuario-acoes button { flex: 1 1 100%; } }

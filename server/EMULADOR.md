@@ -16,8 +16,8 @@ rodando só na sua máquina, com dados de exemplo, sem tocar em produção.
    ```
    npm run emulators
    ```
-   Abre o Firestore (porta 8080), o Auth (porta 9099) e uma UI de inspeção em
-   http://localhost:4000. Deixe esse terminal aberto enquanto desenvolve.
+   Abre o Firestore (porta 8080), o Auth (porta 9099), o Storage (porta 9199) e uma UI
+   de inspeção em http://localhost:4000. Deixe esse terminal aberto enquanto desenvolve.
 3. Na primeira vez (ou sempre que quiser resetar os dados), em outro terminal, também a
    partir de `server/`:
    ```
@@ -60,10 +60,15 @@ modo emulador estar ligado.
 
 ## Arquivos envolvidos
 
-- `firebase.json`, `.firebaserc`, `firestore.rules`, `firestore.indexes.json` (raiz do
+- `firebase.json`, `.firebaserc`, `firestore.rules`, `storage.rules`, `firestore.indexes.json` (raiz do
   repo) — configuração do Emulator Suite. `firestore.rules` é deliberadamente aberto
   (`allow read, write: if true`) e só vale para o emulador; nunca existe produção atrás
   dele, e nunca deve ser publicado com `firebase deploy`.
+- `storage.rules` também é carregado pelo emulador e restringe fotos de perfil a
+  usuários autenticados, permitindo que cada usuário altere somente a própria imagem
+  (JPEG, PNG ou WebP, até 2 MB). Em produção, confirme que o bucket do Firebase Storage
+  está habilitado e publique uma regra equivalente pelo fluxo de administração usado
+  pelo projeto; o arquivo local não altera as regras de produção automaticamente.
 - `server/scripts/seedEmulador.ts` — popula o emulador. Força os hosts do emulador
   independentemente do que estiver no `.env`, então é seguro rodar mesmo sem
   `USE_FIREBASE_EMULATOR=true` — mas só funciona com o emulador já rodando.

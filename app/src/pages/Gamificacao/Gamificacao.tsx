@@ -49,6 +49,7 @@ import { calcularDiasNaEsteira } from "../../utils/monitoramento/calcularDiasNaE
 import { calcularDiasCongeladosPorCheckpoint } from "../../utils/monitoramento/calcularDiasCongeladosPorCheckpoint";
 import { calcularRankingGamificacao } from "../../utils/rankingGamificacao";
 import { PainelGamificacao } from "./PainelGamificacao";
+import { listarFotosPerfil } from "../../services/profilePhotos";
 import "./Gamificacao.css";
 
 const ACOES_DISPONIVEIS = [
@@ -651,6 +652,7 @@ export const Gamificacao: React.FC = () => {
   const { user, userName, role } = useAuth();
   const { theme } = useTheme();
   const [trainers, setTrainers] = useState<UsuarioDocument[]>([]);
+  const [fotosPerfil, setFotosPerfil] = useState<Record<string, string>>({});
   const [entries, setEntries] = useState<LancamentoPonto[]>([]);
   const [empresas, setEmpresas] = useState<string[]>([]);
   const [empresasCompletas, setEmpresasCompletas] = useState<Empresa[]>([]);
@@ -686,6 +688,17 @@ export const Gamificacao: React.FC = () => {
   const [erroCarregamento, setErroCarregamento] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const historicoRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    let ativo = true;
+    listarFotosPerfil()
+      .then((fotos) => { if (ativo) setFotosPerfil(fotos); })
+      .catch((error) => {
+        console.error("Erro ao carregar fotos de perfil da equipe:", error);
+        if (ativo) toast.error("Não foi possível carregar as fotos de perfil; o ranking continua disponível com iniciais.");
+      });
+    return () => { ativo = false; };
+  }, []);
 
   // Filtro de data
   const [filtroDataInicio, setFiltroDataInicio] = useState(() => {
@@ -2141,6 +2154,7 @@ export const Gamificacao: React.FC = () => {
 
           <PainelGamificacao
             ranking={rankedTrainers}
+            fotosPerfil={fotosPerfil}
             usuarioId={user?.uid}
             periodo={filtroDataInicio || filtroDataFim
               ? `${filtroDataInicio ? filtroDataInicio.split("-").reverse().join("/") : "Início"} a ${filtroDataFim ? filtroDataFim.split("-").reverse().join("/") : "hoje"}`

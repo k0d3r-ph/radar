@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { Routes, Route, Navigate, NavLink, useNavigate } from "react-router-dom";
 import { Esteira } from "./pages/Esteira/Esteira";
 import { Historico } from "./pages/Historico/Historico";
@@ -6,7 +7,25 @@ import { Login } from "./pages/Login/Login";
 import { Csat } from "./pages/Csat/Csat";
 import { AlterarSenha } from "./pages/AlterarSenha/AlterarSenha";
 import { AuthProvider, useAuth } from "./context/AuthContext";
-import { LogOut, Sun, Moon } from "lucide-react";
+import {
+  BarChart3,
+  BookOpenCheck,
+  ChevronLeft,
+  ChevronRight,
+  History as HistoryIcon,
+  Home as HomeIcon,
+  Layers,
+  LogOut,
+  Menu,
+  MessageCircle,
+  Moon,
+  Sun,
+  Tags,
+  Trophy,
+  UserRound,
+  Users,
+  X,
+} from "lucide-react";
 import { Usuarios } from "./pages/Usuarios/Usuarios";
 import { Gamificacao } from "./pages/Gamificacao/Gamificacao";
 import { Relatorios } from "./pages/Relatorios/Relatorios";
@@ -16,12 +35,82 @@ import { TiposOcorrencia } from "./pages/TiposOcorrencia/TiposOcorrencia";
 import ChecklistTarefas from "./components/ChecklistTarefas";
 import { useVerificaVersao } from "./utils/useVerificaVersao";
 import { ValidacaoConhecimento } from "./pages/ValidacaoConhecimento/ValidacaoConhecimento";
+import { PerfilUsuarioModal } from "./components/PerfilUsuarioModal";
+import { obterFotoPerfil } from "./services/profilePhotos";
+import { toast } from "sonner";
 
 
 function AppRoutes() {
-  const { user, loading, needsPasswordChange, role, logout } = useAuth();
+  const { user, loading, needsPasswordChange, role, logout, userName } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const [modalPerfilAberto, setModalPerfilAberto] = useState(false);
+  const [menuAberto, setMenuAberto] = useState(false);
+  const [menuRecolhido, setMenuRecolhido] = useState(false);
+  const menuTriggerRef = useRef<HTMLButtonElement>(null);
+  const menuCloseRef = useRef<HTMLButtonElement>(null);
+  const menuContainerRef = useRef<HTMLElement>(null);
+  const [fotoPerfilCarregada, setFotoPerfilCarregada] = useState<{
+    uid: string;
+    url: string | null;
+  } | null>(null);
+  const fotoPerfil =
+    user && fotoPerfilCarregada?.uid === user.uid
+      ? fotoPerfilCarregada.url
+      : null;
+
+  function fecharMenu() {
+    const devolverFocoAoMenu = menuAberto;
+    setMenuAberto(false);
+    if (devolverFocoAoMenu) {
+      requestAnimationFrame(() => menuTriggerRef.current?.focus());
+    }
+  }
+
+  useEffect(() => {
+    if (menuAberto) menuCloseRef.current?.focus();
+  }, [menuAberto]);
+
+  useEffect(() => {
+    if (!menuAberto) return;
+    function controlarMenu(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setMenuAberto(false);
+        requestAnimationFrame(() => menuTriggerRef.current?.focus());
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const itensFocaveis = menuContainerRef.current?.querySelectorAll<HTMLElement>(
+        'a[href], button:not(:disabled)',
+      );
+      if (!itensFocaveis?.length) return;
+      const primeiro = itensFocaveis[0];
+      const ultimo = itensFocaveis[itensFocaveis.length - 1];
+      if (event.shiftKey && document.activeElement === primeiro) {
+        event.preventDefault();
+        ultimo.focus();
+      } else if (!event.shiftKey && document.activeElement === ultimo) {
+        event.preventDefault();
+        primeiro.focus();
+      }
+    }
+    document.addEventListener("keydown", controlarMenu);
+    return () => document.removeEventListener("keydown", controlarMenu);
+  }, [menuAberto]);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    let ativo = true;
+    obterFotoPerfil(user.uid)
+      .then((url) => {
+        if (ativo) setFotoPerfilCarregada({ uid: user.uid, url });
+      })
+      .catch((error) => {
+        console.error("Erro ao carregar foto do perfil:", error);
+        if (ativo) toast.error("Não foi possível carregar sua foto de perfil.");
+      });
+    return () => { ativo = false; };
+  }, [user?.uid]);
 
   const handleLogout = async () => {
     try {
@@ -63,28 +152,82 @@ function AppRoutes() {
 
   // Se o usuário está logado e com a senha pessoal definida
   return (
-    <>
-      <nav className="app-nav">
-        <div className="nav-links">
+    <div className={`app-shell-layout${menuRecolhido ? " app-shell-layout--collapsed" : ""}`}>
+      <button
+        type="button"
+        className={`app-nav-backdrop${menuAberto ? " is-open" : ""}`}
+        aria-label="Fechar menu"
+        aria-hidden={!menuAberto}
+        tabIndex={-1}
+        onClick={fecharMenu}
+      />
+      <aside
+        id="app-navigation"
+        ref={menuContainerRef}
+        role={menuAberto ? "dialog" : undefined}
+        aria-modal={menuAberto || undefined}
+        className={`app-nav${menuAberto ? " app-nav--open" : ""}`}
+        aria-label="Menu principal"
+      >
+        <div className="app-nav-heading">
+          <img
+            className="app-nav-brand-mark"
+            src="/radar_crm_favicon.svg"
+            alt=""
+          />
+          <span className="app-nav-brand">Radar</span>
+          <button
+            type="button"
+            className="app-nav-collapse"
+            onClick={() => setMenuRecolhido((recolhido) => !recolhido)}
+            aria-label={menuRecolhido ? "Expandir menu lateral" : "Recolher menu lateral"}
+            aria-expanded={!menuRecolhido}
+            title={menuRecolhido ? "Expandir menu" : "Recolher menu"}
+          >
+            {menuRecolhido ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+          </button>
+          <button
+            ref={menuCloseRef}
+            type="button"
+            className="app-nav-close"
+            onClick={fecharMenu}
+            aria-label="Fechar menu"
+          >
+            <X size={20} />
+          </button>
+        </div>
+        <nav className="nav-links" aria-label="Navegação principal">
           {role !== "painel" && (
             <>
               <NavLink
                 to="/home"
                 className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
+                onClick={fecharMenu}
+                aria-label="Home"
+                title="Home"
               >
-                Home
+                <HomeIcon className="nav-link-icon" size={18} aria-hidden="true" />
+                <span className="nav-link-label">Home</span>
               </NavLink>
               <NavLink
                 to="/esteira"
                 className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
+                onClick={fecharMenu}
+                aria-label="Esteira"
+                title="Esteira"
               >
-                Esteira
+                <Layers className="nav-link-icon" size={18} aria-hidden="true" />
+                <span className="nav-link-label">Esteira</span>
               </NavLink>
               <NavLink
                 to="/historico"
                 className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
+                onClick={fecharMenu}
+                aria-label="Histórico de Ocorrências"
+                title="Histórico de Ocorrências"
               >
-                Histórico de Ocorrências
+                <HistoryIcon className="nav-link-icon" size={18} aria-hidden="true" />
+                <span className="nav-link-label">Histórico de Ocorrências</span>
               </NavLink>
             </>
           )}
@@ -93,21 +236,42 @@ function AppRoutes() {
               <NavLink
                 to="/usuarios"
                 className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
+                onClick={fecharMenu}
+                aria-label="Usuários"
+                title="Usuários"
               >
-                Usuários
+                <Users className="nav-link-icon" size={18} aria-hidden="true" />
+                <span className="nav-link-label">Usuários</span>
               </NavLink>
               <NavLink
                 to="/gamificacao"
                 className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
+                onClick={fecharMenu}
+                aria-label="Gamificação"
+                title="Gamificação"
               >
-                Gamificação
+                <Trophy className="nav-link-icon" size={18} aria-hidden="true" />
+                <span className="nav-link-label">Gamificação</span>
               </NavLink>
-              <NavLink to="/validacao-conhecimento" className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}>Validação do conhecimento</NavLink>
+              <NavLink
+                to="/validacao-conhecimento"
+                className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
+                onClick={fecharMenu}
+                aria-label="Validação do conhecimento"
+                title="Validação do conhecimento"
+              >
+                <BookOpenCheck className="nav-link-icon" size={18} aria-hidden="true" />
+                <span className="nav-link-label">Validação do conhecimento</span>
+              </NavLink>
               <NavLink
                 to="/whatsapp"
                 className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
+                onClick={fecharMenu}
+                aria-label="WhatsApp"
+                title="WhatsApp"
               >
-                WhatsApp
+                <MessageCircle className="nav-link-icon" size={18} aria-hidden="true" />
+                <span className="nav-link-label">WhatsApp</span>
               </NavLink>
             </>
           )}
@@ -115,18 +279,34 @@ function AppRoutes() {
             <NavLink
               to="/tipos-ocorrencia"
               className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
+              onClick={fecharMenu}
+              aria-label="Tabulações"
+              title="Tabulações"
             >
-              Tabulações
+              <Tags className="nav-link-icon" size={18} aria-hidden="true" />
+              <span className="nav-link-label">Tabulações</span>
             </NavLink>
           )}
           <NavLink
             to="/relatorios"
             className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
+            onClick={fecharMenu}
+            aria-label="Relatórios"
+            title="Relatórios"
           >
-            Relatórios
+            <BarChart3 className="nav-link-icon" size={18} aria-hidden="true" />
+            <span className="nav-link-label">Relatórios</span>
           </NavLink>
-        </div>
+        </nav>
         <div className="nav-right-container">
+          <button
+            className="nav-profile-btn"
+            onClick={() => setModalPerfilAberto(true)}
+            title="Gerenciar minha foto de perfil"
+          >
+            <UserRound size={16} />
+            <span>Minha foto</span>
+          </button>
           <button
             className="theme-toggle-btn"
             onClick={toggleTheme}
@@ -139,8 +319,20 @@ function AppRoutes() {
             <span>Sair</span>
           </button>
         </div>
-      </nav>
+      </aside>
 
+      <main className="app-content">
+        <button
+          type="button"
+          ref={menuTriggerRef}
+          className="app-nav-open"
+          onClick={() => setMenuAberto(true)}
+          aria-expanded={menuAberto}
+          aria-controls="app-navigation"
+        >
+          <Menu size={18} />
+          <span>Menu</span>
+        </button>
       <Routes>
         <Route path="/validacao-conhecimento" element={role === "master" || role === "treinador" ? <ValidacaoConhecimento /> : <Navigate to="/" replace />} />
         <Route path="/" element={<Navigate to={role === "painel" ? "/relatorios" : "/home"} replace />} />
@@ -192,9 +384,21 @@ function AppRoutes() {
         
         <Route path="*" element={<Navigate to={role === "painel" ? "/relatorios" : "/home"} replace />} />
       </Routes>
+      </main>
 
       <ChecklistTarefas />
-    </>
+      {modalPerfilAberto && user && (
+        <PerfilUsuarioModal
+          uid={user.uid}
+          nome={userName || user.email || "Usuário"}
+          fotoAtual={fotoPerfil}
+          onFotoAlterada={(url) =>
+            setFotoPerfilCarregada({ uid: user.uid, url })
+          }
+          onFechar={() => setModalPerfilAberto(false)}
+        />
+      )}
+    </div>
   );
 }
 

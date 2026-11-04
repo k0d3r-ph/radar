@@ -3,10 +3,12 @@ import { Award, ChevronRight, Trophy, User } from "lucide-react";
 import { formatarNome } from "../../utils/formatarNome";
 import { comporPontosGamificacao } from "../../utils/rankingGamificacao";
 import type { DesempenhoGamificacao } from "../../utils/rankingGamificacao";
+import { AvatarUsuario } from "../../components/AvatarUsuario";
 import "./PainelGamificacao.css";
 
 interface Props {
   ranking: DesempenhoGamificacao[];
+  fotosPerfil: Record<string, string>;
   usuarioId?: string;
   periodo: string;
   rotulosAcoes: Partial<Record<string, string>>;
@@ -27,7 +29,7 @@ function TaxaResposta({ treinador: t }: { treinador: DesempenhoGamificacao }) {
   );
 }
 
-export function PainelGamificacao({ ranking, usuarioId, periodo, rotulosAcoes, onVerAtividades }: Props) {
+export function PainelGamificacao({ ranking, fotosPerfil, usuarioId, periodo, rotulosAcoes, onVerAtividades }: Props) {
   const [selecionadoId, setSelecionadoId] = useState<string | null>(null);
   const detalheRef = useRef<HTMLHeadingElement>(null);
   const selecionado = ranking.find((t) => t.uid === (selecionadoId ?? usuarioId)) ?? ranking[0];
@@ -81,7 +83,7 @@ export function PainelGamificacao({ ranking, usuarioId, periodo, rotulosAcoes, o
               <li key={t.uid} className={`gp-podio-lugar gp-lugar-${index + 1}`}>
                 <button type="button" onClick={() => selecionar(t)} aria-controls="gp-composicao" aria-label={`Ver composição de ${nome(t)}, ${index + 1}º na ordenação, ${numero.format(t.score)} pontos`}>
                   {index === 0 ? <Trophy size={28} aria-hidden="true" /> : <Award size={26} aria-hidden="true" />}
-                  <span className="gp-iniciais" aria-hidden="true">{nome(t).split(/\s+/).filter((parte) => !/^(de|da|do|das|dos|e)$/i.test(parte)).slice(0, 2).map((parte) => parte[0]).join("").toLocaleUpperCase("pt-BR")}</span>
+                  <AvatarUsuario nome={nome(t)} fotoUrl={fotosPerfil[t.uid]} className="gp-iniciais" />
                   <strong className="gp-nome">{nome(t)}</strong>
                   <span className="gp-colocacao">{index + 1}º na ordenação{t.empate ? " · empate nos critérios" : ""}</span>
                   <span className="gp-podio-pontos" key={t.score}>{numero.format(t.score)} <small>pts</small></span>
@@ -107,6 +109,7 @@ export function PainelGamificacao({ ranking, usuarioId, periodo, rotulosAcoes, o
                 <li key={t.uid}>
                   <button type="button" className={`gp-ranking-botao${selecionado?.uid === t.uid ? " gp-selecionado" : ""}`} aria-pressed={selecionado?.uid === t.uid} aria-controls="gp-composicao" onClick={() => selecionar(t)}>
                     <span className="gp-posicao">{t.lancamentos.length > 0 ? `${index + 1}º` : "—"}</span>
+                    <AvatarUsuario nome={nome(t)} fotoUrl={fotosPerfil[t.uid]} className="gp-ranking-avatar" />
                     <span className="gp-ranking-info">
                       <span className="gp-nome">{nome(t)} {t.uid === usuarioId && <span className="gp-voce">Você</span>}</span>
                       <span>{t.lancamentos.length === 0 ? "Sem lançamentos no período" : `${t.qtdAcoes} atividades${t.empate ? " · empate nos critérios" : ""}`}</span>

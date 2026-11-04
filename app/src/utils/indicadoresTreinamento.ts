@@ -35,6 +35,34 @@ function parseDataLocalISO(iso?: string): Date | null {
   return isNaN(data.getTime()) ? null : data;
 }
 
+function obterFimSuspensaoPorEncerramento(
+  empresa: Empresa,
+  ocorrencias: Ocorrencia[],
+): Date | undefined {
+  if (empresa.isCancelled) {
+    const timestamp = empresa.whatsappEnviadoEmCancelamento ?? empresa.updatedAt;
+    return Number.isFinite(timestamp) ? new Date(timestamp) : new Date();
+  }
+
+  const conclusaoUnilateral = empresa.conclusaoUnilateralCapacitacao === true;
+  const conclusaoCompleta = !!empresa.dataFinalizacao?.trim()
+    && !!empresa.dataFollowUpFinal?.trim();
+  if (!conclusaoUnilateral && !conclusaoCompleta) return undefined;
+
+  if (conclusaoUnilateral && empresa.conclusaoUnilateralOcorrenciaId) {
+    const ocorrencia = ocorrencias.find(
+      (item) => item.id === empresa.conclusaoUnilateralOcorrenciaId,
+    );
+    const timestamp = ocorrencia?.updatedAt || ocorrencia?.createdAt || ocorrencia?.dataOcorrencia;
+    if (timestamp && Number.isFinite(timestamp)) return new Date(timestamp);
+  }
+
+  const dataConclusao = parseDataLocalISO(
+    conclusaoCompleta ? empresa.dataFollowUpFinal : empresa.dataFinalizacao,
+  ) ?? parseDataLocalISO(empresa.dataFinalizacao);
+  return dataConclusao ?? new Date(empresa.updatedAt);
+}
+
 function inicioDoDia(data: Date): Date {
   const d = new Date(data);
   d.setHours(0, 0, 0, 0);
@@ -502,15 +530,18 @@ export function construirEventosIndicadoresTreinamento(
 
     if (e.isSuspended) {
       const inicioCadastrado = parseDataLocalISO(e.dataSuspensao);
+      const dataFim = obterFimSuspensaoPorEncerramento(e, ocorrencias);
       if (inicioSuspensao) {
         clientesSuspensos.push({
           data: inicioCadastrado ?? inicioSuspensao,
+          dataFim,
           treinador,
           empresa: e.nomeEmpresa,
         });
       } else {
         clientesSuspensos.push({
           data: inicioCadastrado ?? new Date(),
+          dataFim,
           treinador,
           empresa: e.nomeEmpresa,
           inicioDesconhecido: !inicioCadastrado,

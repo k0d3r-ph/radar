@@ -303,6 +303,50 @@ test('compara a contagem atual de suspensos com snapshots de ontem, semana passa
   assert.equal(contar(referencias.mesPassado), 4);
 });
 
+test('Suspensos exclui cancelados e concluídos após a data em que saíram da esteira', () => {
+  const agora = new Date('2026-11-04T15:00:00.000Z');
+  const referencias = referenciasSuspensos(agora);
+  const encerramentoHoje = new Date('2026-11-04T14:30:00.000Z').getTime();
+  const empresas = [
+    ...Array.from({ length: 10 }, (_, i) => ({
+      nomeEmpresa: `Suspenso ativo ${i}`,
+      responsavel: 'Natália Teixeira',
+      isSuspended: true,
+      dataSuspensao: '2026-10-01',
+    })),
+    ...Array.from({ length: 5 }, (_, i) => ({
+      nomeEmpresa: `Suspenso cancelado ${i}`,
+      responsavel: 'Natália Teixeira',
+      isSuspended: true,
+      isCancelled: true,
+      dataSuspensao: '2026-10-01',
+      whatsappEnviadoEmCancelamento: i === 0 ? undefined : encerramentoHoje,
+      updatedAt: encerramentoHoje,
+    })),
+    ...Array.from({ length: 2 }, (_, i) => ({
+      nomeEmpresa: `Suspenso concluído ${i}`,
+      responsavel: 'Natália Teixeira',
+      isSuspended: true,
+      conclusaoUnilateralCapacitacao: true,
+      conclusaoUnilateralOcorrenciaId: `conclusao-${i}`,
+      dataSuspensao: '2026-10-01',
+      updatedAt: encerramentoHoje,
+    })),
+  ];
+  const ocorrencias = Array.from({ length: 2 }, (_, i) =>
+    ocorrencia(`Suspenso concluído ${i}`, [], {
+      id: `conclusao-${i}`,
+      tipo: 'Informativo',
+      dataOcorrencia: encerramentoHoje,
+      updatedAt: encerramentoHoje,
+    }));
+  const eventos = construir(empresas, ocorrencias, [], [{ nome: 'Natália Teixeira' }]);
+  const contar = (fim) => calcular('clientesSuspensos', eventos, new Date(0), fim, null);
+
+  assert.equal(contar(referencias.atual), 10);
+  assert.equal(contar(referencias.ontem), 17);
+});
+
 test('preserva pessoas com o mesmo primeiro nome e sobrenomes diferentes', () => {
   const ocorrencias = [ocorrencia('A', [], { responsavel: 'Jeff Costa' }), ocorrencia('B', [], { responsavel: 'Jeff Silva' })];
   const nomes = listar(['Jeff Costa', 'Jeff Silva'], [], ocorrencias);

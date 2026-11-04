@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, ListChecks, LoaderCircle, Plus, RefreshCw, X } from 'lucide-react';
+import { Check, ListChecks, LoaderCircle, Plus, RefreshCw, Trash2, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useConfirmacao } from '../hooks/useConfirmacao';
 import { useTarefasNovas } from '../hooks/useTarefasNovas';
@@ -84,6 +84,19 @@ export default function ChecklistTarefas() {
     if (!await confirmar({ titulo: 'Excluir a tarefa?', descricao: `${t.empresa ? `${t.empresa}\n` : ''}${titulo}\n\n${t.concluida ? 'A tarefa será removida da lista de concluídas. Os atendimentos do cliente serão mantidos.' : 'Esta ação não pode ser desfeita.'}`, textoConfirmar: 'Excluir tarefa', textoCancelar: 'Manter tarefa', destrutivo: true })) return;
     if (await executar(async () => { await removerTarefaChecklist(t.id!, t.concluida); setTarefas(items => items.filter(item => item.id !== t.id)); })) painelRef.current?.focus();
   }
+  async function limparConcluidas(itens: TarefaChecklist[]) {
+    if (!itens.length) return;
+    if (!await confirmar({ titulo: `Limpar ${itens.length} tarefa${itens.length > 1 ? 's' : ''} concluída${itens.length > 1 ? 's' : ''}?`, descricao: 'As tarefas serão removidas da lista de concluídas. Os atendimentos do cliente serão mantidos.', textoConfirmar: 'Limpar concluídas', textoCancelar: 'Cancelar', destrutivo: true })) return;
+    await executar(async () => {
+      const falhas: string[] = [];
+      for (const t of itens) {
+        if (!t.id) continue;
+        try { await removerTarefaChecklist(t.id, true); setTarefas(items => items.filter(item => item.id !== t.id)); }
+        catch { falhas.push(t.id); }
+      }
+      if (falhas.length) throw new Error(`${falhas.length} de ${itens.length} tarefas não foram removidas. Tente novamente.`);
+    });
+  }
   if (!user) return null;
   const nomeDono = dono === user.uid ? userName : trainers.find(t => t.uid === dono)?.nome || 'Treinador';
   const doBloco = tarefas.filter(t => t.treinadorId === dono && !t.excluida);
@@ -102,6 +115,7 @@ export default function ChecklistTarefas() {
       <header className="tarefas-cabecalho"><div className="tarefas-titulo"><span className="tarefas-icone"><ListChecks size={20} /></span><div><h2 id="titulo-tarefas">{dono === user.uid ? 'Minhas tarefas' : 'Tarefas da equipe'}</h2><p aria-live="polite">{abertas} para fazer{automaticas ? ` · ${automaticas} automáticas` : ''}</p></div></div><button type="button" className="tarefas-botao-icone" onClick={fechar} aria-label="Fechar tarefas"><X size={18} /></button></header>
       {isMaster && <div className="tarefas-responsavel"><label htmlFor="tarefas-treinador">Responsável</label><SelectCustomizado id="tarefas-treinador" value={dono} disabled={operacao} ariaLabel="Filtrar tarefas por responsável" opcoes={[{ value: user.uid, label: `${userName} (você)` }, ...trainers.filter(t => t.uid !== user.uid).map(t => ({ value: t.uid, label: t.nome || t.email }))]} onChange={id => { setBlocoAtivo(id); setAba('pendentes'); }} /></div>}
       <div className="tarefas-abas" aria-label="Filtrar tarefas por situação">{([['pendentes', 'A fazer', ListChecks], ['concluidas', 'Concluídas', Check]] as const).map(([chave, label, Icone]) => <button type="button" key={chave} aria-pressed={aba === chave} onClick={() => setAba(chave)}><Icone size={14} />{label}<span>{grupos[chave].length}</span></button>)}</div>
+      {aba === 'concluidas' && grupos.concluidas.length > 0 && <div className="tarefas-limpar"><button type="button" disabled={operacao} onClick={() => void limparConcluidas(grupos.concluidas)}><Trash2 size={13} />Limpar concluídas</button></div>}
       {erro && <div className="tarefas-erro" role="alert"><p>{erro}</p><button type="button" disabled={operacao} onClick={() => executar(async () => setTarefas(await listarTarefasChecklist(true)))}><RefreshCw size={13} />Tentar novamente</button></div>}
       <div className="tarefas-conteudo">
         {carregando ? <p className="tarefas-vazio" role="status"><LoaderCircle size={20} className="tarefas-carregando" />Carregando suas tarefas…</p> : lista.length || (aba === 'pendentes' && pausadas.length) ? <>

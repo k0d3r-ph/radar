@@ -12,6 +12,7 @@ import { adminAuth, adminDb } from '../firebase/firebaseAdmin.js';
 import { ValidacaoConhecimentoController } from '../../adapters/controllers/ValidacaoConhecimentoController.js';
 import { IndiceSincronizacao } from '../firebase/IndiceSincronizacao.js';
 import { SincronizarTarefasAutomaticas } from '../../application/use-cases/SincronizarTarefasAutomaticas.js';
+import { LimparTarefasConcluidas } from '../../application/use-cases/LimparTarefasConcluidas.js';
 import { ProfilePhotosController } from '../../adapters/controllers/ProfilePhotosController.js';
 import { config } from '../config/env.js';
 
@@ -35,6 +36,20 @@ const parseProfilePhoto: express.RequestHandler = (req, res, next) => {
     res.status(400).json({ error: 'Não foi possível ler a imagem enviada.' });
   });
 };
+
+/** Dia da semana (abreviado em inglês, ex.: "Fri") e hora cheia (0–23) no horário de Brasília. */
+function diaEHoraBrasilia(agora: number): { dia: string; hora: number } {
+  const partes = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Sao_Paulo', weekday: 'short', hour: '2-digit', hour12: false,
+  }).formatToParts(agora);
+  const dia = partes.find(p => p.type === 'weekday')?.value || '';
+  const hora = Number(partes.find(p => p.type === 'hour')?.value || '0') % 24;
+  return { dia, hora };
+}
+
+function diaBrasiliaISO(agora: number): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(agora);
+}
 
 /**
  * Processo leve: CSAT, ocorrências, sincronização, IA e Centrais. Não inicializa
@@ -82,6 +97,29 @@ export function createApiApp({ tarefasAutomaticas = false }: { tarefasAutomatica
     timer.unref();
     app.locals.encerrarTarefasAutomaticas = () => { clearInterval(timer); indice.encerrar(); };
     void atualizar();
+
+    // Toda sexta-feira às 19h (horário de Brasília), limpa as tarefas concluídas em massa.
+    // Marcador em `integracoes/limpezaTarefasConcluidas` evita repetir no mesmo dia após reinícios.
+    const dbLimpeza = adminDb;
+    const limpeza = new LimparTarefasConcluidas(dbLimpeza);
+    const verificarLimpezaSemanal = async () => {
+      const agora = Date.now();
+      const { dia, hora } = diaEHoraBrasilia(agora);
+      if (dia !== 'Fri' || hora !== 19) return;
+      const ref = dbLimpeza.doc('integracoes/limpezaTarefasConcluidas');
+      const hoje = diaBrasiliaISO(agora);
+      try {
+        const snapshot = await ref.get();
+        if (snapshot.data()?.ultimaExecucao === hoje) return;
+        const removidas = await limpeza.execute(agora);
+        await ref.set({ ultimaExecucao: hoje, executadoEm: agora, removidas }, { merge: true });
+        console.log(`[Limpeza de tarefas] ${removidas} tarefa(s) concluída(s) removida(s) automaticamente (sexta 19h).`);
+      } catch (erro) {
+        console.error('[Limpeza de tarefas] Falha ao limpar tarefas concluídas:', erro instanceof Error ? erro.message : 'erro desconhecido');
+      }
+    };
+    const timerLimpeza = setInterval(() => void verificarLimpezaSemanal(), 60_000);
+    timerLimpeza.unref();
   }
   const sincronizacaoController = new SincronizacaoController(adminDb, adminAuth, usuariosRepo, indice);
   app.get('/api/sincronizacao/:colecao', (req, res) => sincronizacaoController.listar(req, res));

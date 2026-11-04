@@ -41,6 +41,10 @@
 .tarefas-abas button { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; min-width: 0; padding: 8px 5px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: #94a3b8; font-size: 12px; font-weight: 600; white-space: nowrap; }
 .tarefas-abas button[aria-pressed=true] { background: #1e293b; border-color: #475569; color: #f1f5f9; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
 .tarefas-abas button > span { min-width: 20px; padding: 1px 6px; border-radius: 99px; background: rgba(148,163,184,.15); font-size: 11px; }
+.tarefas-limpar { display: flex; justify-content: flex-end; margin: -4px 20px 10px; }
+.tarefas-limpar button { display: flex; align-items: center; gap: 5px; padding: 5px 9px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: #fca5a5; font-size: 11px; font-weight: 600; }
+.tarefas-limpar button:hover:not(:disabled) { background: rgba(239,68,68,.12); border-color: rgba(239,68,68,.3); }
+.tarefas-limpar button:disabled { opacity: .5; }
 .tarefas-conteudo { flex: 1; overflow-y: auto; min-height: 100px; overscroll-behavior: contain; padding: 0 20px 16px; scrollbar-width: thin; scrollbar-color: #475569 transparent; }
 .tarefas-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
 .tarefa-card { padding: 16px; border: 1px solid #334155; border-radius: 12px; background: #111827; }

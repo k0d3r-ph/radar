@@ -57,7 +57,7 @@ const INDICADORES_BOLSA: ConfigBolsa[] = [
   },
   {
     chave: "contatosSuporteTreinamento",
-    titulo: "Contatos c/ suporte (treinamento)",
+    titulo: "Contatos com Suporte atribuíveis a treinamento",
     icone: <Headphones size={20} />,
     menorEhMelhor: true,
   },
@@ -235,10 +235,18 @@ function CardIndicador({
   const deltaPasso = temComparacao ? ultimo! - penultimo! : null;
   const deltaPercentual =
     temComparacao && penultimo !== 0 ? (deltaPasso! / Math.abs(penultimo!)) * 100 : null;
+  // Favorabilidade do selo: sempre em cima do mesmo número que ele exibe (o último passo),
+  // nunca da tendência do período inteiro — senão a seta/cor podem contradizer o valor.
+  const favoravelPasso =
+    deltaPasso === null || deltaPasso === 0
+      ? null
+      : config.menorEhMelhor
+        ? deltaPasso < 0
+        : deltaPasso > 0;
 
-  // A cor do card reflete a tendência do período inteiro exibido (primeiro vs. último
-  // ponto com dado) — igual a um ticker de bolsa mostrando a variação do dia/período, não
-  // só o último passo, que costuma ficar neutro quando os dados são esparsos.
+  // A cor do ícone/gráfico reflete a tendência do período inteiro exibido (primeiro vs.
+  // último ponto com dado) — igual a um ticker de bolsa mostrando a variação do dia/período,
+  // não só o último passo, que costuma ficar neutro quando os dados são esparsos.
   const valoresValidos = serie.map((p) => p.valor).filter((v): v is number => v !== null);
   const deltaTendencia =
     valoresValidos.length >= 2
@@ -263,11 +271,11 @@ function CardIndicador({
 
       <div className="bolsa-card-valor-bloco" key={`${config.chave}-${granularidade}`}>
         <span className="bolsa-card-valor">{formatarValorBolsa(config.chave, ultimo)}</span>
-        {favoravel !== null && deltaPercentual !== null && (
+        {favoravelPasso !== null && deltaPercentual !== null && (
           <span
-            className={`bolsa-card-badge ${favoravel ? "bolsa-card-badge--up" : "bolsa-card-badge--down"}`}
+            className={`bolsa-card-badge ${favoravelPasso ? "bolsa-card-badge--up" : "bolsa-card-badge--down"}`}
           >
-            {favoravel ? "▲" : "▼"} {Math.abs(deltaPercentual).toFixed(1).replace(".", ",")}%
+            {deltaPasso! > 0 ? "▲" : "▼"} {Math.abs(deltaPercentual).toFixed(1).replace(".", ",")}%
           </span>
         )}
       </div>

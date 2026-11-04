@@ -118,14 +118,14 @@
 
 .bolsa-card-topo {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.7rem;
-  font-size: 1.05rem;
+  font-size: 0.95rem;
   font-weight: 700;
   color: #cbd5e1;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  min-height: 3em;
+  min-height: 3.6em;
 }
 
 .bolsa-card-icone {

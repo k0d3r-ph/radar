@@ -21,11 +21,13 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // forceRefresh: este é o painel "ao vivo" — não deve herdar o cache de até 5 minutos
+    // que outras telas do app possam ter deixado em memória.
     Promise.all([
-      listarEmpresas(),
-      listarOcorrencias(),
-      listarLancamentosPontos(),
-      listarUsuarios(),
+      listarEmpresas(true),
+      listarOcorrencias(true),
+      listarLancamentosPontos(true),
+      listarUsuarios(true),
     ])
       .then(
         ([

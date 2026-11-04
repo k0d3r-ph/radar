@@ -560,18 +560,30 @@
 
 .planejamento-sobrescrever-label {
   display: inline-flex !important;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+  width: 100%;
+  max-width: 100%;
   margin: 0 !important;
   padding: 8px 14px;
   border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 999px;
+  border-radius: 12px;
   font-size: 0.85rem;
   font-weight: 400 !important;
   white-space: nowrap;
   color: rgba(255, 255, 255, 0.75);
   cursor: pointer;
   transition: border-color 0.15s, color 0.15s;
+}
+
+.planejamento-sobrescrever-label small {
+  flex-basis: 100%;
+  margin-left: 23px;
+  color: #94a3b8;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  white-space: normal;
 }
 
 .planejamento-sobrescrever-label:hover {

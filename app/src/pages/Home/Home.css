@@ -21,6 +21,9 @@
 }
 
 .table-wrapper {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   background: rgba(15, 23, 42, 0.7);
   border-radius: 16px;
   overflow-x: auto;
@@ -48,9 +51,27 @@
   background-color: rgba(148, 163, 184, 0.7);
 }
 
+.table-wrapper:focus-visible {
+  outline: 3px solid #60a5fa;
+  outline-offset: 3px;
+}
+
+.monitoramento-page .recolhivel {
+  min-width: 0;
+  max-width: 100%;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.monitoramento-page .recolhivel-conteudo {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .monitoramento-page table {
-  width: 100%;
-  table-layout: fixed;
+  width: max-content;
+  min-width: 100%;
+  max-width: none;
+  table-layout: auto;
   border-collapse: collapse;
   background: transparent;
 }
@@ -120,8 +141,8 @@
 
 .monitoramento-page th,
 .monitoramento-page td {
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow: visible;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -348,26 +369,6 @@
 }
 .stat-card.active-concluidos .stat-sub {
   color: #6ee7b7;
-}
-
-/* Active Andamento Card */
-.stat-card.active-andamento,
-.stat-card.active-suspensos {
-  background: linear-gradient(135deg, #78350f, #f59e0b);
-  border-color: #fbbf24;
-  box-shadow: 0 8px 24px rgba(245, 158, 11, 0.35);
-}
-.stat-card.active-andamento .stat-value,
-.stat-card.active-suspensos .stat-value {
-  color: #ffffff;
-}
-.stat-card.active-andamento .stat-label,
-.stat-card.active-suspensos .stat-label {
-  color: #fde68a;
-}
-.stat-card.active-andamento .stat-sub,
-.stat-card.active-suspensos .stat-sub {
-  color: #fcd34d;
 }
 
 /* Active Safety Card */
@@ -1374,6 +1375,8 @@ button.stat-card-suspensos { font: inherit; text-align: left; }
 
 /* Estilos para Seções Colapsáveis na Home */
 .collapsible-section {
+  min-width: 0;
+  max-width: 100%;
   margin-bottom: 1.5rem;
 }
 

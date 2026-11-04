@@ -288,7 +288,7 @@ export default function Home() {
     () => sessionStorage.getItem("filtroProduto") || "",
   );
   const [filtroCardStatus, setFiltroCardStatus] = useState<
-    "concluidos" | "andamento" | ""
+    "concluidos" | ""
   >(() => (sessionStorage.getItem("filtroCardStatus") as any) || "");
   const [filtroCardTipo, setFiltroCardTipo] = useState<"safety" | "fast" | "">(
     () => (sessionStorage.getItem("filtroCardTipo") as any) || "",
@@ -303,10 +303,6 @@ export default function Home() {
   );
   const [filtroLoboSolitario, setFiltroLoboSolitario] = useState<boolean>(
     () => sessionStorage.getItem("filtroLoboSolitario") === "true",
-  );
-  // Esvazia as demais esteiras e deixa só a de Suspensos (aberta).
-  const [filtroSomenteSuspensos, setFiltroSomenteSuspensos] = useState<boolean>(
-    () => sessionStorage.getItem("filtroSomenteSuspensos") === "true",
   );
   // Esvazia as demais esteiras e deixa só a de Acompanhamento (aberta).
   const [filtroSomenteEsteiraAtual, setFiltroSomenteEsteiraAtual] =
@@ -1119,10 +1115,6 @@ export default function Home() {
     sessionStorage.setItem("filtroDia30", String(filtroDia30));
     sessionStorage.setItem("filtroLoboSolitario", String(filtroLoboSolitario));
     sessionStorage.setItem(
-      "filtroSomenteSuspensos",
-      String(filtroSomenteSuspensos),
-    );
-    sessionStorage.setItem(
       "filtroSomenteEsteiraAtual",
       String(filtroSomenteEsteiraAtual),
     );
@@ -1142,7 +1134,6 @@ export default function Home() {
     filtroElegivelDeducao,
     filtroDia30,
     filtroLoboSolitario,
-    filtroSomenteSuspensos,
     filtroSomenteEsteiraAtual,
     ordenacaoContrato,
     ordenacaoScore,
@@ -1437,29 +1428,22 @@ export default function Home() {
   const stats = useMemo(() => {
     const total = dadosAtivos.length;
     const concluidos = dadosAtivos.filter((e) => e.progresso >= 100).length;
-    const emAndamento = dadosAtivos.filter(
-      (e) => e.progresso > 0 && e.progresso < 100,
-    ).length;
     // O filtro de churn vale para todas as esteiras, então a contagem também.
     const alerta = dados.filter((e) => e.alerta).length;
     // Base de comparação dos painéis de percentual: mesmo total do card
     // "Clientes no Radar" (todas as esteiras, exceto Ongoing).
     const totalRadar = dados.length - dadosOngoing.length;
-    return { total, concluidos, emAndamento, alerta, totalRadar };
+    return { total, concluidos, alerta, totalRadar };
   }, [dadosAtivos, dados, dadosOngoing]);
 
-  // Suspensos esvazia as demais seções (ver comentário acima de
-  // filtroSomenteSuspensos), então não combina com Status/Alerta e é desligado
-  // aqui. Lobo Solitário é um carimbo ortogonal ao status — combina livremente
-  // com Concluídos, Em andamento e Alerta, então não é tocado.
-  const handleStatusCardClick = (status: "concluidos" | "andamento") => {
+  // Lobo Solitário é um carimbo ortogonal ao status — combina livremente com
+  // Concluídos e Alerta.
+  const handleStatusCardClick = (status: "concluidos") => {
     setFiltroCardStatus((prev) => (prev === status ? "" : status));
-    setFiltroSomenteSuspensos(false);
   };
 
   const handleAlertaCardClick = () => {
     setFiltroCardAlerta((prev) => (prev === "alerta" ? "" : "alerta"));
-    setFiltroSomenteSuspensos(false);
   };
 
   // Quantidade de filtros ativos dentro do modal "Filtros", para o selo no botão
@@ -1529,7 +1513,6 @@ export default function Home() {
   };
 
   const dadosAtivosFiltrados = useMemo(() => {
-    if (filtroSomenteSuspensos) return [];
     return dadosAtivos
       .filter((e) => {
         const clienteOk =
@@ -1567,10 +1550,7 @@ export default function Home() {
 
         const statusCardOk =
           !filtroCardStatus ||
-          (filtroCardStatus === "concluidos" && e.progresso >= 100) ||
-          (filtroCardStatus === "andamento" &&
-            e.progresso > 0 &&
-            e.progresso < 100);
+          (filtroCardStatus === "concluidos" && e.progresso >= 100);
 
         const tipoEfetivo = obterTipoEfetivo(e);
         const tipoCardOk =
@@ -1642,7 +1622,6 @@ export default function Home() {
     filtroElegivelDeducao,
     filtroDia30,
     filtroLoboSolitario,
-    filtroSomenteSuspensos,
     ordenacaoContrato,
     ordenacaoScore,
     ordenacaoPrincipal,
@@ -1651,7 +1630,7 @@ export default function Home() {
   ]);
 
   const dadosOngoingFiltrados = useMemo(() => {
-    if (filtroSomenteSuspensos || filtroSomenteEsteiraAtual) return [];
+    if (filtroSomenteEsteiraAtual) return [];
     return dadosOngoing
       .filter((e) => {
         const clienteOk =
@@ -1719,7 +1698,6 @@ export default function Home() {
     filtroLoboSolitario,
     filtroCardTipo,
     filtroCardAlerta,
-    filtroSomenteSuspensos,
     filtroSomenteEsteiraAtual,
     ordenacaoContrato,
     ordenacaoScore,
@@ -1797,7 +1775,6 @@ export default function Home() {
     filtroLoboSolitario,
     filtroCardTipo,
     filtroCardAlerta,
-    filtroSomenteSuspensos,
     filtroSomenteEsteiraAtual,
     ordenacaoPrincipal,
     mapaComerciais,
@@ -1805,7 +1782,7 @@ export default function Home() {
   ]);
 
   const dadosConclusoesFiltrados = useMemo(() => {
-    if (filtroSomenteSuspensos || filtroSomenteEsteiraAtual) {
+    if (filtroSomenteEsteiraAtual) {
       return {
         regulares: [] as LinhaEsteira[],
         unilaterais: [] as LinhaEsteira[],
@@ -1887,7 +1864,6 @@ export default function Home() {
     filtroLoboSolitario,
     filtroCardTipo,
     filtroCardAlerta,
-    filtroSomenteSuspensos,
     filtroSomenteEsteiraAtual,
     ordenacaoPrincipal,
     mapaComerciais,
@@ -1900,7 +1876,7 @@ export default function Home() {
     dadosConclusoesFiltrados.unilaterais;
 
   const dadosCanceladosFiltrados = useMemo(() => {
-    if (filtroSomenteSuspensos || filtroSomenteEsteiraAtual) return [];
+    if (filtroSomenteEsteiraAtual) return [];
     return dadosCancelados
       .filter((e) => {
         const clienteOk =
@@ -1968,7 +1944,6 @@ export default function Home() {
     filtroLoboSolitario,
     filtroCardTipo,
     filtroCardAlerta,
-    filtroSomenteSuspensos,
     filtroSomenteEsteiraAtual,
     ordenacaoContrato,
     ordenacaoScore,
@@ -1988,7 +1963,7 @@ export default function Home() {
   // volta uma esteira que o usuário abriu manualmente.
   const gatilhoAberturaAnteriorRef = useRef<string | null>(null);
   useEffect(() => {
-    const gatilho = `${filtroCliente}|${filtroCardAlerta}|${filtroCardStatus}|${filtroLoboSolitario}|${filtroSomenteSuspensos}|${filtroSomenteEsteiraAtual}`;
+    const gatilho = `${filtroCliente}|${filtroCardAlerta}|${filtroCardStatus}|${filtroLoboSolitario}|${filtroSomenteEsteiraAtual}`;
     if (gatilhoAberturaAnteriorRef.current === gatilho) return;
     gatilhoAberturaAnteriorRef.current = gatilho;
     const abrir =
@@ -2003,10 +1978,7 @@ export default function Home() {
         (abrir && dadosAtivosFiltrados.length > 0),
     );
     setTabelaOngoingAberta(abrir && dadosOngoingFiltrados.length > 0);
-    // Com "Somente suspensos" a esteira abre mesmo vazia, para mostrar o aviso de lista vazia.
-    setTabelaSuspensaAberta(
-      filtroSomenteSuspensos || (abrir && dadosSuspensosFiltrados.length > 0),
-    );
+    setTabelaSuspensaAberta(abrir && dadosSuspensosFiltrados.length > 0);
     setTabelaConcluidosAberta(abrir && dadosConcluidosFiltrados.length > 0);
     setTabelaUnilateralAberta(
       abrir && dadosConcluidosUnilateralmenteFiltrados.length > 0,
@@ -2017,7 +1989,6 @@ export default function Home() {
     filtroCardAlerta,
     filtroCardStatus,
     filtroLoboSolitario,
-    filtroSomenteSuspensos,
     filtroSomenteEsteiraAtual,
     dadosAtivosFiltrados,
     dadosOngoingFiltrados,
@@ -2666,7 +2637,6 @@ export default function Home() {
           title="Mostra apenas a Esteira de Acompanhamento, já aberta, mantendo os demais filtros."
           onClick={() => {
             setFiltroSomenteEsteiraAtual((anterior) => !anterior);
-            setFiltroSomenteSuspensos(false);
           }}
         >
           <span className="stat-card-texto">
@@ -2704,50 +2674,6 @@ export default function Home() {
             </p>
           </div>
         </div>
-
-        <div
-          className={`stat-card clickable ${filtroCardStatus === "andamento" ? "active-andamento" : ""}`}
-          onClick={() => handleStatusCardClick("andamento")}
-        >
-          <div className="stat-card-texto">
-            <div className="stat-value-row">
-              <h3 className="stat-value">{stats.emAndamento}</h3>
-              <p className="stat-label">Em andamento</p>
-            </div>
-            <p className="stat-sub">
-              {stats.total > 0
-                ? ((stats.emAndamento / stats.total) * 100).toFixed(1)
-                : "0.0"}
-              % do total
-            </p>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          className={`stat-card clickable stat-card-suspensos ${filtroSomenteSuspensos ? "active-suspensos" : ""}`}
-          aria-pressed={filtroSomenteSuspensos}
-          title="Mostra apenas a esteira de Clientes Suspensos, já aberta, mantendo os demais filtros."
-          onClick={() => {
-            setFiltroSomenteSuspensos((anterior) => !anterior);
-            setFiltroSomenteEsteiraAtual(false);
-          }}
-        >
-          <span className="stat-card-texto">
-            <span className="stat-value-row">
-              <span className="stat-value">{dadosSuspensos.length}</span>
-              <span className="stat-label">
-                {dadosSuspensos.length === 1 ? "Suspenso" : "Suspensos"}
-              </span>
-            </span>
-            <span className="stat-sub">
-              {stats.totalRadar > 0
-                ? ((dadosSuspensos.length / stats.totalRadar) * 100).toFixed(1)
-                : "0.0"}
-              % do total
-            </span>
-          </span>
-        </button>
 
         <button
           type="button"
@@ -3124,7 +3050,6 @@ export default function Home() {
                     filtroCardAlerta ||
                     filtroElegivelDeducao ||
                     filtroLoboSolitario ||
-                    filtroSomenteSuspensos ||
                     filtroSomenteEsteiraAtual ||
                     ordenacaoContrato ||
                     ordenacaoScore
@@ -3142,7 +3067,6 @@ export default function Home() {
                   setFiltroCardAlerta("");
                   setFiltroElegivelDeducao(false);
                   setFiltroLoboSolitario(false);
-                  setFiltroSomenteSuspensos(false);
                   setFiltroSomenteEsteiraAtual(false);
                   setOrdenacaoContrato("");
                   setOrdenacaoScore("");
@@ -3210,7 +3134,12 @@ export default function Home() {
         </div>
 
         <Recolhivel aberta={!loading && tabelaAtivaAberta}>
-          <div className="table-wrapper">
+          <div
+            className="table-wrapper"
+            role="region"
+            aria-label="Tabela rolável: Esteira de Acompanhamento"
+            tabIndex={0}
+          >
             <table>
               <colgroup>
                 {colunasAtivasPrefs.colunasVisiveis.map((col) => (
@@ -3380,7 +3309,12 @@ export default function Home() {
         </div>
 
         <Recolhivel aberta={!loading && tabelaOngoingAberta}>
-          <div className="table-wrapper">
+          <div
+            className="table-wrapper"
+            role="region"
+            aria-label="Tabela rolável: Ongoing"
+            tabIndex={0}
+          >
             <table>
               <colgroup>
                 {colunasOngoingPrefs.colunasVisiveis.map((col) => (
@@ -3550,7 +3484,12 @@ export default function Home() {
         </div>
 
         <Recolhivel aberta={!loading && tabelaSuspensaAberta}>
-          <div className="table-wrapper">
+          <div
+            className="table-wrapper"
+            role="region"
+            aria-label="Tabela rolável: Clientes Suspensos"
+            tabIndex={0}
+          >
             <table>
               <colgroup>
                 {colunasSuspensosPrefs.colunasVisiveis.map((col) => (
@@ -3720,7 +3659,12 @@ export default function Home() {
         </div>
 
         <Recolhivel aberta={!loading && tabelaConcluidosAberta}>
-          <div className="table-wrapper">
+          <div
+            className="table-wrapper"
+            role="region"
+            aria-label="Tabela rolável: Esteiras Concluídas"
+            tabIndex={0}
+          >
             <table>
               <colgroup>
                 {colunasConcluidosPrefs.colunasVisiveis.map((col) => (
@@ -3890,7 +3834,12 @@ export default function Home() {
         </div>
 
         <Recolhivel aberta={!loading && tabelaCanceladosAberta}>
-          <div className="table-wrapper">
+          <div
+            className="table-wrapper"
+            role="region"
+            aria-label="Tabela rolável: Clientes Cancelados"
+            tabIndex={0}
+          >
             <table>
               <colgroup>
                 {colunasCanceladosPrefs.colunasVisiveis.map((col) => (
@@ -4060,7 +4009,12 @@ export default function Home() {
         </div>
 
         <Recolhivel aberta={!loading && tabelaUnilateralAberta}>
-          <div className="table-wrapper">
+          <div
+            className="table-wrapper"
+            role="region"
+            aria-label="Tabela rolável: Conclusões Unilaterais"
+            tabIndex={0}
+          >
             <table>
               <colgroup>
                 {colunasUnilateralPrefs.colunasVisiveis.map((col) => (

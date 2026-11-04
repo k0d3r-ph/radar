@@ -53,6 +53,13 @@ body.light-theme {
     --lt-texto-ffffff: #0f172a;
 }
 
+/* ── components/AvatarUsuario.css ── */
+body.light-theme .avatar-usuario {
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #e2e8f0
+}
+
 /* ── components/ChecklistTarefas.css ── */
 body.light-theme .checklist-novas {
     border: 1px solid #3b82f6;
@@ -505,6 +512,42 @@ body.light-theme .espera-treinamento-dialog :focus-visible {
     outline: 3px solid #60a5fa
 }
 
+/* ── components/PerfilUsuarioModal.css ── */
+body.light-theme .perfil-usuario-dialog {
+    border: 1px solid #cbd5e1;
+    background: #f8fafc;
+    box-shadow: 0 24px 80px rgba(15, 23, 42, 0.099);
+    color: #0f172a
+}
+body.light-theme .perfil-usuario-dialog::backdrop {
+    background: rgba(15, 23, 42, 0.4)
+}
+body.light-theme .perfil-usuario-header p {
+    color: #475569
+}
+body.light-theme .perfil-usuario-dialog button {
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #0f172a
+}
+body.light-theme .perfil-usuario-dialog button:focus-visible {
+    outline: 2px solid #60a5fa
+}
+body.light-theme .perfil-usuario-previa span {
+    color: #475569
+}
+body.light-theme .perfil-usuario-dialog .perfil-usuario-primario {
+    background: #2563eb;
+    border-color: #2563eb
+}
+body.light-theme .perfil-usuario-dialog .perfil-usuario-remover {
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #eb1313
+}
+body.light-theme .perfil-usuario-erro {
+    color: #eb1313
+}
+
 /* ── components/ProgressBar.css ── */
 body.light-theme .progress-bar-wrapper {
     background: #e2e8f0
@@ -625,13 +668,46 @@ body.light-theme .global-spinner {
     border: 3px solid rgba(59, 130, 246, 0.2);
     border-top-color: #3b82f6
 }
-body.light-theme .nav-logout-btn {
+body.light-theme .nav-logout-btn,
+body.light-theme .nav-profile-btn {
     color: #64748b
 }
 body.light-theme .nav-logout-btn:hover {
     background-color: rgba(239, 68, 68, 0.08);
     border-color: rgba(239, 68, 68, 0.2);
     color: #eb1515
+}
+body.light-theme .nav-profile-btn:hover {
+    background-color: rgba(59, 130, 246, 0.1);
+    border-color: rgba(59, 130, 246, 0.25);
+    color: #2563eb
+}
+body.light-theme .app-shell-layout .app-nav {
+    border-right: 1px solid #cbd5e1;
+    box-shadow: 8px 0 28px rgba(15, 23, 42, 0.04)
+}
+body.light-theme .app-nav-collapse:hover,
+body.light-theme .app-nav-close:hover {
+    background: rgba(148, 163, 184, 0.14)
+}
+body.light-theme .app-nav-collapse:focus-visible,
+body.light-theme .app-nav-close:focus-visible,
+body.light-theme .app-nav-open:focus-visible {
+    outline: 2px solid #60a5fa
+}
+body.light-theme .app-shell-layout .nav-right-container {
+    border-top: 1px solid #cbd5e1
+}
+@media (max-width: 768px) {
+    body.light-theme .app-nav-backdrop.is-open {
+        background: rgba(15, 23, 42, 0.4)
+    }
+}
+@media (max-width: 768px) {
+    body.light-theme .app-nav-open {
+        border: 1px solid #cbd5e1;
+        background: var(--app-nav-background, #f8fafc)
+    }
 }
 
 /* ── pages/AlterarSenha/AlterarSenha.css ── */
@@ -894,6 +970,9 @@ body.light-theme .temas-editor-conector-botao:focus-visible {
 body.light-theme .planejamento-sobrescrever-label {
     border: 1px solid #d5dce5;
     color: #334155
+}
+body.light-theme .planejamento-sobrescrever-label small {
+    color: #475569
 }
 body.light-theme .planejamento-sobrescrever-label:hover {
     border-color: #cbd5e1;
@@ -1922,6 +2001,15 @@ body.light-theme .hist-filtros {
     border: 1.5px solid #e2e8f0;
     box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04)
 }
+body.light-theme .hist-resultados-resumo {
+    color: #64748b
+}
+body.light-theme .hist-resultados-resumo strong {
+    color: #1e293b
+}
+body.light-theme .hist-resultados-resumo span {
+    color: #475569
+}
 body.light-theme .hist-busca {
     border: 1.5px solid #dde3ef;
     background: #ffffff;
@@ -2758,6 +2846,9 @@ body.light-theme .table-wrapper::-webkit-scrollbar-thumb {
 body.light-theme .table-wrapper::-webkit-scrollbar-thumb:hover {
     background-color: rgba(148, 163, 184, 0.7)
 }
+body.light-theme .table-wrapper:focus-visible {
+    outline: 3px solid #60a5fa
+}
 body.light-theme .monitoramento-page thead {
     background: #f1f5f9
 }
@@ -2873,24 +2964,6 @@ body.light-theme .stat-card.active-concluidos .stat-label {
 }
 body.light-theme .stat-card.active-concluidos .stat-sub {
     color: #6ee7b7
-}
-body.light-theme .stat-card.active-andamento,
-body.light-theme .stat-card.active-suspensos {
-    background: linear-gradient(135deg, #78350f, #f59e0b);
-    border-color: #fbbf24;
-    box-shadow: 0 8px 24px rgba(245, 158, 11, 0.158)
-}
-body.light-theme .stat-card.active-andamento .stat-value,
-body.light-theme .stat-card.active-suspensos .stat-value {
-    color: #ffffff
-}
-body.light-theme .stat-card.active-andamento .stat-label,
-body.light-theme .stat-card.active-suspensos .stat-label {
-    color: #fde68a
-}
-body.light-theme .stat-card.active-andamento .stat-sub,
-body.light-theme .stat-card.active-suspensos .stat-sub {
-    color: #fcd34d
 }
 body.light-theme .stat-card.active-safety {
     background: linear-gradient(135deg, #7f1d1d, #ef4444);
@@ -3553,54 +3626,101 @@ body.light-theme .aging-legenda {
 }
 
 /* ── pages/RelatorioIndicadoresTreinamento/BolsaIndicadoresTreinamento.css ── */
-body.light-theme .bolsa-indicadores-titulo {
+body.light-theme .bolsa-indicadores-wrapper {
     color: #0f172a
+}
+body.light-theme .bolsa-indicadores-wrapper--foco {
+    background: #f8fafc
+}
+body.light-theme .bolsa-indicadores-eyebrow {
+    color: #51759c
 }
 body.light-theme .bolsa-ao-vivo-dot {
-    background: #34d399;
-    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.27)
+    background: #ff6b6b;
+    box-shadow: 0 0 0 0 rgba(255, 107, 107, 0.27)
 }
-body.light-theme .bolsa-granularidade-toggle {
-    background: #f1f5f9;
-    border: 1px solid #e2e8f0;
-    color: #475569
+body.light-theme .bolsa-indicadores-subtitulo {
+    color: #51759c
 }
-body.light-theme .bolsa-granularidade-toggle:hover {
-    background: #e2e8f0;
-    border-color: #d5dce5;
-    color: #0f172a
+body.light-theme .bolsa-modo-foco-btn {
+    border: 1px solid #22c7b2;
+    background: #22c7b2;
+    color: #04211d
 }
-body.light-theme .bolsa-card {
-    background: linear-gradient(160deg, #f4f6fa 0%, #f8fafc 55%, #f4f6fa 100%);
-    border: 1px solid #e2e8f0;
-    box-shadow: 0 28px 60px rgba(15, 23, 42, 0.088),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05)
+body.light-theme .bolsa-modo-foco-btn[aria-pressed="true"] {
+    border-color: #a8c4e6;
+    color: #e2e8f0
 }
-body.light-theme .bolsa-card:hover {
-    box-shadow: 0 20px 44px rgba(15, 23, 42, 0.088),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06)
+body.light-theme .bolsa-modo-foco-btn:focus-visible {
+    outline: 2px solid #9cf0e4
 }
-body.light-theme .bolsa-card-topo {
-    color: #334155
+body.light-theme .bolsa-indicadores-data {
+    color: #51759c
 }
-body.light-theme .bolsa-card-valor {
-    color: #0f172a
-}
-body.light-theme .bolsa-card-badge--up {
-    background: rgba(34, 197, 94, 0.14);
-    color: #178841
-}
-body.light-theme .bolsa-card-badge--down {
-    background: rgba(239, 68, 68, 0.14);
-    color: #eb1515
-}
-body.light-theme .bolsa-card-meta-label {
+body.light-theme .bolsa-indicadores-atualizado {
     color: #64748b
 }
-
-/* ── pages/RelatorioIndicadoresTreinamento/RelatorioIndicadoresTreinamento.css ── */
-body.light-theme .indicadores-bolsa-pagina-header p {
+body.light-theme .bolsa-card {
+    background: #e9f1fb;
+    border: 2px solid #a8c4e6
+}
+body.light-theme .bolsa-card--alerta {
+    border-color: rgba(255, 107, 107, 0.7)
+}
+body.light-theme .bolsa-card-pill--ok {
+    background: rgba(53, 217, 142, 0.14);
+    color: #35d98e
+}
+body.light-theme .bolsa-card-pill--bad {
+    background: rgba(255, 107, 107, 0.16);
+    color: #e71313
+}
+body.light-theme .bolsa-card-pill--neutro {
+    background: rgba(148, 163, 184, 0.14);
     color: #475569
+}
+body.light-theme .bolsa-card-descricao {
+    color: #51759c
+}
+body.light-theme .bolsa-card-unidade {
+    color: #51759c
+}
+body.light-theme .bolsa-card-meta-label {
+    color: #51759c
+}
+body.light-theme .bolsa-card-comparacao {
+    border-top: 1px solid #a8c4e6
+}
+body.light-theme .bolsa-card-comparacao-label {
+    color: #0f172a
+}
+body.light-theme .bolsa-card-comparacao-antes {
+    color: #51759c
+}
+body.light-theme .bolsa-legenda {
+    color: #51759c
+}
+body.light-theme .bolsa-legenda-verde {
+    color: #198554
+}
+body.light-theme .bolsa-legenda-vermelho {
+    color: #e71313
+}
+body.light-theme .bolsa-ticker {
+    background: #e9f1fb;
+    border-top: 1px solid #a8c4e6
+}
+body.light-theme .bolsa-ticker-item {
+    border-right: 1px solid #a8c4e6
+}
+body.light-theme .bolsa-ticker-titulo {
+    color: #51759c
+}
+body.light-theme .bolsa-ticker-valor {
+    color: #0f172a
+}
+body.light-theme .bolsa-ticker-rotulo {
+    color: #51759c
 }
 
 /* ── pages/RelatorioJornadaCliente/RelatorioJornadaCliente.css ── */
@@ -4576,6 +4696,9 @@ body.light-theme .relatorios-tabs {
 body.light-theme .relatorios-tab-btn {
     color: #475569
 }
+body.light-theme .relatorios-tab-btn:focus-visible {
+    outline: 2px solid #60a5fa
+}
 body.light-theme .relatorios-tab-btn:hover {
     color: #0f172a
 }
@@ -4584,6 +4707,43 @@ body.light-theme .relatorios-tab-btn.active {
 }
 body.light-theme .relatorios-tab-btn.active::after {
     background: #3b82f6
+}
+body.light-theme .relatorios-page {
+    background: #f8fafc
+}
+body.light-theme .relatorios-header {
+    border: 1px solid rgba(96, 165, 250, 0.16);
+    background: radial-gradient(ellipse at 95% 0, rgba(59, 130, 246, 0.18), transparent 36%),
+    linear-gradient(125deg, #f8fafc, #f8fafc 62%, #ffffff)
+}
+body.light-theme .relatorios-eyebrow {
+    color: #1271db
+}
+body.light-theme .relatorios-tabs {
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.048)
+}
+body.light-theme .relatorios-tab-btn {
+    color: #475569
+}
+body.light-theme .relatorios-tab-btn:hover {
+    background: rgba(148, 163, 184, 0.08);
+    color: #0f172a
+}
+body.light-theme .relatorios-tab-btn.active {
+    border-color: rgba(96, 165, 250, 0.28);
+    background: rgba(37, 99, 235, 0.16);
+    color: #bfdbfe
+}
+body.light-theme .relatorios-filtros {
+    border-color: #cbd5e1;
+    background: #f8fafc;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04)
+}
+body.light-theme .relatorio-kpi-card {
+    border-color: #cbd5e1;
+    background: linear-gradient(145deg, #ffffff, #f8fafc)
 }
 body.light-theme .relatorio-comparacao-container {
     background: #ffffff;
@@ -4840,6 +5000,22 @@ body.light-theme .usuarios-card h2 {
 body.light-theme .card-icon {
     color: #1d845f
 }
+body.light-theme .usuarios-filtros label {
+    color: #475569
+}
+body.light-theme .usuarios-filtros input,
+body.light-theme .usuarios-filtros select {
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #0f172a
+}
+body.light-theme .usuarios-filtros input:focus-visible,
+body.light-theme .usuarios-filtros select:focus-visible {
+    outline: 2px solid #60a5fa
+}
+body.light-theme .usuarios-list-summary {
+    color: #475569
+}
 body.light-theme .usuarios-table th {
     border-bottom: 1px solid #e2e8f0;
     color: #475569
@@ -5025,6 +5201,12 @@ body.light-theme .validacao-page a {
 body.light-theme .validacao-agenda {
     border-top: 1px solid #e2e8f0
 }
+body.light-theme .validacao-cronometro-tempo {
+    color: #1271db
+}
+body.light-theme .validacao-ajuda-campo {
+    color: #475569
+}
 body.light-theme .validacao-erro-campo {
     color: #eb1313
 }
@@ -5096,6 +5278,32 @@ body.light-theme .validacao-questao-numero {
     border: 1px solid #e2e8f0;
     background: #ffffff;
     color: #475569
+}
+body.light-theme button.validacao-questao-numero:hover:not(:disabled) {
+    border-color: #cbd5e1;
+    background: rgba(148, 163, 184, 0.12);
+    color: #0f172a
+}
+body.light-theme button.validacao-questao-numero:focus-visible {
+    outline: 2px solid #38bdf8
+}
+body.light-theme .validacao-page .validacao-questao-mover button {
+    border: 1px solid #e2e8f0;
+    background: #ffffff;
+    color: #475569
+}
+body.light-theme .validacao-page .validacao-questao-mover button:hover:not(:disabled) {
+    background: rgba(148, 163, 184, 0.18);
+    color: #0f172a
+}
+body.light-theme .validacao-questao-handle {
+    color: #64748b
+}
+body.light-theme .validacao-questao--alvo-antes {
+    box-shadow: 0 -2px 0 0 rgba(56, 189, 248, 0.45)
+}
+body.light-theme .validacao-questao--alvo-depois {
+    box-shadow: 0 2px 0 0 rgba(56, 189, 248, 0.45)
 }
 body.light-theme .validacao-questao-secao {
     color: #334155
@@ -5254,6 +5462,24 @@ body.light-theme .validacao-banco-etiquetas .validacao-etiqueta-preferida {
 body.light-theme .validacao-banco-etiquetas .validacao-etiqueta-inativa {
     background: rgba(148, 163, 184, 0.15);
     color: #475569
+}
+body.light-theme .validacao-impressao-dialog {
+    border: 1px solid #cbd5e1;
+    background: #f8fafc;
+    box-shadow: 0 24px 80px rgba(15, 23, 42, 0.099);
+    color: #0f172a
+}
+body.light-theme .validacao-impressao-dialog::backdrop {
+    background: rgba(15, 23, 42, 0.4)
+}
+body.light-theme .validacao-impressao-dialog p {
+    color: #475569
+}
+body.light-theme .validacao-impressao-dialog label span {
+    color: #475569
+}
+body.light-theme .validacao-impressao-dialog .validacao-impressao-erro {
+    color: #eb1313
 }
 
 /* ── pages/WhatsApp/WhatsAppSettings.css ── */

@@ -66,6 +66,9 @@ const CARGO_DISPLAY: Record<string, string> = {
 export const Usuarios: React.FC = () => {
   const { role: currentUserRole } = useAuth();
   const [users, setUsers] = useState<UsuarioDocument[]>([]);
+  const [buscaUsuarios, setBuscaUsuarios] = useState("");
+  const [filtroPerfil, setFiltroPerfil] = useState("");
+  const [filtroStatus, setFiltroStatus] = useState<"todos" | "ativos" | "inativos">("todos");
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [senhaTemp, setSenhaTemp] = useState("");
@@ -413,6 +416,20 @@ export const Usuarios: React.FC = () => {
   };
 
   const usuarioParaExcluir = users.find((u) => u.uid === confirmarExclusaoUid);
+  const usuariosFiltrados = users.filter((usuario) => {
+    const busca = buscaUsuarios.trim().toLocaleLowerCase("pt-BR");
+    const correspondeBusca =
+      !busca ||
+      [usuario.nome, usuario.email, ROLE_DISPLAY[usuario.role] || usuario.role, usuario.cargo || "", usuario.telefone || ""]
+        .join(" ")
+        .toLocaleLowerCase("pt-BR")
+        .includes(busca);
+    const correspondePerfil = !filtroPerfil || usuario.role === filtroPerfil;
+    const correspondeStatus =
+      filtroStatus === "todos" ||
+      (filtroStatus === "inativos" ? !!usuario.inativo : !usuario.inativo);
+    return correspondeBusca && correspondePerfil && correspondeStatus;
+  });
 
   return (
     <div className="usuarios-page">
@@ -621,6 +638,43 @@ export const Usuarios: React.FC = () => {
             Usuários Cadastrados
           </h2>
 
+          <div className="usuarios-filtros" role="search" aria-label="Filtrar usuários">
+            <label className="usuarios-busca">
+              <span>Buscar por nome, e-mail ou contato</span>
+              <input
+                type="search"
+                value={buscaUsuarios}
+                onChange={(event) => setBuscaUsuarios(event.target.value)}
+                placeholder="Ex.: Ana, ana@empresa.com"
+              />
+            </label>
+            <label>
+              <span>Perfil</span>
+              <select value={filtroPerfil} onChange={(event) => setFiltroPerfil(event.target.value)}>
+                <option value="">Todos os perfis</option>
+                {Object.entries(ROLE_DISPLAY).map(([valor, rotulo]) => (
+                  <option key={valor} value={valor}>{rotulo}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Status</span>
+              <select
+                value={filtroStatus}
+                onChange={(event) => setFiltroStatus(event.target.value as typeof filtroStatus)}
+              >
+                <option value="todos">Todos</option>
+                <option value="ativos">Ativos</option>
+                <option value="inativos">Inativos</option>
+              </select>
+            </label>
+          </div>
+          {!loading && (
+            <p className="usuarios-list-summary" aria-live="polite">
+              Exibindo {usuariosFiltrados.length} de {users.length} usuários
+            </p>
+          )}
+
           {loading ? (
             <div className="list-loader">
               <div className="spinner"></div>
@@ -628,6 +682,8 @@ export const Usuarios: React.FC = () => {
             </div>
           ) : users.length === 0 ? (
             <p className="no-data-msg">Nenhum usuário cadastrado.</p>
+          ) : usuariosFiltrados.length === 0 ? (
+            <p className="no-data-msg">Nenhum usuário corresponde aos filtros. Ajuste a busca ou os filtros de perfil e status.</p>
           ) : (
             <div className="table-responsive">
               <table className="usuarios-table">
@@ -644,7 +700,7 @@ export const Usuarios: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map((u) => (
+                  {usuariosFiltrados.map((u) => (
                     <tr key={u.uid}>
                       <td className="nome-cell">{formatarNome(u.nome) || "—"}</td>
                       <td className="email-cell">{u.email}</td>

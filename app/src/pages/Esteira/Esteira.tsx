@@ -530,6 +530,11 @@ function Esteira() {
                   }
                 />
                 Substituir datas já preenchidas
+                <small>
+                  {sobrescreverDatasPlanejamento
+                    ? "Ao gerar, todas as datas existentes serão recalculadas."
+                    : "Por padrão, datas já preenchidas são preservadas."}
+                </small>
               </label>
             </div>
           </div>

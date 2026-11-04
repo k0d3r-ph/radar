@@ -354,7 +354,7 @@ export const WhatsAppSettings: React.FC = () => {
       </header>
 
       <div className="whatsapp-grid">
-        <section className="whatsapp-card-section">
+        <section className="whatsapp-card-section whatsapp-card-section--connection">
           <div className="card-header">
             <QrCode size={18} />
             <h2>Pareamento e Conexão</h2>
@@ -373,7 +373,7 @@ export const WhatsAppSettings: React.FC = () => {
           </div>
         </section>
 
-        <section className="whatsapp-card-section" style={{ marginTop: "24px" }}>
+        <section className="whatsapp-card-section whatsapp-card-section--maintenance">
           <div className="card-header">
             <RefreshCw size={18} style={{ color: "var(--lt-texto-128c7e, #128c7e)" }} />
             <h2>Manutenção de Dados</h2>
@@ -406,7 +406,7 @@ export const WhatsAppSettings: React.FC = () => {
           </div>
         </section>
 
-        <section className="whatsapp-card-section">
+        <section className="whatsapp-card-section whatsapp-card-section--test">
           <div className="card-header">
             <MessageSquare size={18} />
             <h2>Enviar Mensagem de Teste</h2>

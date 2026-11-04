@@ -43,13 +43,24 @@
 .whatsapp-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
+  grid-template-areas:
+    "connection test"
+    "maintenance maintenance";
   gap: 32px;
   align-items: start;
 }
 
+.whatsapp-card-section--connection { grid-area: connection; }
+.whatsapp-card-section--test { grid-area: test; }
+.whatsapp-card-section--maintenance { grid-area: maintenance; }
+
 @media (max-width: 900px) {
   .whatsapp-grid {
     grid-template-columns: 1fr;
+    grid-template-areas:
+      "connection"
+      "test"
+      "maintenance";
   }
 }
 

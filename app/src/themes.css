@@ -27,33 +27,93 @@ body.dark-theme input[type="week"]::-webkit-calendar-picker-indicator {
 }
 
 /* Navbar no Dark Mode */
-body.dark-theme .app-nav {
+body.dark-theme .app-shell-layout .app-nav {
   background: #0f172a !important;
-  border-bottom: 1.5px solid rgba(255, 255, 255, 0.08) !important;
+  border-right: 1.5px solid rgba(255, 255, 255, 0.08) !important;
+  border-bottom: 0 !important;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25) !important;
 }
 
-body.dark-theme .nav-link {
+body.dark-theme .app-shell-layout {
+  --app-nav-background: #0f172a;
+}
+
+body.dark-theme .app-shell-layout .nav-link {
   color: #94a3b8 !important;
 }
 
-body.dark-theme .nav-link:hover {
+body.dark-theme .app-shell-layout .nav-link:hover {
   background: rgba(255, 255, 255, 0.05) !important;
   color: #ffffff !important;
 }
 
-body.dark-theme .nav-link.active {
+body.dark-theme .app-shell-layout .nav-link.active {
   background: rgba(59, 130, 246, 0.15) !important;
   color: #3b82f6 !important;
 }
 
-body.dark-theme .nav-logout-btn {
+body.dark-theme .nav-logout-btn,
+body.dark-theme .nav-profile-btn {
   color: #94a3b8 !important;
 }
 
 body.dark-theme .nav-logout-btn:hover {
   background-color: rgba(239, 68, 68, 0.15) !important;
   color: #ef4444 !important;
+}
+
+body.dark-theme .nav-profile-btn:hover {
+  background-color: rgba(59, 130, 246, 0.15) !important;
+  color: #60a5fa !important;
+}
+
+body.light-theme .nav-profile-btn {
+  color: #64748b !important;
+}
+
+body.light-theme .nav-profile-btn:hover {
+  background-color: rgba(37, 99, 235, 0.08) !important;
+  border-color: rgba(37, 99, 235, 0.2) !important;
+  color: #2563eb !important;
+}
+
+body.light-theme .perfil-usuario-dialog {
+  background: #fff;
+  color: #1e293b;
+  border-color: #cbd5e1;
+}
+
+body.light-theme .perfil-usuario-header p,
+body.light-theme .perfil-usuario-previa span {
+  color: #64748b;
+}
+
+body.light-theme .perfil-usuario-dialog button {
+  background: #f1f5f9;
+  color: #334155;
+  border-color: #cbd5e1;
+}
+
+body.light-theme .perfil-usuario-dialog .perfil-usuario-primario {
+  background: #2563eb;
+  color: #fff;
+  border-color: #2563eb;
+}
+
+body.light-theme .perfil-usuario-dialog .perfil-usuario-remover {
+  background: transparent;
+  color: #b91c1c;
+  border-color: rgba(185, 28, 28, .4);
+}
+
+body.light-theme .perfil-usuario-erro {
+  color: #b91c1c;
+}
+
+body.light-theme .avatar-usuario {
+  background: #e2e8f0;
+  color: #334155;
+  border-color: #cbd5e1;
 }
 
 /* Histórico de Ocorrências no Dark Mode */
@@ -73,6 +133,15 @@ body.dark-theme .hist-filtros {
   background: #1e293b !important;
   border: 1.5px solid rgba(255, 255, 255, 0.08) !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+body.dark-theme .hist-resultados-resumo,
+body.dark-theme .hist-resultados-resumo span {
+  color: #cbd5e1;
+}
+
+body.dark-theme .hist-resultados-resumo strong {
+  color: #f8fafc;
 }
 
 body.dark-theme .hist-busca,
@@ -435,26 +504,52 @@ body.light-theme ::-webkit-scrollbar-thumb:hover {
 }
 
 /* Navbar */
-body.light-theme .app-nav {
+body.light-theme .app-shell-layout .app-nav {
   background: rgba(255, 255, 255, 0.92) !important;
   backdrop-filter: saturate(180%) blur(10px);
-  border-bottom: 1px solid #e5e9f0 !important;
+  border-right: 1px solid #e5e9f0 !important;
+  border-bottom: 0 !important;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
 }
 
-body.light-theme .nav-link {
+body.light-theme .app-shell-layout {
+  --app-nav-background: #ffffff;
+}
+
+body.light-theme .app-shell-layout .nav-link {
   color: #475569 !important;
 }
 
-body.light-theme .nav-link:hover {
+body.light-theme .app-shell-layout .nav-link:hover {
   background: #f1f5f9 !important;
   color: #0f172a !important;
 }
 
-body.light-theme .nav-link.active {
+body.light-theme .app-shell-layout .nav-link.active {
   background: #eff4ff !important;
   color: #1d4ed8 !important;
   box-shadow: inset 0 0 0 1px #dbe5ff;
+}
+
+body.light-theme .usuarios-filtros label,
+body.light-theme .usuarios-list-summary {
+  color: #64748b;
+}
+
+body.light-theme .usuarios-filtros input,
+body.light-theme .usuarios-filtros select {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #1e293b;
+}
+
+body.light-theme .hist-resultados-resumo,
+body.light-theme .hist-resultados-resumo span {
+  color: #64748b;
+}
+
+body.light-theme .hist-resultados-resumo strong {
+  color: #1e293b;
 }
 
 body.light-theme .nav-logout-btn,

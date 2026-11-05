@@ -92,6 +92,8 @@ const INDICADORES_BOLSA: ConfigBolsa[] = [
     descricao: "Nota média (1 a 5) dada pelos clientes para o atendimento de treinamento.",
     menorEhMelhor: false,
     meta: 4.8,
+    granularidadePrincipal: "mes",
+    granularidadesComparacao: ["mes"],
   },
 ];
 

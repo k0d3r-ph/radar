@@ -3740,11 +3740,6 @@ body.light-theme .bolsa-ticker-rotulo {
     color: #51759c
 }
 
-/* ── pages/RelatorioIndicadoresTreinamento/RelatorioIndicadoresTreinamento.css ── */
-body.light-theme .indicadores-treinamento-container--tv {
-    background: #f8fafc
-}
-
 /* ── pages/RelatorioJornadaCliente/RelatorioJornadaCliente.css ── */
 body.light-theme .jornada-kpi-card.tom-info {
     border-left-color: #3b82f6
@@ -4719,24 +4714,6 @@ body.light-theme .spinner {
     border: 4px solid #e2e8f0;
     border-left-color: #3b82f6
 }
-body.light-theme .relatorios-tabs {
-    border-bottom: 1px solid #e2e8f0
-}
-body.light-theme .relatorios-tab-btn {
-    color: #475569
-}
-body.light-theme .relatorios-tab-btn:focus-visible {
-    outline: 2px solid #60a5fa
-}
-body.light-theme .relatorios-tab-btn:hover {
-    color: #0f172a
-}
-body.light-theme .relatorios-tab-btn.active {
-    color: #1c6bed
-}
-body.light-theme .relatorios-tab-btn.active::after {
-    background: #3b82f6
-}
 body.light-theme .relatorios-page {
     background: #f8fafc
 }
@@ -4747,23 +4724,6 @@ body.light-theme .relatorios-header {
 }
 body.light-theme .relatorios-eyebrow {
     color: #1271db
-}
-body.light-theme .relatorios-tabs {
-    border: 1px solid #cbd5e1;
-    background: #ffffff;
-    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.048)
-}
-body.light-theme .relatorios-tab-btn {
-    color: #475569
-}
-body.light-theme .relatorios-tab-btn:hover {
-    background: rgba(148, 163, 184, 0.08);
-    color: #0f172a
-}
-body.light-theme .relatorios-tab-btn.active {
-    border-color: rgba(96, 165, 250, 0.28);
-    background: rgba(37, 99, 235, 0.16);
-    color: #bfdbfe
 }
 body.light-theme .relatorios-filtros {
     border-color: #cbd5e1;

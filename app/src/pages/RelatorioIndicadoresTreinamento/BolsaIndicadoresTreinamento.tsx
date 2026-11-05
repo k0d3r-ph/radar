@@ -50,6 +50,7 @@ const INDICADORES_BOLSA: ConfigBolsa[] = [
     titulo: "Gol no Prazo",
     descricao: "Percentual de clientes que bateram a meta combinada (Gol) dentro do prazo, no mês.",
     menorEhMelhor: false,
+    meta: 100,
     // Só compara mês inteiro (até agora) contra o mês anterior — dia/semana isolados não
     // fazem sentido pra essa taxa, que é acumulada ao longo do mês inteiro.
     granularidadePrincipal: "mes",
@@ -60,6 +61,7 @@ const INDICADORES_BOLSA: ConfigBolsa[] = [
     titulo: "Suspensos",
     descricao: "Clientes em treinamento que estavam suspensos ao fim de cada período.",
     menorEhMelhor: true,
+    meta: 0,
   },
   {
     chave: "treinamentosRealizados",
@@ -459,6 +461,10 @@ interface Props {
   ocorrencias: Ocorrencia[];
   treinador: string | null;
   atualizadoEm: number;
+  /** Tela dedicada de TV/monitor (/indicadores-treinamento-tv): sempre preenche a
+   * tela inteira, como o modo foco, mas sem depender da Fullscreen API (a própria
+   * aba, maximizada, já cumpre esse papel — ver App.tsx). */
+  modoTv?: boolean;
 }
 
 /**
@@ -473,6 +479,7 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
   ocorrencias,
   treinador,
   atualizadoEm,
+  modoTv = false,
 }) => {
   const [agora, setAgora] = useState(() => new Date());
   const [modoFoco, setModoFoco] = useState(false);
@@ -603,7 +610,10 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
   const dataCurta = agora.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 
   return (
-    <div className={`bolsa-indicadores-wrapper ${modoFoco ? "bolsa-indicadores-wrapper--foco" : ""}`} ref={wrapperRef}>
+    <div
+      className={`bolsa-indicadores-wrapper ${modoFoco || modoTv ? "bolsa-indicadores-wrapper--foco" : ""}`}
+      ref={wrapperRef}
+    >
       <div className="bolsa-indicadores-header">
         <div className="bolsa-indicadores-coluna-titulo">
           <div className="bolsa-indicadores-eyebrow">
@@ -616,15 +626,17 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
           </p>
         </div>
         <div className="bolsa-indicadores-header-direita">
-          <button
-            type="button"
-            className="bolsa-modo-foco-btn"
-            onClick={alternarModoFoco}
-            aria-pressed={modoFoco}
-            title={modoFoco ? "Sair do modo foco" : "Modo foco (tela cheia)"}
-          >
-            {modoFoco ? "Sair do modo foco" : "Modo foco"}
-          </button>
+          {!modoTv && (
+            <button
+              type="button"
+              className="bolsa-modo-foco-btn"
+              onClick={alternarModoFoco}
+              aria-pressed={modoFoco}
+              title={modoFoco ? "Sair do modo foco" : "Modo foco (tela cheia)"}
+            >
+              {modoFoco ? "Sair do modo foco" : "Modo foco"}
+            </button>
+          )}
           <div className="bolsa-indicadores-relogio">
             <span className="bolsa-indicadores-hora">
               {agora.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}

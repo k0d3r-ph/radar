@@ -55,11 +55,10 @@ import { RelatorioJornadaCliente } from "../RelatorioJornadaCliente/RelatorioJor
 import { RelatorioAging } from "../RelatorioAging/RelatorioAging";
 import { RelatorioIndicadoresTreinamento } from "../RelatorioIndicadoresTreinamento/RelatorioIndicadoresTreinamento";
 import { RelatorioValidacaoConhecimento } from "../RelatorioValidacaoConhecimento/RelatorioValidacaoConhecimento";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { obterAbasRelatorio, type AbaRelatorio } from "../../utils/relatoriosAbas";
 import { useAuth } from "../../context/AuthContext";
 import { usePendenciasClock } from "../../hooks/usePendenciasClock";
-import { usePreferenciaPaineis } from "../../hooks/usePreferenciaPaineis";
-import { ColumnSelector } from "../../components/ColumnSelector";
 
 // Carência aplicada antes de considerar um cliente "sem próximo passo definido"
 // após o horário de um agendamento (mesma regra usada na Jornada do Cliente).
@@ -142,7 +141,7 @@ function formatarDataISO(d: Date): string {
 export const Relatorios: React.FC = () => {
   const navigate = useNavigate();
   const { role } = useAuth();
-  type AbaRelatorio = "esteira" | "score" | "jornada" | "executiva" | "aging" | "indicadores" | "validacao";
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<AbaRelatorio>("esteira");
 
   useEffect(() => {
@@ -151,32 +150,21 @@ export const Relatorios: React.FC = () => {
     }
   }, [role, activeTab]);
 
-  // Abas disponíveis para o perfil atual — a ordem/visibilidade escolhida pelo usuário
-  // (ColumnSelector + usePreferenciaPaineis) só se aplica dentro desse conjunto.
-  const ABAS_RELATORIO: { key: AbaRelatorio; label: string; locked?: boolean }[] = useMemo(() => {
-    const todas: { key: AbaRelatorio; label: string; locked?: boolean }[] = [
-      { key: "esteira", label: "Visão Geral", locked: true },
-    ];
-    if (role !== "painel") {
-      todas.push(
-        { key: "score", label: "Scores dos Clientes" },
-        { key: "jornada", label: "Jornada do Cliente" },
-        { key: "executiva", label: "Visão Executiva" },
-        { key: "aging", label: "Aging da Esteira" },
-        { key: "indicadores", label: "Indicadores de Treinamento" },
-      );
-      if (role === "master" || role === "treinador") {
-        todas.push({ key: "validacao", label: "Validação do Conhecimento" });
-      }
-    }
-    return todas;
-  }, [role]);
+  // Abas disponíveis para o perfil atual — todas aparecem, sem personalização de ordem
+  // ou visibilidade. A lista em si é compartilhada com o submenu "Relatórios" do menu
+  // lateral (ver App.tsx), que navega para uma aba específica por `?aba=`.
+  const ABAS_RELATORIO = useMemo(() => obterAbasRelatorio(role), [role]);
+  const abasVisiveis = useMemo(() => ABAS_RELATORIO.map((a) => a.key), [ABAS_RELATORIO]);
 
-  const prefsAbas = usePreferenciaPaineis("radar:relatorios:abas:v1", ABAS_RELATORIO);
-  const abasVisiveis = useMemo(
-    () => prefsAbas.visiveis.filter((k) => ABAS_RELATORIO.some((a) => a.key === k)) as AbaRelatorio[],
-    [prefsAbas.visiveis, ABAS_RELATORIO],
-  );
+  // A navegação entre abas agora acontece pelo submenu do menu lateral (ver App.tsx),
+  // que leva para /relatorios?aba=<chave> — aqui só lemos o parâmetro para ativar a aba
+  // pedida, sem precisar de nenhuma barra de abas na própria página.
+  useEffect(() => {
+    const abaParam = searchParams.get("aba") as AbaRelatorio | null;
+    if (abaParam && abasVisiveis.includes(abaParam)) {
+      setActiveTab(abaParam);
+    }
+  }, [searchParams, abasVisiveis]);
 
   // Se a aba ativa foi ocultada pelo usuário (ou deixou de existir para o perfil), volta
   // para a primeira aba visível, sem deixar a tela sem nenhuma aba ativa.
@@ -1438,41 +1426,6 @@ ${riscoChurn.length > 0
                       : "Estatísticas consolidadas e listagem de clientes baseadas no último cálculo de score."}
         </p>
       </header>
-
-      {/* Sub-abas de Navegação */}
-      <div className="relatorios-tabs" role="group" aria-label="Seções do relatório">
-        {abasVisiveis.map((key) => {
-          const aba = ABAS_RELATORIO.find((a) => a.key === key)!;
-          return (
-            <button
-              type="button"
-              key={key}
-              className={`relatorios-tab-btn ${activeTab === key ? "active" : ""}`}
-              aria-pressed={activeTab === key}
-              onClick={() => setActiveTab(key)}
-            >
-              {aba.label}
-            </button>
-          );
-        })}
-        {ABAS_RELATORIO.length > 1 && (
-          <div style={{ marginLeft: "auto" }}>
-            <ColumnSelector
-              columns={ABAS_RELATORIO.map((a) => ({ key: a.key, label: a.label, locked: a.locked }))}
-              order={prefsAbas.order}
-              hidden={prefsAbas.hidden}
-              onChangeOrder={prefsAbas.setOrder}
-              onChangeHidden={prefsAbas.setHidden}
-              onRestaurarPadrao={prefsAbas.restaurarPadrao}
-              label="⚙️ Personalizar"
-              triggerTitulo="Escolher e reorganizar as abas de relatório"
-              painelTitulo="Abas de Relatórios"
-              painelDica="Escolha quais relatórios ficam visíveis neste menu e em que ordem. Arraste para reordenar."
-              ariaLabel="Escolher abas de relatórios visíveis"
-            />
-          </div>
-        )}
-      </div>
 
       {activeTab === "esteira" ? (
         <>

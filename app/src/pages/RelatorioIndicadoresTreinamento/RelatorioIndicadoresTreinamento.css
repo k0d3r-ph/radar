@@ -5,9 +5,14 @@
 }
 
 /* Tela isolada (/indicadores-treinamento-tv): sem o chrome do app, para abrir numa
-   aba ou janela própria de TV/monitor. */
+   aba ou janela própria de TV/monitor. O painel interno (modoTv, ver
+   BolsaIndicadoresTreinamento) já preenche 100vh com seu próprio padding/fundo —
+   duplicar isso aqui sobraria espaço/scroll no fim da página. */
 .indicadores-treinamento-container--tv {
-  min-height: 100vh;
-  padding: 1.5rem;
-  background: #0f172a;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.indicadores-treinamento-container--tv .indicadores-treinamento-container {
+  height: 100%;
 }

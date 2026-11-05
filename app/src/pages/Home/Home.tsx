@@ -2606,12 +2606,6 @@ export default function Home() {
 
   return (
     <div className="monitoramento-page">
-      <header>
-        <h1>Radar</h1>
-
-        <p>Acompanhe o progresso dos clientes na esteira de capacitação.</p>
-      </header>
-
       {(role === "treinador" || role === "master") && (
         <div className="home-actions">
           <button className="btn-primary" onClick={novoCliente}>

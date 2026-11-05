@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { Routes, Route, Navigate, NavLink, useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Routes, Route, Navigate, NavLink, Link, useLocation, useNavigate } from "react-router-dom";
 import { Esteira } from "./pages/Esteira/Esteira";
 import { Historico } from "./pages/Historico/Historico";
 import Home from "./pages/Home/Home";
@@ -10,6 +10,7 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import {
   BarChart3,
   BookOpenCheck,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   History as HistoryIcon,
@@ -39,7 +40,7 @@ import { RelatorioIndicadoresTreinamento } from "./pages/RelatorioIndicadoresTre
 import { PerfilUsuarioModal } from "./components/PerfilUsuarioModal";
 import { obterFotoPerfil } from "./services/profilePhotos";
 import { toast } from "sonner";
-
+import { obterAbasRelatorio } from "./utils/relatoriosAbas";
 
 function AppRoutes() {
   const { user, loading, needsPasswordChange, role, logout, userName } = useAuth();
@@ -49,9 +50,18 @@ function AppRoutes() {
   const [modalPerfilAberto, setModalPerfilAberto] = useState(false);
   const [menuAberto, setMenuAberto] = useState(false);
   const [menuRecolhido, setMenuRecolhido] = useState(false);
+  const [relatoriosSubmenuAberto, setRelatoriosSubmenuAberto] = useState(false);
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const menuCloseRef = useRef<HTMLButtonElement>(null);
   const menuContainerRef = useRef<HTMLElement>(null);
+
+  // Abas de Relatórios disponíveis para o perfil — mesma lista usada dentro da página
+  // (ver Relatorios.tsx), para o submenu abaixo sempre bater com o que o usuário vai
+  // encontrar lá. Sem personalização de ordem/visibilidade: todas aparecem.
+  const abasRelatorio = useMemo(() => obterAbasRelatorio(role), [role]);
+  const abaRelatorioAtiva = location.pathname === "/relatorios"
+    ? new URLSearchParams(location.search).get("aba")
+    : null;
   const [fotoPerfilCarregada, setFotoPerfilCarregada] = useState<{
     uid: string;
     url: string | null;
@@ -158,7 +168,7 @@ function AppRoutes() {
   if (location.pathname === "/indicadores-treinamento-tv") {
     return (
       <div className="indicadores-treinamento-container--tv">
-        <RelatorioIndicadoresTreinamento />
+        <RelatorioIndicadoresTreinamento modoTv />
       </div>
     );
   }
@@ -300,16 +310,55 @@ function AppRoutes() {
               <span className="nav-link-label">Tabulações</span>
             </NavLink>
           )}
-          <NavLink
-            to="/relatorios"
-            className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
-            onClick={fecharMenu}
-            aria-label="Relatórios"
-            title="Relatórios"
-          >
-            <BarChart3 className="nav-link-icon" size={18} aria-hidden="true" />
-            <span className="nav-link-label">Relatórios</span>
-          </NavLink>
+          {abasRelatorio.length > 1 ? (
+            <div className="nav-relatorios-group">
+              <button
+                type="button"
+                className={"nav-link nav-link-toggle" + (location.pathname === "/relatorios" ? " active" : "")}
+                aria-expanded={relatoriosSubmenuAberto}
+                aria-controls="nav-relatorios-submenu"
+                aria-label="Relatórios"
+                title="Relatórios"
+                onClick={() => setRelatoriosSubmenuAberto((aberto) => !aberto)}
+              >
+                <BarChart3 className="nav-link-icon" size={18} aria-hidden="true" />
+                <span className="nav-link-label">Relatórios</span>
+                <ChevronDown
+                  className={"nav-link-chevron" + (relatoriosSubmenuAberto ? " nav-link-chevron--aberto" : "")}
+                  size={14}
+                  aria-hidden="true"
+                />
+              </button>
+              {relatoriosSubmenuAberto && (
+                <div id="nav-relatorios-submenu" className="nav-submenu" role="group" aria-label="Seções de relatórios">
+                  {abasRelatorio.map((aba) => (
+                    <Link
+                      key={aba.key}
+                      to={`/relatorios?aba=${aba.key}`}
+                      className={"nav-sublink" + (abaRelatorioAtiva === aba.key ? " active" : "")}
+                      onClick={() => {
+                        fecharMenu();
+                        setRelatoriosSubmenuAberto(false);
+                      }}
+                    >
+                      {aba.label}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <NavLink
+              to="/relatorios"
+              className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
+              onClick={fecharMenu}
+              aria-label="Relatórios"
+              title="Relatórios"
+            >
+              <BarChart3 className="nav-link-icon" size={18} aria-hidden="true" />
+              <span className="nav-link-label">Relatórios</span>
+            </NavLink>
+          )}
         </nav>
         <div className="nav-right-container">
           <button

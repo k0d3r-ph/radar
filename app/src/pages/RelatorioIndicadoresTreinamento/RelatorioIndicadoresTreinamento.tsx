@@ -14,7 +14,12 @@ import "./RelatorioIndicadoresTreinamento.css";
 
 const INTERVALO_ATUALIZACAO_MS = 20 * 60_000;
 
-export const RelatorioIndicadoresTreinamento: React.FC = () => {
+interface Props {
+  /** Tela dedicada de TV/monitor (/indicadores-treinamento-tv) — ver App.tsx. */
+  modoTv?: boolean;
+}
+
+export const RelatorioIndicadoresTreinamento: React.FC<Props> = ({ modoTv = false }) => {
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [ocorrencias, setOcorrencias] = useState<Ocorrencia[]>([]);
   const [lancamentos, setLancamentos] = useState<LancamentoPonto[]>([]);
@@ -125,6 +130,7 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
           ocorrencias={ocorrencias}
           treinador={null}
           atualizadoEm={atualizadoEm}
+          modoTv={modoTv}
         />
       )}
     </div>

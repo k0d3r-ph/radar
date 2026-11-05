@@ -55,10 +55,11 @@ a coleção `validacao_tentativas` foi adicionada ao mesmo índice em memória:
 
 ## 2. Enviar a trilha de treinamento para o SSX Desk (training-stages)
 
-> Status: **implementado e testado nesta branch.** Ver limitação importante na seção
-> "Verificação planejada" abaixo — a resposta do `GET /companies` foi inferida por
-> analogia com `training-conversations` e precisa ser confirmada contra a documentação
-> real do SSX Desk antes de ligar em produção.
+> Status: **implementado e testado nesta branch.** O formato real de `GET /companies` já
+> foi confirmado por print do usuário (`{ data: [...], meta: { total } }`, sem paginação
+> documentada) e o cliente HTTP foi corrigido para esse formato. Falta só confirmar como
+> paginar caso uma conta tenha mais empresas do que a API devolve numa chamada só — ver
+> "Antes de ligar em produção" abaixo.
 
 ### Contexto
 
@@ -186,25 +187,28 @@ Desk):
 - `app/src/types.ts` — `Empresa.ssxDeskTrainingStageIds` e `.ssxDeskTrainingStagesSyncedAt`.
 - `server/SSX_DESK_TRAINING_STAGES.md` — documentação completa (funcionamento, limitações,
   configuração).
-- `server/tests/ssxDeskTrainingStages.test.mjs` — 10 testes: status por fase, alinhamento
+- `server/tests/ssxDeskTrainingStages.test.mjs` — 13 testes: formato real de
+  `GET /companies` (`data` + `meta.total`, sem `hasMore`), status por fase, alinhamento
   por índice, resolução de `companyId` (incluindo ambiguidade), POST de linha nova, PUT só
   quando muda, DELETE de linha removida/trilha encolhida, empresa sem vínculo não trava as
   demais, cursor sempre avança com retentativa por id, empresa sem `temaText`.
 
 ### Verificação já feita
 
-- `server/`: `npm run build` e `npm run test:ssx-desk-training-stages` (10/10). Também
+- `server/`: `npm run build` e `npm run test:ssx-desk-training-stages` (13/13). Também
   `test:ssx-desk`, `test:manager-ops` e `test:sincronizacao` sem regressão.
 - Não testado manualmente no navegador, contra o Emulator Suite nem contra a API real do
-  SSX Desk — ver limitação do `GET /companies` acima antes de qualquer teste com a chave
-  real.
+  SSX Desk.
 
 ### Antes de ligar em produção
 
-1. Confirmar com o SSX Desk (ou a documentação real da API) o formato exato da resposta
-   de `GET /api/integrations/v1/companies` — o cliente atual (`listarEmpresasDesk`) espera
-   `{ data: [...], meta: { hasMore, offset, total } }`, por analogia com
-   `training-conversations`, mas isso **não foi confirmado contra a doc real**.
+1. Confirmar como paginar `GET /companies` caso uma conta tenha mais empresas do que a
+   API devolve numa chamada só — a resposta real confirmada só tem `meta.total`, sem
+   `hasMore`/`offset`/`page`; `listarEmpresasDesk` hoje erra de forma explícita se
+   `data.length < meta.total` em vez de seguir com uma lista incompleta (ver
+   `server/SSX_DESK_TRAINING_STAGES.md`). Só é um problema de verdade se a conta do Radar
+   tiver empresas demais para caber numa página — confirme com o SSX Desk antes, ou só
+   ligue e monitore o log de erro na primeira sincronização.
 2. Gerar a chave `SSX_DESK_TRAINING_STAGES_API_KEY` com escopo `training-stages:write` no
    painel do SSX Desk.
 3. Rodar `sincronizar()` manual contra o Emulator Suite (`server/EMULADOR.md`) com uma

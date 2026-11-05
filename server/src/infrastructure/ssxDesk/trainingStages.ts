@@ -15,10 +15,21 @@ export interface EtapaTreinamentoDesk {
   updatedAt: string;
 }
 
+/** Campo embutido em cada empresa de `GET /companies` — já traz as etapas atuais. Não
+ * usado para ler o estado (o serviço de sincronização mantém o id de cada etapa em
+ * `Empresa.ssxDeskTrainingStageIds`), só documentado aqui pelo formato real da resposta. */
+export interface TrainingStagesEmbutido {
+  hasStages: boolean;
+  items: EtapaTreinamentoDesk[];
+}
+
 export interface CompanyDesk {
   id: string;
   name: string;
   idCentral: string | null;
+  /** Confirmado pela resposta real do Desk; não validamos nem usamos os campos abaixo
+   * além de id/name/idCentral, para não quebrar se o formato ganhar novos campos. */
+  trainingStages?: TrainingStagesEmbutido;
 }
 
 const BASE_URL = 'https://ssxdesk.ssatx.com.br/api/integrations/v1';
@@ -38,45 +49,47 @@ async function tratarResposta<T>(response: Response, contexto: string): Promise<
   return corpo as T;
 }
 
+/** Só valida os campos que o serviço realmente usa (id/name/idCentral) — a resposta real
+ * traz bem mais campos (industry, phone, isInTraining, trainingStages, evaluation...)
+ * que não nos interessam e não devem quebrar a validação se mudarem. */
 function validarCompany(value: unknown): value is CompanyDesk {
   const c = value as CompanyDesk | null;
   return !!c && typeof c.id === 'string' && !!c.id && typeof c.name === 'string'
-    && (c.idCentral === null || typeof c.idCentral === 'string');
+    && (c.idCentral === null || c.idCentral === undefined || typeof c.idCentral === 'string');
 }
 
 /**
- * Todas as empresas cadastradas no Desk, paginado como `listarConversas`. Usada só para
- * resolver `companyId` a partir do `idCentral` do Radar — cacheie o resultado (ver
- * TrainingStagesSyncService) em vez de chamar a cada ciclo.
+ * Todas as empresas cadastradas no Desk. Usada só para resolver `companyId` a partir do
+ * `idCentral` do Radar — cacheie o resultado (ver TrainingStagesSyncService) em vez de
+ * chamar a cada ciclo.
+ *
+ * A resposta real confirmada traz `{ data: [...], meta: { total } }`, sem `hasMore`
+ * nem `offset` — diferente da paginação de `training-conversations`. Por ora, uma única
+ * chamada sem parâmetros de página: se `data.length` vier menor que `meta.total`, a lista
+ * está incompleta e não há como pedir o restante com o contrato atualmente confirmado —
+ * erra de forma explícita em vez de seguir com uma lista parcial (ver limitação em
+ * server/SSX_DESK_TRAINING_STAGES.md).
  */
 export async function listarEmpresasDesk(
   apiKey: string, fetchApi: typeof fetch = fetch,
-  esperar: (ms: number) => Promise<void> = ms => new Promise(resolve => setTimeout(resolve, ms)),
 ): Promise<CompanyDesk[]> {
-  const empresas = new Map<string, CompanyDesk>();
-  let offset = 0;
-  for (let pagina = 0; pagina < 1000; pagina++) {
-    const url = new URL(`${BASE_URL}/companies`);
-    url.searchParams.set('limit', '500');
-    url.searchParams.set('offset', String(offset));
-    const response = await fetchApi(url, {
-      headers: cabecalhos(apiKey),
-      signal: AbortSignal.timeout(30_000), redirect: 'error',
-    });
-    if (!response.ok) throw new Error(`SSX Desk (listar empresas) respondeu HTTP ${response.status}. Confira a chave, o escopo e o limite de consultas.`);
-    const body = await response.json() as { data: unknown[]; meta: { hasMore: boolean; offset: number; total: number } };
-    if (!body || !Array.isArray(body.data) || !body.data.every(validarCompany)
-      || !body.meta || typeof body.meta.hasMore !== 'boolean' || body.meta.offset !== offset
-      || !Number.isInteger(body.meta.total) || body.meta.total < 0) {
-      throw new Error('Resposta do SSX Desk (listar empresas) fora do formato esperado.');
-    }
-    for (const c of body.data as CompanyDesk[]) empresas.set(c.id, c);
-    if (!body.meta.hasMore) return [...empresas.values()];
-    if (!body.data.length) throw new Error('Paginação do SSX Desk (listar empresas) não avançou.');
-    offset += body.data.length;
-    await esperar(600); // Até 100 páginas/minuto, abaixo das 120 req/min permitidas.
+  const response = await fetchApi(`${BASE_URL}/companies`, {
+    headers: cabecalhos(apiKey),
+    signal: AbortSignal.timeout(30_000), redirect: 'error',
+  });
+  if (!response.ok) throw new Error(`SSX Desk (listar empresas) respondeu HTTP ${response.status}. Confira a chave, o escopo e o limite de consultas.`);
+  const body = await response.json() as { data: unknown[]; meta: { total: number } };
+  if (!body || !Array.isArray(body.data) || !body.data.every(validarCompany)
+    || !body.meta || !Number.isInteger(body.meta.total) || body.meta.total < 0) {
+    throw new Error('Resposta do SSX Desk (listar empresas) fora do formato esperado.');
   }
-  throw new Error('Paginação do SSX Desk (listar empresas) excedeu o limite de segurança.');
+  if (body.data.length < body.meta.total) {
+    throw new Error(
+      `SSX Desk (listar empresas) retornou ${body.data.length} de ${body.meta.total} empresas — `
+      + 'a API não documentou paginação para /companies; confirme com o SSX Desk como pedir o restante.',
+    );
+  }
+  return body.data as CompanyDesk[];
 }
 
 export interface CriarEtapaTreinamentoDados {

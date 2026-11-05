@@ -88,11 +88,14 @@ mesmo padrão de `trainingConversations.listarConversas`.
   linhas manualmente pode fazer um id antigo apontar para a etapa errada do Desk. Mesmo
   trade-off já aceito para `blocoText`/`reagendamentosText`.
 - **Duplicidade de `idCentral` no Radar** não é verificada por este serviço (ver acima).
-- **A resposta do `GET /companies`** segue o mesmo formato paginado de
-  `training-conversations` (campos `data`/`meta.hasMore`/`meta.offset`/`meta.total`) por
-  inferência — **confirme contra a documentação real do SSX Desk antes de ligar em
-  produção**; o print original só mostrava o nome do endpoint no menu lateral, não o
-  corpo da resposta.
+- **Paginação de `GET /companies` não documentada**: a resposta real confirmada traz
+  `{ data: [...], meta: { total } }`, sem `hasMore` nem `offset` (diferente de
+  `training-conversations`). `listarEmpresasDesk` faz uma única chamada sem parâmetros de
+  página; se `data.length` vier menor que `meta.total`, a lista está incompleta e a
+  função erra de forma explícita em vez de seguir com um subconjunto de empresas — se
+  isso acontecer em produção, confirme com o SSX Desk como pedir as páginas seguintes
+  (parâmetro `page`? `limit`/`offset`, mas com `meta` diferente de `training-conversations`?)
+  antes de reativar.
 
 ## Arquivos envolvidos
 

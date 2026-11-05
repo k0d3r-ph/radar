@@ -3,6 +3,49 @@ import test from 'node:test';
 import {
   TrainingStagesSyncService, linhasEtapaTreinamento, resolverCompanyIdDesk,
 } from '../dist/infrastructure/ssxDesk/TrainingStagesSyncService.js';
+import { listarEmpresasDesk } from '../dist/infrastructure/ssxDesk/trainingStages.js';
+
+// Formato real confirmado de GET /companies (ver PLANO_BACKEND_PENDENTE.md): "data" +
+// "meta.total", sem "hasMore"/"offset" — diferente da paginação de training-conversations.
+const COMPANY_DESK_REAL = {
+  id: '56f9...', name: 'Empresa Matriz Ltda', industry: 'Tecnologia', phone: '1140040000',
+  isInTraining: true, idCentral: '1042',
+  trainingStages: {
+    hasStages: true,
+    items: [
+      { id: 'd4ai...', name: 'Treinamento inicial', status: 'Concluído', sortOrder: 0, notes: null,
+        createdAt: '2026-10-01T12:00:00.000Z', updatedAt: '2026-10-15T09:30:00.000Z' },
+    ],
+  },
+  evaluation: { count: 3, overallAverage: 4.2 },
+};
+
+test('listarEmpresasDesk: aceita o formato real (data + meta.total, sem hasMore), ignorando campos extras', async () => {
+  const resultado = await listarEmpresasDesk('chave-de-teste', async (url, options) => {
+    assert.equal(url.toString(), 'https://ssxdesk.ssatx.com.br/api/integrations/v1/companies');
+    assert.equal(options.headers.Authorization, 'Bearer chave-de-teste');
+    assert.equal(options.redirect, 'error');
+    return Response.json({ data: [COMPANY_DESK_REAL], meta: { total: 1 } });
+  });
+  assert.equal(resultado.length, 1);
+  assert.equal(resultado[0].id, '56f9...');
+  assert.equal(resultado[0].idCentral, '1042');
+});
+
+test('listarEmpresasDesk: erra de forma explícita quando a lista vem incompleta (sem contrato de paginação confirmado)', async () => {
+  await assert.rejects(
+    listarEmpresasDesk('chave', async () => Response.json({ data: [COMPANY_DESK_REAL], meta: { total: 5 } })),
+    /1 de 5/,
+  );
+});
+
+test('listarEmpresasDesk: falhas HTTP e respostas inválidas são rejeitadas sem expor a chave', async () => {
+  for (const status of [401, 403, 429, 500]) {
+    await assert.rejects(listarEmpresasDesk('segredo', async () => new Response('segredo', { status })),
+      error => error.message.includes(String(status)) && !error.message.includes('segredo'));
+  }
+  await assert.rejects(listarEmpresasDesk('segredo', async () => Response.json({ data: [{}], meta: { total: 1 } })), /formato/);
+});
 
 test('linhasEtapaTreinamento: status por fase a partir de currentPhase', () => {
   const linhas = linhasEtapaTreinamento({

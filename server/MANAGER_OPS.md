@@ -1,5 +1,11 @@
 # Integração com a Manager Ops (Daily)
 
+> **Desativada em produção (2026-11-05).** A chamada que inicia o serviço foi removida de
+> `server/src/infrastructure/web/index.ts` depois de causar leituras excessivas no Firestore
+> (ver histórico de commits) e instabilidade na VM. O código e os testes continuam no
+> repositório; reative chamando `iniciarSincronizacaoManagerOps` de novo só depois de
+> investigar a fundo a causa da instabilidade.
+
 Sincroniza as **tarefas do Radar** (`checklist_tarefas`, o painel flutuante "Minhas
 tarefas") com os **combinados** registrados na daily (Manager Ops), nos dois sentidos:
 

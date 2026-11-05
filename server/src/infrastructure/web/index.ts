@@ -8,17 +8,15 @@ import { GetConnectionStatus } from '../../application/use-cases/GetConnectionSt
 import { DisconnectClient } from '../../application/use-cases/DisconnectClient.js';
 import { SendMediaMessage } from '../../application/use-cases/SendMediaMessage.js';
 import { config } from '../config/env.js';
-import { adminDb } from '../firebase/firebaseAdmin.js';
-import { iniciarSincronizacaoManagerOps } from '../managerOps/ManagerOpsSyncService.js';
 
 /**
  * Processo do bot do WhatsApp. CSAT, ocorrências, sincronização, IA e
  * Centrais rodam separados em apiIndex.ts — ver comentário lá.
  *
- * A sincronização com a Manager Ops (Daily — ver server/MANAGER_OPS.md) roda aqui mesmo,
- * não em apiIndex.ts: é só HTTP + Firestore, leve o bastante para não competir com o
- * Chromium do whatsapp-web.js, e assim fica num processo que não reinicia a cada deploy
- * da API, preservando o cursor de sincronização com mais estabilidade.
+ * A sincronização com a Manager Ops (Daily — ver server/MANAGER_OPS.md) está desativada:
+ * mesmo com a correção do cursor (ver ManagerOpsSyncService.ts), ficou instável e
+ * consumindo leituras demais do Firestore. Reative chamando iniciarSincronizacaoManagerOps
+ * aqui de novo só depois de investigar a fundo.
  */
 async function bootstrap() {
   console.log('Iniciando Radar WhatsApp Server...');
@@ -61,9 +59,6 @@ async function bootstrap() {
   } catch (error) {
     console.error('Falha na auto-inicialização inicial do WhatsApp:', error);
   }
-
-  // 8. Sincronização de tarefas com a Manager Ops (Daily)
-  iniciarSincronizacaoManagerOps(adminDb, config.managerOpsApiKey, config.managerOpsSyncIntervalMs);
 }
 
 process.on('unhandledRejection', (reason, promise) => {

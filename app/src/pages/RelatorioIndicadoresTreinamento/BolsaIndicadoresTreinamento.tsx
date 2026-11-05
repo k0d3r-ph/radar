@@ -38,14 +38,22 @@ interface ConfigBolsa {
   /** Só definido quando existe um alvo oficial do negócio (ex.: CSAT ≥ 4,8). Sem isso, o
    * card mostra "maior/menor é melhor" e a pílula segue a tendência, não uma meta fixa. */
   meta?: number;
+  /** Granularidade do valor em destaque no card. Padrão: "dia" (valor de hoje). */
+  granularidadePrincipal?: Granularidade;
+  /** Quais comparações (dia/semana/mês) aparecem embaixo do card. Padrão: as três. */
+  granularidadesComparacao?: Granularidade[];
 }
 
 const INDICADORES_BOLSA: ConfigBolsa[] = [
   {
     chave: "golNoPrazo",
     titulo: "Gol no Prazo",
-    descricao: "Clientes que bateram a meta combinada (Gol) dentro dos 30 dias de prazo.",
+    descricao: "Percentual de clientes que bateram a meta combinada (Gol) dentro do prazo, no mês.",
     menorEhMelhor: false,
+    // Só compara mês inteiro (até agora) contra o mês anterior — dia/semana isolados não
+    // fazem sentido pra essa taxa, que é acumulada ao longo do mês inteiro.
+    granularidadePrincipal: "mes",
+    granularidadesComparacao: ["mes"],
   },
   {
     chave: "clientesSuspensos",
@@ -356,11 +364,17 @@ function CardIndicador({
   series: Record<Granularidade, Ponto[]>;
   snapshotsSuspensos?: Record<Granularidade, ComparacaoSnapshot>;
 }) {
-  const ultimo = snapshotsSuspensos?.dia.atual ?? series.dia[series.dia.length - 1]?.valor ?? null;
-  const comparacoes = ORDEM_GRANULARIDADES.map((g) =>
+  const granularidadePrincipal = config.granularidadePrincipal ?? "dia";
+  const granularidadesComparacao = config.granularidadesComparacao ?? ORDEM_GRANULARIDADES;
+  const ultimo =
+    snapshotsSuspensos?.[granularidadePrincipal].atual ??
+    series[granularidadePrincipal][series[granularidadePrincipal].length - 1]?.valor ??
+    null;
+  const comparacoes = granularidadesComparacao.map((g) =>
     construirComparacao(config, g, series[g], ultimo, snapshotsSuspensos?.[g]),
   );
-  const comparacaoDia = comparacoes[0];
+  // Primeira comparação da lista configurada (normalmente "dia"; só "mês" para o Gol no Prazo).
+  const comparacaoPrincipal = comparacoes[0];
 
   // Com meta oficial do negócio: a pílula reflete se o valor atual bate a meta. Sem
   // meta: segue a tendência diária (hoje vs. ontem) — o mesmo número em destaque,
@@ -380,15 +394,15 @@ function CardIndicador({
       corPrincipal = atingiuMeta ? COR_FAVORAVEL : COR_DESFAVORAVEL;
     }
   } else {
-    const favoravelDia =
-      comparacaoDia.arrow === "■"
+    const favoravel =
+      comparacaoPrincipal.arrow === "■"
         ? null
-        : comparacaoDia.arrow === "▲"
+        : comparacaoPrincipal.arrow === "▲"
           ? !config.menorEhMelhor
           : config.menorEhMelhor;
-    statusTexto = favoravelDia === null ? "Estável" : favoravelDia ? "Favorável" : "Desfavorável";
-    statusClasse = favoravelDia === null ? "neutro" : favoravelDia ? "ok" : "bad";
-    corPrincipal = corPorFavorabilidade(favoravelDia);
+    statusTexto = favoravel === null ? "Estável" : favoravel ? "Favorável" : "Desfavorável";
+    statusClasse = favoravel === null ? "neutro" : favoravel ? "ok" : "bad";
+    corPrincipal = corPorFavorabilidade(favoravel);
   }
 
   const valorSplit = dividirValorBolsa(config.chave, ultimo);
@@ -564,17 +578,19 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
   const ticker = useMemo(
     () =>
       INDICADORES_BOLSA.map((config) => {
-        const serieDia = seriesPorIndicador[config.chave].dia;
-        const snapshotSuspensos = config.chave === "clientesSuspensos" ? snapshotsSuspensos.dia : undefined;
-        const valorHoje = snapshotSuspensos?.atual ?? serieDia[serieDia.length - 1]?.valor ?? null;
-        const comparacao = construirComparacao(config, "dia", serieDia, valorHoje, snapshotSuspensos);
+        const granularidadePrincipal = config.granularidadePrincipal ?? "dia";
+        const serie = seriesPorIndicador[config.chave][granularidadePrincipal];
+        const snapshot = config.chave === "clientesSuspensos" ? snapshotsSuspensos[granularidadePrincipal] : undefined;
+        const valor = snapshot?.atual ?? serie[serie.length - 1]?.valor ?? null;
+        const comparacao = construirComparacao(config, granularidadePrincipal, serie, valor, snapshot);
         return {
           chave: config.chave,
           titulo: config.titulo,
-          valor: formatarValorBolsa(config.chave, valorHoje),
+          valor: formatarValorBolsa(config.chave, valor),
           arrow: comparacao.arrow,
           deltaStr: comparacao.deltaStr,
           cor: comparacao.cor,
+          rotulo: comparacao.label,
         };
       }),
     [seriesPorIndicador, snapshotsSuspensos],
@@ -651,7 +667,7 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
               <span className="bolsa-ticker-delta" style={{ color: item.cor }}>
                 {item.arrow} {item.deltaStr}
               </span>
-              <span className="bolsa-ticker-rotulo">vs. dia anterior</span>
+              <span className="bolsa-ticker-rotulo">{item.rotulo}</span>
             </span>
           ))}
         </div>

@@ -5,3 +5,4 @@ dist/
 .env
 .private-backups/
 serviceAccountKey.json
+tsconfig.tsbuildinfo

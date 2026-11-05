@@ -12,6 +12,8 @@ import {
 import type { Empresa, Ocorrencia, LancamentoPonto } from "../../types";
 import "./RelatorioIndicadoresTreinamento.css";
 
+const INTERVALO_ATUALIZACAO_MS = 20 * 60_000;
+
 export const RelatorioIndicadoresTreinamento: React.FC = () => {
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [ocorrencias, setOcorrencias] = useState<Ocorrencia[]>([]);
@@ -27,7 +29,7 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
     let falhaNotificada = false;
 
     const atualizar = async (inicial = false) => {
-      if (sincronizando || (!inicial && Date.now() - ultimaTentativa < 60_000)) return;
+      if (sincronizando || (!inicial && Date.now() - ultimaTentativa < INTERVALO_ATUALIZACAO_MS)) return;
       sincronizando = true;
       ultimaTentativa = Date.now();
 
@@ -87,7 +89,7 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
     };
 
     void atualizar(true);
-    const intervalo = window.setInterval(atualizarSeVisivel, 60_000);
+    const intervalo = window.setInterval(atualizarSeVisivel, INTERVALO_ATUALIZACAO_MS);
     window.addEventListener("focus", atualizarSeVisivel);
     document.addEventListener("visibilitychange", atualizarSeVisivel);
     return () => {

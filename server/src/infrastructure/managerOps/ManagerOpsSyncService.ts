@@ -116,27 +116,31 @@ export class ManagerOpsSyncService {
       }
 
       const desdeRadar = Math.max(0, estado.lastPushedAt - MARGEM_SEGURANCA_MS);
-      const tarefas = await this.carregarTarefasParaEmpurrar(desdeRadar);
-      let falhaAoEmpurrar = false;
+      const tarefas = await this.carregarTarefasParaEmpurrar(desdeRadar, estado.tarefasComFalhaDaily);
+      const falhasRestantes = new Set<string>();
       for (const tarefa of tarefas) {
         try {
           const resultado = await this.empurrarTarefa(tarefa, usuarios);
           stats.empurradas[resultado]++;
         } catch (erro) {
-          falhaAoEmpurrar = true;
+          falhasRestantes.add(tarefa.id);
           // Uma tarefa com problema (ex.: e-mail que a Daily não reconhece) não pode
-          // travar o envio das demais — ela é tentada de novo no próximo ciclo.
+          // travar o envio das demais — fica marcada em `tarefasComFalhaDaily` e é
+          // tentada de novo por id no próximo ciclo, sem travar o cursor (ver
+          // carregarTarefasParaEmpurrar).
           const mensagem = erro instanceof Error ? erro.message : 'erro desconhecido';
           console.error(`[Manager Ops] Falha ao empurrar a tarefa ${tarefa.id}:`, mensagem);
         }
       }
       await this.db.doc('integracoes/managerOps').set({
         lastSuccessAt: Date.now(),
-        lastError: falhaAoEmpurrar ? 'Uma ou mais tarefas não foram sincronizadas com a Manager Ops.' : null,
+        lastError: falhasRestantes.size ? `${falhasRestantes.size} tarefa(s) não foram sincronizadas com a Manager Ops.` : null,
         lastPulledUpdatedSince: new Date(inicioDoCiclo).toISOString(),
-        // Não avance o cursor do Radar enquanto houver falhas: a tarefa pode ter um
-        // updatedAt antigo demais para entrar na janela de leitura do próximo ciclo.
-        lastPushedAt: falhaAoEmpurrar ? estado.lastPushedAt : inicioDoCiclo,
+        // O cursor sempre avança agora: uma tarefa com falha permanente não pode mais
+        // travá-lo (isso fazia as duas consultas por tempo relerem quase a coleção
+        // inteira a cada ciclo). Falhas persistentes são retomadas por id, à parte.
+        lastPushedAt: inicioDoCiclo,
+        tarefasComFalhaDaily: [...falhasRestantes],
         ...stats,
       }, { merge: true });
       return stats;
@@ -145,12 +149,15 @@ export class ManagerOpsSyncService {
     }
   }
 
-  private async carregarEstado(): Promise<{ lastPulledUpdatedSince?: string; lastPushedAt: number }> {
+  private async carregarEstado(): Promise<{ lastPulledUpdatedSince?: string; lastPushedAt: number; tarefasComFalhaDaily: string[] }> {
     const doc = await this.db.doc('integracoes/managerOps').get();
     const dados = doc.data() || {};
     return {
       lastPulledUpdatedSince: typeof dados.lastPulledUpdatedSince === 'string' ? dados.lastPulledUpdatedSince : undefined,
       lastPushedAt: typeof dados.lastPushedAt === 'number' ? dados.lastPushedAt : 0,
+      tarefasComFalhaDaily: Array.isArray(dados.tarefasComFalhaDaily)
+        ? dados.tarefasComFalhaDaily.filter((id: unknown): id is string => typeof id === 'string')
+        : [],
     };
   }
 
@@ -232,17 +239,25 @@ export class ManagerOpsSyncService {
     return 'criadas' as const;
   }
 
-  private async carregarTarefasParaEmpurrar(desde: number) {
+  private async carregarTarefasParaEmpurrar(desde: number, idsComFalhaConhecida: string[]) {
     // Duas consultas porque a criação de uma tarefa (ver app/src/services/checklist.ts)
     // não grava `updatedAt` — só a primeira edição grava. Sem a consulta por `createdAt`,
     // uma tarefa nova nunca editada jamais seria selecionada para o primeiro envio.
-    const [porCriacao, porAtualizacao] = await Promise.all([
+    const [porCriacao, porAtualizacao, porFalhaConhecida] = await Promise.all([
       this.db.collection(COLECAO).where('createdAt', '>', desde).get(),
       this.db.collection(COLECAO).where('updatedAt', '>', desde).get(),
+      // Tarefas com falha permanente (ex.: e-mail que a Daily não reconhece) ficam fora da
+      // janela de tempo do cursor — buscadas por id, não pela consulta — senão uma falha
+      // que nunca se resolve travaria o cursor pra sempre e faria as duas consultas acima
+      // relerem quase a coleção inteira a cada ciclo (era o que estava acontecendo).
+      Promise.all(idsComFalhaConhecida.map(id => this.db.collection(COLECAO).doc(id).get())),
     ]);
     const porId = new Map<string, TarefaRadar>();
     for (const d of [...porCriacao.docs, ...porAtualizacao.docs]) {
       porId.set(d.id, { id: d.id, ...(d.data() as Omit<TarefaRadar, 'id'>) });
+    }
+    for (const d of porFalhaConhecida) {
+      if (d.exists) porId.set(d.id, { id: d.id, ...(d.data() as Omit<TarefaRadar, 'id'>) });
     }
     return [...porId.values()].filter(t =>
       !t.automatica &&

@@ -67,8 +67,8 @@ function database(usuariosIniciais = []) {
       get: async () => snap(id, dadosColecao(nomeColecao).get(id)),
       set: async (valor, opcoes) => {
         assert.ok(Object.values(valor).every(dado => dado !== undefined), 'Firestore não aceita campos undefined');
-        const atual = opcoes?.merge ? (singles.get(id) || {}) : {};
-        singles.set(id, { ...atual, ...valor });
+        const atual = opcoes?.merge ? (dadosColecao(nomeColecao).get(id) || {}) : {};
+        dadosColecao(nomeColecao).set(id, { ...atual, ...valor });
       },
       update: async valor => {
         assert.ok(Object.values(valor).every(dado => dado !== undefined), 'Firestore não aceita campos undefined');
@@ -338,4 +338,29 @@ test('empurrar: tarefa com falha temporária continua elegível para nova tentat
   await service.sincronizar();
   assert.equal(tentativas, 2);
   assert.equal(db._tarefas().get('tarefa-antiga').idTarefaDaily, 'combinado-recuperado');
+});
+
+test('empurrar: falha permanente não trava o cursor (senão as consultas por tempo relêem quase a coleção inteira a cada ciclo)', async () => {
+  const db = database([usuaria]);
+  db._tarefas().set('tarefa-ruim', {
+    treinadorId: 'uid-clarice', treinadorNome: 'Clarice', descricao: 'Nunca vai funcionar',
+    concluida: false, criadoPorId: 'uid-clarice', criadoPorNome: 'Clarice', createdAt: 1000,
+  });
+  const c = cliente({ criarCombinado: async () => { throw new Error('422 pessoa não encontrada'); } });
+  const service = new ManagerOpsSyncService(db, 'chave', c.fns);
+
+  await service.sincronizar();
+  const estado1 = (await db.doc('integracoes/managerOps').get()).data();
+  assert.ok(estado1.lastPushedAt > 0, 'o cursor deve avançar mesmo com uma tarefa falhando');
+  assert.deepEqual(estado1.tarefasComFalhaDaily, ['tarefa-ruim']);
+
+  // Criada depois que o cursor já avançou: só ela deveria cair na janela de tempo do ciclo seguinte.
+  db._tarefas().set('tarefa-nova', {
+    treinadorId: 'uid-clarice', treinadorNome: 'Clarice', descricao: 'Tarefa nova',
+    concluida: false, criadoPorId: 'uid-clarice', criadoPorNome: 'Clarice', createdAt: Date.now() + 10_000,
+  });
+  await service.sincronizar();
+  const estado2 = (await db.doc('integracoes/managerOps').get()).data();
+  // A tarefa antiga continua sendo tentada por id, mesmo fora da janela de tempo do cursor.
+  assert.deepEqual(estado2.tarefasComFalhaDaily.sort(), ['tarefa-nova', 'tarefa-ruim']);
 });

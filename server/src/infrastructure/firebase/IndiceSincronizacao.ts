@@ -1,6 +1,6 @@
 import type { Firestore } from 'firebase-admin/firestore';
 
-export const COLECOES_SINCRONIZADAS = ['ocorrencias', 'empresas', 'gamificacao_pontos', 'checklist_tarefas'] as const;
+export const COLECOES_SINCRONIZADAS = ['ocorrencias', 'empresas', 'gamificacao_pontos', 'checklist_tarefas', 'validacao_tentativas'] as const;
 export type ColecaoSincronizada = typeof COLECOES_SINCRONIZADAS[number];
 type DocumentoIndice = { id: string; versao: string };
 type EstadoIndice = {

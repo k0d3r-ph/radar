@@ -3705,6 +3705,9 @@ body.light-theme .bolsa-card-unidade {
 body.light-theme .bolsa-card-meta-label {
     color: #51759c
 }
+body.light-theme .bolsa-card-fracao-label {
+    color: #5b7491
+}
 body.light-theme .bolsa-card-comparacao {
     border-top: 1px solid #a8c4e6
 }

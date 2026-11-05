@@ -2,13 +2,13 @@
 
 As [tarefas automáticas](VALIDACAO_CONHECIMENTO.md) compartilham o mesmo índice/listeners da API. O índice mantém os dados em memória para o processamento interno, mas as rotas públicas autenticadas continuam retornando somente IDs e versões.
 
-As listas de ocorrências, empresas, pontos e tarefas do checklist usam `GET /api/sincronizacao/:colecao` no backend existente do Radar. A rota exige token Firebase válido, usuário cadastrado com perfil do Radar e senha já definida. Retorna somente IDs e versões; os documentos continuam sendo consultados diretamente pelo navegador, com as regras atuais do Firestore. O cadastro do usuário usado nessa validação fica em memória por 60 segundos, então uma revogação de acesso pode levar até esse prazo para valer.
+As listas de ocorrências, empresas, pontos, tarefas do checklist e tentativas de validação do conhecimento usam `GET /api/sincronizacao/:colecao` no backend existente do Radar. A rota exige token Firebase válido, usuário cadastrado com perfil do Radar e senha já definida. Retorna somente IDs e versões; os documentos continuam sendo consultados diretamente pelo navegador, com as regras atuais do Firestore. O cadastro do usuário usado nessa validação fica em memória por 60 segundos, então uma revogação de acesso pode levar até esse prazo para valer.
 
 O sincronizador do SSX Desk relê a coleção `usuarios` no máximo uma vez por hora, não a cada ciclo de 5 minutos.
 
 Publique o backend antes do frontend: a lista do checklist passa a chamar a rota com `checklist_tarefas`, que o backend antigo recusa com 400.
 
-O índice de pontos é restrito aos perfis master e treinador, os mesmos que acessam a gamificação no Radar.
+O índice de pontos é restrito aos perfis master e treinador, os mesmos que acessam a gamificação no Radar. O índice de tentativas de validação do conhecimento (`validacao_tentativas`) segue a mesma restrição: só master e treinador, igual ao `ValidacaoConhecimentoController` — as tentativas trazem as perguntas e respostas de cada cliente, não só um indicador agregado.
 
 O backend mantém um listener compartilhado por coleção e processo, criado na primeira solicitação autorizada. O listener faz uma leitura inicial da coleção e acompanha mudanças. Consultar o índice reutiliza a memória do processo; cada solicitação ainda lê o cadastro do usuário para validar acesso. Reinícios, reconexões e múltiplas instâncias podem causar novas leituras iniciais.
 

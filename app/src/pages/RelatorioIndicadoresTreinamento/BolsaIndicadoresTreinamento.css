@@ -338,6 +338,14 @@
   color: #a3b8cf;
 }
 
+/* Número absoluto por trás do percentual (ex.: "12/15" aprovados na Validação do
+   Conhecimento) — mais discreto que a meta, só um complemento de leitura. */
+.bolsa-card-fracao-label {
+  font-size: 1.6em;
+  font-weight: 500;
+  color: #7c93ad;
+}
+
 /* Comparações: uma linha por período (dia/semana/mês anterior), com texto à esquerda,
    mini-gráfico no meio e variação colorida à direita — tudo numa única linha, como no
    painel de referência. */

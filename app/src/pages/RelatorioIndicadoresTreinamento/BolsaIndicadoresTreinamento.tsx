@@ -10,7 +10,12 @@ import {
   type PeriodoIndicador,
 } from "../../utils/indicadoresTreinamento";
 import { calcularGolNoPrazo } from "../../utils/golTreinamento";
+import {
+  calcularValidacaoPorCliente,
+  type ResultadoValidacaoCliente,
+} from "../../utils/validacaoConhecimentoIndicadores";
 import type { Empresa, Ocorrencia } from "../../types";
+import type { TentativaValidacao } from "../../../../server/src/domain/validacaoConhecimento";
 import "./BolsaIndicadoresTreinamento.css";
 
 type Granularidade = "dia" | "semana" | "mes";
@@ -25,7 +30,7 @@ const ROTULO_COMPARACAO: Record<Granularidade, string> = {
 type ChaveBolsa =
   | "golNoPrazo"
   | "clientesSuspensos"
-  | "treinamentosRealizados"
+  | "validacaoConhecimento"
   | "contatosSuporteTreinamento"
   | "csatTreinamento";
 
@@ -64,11 +69,14 @@ const INDICADORES_BOLSA: ConfigBolsa[] = [
     meta: 0,
   },
   {
-    chave: "treinamentosRealizados",
-    titulo: "Treinamentos",
-    descricao: "Sessões de treinamento concluídas com os clientes no período.",
+    chave: "validacaoConhecimento",
+    titulo: "Validação do Conhecimento",
+    descricao:
+      "Percentual de clientes aprovados na validação do conhecimento no mês, considerando só a tentativa mais recente de cada um.",
     menorEhMelhor: false,
-    meta: 6,
+    meta: 80,
+    granularidadePrincipal: "mes",
+    granularidadesComparacao: ["mes"],
   },
   {
     chave: "contatosSuporteTreinamento",
@@ -107,11 +115,24 @@ function gerarUltimosMeses(quantidade: number): PeriodoIndicador[] {
   return periodos;
 }
 
+/** Linhas de {@link calcularValidacaoPorCliente} dentro de um período, usada tanto para o
+ * percentual quanto para a fração "aprovados/total" mostrada embaixo do card. */
+function filtrarValidacaoNoPeriodo(
+  validacaoPorCliente: ResultadoValidacaoCliente[],
+  inicio: Date,
+  fim: Date,
+): ResultadoValidacaoCliente[] {
+  return validacaoPorCliente.filter(
+    (r) => r.concluidaEm >= inicio.getTime() && r.concluidaEm <= fim.getTime(),
+  );
+}
+
 function calcularValorIndicadorBolsa(
   chave: ChaveBolsa,
   eventos: EventosIndicadoresTreinamento,
   empresas: Empresa[],
   ocorrencias: Ocorrencia[],
+  validacaoPorCliente: ResultadoValidacaoCliente[],
   inicio: Date,
   fim: Date,
   treinador: string | null,
@@ -125,11 +146,16 @@ function calcularValorIndicadorBolsa(
     if (resultados.length === 0) return null;
     return (resultados.filter((r) => r.noPrazo).length / resultados.length) * 100;
   }
+  if (chave === "validacaoConhecimento") {
+    const resultados = filtrarValidacaoNoPeriodo(validacaoPorCliente, inicio, fim);
+    if (resultados.length === 0) return null;
+    return (resultados.filter((r) => r.aprovada).length / resultados.length) * 100;
+  }
   return calcularValorKpiTreinamento(chave, eventos, inicio, fim, treinador);
 }
 
 function formatarValorBolsa(chave: ChaveBolsa, valor: number | null): string {
-  if (chave === "golNoPrazo") {
+  if (chave === "golNoPrazo" || chave === "validacaoConhecimento") {
     return valor === null ? "—" : `${Math.round(valor)}%`;
   }
   return formatarValorKpiTreinamento(chave, valor);
@@ -139,7 +165,8 @@ function formatarValorBolsa(chave: ChaveBolsa, valor: number | null): string {
  * ficar maior que a unidade ao lado — igual ao painel de referência. */
 function dividirValorBolsa(chave: ChaveBolsa, valor: number | null): { main: string; unit: string } {
   if (valor === null) return { main: "—", unit: "" };
-  if (chave === "golNoPrazo") return { main: `${Math.round(valor)}`, unit: "%" };
+  if (chave === "golNoPrazo" || chave === "validacaoConhecimento")
+    return { main: `${Math.round(valor)}`, unit: "%" };
   const formato = KPI_POR_CHAVE[chave].formato;
   if (formato === "percentual") return { main: valor.toFixed(1).replace(".", ","), unit: "%" };
   if (formato === "nota") return { main: valor.toFixed(1).replace(".", ","), unit: "/ 5" };
@@ -158,7 +185,6 @@ interface Ponto {
  * então essas comparações usam a média diária do período anterior. Gol no Prazo e CSAT já
  * são taxas/notas — comparáveis entre períodos de tamanhos diferentes sem esse ajuste. */
 const CHAVES_CONTAGEM_BOLSA = new Set<ChaveBolsa>([
-  "treinamentosRealizados",
   "contatosSuporteTreinamento",
 ]);
 
@@ -361,10 +387,14 @@ function CardIndicador({
   config,
   series,
   snapshotsSuspensos,
+  fracaoExtra,
 }: {
   config: ConfigBolsa;
   series: Record<Granularidade, Ponto[]>;
   snapshotsSuspensos?: Record<Granularidade, ComparacaoSnapshot>;
+  /** Número absoluto por trás do percentual (ex.: aprovados/total), mostrado junto da
+   * meta — hoje só a Validação do Conhecimento usa isso. */
+  fracaoExtra?: { parte: number; total: number } | null;
 }) {
   const granularidadePrincipal = config.granularidadePrincipal ?? "dia";
   const granularidadesComparacao = config.granularidadesComparacao ?? ORDEM_GRANULARIDADES;
@@ -432,6 +462,11 @@ function CardIndicador({
           {valorSplit.unit && <span className="bolsa-card-unidade">{valorSplit.unit}</span>}
         </div>
         <span className="bolsa-card-meta-label">{metaLabel}</span>
+        {fracaoExtra && fracaoExtra.total > 0 && (
+          <span className="bolsa-card-fracao-label">
+            {fracaoExtra.parte}/{fracaoExtra.total}
+          </span>
+        )}
       </div>
 
       <div className="bolsa-card-comparacoes">
@@ -459,6 +494,9 @@ interface Props {
   eventos: EventosIndicadoresTreinamento;
   empresas: Empresa[];
   ocorrencias: Ocorrencia[];
+  /** Vazio para quem não é master/treinador (ver server/SINCRONIZACAO.md) — o card de
+   * Validação do Conhecimento fica "sem dados" nesse caso, sem travar o resto do painel. */
+  tentativasValidacao: TentativaValidacao[];
   treinador: string | null;
   atualizadoEm: number;
   /** Tela dedicada de TV/monitor (/indicadores-treinamento-tv): sempre preenche a
@@ -477,10 +515,15 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
   eventos,
   empresas,
   ocorrencias,
+  tentativasValidacao,
   treinador,
   atualizadoEm,
   modoTv = false,
 }) => {
+  const validacaoPorCliente = useMemo(
+    () => calcularValidacaoPorCliente(tentativasValidacao),
+    [tentativasValidacao],
+  );
   const [agora, setAgora] = useState(() => new Date());
   const [modoFoco, setModoFoco] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -552,6 +595,7 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
             eventos,
             empresas,
             ocorrencias,
+            validacaoPorCliente,
             p.inicio,
             p.fim,
             treinador,
@@ -562,7 +606,17 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
       });
     });
     return resultado;
-  }, [eventos, empresas, ocorrencias, treinador, periodosPorGranularidade]);
+  }, [eventos, empresas, ocorrencias, validacaoPorCliente, treinador, periodosPorGranularidade]);
+
+  // Fração "aprovados/total" do mês corrente, mostrada embaixo do percentual do card de
+  // Validação do Conhecimento — mesma amostra usada por calcularValorIndicadorBolsa para
+  // essa chave, só que sem converter para percentual.
+  const fracaoValidacaoConhecimentoMes = useMemo(() => {
+    const fim = new Date(minutoAtual * 60000);
+    const inicio = new Date(fim.getFullYear(), fim.getMonth(), 1);
+    const resultados = filtrarValidacaoNoPeriodo(validacaoPorCliente, inicio, fim);
+    return { parte: resultados.filter((r) => r.aprovada).length, total: resultados.length };
+  }, [validacaoPorCliente, minutoAtual]);
 
   const snapshotsSuspensos = useMemo(() => {
     const referencias = gerarReferenciasSnapshotSuspensos(new Date(minutoAtual * 60000 + 59_999));
@@ -656,6 +710,7 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
             config={config}
             series={seriesPorIndicador[config.chave]}
             snapshotsSuspensos={config.chave === "clientesSuspensos" ? snapshotsSuspensos : undefined}
+            fracaoExtra={config.chave === "validacaoConhecimento" ? fracaoValidacaoConhecimentoMes : undefined}
           />
         ))}
       </div>

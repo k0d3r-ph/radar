@@ -84,6 +84,7 @@ test('API bloqueia tokens inválidos, usuários não cadastrados e coleções pr
     [database({ role: 'treinador', needsPasswordChange: true }), auth, req('ocorrencias'), 403],
     [database({ role: 'desconhecido' }), auth, req('empresas'), 403],
     [database({ role: 'cs' }), auth, req('gamificacao_pontos'), 403],
+    [database({ role: 'cs' }), auth, req('validacao_tentativas'), 403],
     [database(), auth, { params: { colecao: 'ocorrencias' }, headers: {} }, 401],
   ]) {
     const res = response();
@@ -110,6 +111,7 @@ test('rota de documentos também bloqueia tokens inválidos, usuários não cada
     [database(undefined), auth, req('csatReservas'), 400],
     [database(null), auth, req('ocorrencias'), 403],
     [database({ role: 'cs' }), auth, req('gamificacao_pontos'), 403],
+    [database({ role: 'cs' }), auth, req('validacao_tentativas'), 403],
   ]) {
     const res = response();
     await new SincronizacaoController(db, tokenAuth, usuariosRepoFrom(db)).documentos(request, res);
@@ -136,4 +138,21 @@ test('rota de documentos serve o conteúdo já em memória, filtra por IDs e val
   const resInvalida = response();
   await controller.documentos(req('ocorrencias', { ids: 'a' }), resInvalida);
   assert.equal(resInvalida.code, 400);
+});
+
+test('validacao_tentativas: liberada para master/treinador, bloqueada para os demais perfis', async () => {
+  const db = database({ role: 'master' }), controller = new SincronizacaoController(db, auth, usuariosRepoFrom(db));
+  const res = response();
+  const chamada = controller.documentos(req('validacao_tentativas', {}), res);
+  await new Promise(resolve => setImmediate(resolve));
+  db.emitir('validacao_tentativas', [{ id: 't1', dados: { empresaId: 'e1', aprovada: true } }]);
+  await chamada;
+  assert.equal(res.code, 200);
+  assert.deepEqual(res.body, { documentos: [{ id: 't1', empresaId: 'e1', aprovada: true }] });
+
+  const dbSuporte = database({ role: 'suporte' });
+  const resBloqueada = response();
+  await new SincronizacaoController(dbSuporte, auth, usuariosRepoFrom(dbSuporte)).documentos(req('validacao_tentativas', {}), resBloqueada);
+  assert.equal(resBloqueada.code, 403);
+  assert.equal(dbSuporte.inscricoes(), 0);
 });

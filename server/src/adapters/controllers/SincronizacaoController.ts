@@ -45,6 +45,11 @@ export class SincronizacaoController {
     if (colecao === 'gamificacao_pontos' && !['master', 'treinador'].includes(usuario.role)) {
       res.status(403).json({ error: 'Usuário sem acesso à gamificação.' }); return null;
     }
+    // Mesma restrição do ValidacaoConhecimentoController: as tentativas trazem as perguntas e
+    // respostas de cada cliente, não só um indicador agregado.
+    if (colecao === 'validacao_tentativas' && !['master', 'treinador'].includes(usuario.role)) {
+      res.status(403).json({ error: 'Usuário sem acesso à validação do conhecimento.' }); return null;
+    }
     return uid;
   }
 

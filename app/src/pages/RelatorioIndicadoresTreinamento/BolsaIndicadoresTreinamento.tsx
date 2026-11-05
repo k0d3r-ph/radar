@@ -10,7 +10,12 @@ import {
   type PeriodoIndicador,
 } from "../../utils/indicadoresTreinamento";
 import { calcularGolNoPrazo } from "../../utils/golTreinamento";
+import {
+  calcularValidacaoPorCliente,
+  type ResultadoValidacaoCliente,
+} from "../../utils/validacaoConhecimentoIndicadores";
 import type { Empresa, Ocorrencia } from "../../types";
+import type { TentativaValidacao } from "../../../../server/src/domain/validacaoConhecimento";
 import "./BolsaIndicadoresTreinamento.css";
 
 type Granularidade = "dia" | "semana" | "mes";
@@ -25,7 +30,7 @@ const ROTULO_COMPARACAO: Record<Granularidade, string> = {
 type ChaveBolsa =
   | "golNoPrazo"
   | "clientesSuspensos"
-  | "treinamentosRealizados"
+  | "validacaoConhecimento"
   | "contatosSuporteTreinamento"
   | "csatTreinamento";
 
@@ -48,8 +53,9 @@ const INDICADORES_BOLSA: ConfigBolsa[] = [
   {
     chave: "golNoPrazo",
     titulo: "Gol no Prazo",
-    descricao: "Percentual de clientes que bateram a meta combinada (Gol) dentro do prazo, no mês.",
+    descricao: "Clientes que alcançaram o seu objetivo em 30 dias.",
     menorEhMelhor: false,
+    meta: 100,
     // Só compara mês inteiro (até agora) contra o mês anterior — dia/semana isolados não
     // fazem sentido pra essa taxa, que é acumulada ao longo do mês inteiro.
     granularidadePrincipal: "mes",
@@ -58,20 +64,26 @@ const INDICADORES_BOLSA: ConfigBolsa[] = [
   {
     chave: "clientesSuspensos",
     titulo: "Suspensos",
-    descricao: "Clientes em treinamento que estavam suspensos ao fim de cada período.",
+    descricao:
+      "Clientes em treinamento que estavam suspensos ao fim de cada período.",
     menorEhMelhor: true,
+    meta: 0,
   },
   {
-    chave: "treinamentosRealizados",
-    titulo: "Treinamentos",
-    descricao: "Sessões de treinamento concluídas com os clientes no período.",
+    chave: "validacaoConhecimento",
+    titulo: "Validação do Conhecimento",
+    descricao:
+      "Percentual de clientes aprovados na validação do conhecimento no mês, considerando só a tentativa mais recente de cada um.",
     menorEhMelhor: false,
-    meta: 6,
+    meta: 80,
+    granularidadePrincipal: "mes",
+    granularidadesComparacao: ["mes"],
   },
   {
     chave: "contatosSuporteTreinamento",
     titulo: "Contatos Suporte",
-    descricao: "Dúvidas de Suporte do SSX Desk, recebidas dentro do expediente, de clientes em treinamento.",
+    descricao:
+      "Dúvidas de Suporte do SSX Desk, recebidas dentro do expediente, de clientes em treinamento.",
     menorEhMelhor: true,
     // Tolerância de 2: até 1 contato no dia fica dentro da meta; 2 ou mais, fora.
     meta: 1,
@@ -79,7 +91,8 @@ const INDICADORES_BOLSA: ConfigBolsa[] = [
   {
     chave: "csatTreinamento",
     titulo: "CSAT",
-    descricao: "Nota média (1 a 5) dada pelos clientes para o atendimento de treinamento.",
+    descricao:
+      "Nota média (1 a 5) dada pelos clientes para o atendimento de treinamento.",
     menorEhMelhor: false,
     meta: 4.8,
   },
@@ -91,7 +104,15 @@ function gerarUltimosMeses(quantidade: number): PeriodoIndicador[] {
   for (let i = quantidade - 1; i >= 0; i--) {
     const ref = new Date(agora.getFullYear(), agora.getMonth() - i, 1);
     const inicio = new Date(ref.getFullYear(), ref.getMonth(), 1);
-    const fimDoMes = new Date(ref.getFullYear(), ref.getMonth() + 1, 0, 23, 59, 59, 999);
+    const fimDoMes = new Date(
+      ref.getFullYear(),
+      ref.getMonth() + 1,
+      0,
+      23,
+      59,
+      59,
+      999,
+    );
     const fim = fimDoMes.getTime() > agora.getTime() ? agora : fimDoMes;
     periodos.push({
       inicio,
@@ -105,11 +126,24 @@ function gerarUltimosMeses(quantidade: number): PeriodoIndicador[] {
   return periodos;
 }
 
+/** Linhas de {@link calcularValidacaoPorCliente} dentro de um período, usada tanto para o
+ * percentual quanto para a fração "aprovados/total" mostrada embaixo do card. */
+function filtrarValidacaoNoPeriodo(
+  validacaoPorCliente: ResultadoValidacaoCliente[],
+  inicio: Date,
+  fim: Date,
+): ResultadoValidacaoCliente[] {
+  return validacaoPorCliente.filter(
+    (r) => r.concluidaEm >= inicio.getTime() && r.concluidaEm <= fim.getTime(),
+  );
+}
+
 function calcularValorIndicadorBolsa(
   chave: ChaveBolsa,
   eventos: EventosIndicadoresTreinamento,
   empresas: Empresa[],
   ocorrencias: Ocorrencia[],
+  validacaoPorCliente: ResultadoValidacaoCliente[],
   inicio: Date,
   fim: Date,
   treinador: string | null,
@@ -121,13 +155,20 @@ function calcularValorIndicadorBolsa(
         r.dataReferencia.getTime() <= fim.getTime(),
     );
     if (resultados.length === 0) return null;
-    return (resultados.filter((r) => r.noPrazo).length / resultados.length) * 100;
+    return (
+      (resultados.filter((r) => r.noPrazo).length / resultados.length) * 100
+    );
+  }
+  if (chave === "validacaoConhecimento") {
+    const resultados = filtrarValidacaoNoPeriodo(validacaoPorCliente, inicio, fim);
+    if (resultados.length === 0) return null;
+    return (resultados.filter((r) => r.aprovada).length / resultados.length) * 100;
   }
   return calcularValorKpiTreinamento(chave, eventos, inicio, fim, treinador);
 }
 
 function formatarValorBolsa(chave: ChaveBolsa, valor: number | null): string {
-  if (chave === "golNoPrazo") {
+  if (chave === "golNoPrazo" || chave === "validacaoConhecimento") {
     return valor === null ? "—" : `${Math.round(valor)}%`;
   }
   return formatarValorKpiTreinamento(chave, valor);
@@ -135,12 +176,18 @@ function formatarValorBolsa(chave: ChaveBolsa, valor: number | null): string {
 
 /** Separa o valor em número + unidade (ex.: "82,4" + "%"), para o número grande do card
  * ficar maior que a unidade ao lado — igual ao painel de referência. */
-function dividirValorBolsa(chave: ChaveBolsa, valor: number | null): { main: string; unit: string } {
+function dividirValorBolsa(
+  chave: ChaveBolsa,
+  valor: number | null,
+): { main: string; unit: string } {
   if (valor === null) return { main: "—", unit: "" };
-  if (chave === "golNoPrazo") return { main: `${Math.round(valor)}`, unit: "%" };
+  if (chave === "golNoPrazo" || chave === "validacaoConhecimento")
+    return { main: `${Math.round(valor)}`, unit: "%" };
   const formato = KPI_POR_CHAVE[chave].formato;
-  if (formato === "percentual") return { main: valor.toFixed(1).replace(".", ","), unit: "%" };
-  if (formato === "nota") return { main: valor.toFixed(1).replace(".", ","), unit: "/ 5" };
+  if (formato === "percentual")
+    return { main: valor.toFixed(1).replace(".", ","), unit: "%" };
+  if (formato === "nota")
+    return { main: valor.toFixed(1).replace(".", ","), unit: "/ 5" };
   return { main: `${Math.round(valor)}`, unit: "" };
 }
 
@@ -156,7 +203,6 @@ interface Ponto {
  * então essas comparações usam a média diária do período anterior. Gol no Prazo e CSAT já
  * são taxas/notas — comparáveis entre períodos de tamanhos diferentes sem esse ajuste. */
 const CHAVES_CONTAGEM_BOLSA = new Set<ChaveBolsa>([
-  "treinamentosRealizados",
   "contatosSuporteTreinamento",
 ]);
 
@@ -185,7 +231,12 @@ function caminhoSuave(coords: { x: number; y: number }[]): string {
   return d;
 }
 
-function construirCoordenadas(pontos: Ponto[], largura: number, altura: number, margem: number) {
+function construirCoordenadas(
+  pontos: Ponto[],
+  largura: number,
+  altura: number,
+  margem: number,
+) {
   const valores = pontos.map((p) => p.valor ?? 0);
   const min = Math.min(...valores, 0);
   const max = Math.max(...valores, 1);
@@ -231,7 +282,12 @@ function MiniSparkline({ pontos, cor }: { pontos: Ponto[]; cor: string }) {
         strokeLinecap="round"
       />
       {coords.length > 0 && (
-        <circle cx={coords[coords.length - 1].x} cy={coords[coords.length - 1].y} r="2.6" fill={cor} />
+        <circle
+          cx={coords[coords.length - 1].x}
+          cy={coords[coords.length - 1].y}
+          r="2.6"
+          fill={cor}
+        />
       )}
     </svg>
   );
@@ -242,15 +298,23 @@ function MiniSparkline({ pontos, cor }: { pontos: Ponto[]; cor: string }) {
  * valor naquela posição muda (geração incrementada) — dígitos que continuam iguais entre
  * duas atualizações ficam parados, igual num painel de aeroporto mecânico de verdade.
  */
-function FlipDigits({ texto, className }: { texto: string; className?: string }) {
+function FlipDigits({
+  texto,
+  className,
+}: {
+  texto: string;
+  className?: string;
+}) {
   const caracteres = texto.split("");
   const [prevTexto, setPrevTexto] = useState(texto);
-  const [geracoes, setGeracoes] = useState<number[]>(() => caracteres.map(() => 0));
+  const [geracoes, setGeracoes] = useState<number[]>(() =>
+    caracteres.map(() => 0),
+  );
 
   if (prevTexto !== texto) {
     const prevCaracteres = prevTexto.split("");
     const novasGeracoes = caracteres.map((c, i) =>
-      prevCaracteres[i] === c ? geracoes[i] ?? 0 : (geracoes[i] ?? 0) + 1,
+      prevCaracteres[i] === c ? (geracoes[i] ?? 0) : (geracoes[i] ?? 0) + 1,
     );
     setPrevTexto(texto);
     setGeracoes(novasGeracoes);
@@ -274,7 +338,11 @@ const COR_FAVORAVEL = "#22c55e";
 const COR_DESFAVORAVEL = "#ef4444";
 
 function corPorFavorabilidade(favoravel: boolean | null): string {
-  return favoravel === null ? COR_NEUTRA : favoravel ? COR_FAVORAVEL : COR_DESFAVORAVEL;
+  return favoravel === null
+    ? COR_NEUTRA
+    : favoravel
+      ? COR_FAVORAVEL
+      : COR_DESFAVORAVEL;
 }
 
 interface LinhaComparacao {
@@ -305,7 +373,10 @@ function construirComparacao(
   // completo (total ÷ dias do período) — não o total acumulado, que inflaria o "antes" e
   // faria o dia parecer sempre pior. Taxas/notas (Gol, CSAT) continuam comparando total do
   // período atual vs. total do período anterior, já que são comparáveis entre si.
-  const usarMediaDiaria = !snapshot && granularidade !== "dia" && CHAVES_CONTAGEM_BOLSA.has(config.chave);
+  const usarMediaDiaria =
+    !snapshot &&
+    granularidade !== "dia" &&
+    CHAVES_CONTAGEM_BOLSA.has(config.chave);
 
   let atual: number | null;
   let anterior: number | null;
@@ -315,7 +386,8 @@ function construirComparacao(
   if (snapshot) {
     atual = snapshot.atual;
     anterior = snapshot.anterior;
-    prevStr = anterior === null ? "—" : formatarValorBolsa(config.chave, anterior);
+    prevStr =
+      anterior === null ? "—" : formatarValorBolsa(config.chave, anterior);
     formatarDelta = (absoluto) => formatarValorBolsa(config.chave, absoluto);
   } else if (usarMediaDiaria) {
     const periodoAnterior = serie[serie.length - 2] ?? null;
@@ -330,22 +402,29 @@ function construirComparacao(
   } else {
     atual = serie[serie.length - 1]?.valor ?? null;
     anterior = serie[serie.length - 2]?.valor ?? null;
-    prevStr = anterior === null ? "—" : formatarValorBolsa(config.chave, anterior);
+    prevStr =
+      anterior === null ? "—" : formatarValorBolsa(config.chave, anterior);
     formatarDelta = (absoluto) => formatarValorBolsa(config.chave, absoluto);
   }
 
   const temComparacao = atual !== null && anterior !== null;
   const delta = temComparacao ? atual! - anterior! : null;
   const favoravel =
-    delta === null || delta === 0 ? null : config.menorEhMelhor ? delta < 0 : delta > 0;
+    delta === null || delta === 0
+      ? null
+      : config.menorEhMelhor
+        ? delta < 0
+        : delta > 0;
   const cor = corPorFavorabilidade(favoravel);
   return {
     granularidade,
-    label: snapshot?.label ?? (usarMediaDiaria
-      ? granularidade === "semana"
-        ? "vs. média da semana anterior"
-        : "vs. média do mês anterior"
-      : ROTULO_COMPARACAO[granularidade]),
+    label:
+      snapshot?.label ??
+      (usarMediaDiaria
+        ? granularidade === "semana"
+          ? "vs. média da semana anterior"
+          : "vs. média do mês anterior"
+        : ROTULO_COMPARACAO[granularidade]),
     prevStr,
     deltaStr: delta === null ? "—" : formatarDelta(Math.abs(delta)),
     arrow: delta === null || delta === 0 ? "■" : delta > 0 ? "▲" : "▼",
@@ -359,16 +438,22 @@ function CardIndicador({
   config,
   series,
   snapshotsSuspensos,
+  fracaoExtra,
 }: {
   config: ConfigBolsa;
   series: Record<Granularidade, Ponto[]>;
   snapshotsSuspensos?: Record<Granularidade, ComparacaoSnapshot>;
+  /** Número absoluto por trás do percentual (ex.: aprovados/total), mostrado junto da
+   * meta — hoje só a Validação do Conhecimento usa isso. */
+  fracaoExtra?: { parte: number; total: number } | null;
 }) {
   const granularidadePrincipal = config.granularidadePrincipal ?? "dia";
-  const granularidadesComparacao = config.granularidadesComparacao ?? ORDEM_GRANULARIDADES;
+  const granularidadesComparacao =
+    config.granularidadesComparacao ?? ORDEM_GRANULARIDADES;
   const ultimo =
     snapshotsSuspensos?.[granularidadePrincipal].atual ??
-    series[granularidadePrincipal][series[granularidadePrincipal].length - 1]?.valor ??
+    series[granularidadePrincipal][series[granularidadePrincipal].length - 1]
+      ?.valor ??
     null;
   const comparacoes = granularidadesComparacao.map((g) =>
     construirComparacao(config, g, series[g], ultimo, snapshotsSuspensos?.[g]),
@@ -388,7 +473,9 @@ function CardIndicador({
       statusClasse = "neutro";
       corPrincipal = COR_NEUTRA;
     } else {
-      const atingiuMeta = config.menorEhMelhor ? ultimo <= config.meta : ultimo >= config.meta;
+      const atingiuMeta = config.menorEhMelhor
+        ? ultimo <= config.meta
+        : ultimo >= config.meta;
       statusTexto = atingiuMeta ? "Dentro da meta" : "Fora da meta";
       statusClasse = atingiuMeta ? "ok" : "bad";
       corPrincipal = atingiuMeta ? COR_FAVORAVEL : COR_DESFAVORAVEL;
@@ -400,13 +487,17 @@ function CardIndicador({
         : comparacaoPrincipal.arrow === "▲"
           ? !config.menorEhMelhor
           : config.menorEhMelhor;
-    statusTexto = favoravel === null ? "Estável" : favoravel ? "Favorável" : "Desfavorável";
+    statusTexto =
+      favoravel === null ? "Estável" : favoravel ? "Favorável" : "Desfavorável";
     statusClasse = favoravel === null ? "neutro" : favoravel ? "ok" : "bad";
     corPrincipal = corPorFavorabilidade(favoravel);
   }
 
   const valorSplit = dividirValorBolsa(config.chave, ultimo);
-  const metaSplit = config.meta !== undefined ? dividirValorBolsa(config.chave, config.meta) : null;
+  const metaSplit =
+    config.meta !== undefined
+      ? dividirValorBolsa(config.chave, config.meta)
+      : null;
   const metaLabel = metaSplit
     ? `Meta ${config.menorEhMelhor ? "≤" : "≥"} ${metaSplit.main}${metaSplit.unit}`
     : config.menorEhMelhor
@@ -414,7 +505,9 @@ function CardIndicador({
       : "Maior é melhor";
 
   return (
-    <article className={`bolsa-card ${statusClasse === "bad" ? "bolsa-card--alerta" : ""}`}>
+    <article
+      className={`bolsa-card ${statusClasse === "bad" ? "bolsa-card--alerta" : ""}`}
+    >
       <div className="bolsa-card-cabecalho">
         <span className={`bolsa-card-pill bolsa-card-pill--${statusClasse}`}>
           <span aria-hidden="true">●</span> {statusTexto}
@@ -427,9 +520,16 @@ function CardIndicador({
       <div className="bolsa-card-valor-bloco">
         <div className="bolsa-card-valor-linha" style={{ color: corPrincipal }}>
           <FlipDigits texto={valorSplit.main} className="bolsa-card-valor" />
-          {valorSplit.unit && <span className="bolsa-card-unidade">{valorSplit.unit}</span>}
+          {valorSplit.unit && (
+            <span className="bolsa-card-unidade">{valorSplit.unit}</span>
+          )}
         </div>
         <span className="bolsa-card-meta-label">{metaLabel}</span>
+        {fracaoExtra && fracaoExtra.total > 0 && (
+          <span className="bolsa-card-fracao-label">
+            {fracaoExtra.parte}/{fracaoExtra.total}
+          </span>
+        )}
       </div>
 
       <div className="bolsa-card-comparacoes">
@@ -437,10 +537,15 @@ function CardIndicador({
           <div className="bolsa-card-comparacao" key={c.granularidade}>
             <div className="bolsa-card-comparacao-texto">
               <span className="bolsa-card-comparacao-label">{c.label}</span>
-              <span className="bolsa-card-comparacao-antes">Antes: {c.prevStr}</span>
+              <span className="bolsa-card-comparacao-antes">
+                Antes: {c.prevStr}
+              </span>
             </div>
             <MiniSparkline pontos={c.serie} cor={c.cor} />
-            <div className="bolsa-card-comparacao-delta" style={{ color: c.cor }}>
+            <div
+              className="bolsa-card-comparacao-delta"
+              style={{ color: c.cor }}
+            >
               <span className="bolsa-card-comparacao-seta">
                 {c.arrow} {c.deltaStr}
               </span>
@@ -457,8 +562,15 @@ interface Props {
   eventos: EventosIndicadoresTreinamento;
   empresas: Empresa[];
   ocorrencias: Ocorrencia[];
+  /** Vazio para quem não é master/treinador (ver server/SINCRONIZACAO.md) — o card de
+   * Validação do Conhecimento fica "sem dados" nesse caso, sem travar o resto do painel. */
+  tentativasValidacao: TentativaValidacao[];
   treinador: string | null;
   atualizadoEm: number;
+  /** Tela dedicada de TV/monitor (/indicadores-treinamento-tv): sempre preenche a
+   * tela inteira, como o modo foco, mas sem depender da Fullscreen API (a própria
+   * aba, maximizada, já cumpre esse papel — ver App.tsx). */
+  modoTv?: boolean;
 }
 
 /**
@@ -471,9 +583,15 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
   eventos,
   empresas,
   ocorrencias,
+  tentativasValidacao,
   treinador,
   atualizadoEm,
+  modoTv = false,
 }) => {
+  const validacaoPorCliente = useMemo(
+    () => calcularValidacaoPorCliente(tentativasValidacao),
+    [tentativasValidacao],
+  );
   const [agora, setAgora] = useState(() => new Date());
   const [modoFoco, setModoFoco] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -487,7 +605,8 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
       if (!document.fullscreenElement) setModoFoco(false);
     }
     document.addEventListener("fullscreenchange", aoSairDoFullscreen);
-    return () => document.removeEventListener("fullscreenchange", aoSairDoFullscreen);
+    return () =>
+      document.removeEventListener("fullscreenchange", aoSairDoFullscreen);
   }, []);
 
   async function alternarModoFoco() {
@@ -527,8 +646,16 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
     inicioJanelaSemana.setDate(inicioJanelaSemana.getDate() - 70);
 
     return {
-      dia: gerarPeriodosIndicadoresEntreDatas(inicioJanelaDia, referencia, "dia").slice(-10),
-      semana: gerarPeriodosIndicadoresEntreDatas(inicioJanelaSemana, referencia, "semana").slice(-8),
+      dia: gerarPeriodosIndicadoresEntreDatas(
+        inicioJanelaDia,
+        referencia,
+        "dia",
+      ).slice(-10),
+      semana: gerarPeriodosIndicadoresEntreDatas(
+        inicioJanelaSemana,
+        referencia,
+        "semana",
+      ).slice(-8),
       mes: gerarUltimosMeses(6),
     } satisfies Record<Granularidade, PeriodoIndicador[]>;
   }, [minutoAtual]);
@@ -545,6 +672,7 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
             eventos,
             empresas,
             ocorrencias,
+            validacaoPorCliente,
             p.inicio,
             p.fim,
             treinador,
@@ -555,10 +683,22 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
       });
     });
     return resultado;
-  }, [eventos, empresas, ocorrencias, treinador, periodosPorGranularidade]);
+  }, [eventos, empresas, ocorrencias, validacaoPorCliente, treinador, periodosPorGranularidade]);
+
+  // Fração "aprovados/total" do mês corrente, mostrada embaixo do percentual do card de
+  // Validação do Conhecimento — mesma amostra usada por calcularValorIndicadorBolsa para
+  // essa chave, só que sem converter para percentual.
+  const fracaoValidacaoConhecimentoMes = useMemo(() => {
+    const fim = new Date(minutoAtual * 60000);
+    const inicio = new Date(fim.getFullYear(), fim.getMonth(), 1);
+    const resultados = filtrarValidacaoNoPeriodo(validacaoPorCliente, inicio, fim);
+    return { parte: resultados.filter((r) => r.aprovada).length, total: resultados.length };
+  }, [validacaoPorCliente, minutoAtual]);
 
   const snapshotsSuspensos = useMemo(() => {
-    const referencias = gerarReferenciasSnapshotSuspensos(new Date(minutoAtual * 60000 + 59_999));
+    const referencias = gerarReferenciasSnapshotSuspensos(
+      new Date(minutoAtual * 60000 + 59_999),
+    );
     const contarNoMomento = (fim: Date) =>
       calcularValorKpiTreinamento(
         "clientesSuspensos",
@@ -569,9 +709,21 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
       );
     const atual = contarNoMomento(referencias.atual);
     return {
-      dia: { atual, anterior: contarNoMomento(referencias.ontem), label: "vs. ontem" },
-      semana: { atual, anterior: contarNoMomento(referencias.semanaPassada), label: "vs. semana passada" },
-      mes: { atual, anterior: contarNoMomento(referencias.mesPassado), label: "vs. mês passado" },
+      dia: {
+        atual,
+        anterior: contarNoMomento(referencias.ontem),
+        label: "vs. ontem",
+      },
+      semana: {
+        atual,
+        anterior: contarNoMomento(referencias.semanaPassada),
+        label: "vs. semana passada",
+      },
+      mes: {
+        atual,
+        anterior: contarNoMomento(referencias.mesPassado),
+        label: "vs. mês passado",
+      },
     } satisfies Record<Granularidade, ComparacaoSnapshot>;
   }, [eventos, treinador, minutoAtual]);
 
@@ -580,9 +732,18 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
       INDICADORES_BOLSA.map((config) => {
         const granularidadePrincipal = config.granularidadePrincipal ?? "dia";
         const serie = seriesPorIndicador[config.chave][granularidadePrincipal];
-        const snapshot = config.chave === "clientesSuspensos" ? snapshotsSuspensos[granularidadePrincipal] : undefined;
+        const snapshot =
+          config.chave === "clientesSuspensos"
+            ? snapshotsSuspensos[granularidadePrincipal]
+            : undefined;
         const valor = snapshot?.atual ?? serie[serie.length - 1]?.valor ?? null;
-        const comparacao = construirComparacao(config, granularidadePrincipal, serie, valor, snapshot);
+        const comparacao = construirComparacao(
+          config,
+          granularidadePrincipal,
+          serie,
+          valor,
+          snapshot,
+        );
         return {
           chave: config.chave,
           titulo: config.titulo,
@@ -597,42 +758,63 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
   );
   const tickerDuplicado = [...ticker, ...ticker, ...ticker];
 
-  const sinceUpdate = Math.max(0, Math.round((agora.getTime() - atualizadoEm) / 1000));
+  const sinceUpdate = Math.max(
+    0,
+    Math.round((agora.getTime() - atualizadoEm) / 1000),
+  );
   const diaSemana = agora.toLocaleDateString("pt-BR", { weekday: "long" });
-  const diaSemanaCapitalizado = diaSemana.charAt(0).toUpperCase() + diaSemana.slice(1);
-  const dataCurta = agora.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+  const diaSemanaCapitalizado =
+    diaSemana.charAt(0).toUpperCase() + diaSemana.slice(1);
+  const dataCurta = agora.toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+  });
 
   return (
-    <div className={`bolsa-indicadores-wrapper ${modoFoco ? "bolsa-indicadores-wrapper--foco" : ""}`} ref={wrapperRef}>
+    <div
+      className={`bolsa-indicadores-wrapper ${modoFoco || modoTv ? "bolsa-indicadores-wrapper--foco" : ""}`}
+      ref={wrapperRef}
+    >
       <div className="bolsa-indicadores-header">
         <div className="bolsa-indicadores-coluna-titulo">
           <div className="bolsa-indicadores-eyebrow">
             <span className="bolsa-ao-vivo-dot" aria-hidden="true" />
             <span>Ao vivo · Treinamento</span>
           </div>
-          <h1 className="bolsa-indicadores-titulo-pagina">Indicadores de Treinamento</h1>
+          <h1 className="bolsa-indicadores-titulo-pagina">
+            Indicadores de Treinamento
+          </h1>
           <p className="bolsa-indicadores-subtitulo">
-            Painel ao vivo — atualiza sozinho, sem consumir leituras do Firebase.
+            Painel ao vivo — atualiza sozinho, sem consumir leituras do
+            Firebase.
           </p>
         </div>
         <div className="bolsa-indicadores-header-direita">
-          <button
-            type="button"
-            className="bolsa-modo-foco-btn"
-            onClick={alternarModoFoco}
-            aria-pressed={modoFoco}
-            title={modoFoco ? "Sair do modo foco" : "Modo foco (tela cheia)"}
-          >
-            {modoFoco ? "Sair do modo foco" : "Modo foco"}
-          </button>
+          {!modoTv && (
+            <button
+              type="button"
+              className="bolsa-modo-foco-btn"
+              onClick={alternarModoFoco}
+              aria-pressed={modoFoco}
+              title={modoFoco ? "Sair do modo foco" : "Modo foco (tela cheia)"}
+            >
+              {modoFoco ? "Sair do modo foco" : "Modo foco"}
+            </button>
+          )}
           <div className="bolsa-indicadores-relogio">
             <span className="bolsa-indicadores-hora">
-              {agora.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+              {agora.toLocaleTimeString("pt-BR", {
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+              })}
             </span>
             <span className="bolsa-indicadores-data">
               {diaSemanaCapitalizado}, {dataCurta}
             </span>
-            <span className="bolsa-indicadores-atualizado">Atualizado há {sinceUpdate}s</span>
+            <span className="bolsa-indicadores-atualizado">
+              Atualizado há {sinceUpdate}s
+            </span>
           </div>
         </div>
       </div>
@@ -643,17 +825,28 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
             key={config.chave}
             config={config}
             series={seriesPorIndicador[config.chave]}
-            snapshotsSuspensos={config.chave === "clientesSuspensos" ? snapshotsSuspensos : undefined}
+            snapshotsSuspensos={
+              config.chave === "clientesSuspensos"
+                ? snapshotsSuspensos
+                : undefined
+            }
+            fracaoExtra={
+              config.chave === "validacaoConhecimento"
+                ? fracaoValidacaoConhecimentoMes
+                : undefined
+            }
           />
         ))}
       </div>
 
       <div className="bolsa-legenda">
         <span>
-          <strong className="bolsa-legenda-verde">▲▼ Verde</strong> melhor que o período anterior
+          <strong className="bolsa-legenda-verde">▲▼ Verde</strong> melhor que o
+          período anterior
         </span>
         <span>
-          <strong className="bolsa-legenda-vermelho">▲▼ Vermelho</strong> pior que o período anterior
+          <strong className="bolsa-legenda-vermelho">▲▼ Vermelho</strong> pior
+          que o período anterior
         </span>
         <span>A seta indica se o número subiu ou caiu</span>
       </div>

@@ -52,6 +52,20 @@ body.dark-theme .app-shell-layout .nav-link.active {
   color: #3b82f6 !important;
 }
 
+body.dark-theme .app-shell-layout .nav-sublink {
+  color: #94a3b8 !important;
+}
+
+body.dark-theme .app-shell-layout .nav-sublink:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: #ffffff !important;
+}
+
+body.dark-theme .app-shell-layout .nav-sublink.active {
+  background: rgba(59, 130, 246, 0.15) !important;
+  color: #3b82f6 !important;
+}
+
 body.dark-theme .nav-logout-btn,
 body.dark-theme .nav-profile-btn {
   color: #94a3b8 !important;
@@ -526,6 +540,21 @@ body.light-theme .app-shell-layout .nav-link:hover {
 }
 
 body.light-theme .app-shell-layout .nav-link.active {
+  background: #eff4ff !important;
+  color: #1d4ed8 !important;
+  box-shadow: inset 0 0 0 1px #dbe5ff;
+}
+
+body.light-theme .app-shell-layout .nav-sublink {
+  color: #475569 !important;
+}
+
+body.light-theme .app-shell-layout .nav-sublink:hover {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+body.light-theme .app-shell-layout .nav-sublink.active {
   background: #eff4ff !important;
   color: #1d4ed8 !important;
   box-shadow: inset 0 0 0 1px #dbe5ff;

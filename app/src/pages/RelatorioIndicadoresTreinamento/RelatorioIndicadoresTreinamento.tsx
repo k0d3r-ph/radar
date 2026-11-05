@@ -10,14 +10,21 @@ import {
   listarTreinadoresIndicadoresTreinamento,
 } from "../../utils/indicadoresTreinamento";
 import type { Empresa, Ocorrencia, LancamentoPonto } from "../../types";
+import type { TentativaValidacao } from "../../../../server/src/domain/validacaoConhecimento";
 import "./RelatorioIndicadoresTreinamento.css";
 
 const INTERVALO_ATUALIZACAO_MS = 20 * 60_000;
 
-export const RelatorioIndicadoresTreinamento: React.FC = () => {
+interface Props {
+  /** Tela dedicada de TV/monitor (/indicadores-treinamento-tv) — ver App.tsx. */
+  modoTv?: boolean;
+}
+
+export const RelatorioIndicadoresTreinamento: React.FC<Props> = ({ modoTv = false }) => {
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [ocorrencias, setOcorrencias] = useState<Ocorrencia[]>([]);
   const [lancamentos, setLancamentos] = useState<LancamentoPonto[]>([]);
+  const [tentativasValidacao, setTentativasValidacao] = useState<TentativaValidacao[]>([]);
   const [treinadoresEquipe, setTreinadoresEquipe] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [atualizadoEm, setAtualizadoEm] = useState(() => Date.now());
@@ -37,10 +44,13 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
         // Lê direto do índice em memória do backend (ver IndiceSincronizacao),
         // não do Firestore: evita que cada tela aberta do painel multiplique
         // as leituras a cada atualização (ver server/SINCRONIZACAO.md).
-        const [empresasLista, ocorrenciasLista, lancamentosLista] = await Promise.all([
+        const [empresasLista, ocorrenciasLista, lancamentosLista, tentativasLista] = await Promise.all([
           obterColecaoCompleta<Empresa>("empresas"),
           obterColecaoCompleta<Ocorrencia>("ocorrencias"),
           obterColecaoCompleta<LancamentoPonto>("gamificacao_pontos"),
+          // Restrita a master/treinador (ver server/SINCRONIZACAO.md); outros perfis recebem 403
+          // e o card de Validação do Conhecimento fica "sem dados", sem travar o resto do painel.
+          obterColecaoCompleta<TentativaValidacao>("validacao_tentativas").catch(() => []),
         ]);
         const usuariosLista = inicial ? await listarUsuarios(true) : null;
         if (!ativo) return;
@@ -48,6 +58,7 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
         setEmpresas(empresasLista.filter((e) => !isEmpresaInterna(e)));
         setOcorrencias(ocorrenciasLista);
         setLancamentos(lancamentosLista);
+        setTentativasValidacao(tentativasLista);
         if (usuariosLista) {
           setTreinadoresEquipe(
             listarTreinadoresIndicadoresTreinamento(
@@ -123,8 +134,10 @@ export const RelatorioIndicadoresTreinamento: React.FC = () => {
           eventos={eventos}
           empresas={empresas}
           ocorrencias={ocorrencias}
+          tentativasValidacao={tentativasValidacao}
           treinador={null}
           atualizadoEm={atualizadoEm}
+          modoTv={modoTv}
         />
       )}
     </div>

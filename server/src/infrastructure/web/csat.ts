@@ -35,13 +35,16 @@ export async function prepararReservaCsat(db: Firestore, tx: Transaction, user: 
   const tokenRef = (valor: string) => db.collection('csatLinks').doc(createHash('sha256').update(valor).digest('hex'));
   // O contador compartilhado serializa criações concorrentes, inclusive entre abas.
   const seq = Number((await tx.get(counter)).data()?.ultimo || 0) + 1;
-  const anteriores = await tx.get(db.collection('csatReservas').where('criadoPor', '==', user.uid));
+  // Filtra "reservada" direto na consulta — sem isso, lia todo o histórico de reservas já
+  // geradas pelo usuário a cada nova reserva (dois filtros de igualdade, sem índice composto).
+  const anteriores = await tx.get(
+    db.collection('csatReservas').where('criadoPor', '==', user.uid).where('status', '==', 'reservada'),
+  );
   const cadastro = (await tx.get(empresaRef)).data();
   if (!cadastro) throw new CsatError(404, 'Cliente não encontrado.');
   if (cadastro.isSuspended) throw new CsatError(409, MENSAGEM_TREINAMENTO_SUSPENSO);
   const cadastros = new Map<string, DocumentData | undefined>([[empresaId, cadastro]]);
-  const pendentes = anteriores.docs.filter(d => d.data().status === 'reservada')
-    .sort((a, b) => b.data().createdAt - a.data().createdAt);
+  const pendentes = anteriores.docs.sort((a, b) => b.data().createdAt - a.data().createdAt);
   for (const pendente of pendentes) {
     const reserva = pendente.data();
     const idCliente = reserva.empresaId;
@@ -128,8 +131,14 @@ export function registrarCsat(app: Express, db: Firestore | null, auth: Auth | n
   }));
   app.get('/api/csat/reservas', wrap(async req => {
     const user = await usuario(req);
-    const docs = await db!.collection('csatReservas').where('criadoPor', '==', user.uid).get();
-    return docs.docs.filter(d => d.data().status === 'reservada').map(d => d.data());
+    // Filtra "reservada" direto na consulta (dois filtros de igualdade, sem índice composto
+    // extra) — sem isso, lia TODO o histórico de reservas já geradas pelo treinador a cada
+    // chamada, e essa rota é consultada toda vez que a tela de Histórico carrega.
+    const docs = await db!.collection('csatReservas')
+      .where('criadoPor', '==', user.uid)
+      .where('status', '==', 'reservada')
+      .get();
+    return docs.docs.map(d => d.data());
   }));
   app.post('/api/csat/reservas/:id/concluir', wrap(async req => {
     const user = await usuario(req);

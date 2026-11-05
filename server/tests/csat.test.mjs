@@ -12,11 +12,17 @@ function setup() {
   let seq = 0;
   const snapshot = ref => ({ exists: data.has(ref.path), id: ref.id, ref, data: () => data.get(ref.path) });
   const ref = path => ({ path, id: path.split('/').at(-1), get: async () => snapshot(ref(path)), collection: name => collection(`${path}/${name}`) });
+  const query = (path, filtros) => ({
+    where: (field, op, value) => query(path, [...filtros, { field, value }]),
+    limit() { return this; },
+    get: async () => ({ docs: [...data.entries()]
+      .filter(([key, item]) => key.startsWith(`${path}/`) && key.split('/').length === path.split('/').length + 1
+        && filtros.every(({ field, value }) => item[field] === value))
+      .map(([key]) => snapshot(ref(key))) }),
+  });
   const collection = path => ({
     doc: id => ref(`${path}/${id || `id${++seq}`}`),
-    where: (field, op, value) => ({ limit() { return this; }, get: async () => ({ docs: [...data.entries()]
-      .filter(([key, item]) => key.startsWith(`${path}/`) && key.split('/').length === path.split('/').length + 1 && item[field] === value)
-      .map(([key]) => snapshot(ref(key))) }) }),
+    where: (field, op, value) => query(path, [{ field, value }]),
   });
   const db = { collection, doc: ref, runTransaction: async fn => fn({
     get: async r => r.path ? snapshot(r) : r.get(),

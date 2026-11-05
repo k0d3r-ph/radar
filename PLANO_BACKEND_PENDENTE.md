@@ -146,10 +146,8 @@ Desk):
 - Pacing: aguardar ~600 ms entre chamadas HTTP de saída (mesmo valor de
   `listarConversas`), processando empresas em sequência, não em paralelo — protege o
   limite de 120 req/min compartilhado pela chave.
-- Chave de API **separada** da leitura de conversas: usar
-  `SSX_DESK_TRAINING_STAGES_API_KEY` (escopo `training-stages:write`), nunca reaproveitar
-  `SSX_DESK_API_KEY` — a própria doc do SSX Desk já pede isso ("evite compartilhar a
-  mesma chave entre serviços adicionais") e o escopo documentado no print é diferente.
+- Usar a mesma chave `SSX_DESK_API_KEY` da leitura de conversas. Ela precisa ter os
+  escopos necessários para ambas as integrações, incluindo `training-stages:write`.
 - Estado do ciclo em `integracoes/ssxDeskTrainingStages` (mesmo padrão de
   `integracoes/ssxDesk` e `integracoes/managerOps`): `lastSuccessAt`, `lastError`,
   `lastPushedAt`, estatísticas.
@@ -159,10 +157,9 @@ Desk):
 - Registrar em `server/src/infrastructure/web/apiIndex.ts`, ao lado de
   `iniciarSincronizacaoSsxDesk` — é só HTTP + Firestore, mesmo processo que já hospeda a
   integração de leitura do SSX Desk; não precisa do processo do bot.
-- `server/src/infrastructure/config/env.ts`: novas variáveis
-  `SSX_DESK_TRAINING_STAGES_API_KEY` e, opcional,
+- `server/src/infrastructure/config/env.ts`: variável opcional
   `SSX_DESK_TRAINING_STAGES_SYNC_INTERVAL_MS` (padrão 5 min, mínimo 1 min — mesmo padrão
-  das demais).
+  das demais). A autenticação usa `SSX_DESK_API_KEY`.
 - Documentar em `server/SSX_DESK.md` (nova seção) ou um novo
   `server/SSX_DESK_TRAINING_STAGES.md`, incluindo a limitação de alinhamento por índice.
 
@@ -182,8 +179,8 @@ Desk):
 - `server/src/infrastructure/ssxDesk/TrainingStagesSyncService.ts` — serviço de
   sincronização (cursor incremental, resolução de `companyId`, pacing, falhas por id).
 - `server/src/infrastructure/web/apiIndex.ts` — liga o serviço na inicialização da API.
-- `server/src/infrastructure/config/env.ts` — `ssxDeskTrainingStagesApiKey` e
-  `ssxDeskTrainingStagesSyncIntervalMs`.
+- `server/src/infrastructure/config/env.ts` — `ssxDeskTrainingStagesSyncIntervalMs`;
+  a chave vem de `ssxDeskApiKey`.
 - `app/src/types.ts` — `Empresa.ssxDeskTrainingStageIds` e `.ssxDeskTrainingStagesSyncedAt`.
 - `server/SSX_DESK_TRAINING_STAGES.md` — documentação completa (funcionamento, limitações,
   configuração).
@@ -209,8 +206,8 @@ Desk):
    `server/SSX_DESK_TRAINING_STAGES.md`). Só é um problema de verdade se a conta do Radar
    tiver empresas demais para caber numa página — confirme com o SSX Desk antes, ou só
    ligue e monitore o log de erro na primeira sincronização.
-2. Gerar a chave `SSX_DESK_TRAINING_STAGES_API_KEY` com escopo `training-stages:write` no
-   painel do SSX Desk.
+2. Confirmar que a chave `SSX_DESK_API_KEY` existente também tem o escopo
+   `training-stages:write` no painel do SSX Desk.
 3. Rodar `sincronizar()` manual contra o Emulator Suite (`server/EMULADOR.md`) com uma
    empresa de teste antes de qualquer execução contra o Firestore de produção.
 4. Validar manualmente (chave de teste, se o SSX Desk tiver ambiente de homologação) que
@@ -219,10 +216,9 @@ Desk):
 ## Deploy combinado (quando os dois itens estiverem prontos)
 
 1. Revisar e mesclar `feature/backend-pendente` em `main` (ou publicar direto dela).
-2. Configurar as variáveis de ambiente novas em `/home/ubuntu/esteira-bot.env` na VM:
-   `SSX_DESK_TRAINING_STAGES_API_KEY` (e opcionalmente `SSX_DESK_TRAINING_STAGES_SYNC_INTERVAL_MS`).
-   Sem a chave, o serviço de training-stages fica desativado e o resto do Radar funciona
-   normal — mesmo comportamento do SSX Desk e do Manager Ops hoje.
+2. Manter a `SSX_DESK_API_KEY` existente em `/home/ubuntu/esteira-bot.env` na VM
+   (e configurar opcionalmente `SSX_DESK_TRAINING_STAGES_SYNC_INTERVAL_MS`). Sem a chave,
+   o serviço de training-stages fica desativado e o resto do Radar funciona normalmente.
 3. Build de uma nova imagem Docker e restart só do container `radar-api` — não precisa
    tocar no `esteira-bot`. Os dois itens entram no mesmo restart, um único ciclo de
    leitura inicial em vez de dois.

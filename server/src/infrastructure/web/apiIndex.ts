@@ -24,7 +24,7 @@ async function bootstrap() {
   });
 
   iniciarSincronizacaoSsxDesk(adminDb, config.ssxDeskApiKey, config.ssxDeskSyncIntervalMs);
-  iniciarSincronizacaoSsxDeskTrainingStages(adminDb, config.ssxDeskTrainingStagesApiKey, config.ssxDeskTrainingStagesSyncIntervalMs);
+  iniciarSincronizacaoSsxDeskTrainingStages(adminDb, config.ssxDeskApiKey, config.ssxDeskTrainingStagesSyncIntervalMs);
 }
 
 process.on('unhandledRejection', (reason, promise) => {

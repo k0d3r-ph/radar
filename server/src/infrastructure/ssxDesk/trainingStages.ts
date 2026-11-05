@@ -1,6 +1,6 @@
 /** Cliente fino da API de etapas de treinamento ("training stages") do SSX Desk —
- * ver server/SSX_DESK_TRAINING_STAGES.md. Escopo `training-stages:write`, chave
- * própria (SSX_DESK_TRAINING_STAGES_API_KEY), nunca a de leitura de conversas. */
+ * ver server/SSX_DESK_TRAINING_STAGES.md. Usa a chave `SSX_DESK_API_KEY` compartilhada
+ * com a leitura de conversas; ela precisa ter os escopos necessários para ambas as APIs. */
 
 export type StatusEtapaDesk = 'Em andamento' | 'Concluído' | 'Não concluído';
 

@@ -72,13 +72,12 @@ mesmo padrão de `trainingConversations.listarConversas`.
 
 ## Configuração
 
-- `server/.env`: `SSX_DESK_TRAINING_STAGES_API_KEY` (escopo `training-stages:write`) e,
-  opcionalmente, `SSX_DESK_TRAINING_STAGES_SYNC_INTERVAL_MS` (padrão 300000 = 5 min,
-  mínimo 60000).
-- **Chave separada** da leitura de conversas (`SSX_DESK_API_KEY`) — nunca reaproveitar a
-  mesma chave entre os dois serviços, conforme a própria documentação do SSX Desk pede.
-- Sem a chave configurada, a sincronização fica desativada (log no início do processo da
-  API) e o resto do Radar funciona normalmente.
+- `server/.env`: usa a mesma `SSX_DESK_API_KEY` da leitura de conversas. Essa chave deve
+  ter os escopos necessários para as duas integrações, incluindo `training-stages:write`.
+  Opcionalmente, configure `SSX_DESK_TRAINING_STAGES_SYNC_INTERVAL_MS` (padrão 300000 =
+  5 min, mínimo 60000).
+- Sem `SSX_DESK_API_KEY`, as sincronizações do SSX Desk ficam desativadas (log no início
+  do processo da API) e o resto do Radar funciona normalmente.
 - Estado da sincronização (cursor e estatísticas do último ciclo) fica em
   `integracoes/ssxDeskTrainingStages` no Firestore.
 

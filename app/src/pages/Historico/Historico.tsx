@@ -157,6 +157,7 @@ const FILTRO_SUSPENSOES = "__suspensoes__";
 const FILTRO_TREINAMENTO_CAN = "__treinamento_can__";
 const FILTRO_TREINAMENTO_AUS = "__treinamento_aus__";
 const FILTRO_TREINAMENTO_REA = "__treinamento_rea__";
+const FILTRO_VALIDACAO_CONHECIMENTO = "__validacao_conhecimento__";
 
 /** O filtro de tipo aceita múltiplas seleções; o parâmetro de URL "tipo" guarda os
  * valores separados por vírgula (compatível com links antigos de valor único). */
@@ -170,6 +171,7 @@ function ocorrenciaCombinaTipo(o: Ocorrencia, valor: string): boolean {
   if (valor === FILTRO_SEM_CLASSIFICACAO) return !o.tipo;
   if (valor === FILTRO_ALERTAS) return !!o.alerta;
   if (valor === FILTRO_SUSPENSOES) return !!o.suspenderCliente;
+  if (valor === FILTRO_VALIDACAO_CONHECIMENTO) return !!o.validacaoTentativaId;
   if (valor === FILTRO_TREINAMENTO_CAN) {
     return (
       o.tipo === "Treinamento" &&
@@ -214,6 +216,8 @@ function labelFiltroTipo(valor: string): string {
       return "Treinamento (Can.)";
     case FILTRO_TREINAMENTO_AUS:
       return "Treinamento (Aus.)";
+    case FILTRO_VALIDACAO_CONHECIMENTO:
+      return "Validação do Conhecimento";
     default:
       return valor;
   }
@@ -4449,6 +4453,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                     FILTRO_TREINAMENTO_REA,
                     FILTRO_TREINAMENTO_CAN,
                     FILTRO_TREINAMENTO_AUS,
+                    FILTRO_VALIDACAO_CONHECIMENTO,
                   ] as string[]
                 ).map((valor) => (
                   <label key={valor} className="hist-filtro-tipo-item">

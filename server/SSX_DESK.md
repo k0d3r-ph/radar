@@ -5,11 +5,11 @@ Este documento cobre a leitura de conversas (entrada). Para o envio da trilha de
 Configure no ambiente do **backend**:
 
 ```dotenv
-SSX_DESK_API_KEY=<chave com escopo training-conversations:read>
+SSX_DESK_API_KEY=<chave com os escopos necessários para o SSX Desk>
 SSX_DESK_SYNC_INTERVAL_MS=300000
 ```
 
-A chave deve permanecer no ambiente do servidor. Nunca use `VITE_` nem a coloque no código do frontend. Configure também as credenciais do Firebase Admin, já usadas pelo backend (`FIREBASE_SERVICE_ACCOUNT_PATH`). Após publicar o backend e configurar a chave, reinicie o serviço. Publique o frontend atualizado para exibir a classificação pendente no painel.
+A chave deve permanecer no ambiente do servidor. Nunca use `VITE_` nem a coloque no código do frontend. Se também usar o envio de etapas de treinamento, a mesma chave precisa incluir o escopo `training-stages:write`. Configure também as credenciais do Firebase Admin, já usadas pelo backend (`FIREBASE_SERVICE_ACCOUNT_PATH`). Após publicar o backend e configurar a chave, reinicie o serviço. Publique o frontend atualizado para exibir a classificação pendente no painel.
 
 A partir de `server/`, é possível verificar os vínculos sem gravar:
 
@@ -35,6 +35,6 @@ Uma transação cria a ocorrência e seu controle em `ssxDeskImportacoes`, usand
 
 Se o resumo ainda não estiver pronto, a ocorrência aparece como aguardando processamento. Quando ficar disponível, o texto é atualizado somente se ainda corresponder à última descrição importada. Edições manuais têm prioridade.
 
-O último resultado e eventual erro ficam no documento `integracoes/ssxDesk` e nos logs do backend. Falhas de rede, HTTP 401/403/429 e respostas inválidas são registradas e a rotina tenta novamente no próximo ciclo. A paginação aguarda 600 ms entre requisições, abaixo do limite documentado de 120 req/min por chave; evite compartilhar a mesma chave entre serviços adicionais.
+O último resultado e eventual erro ficam no documento `integracoes/ssxDesk` e nos logs do backend. Falhas de rede, HTTP 401/403/429 e respostas inválidas são registradas e a rotina tenta novamente no próximo ciclo. A paginação aguarda 600 ms entre requisições, abaixo do limite documentado de 120 req/min por chave. O envio das etapas de treinamento usa a mesma chave `SSX_DESK_API_KEY` e mantém pacing próprio abaixo desse limite.
 
 Na simulação local de 01/10/2026, a API retornou 39 conversas. Uma ocorrência seria criada para **Altotrak**, iniciada em 30/09/2026 às 19h28 em Brasília. Foram ignoradas 25 conversas por status do Radar ou período anterior à entrada; outras 13 ficaram sem vínculo seguro. Os cinco cadastros a revisar são: START 163 (Central 1077), Atos 3 (1055), CONTROL ON/ TOMI 567 (1046), SN Rastreamento (Farejador) (1086) e GBORBA RASTREAMENTO (sem ID Central). Nenhuma ocorrência foi gravada na simulação.

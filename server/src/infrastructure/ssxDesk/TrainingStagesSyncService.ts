@@ -216,7 +216,7 @@ export class TrainingStagesSyncService {
 }
 
 export function iniciarSincronizacaoSsxDeskTrainingStages(db: Firestore | null, apiKey: string, intervaloMs: number) {
-  if (!apiKey) { console.log('[SSX Desk Training Stages] Sincronização desativada: configure SSX_DESK_TRAINING_STAGES_API_KEY.'); return; }
+  if (!apiKey) { console.log('[SSX Desk Training Stages] Sincronização desativada: configure SSX_DESK_API_KEY.'); return; }
   if (!db) { console.error('[SSX Desk Training Stages] Sincronização indisponível: Firebase Admin não inicializado.'); return; }
   const service = new TrainingStagesSyncService(db, apiKey);
   const executar = async () => {

@@ -3,6 +3,7 @@ import { createApiApp } from './apiExpress.js';
 import { config } from '../config/env.js';
 import { adminDb } from '../firebase/firebaseAdmin.js';
 import { iniciarSincronizacaoSsxDesk } from '../ssxDesk/SsxDeskSyncService.js';
+import { iniciarSincronizacaoSsxDeskTrainingStages } from '../ssxDesk/TrainingStagesSyncService.js';
 
 /**
  * Processo leve do Radar: CSAT, ocorrências, sincronização, IA e Centrais.
@@ -23,6 +24,7 @@ async function bootstrap() {
   });
 
   iniciarSincronizacaoSsxDesk(adminDb, config.ssxDeskApiKey, config.ssxDeskSyncIntervalMs);
+  iniciarSincronizacaoSsxDeskTrainingStages(adminDb, config.ssxDeskTrainingStagesApiKey, config.ssxDeskTrainingStagesSyncIntervalMs);
 }
 
 process.on('unhandledRejection', (reason, promise) => {

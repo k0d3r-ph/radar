@@ -82,6 +82,16 @@ export type Empresa = {
   temaGol?: string;
 
   /**
+   * ID de cada etapa de treinamento ("training stage") já enviada ao SSX Desk, uma por
+   * linha de {@link temaText}, na mesma posição — alinhado por índice, mesma convenção
+   * de {@link blocoText}/{@link reagendamentosText}. Vazio ("") quando a linha ainda não
+   * foi enviada. Ver server/SSX_DESK_TRAINING_STAGES.md.
+   */
+  ssxDeskTrainingStageIds?: string[];
+  /** Quando a trilha foi enviada ao SSX Desk pela última vez (ver TrainingStagesSyncService). */
+  ssxDeskTrainingStagesSyncedAt?: number;
+
+  /**
    * Dias úteis entre um treinamento e o próximo, validados com o cliente (ex.: "de 2 em 2
    * dias"). Usado para estimar a data do último treinamento da esteira e medir o indicador
    * "Treinamentos no prazo". Sem esse campo preenchido, a empresa fica fora desse indicador.

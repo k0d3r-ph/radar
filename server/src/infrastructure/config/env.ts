@@ -21,6 +21,11 @@ export const config = {
   ssxDeskApiKey: process.env.SSX_DESK_API_KEY?.trim() || '',
   // Mínimo de um minuto; padrão: cinco minutos.
   ssxDeskSyncIntervalMs: Math.max(60_000, Number(process.env.SSX_DESK_SYNC_INTERVAL_MS) || 300_000),
+  /** Chave de envio das etapas de treinamento ao SSX Desk (escopo training-stages:write,
+   * separada da chave de leitura acima) — ver server/SSX_DESK_TRAINING_STAGES.md. */
+  ssxDeskTrainingStagesApiKey: process.env.SSX_DESK_TRAINING_STAGES_API_KEY?.trim() || '',
+  // Mínimo de um minuto; padrão: cinco minutos.
+  ssxDeskTrainingStagesSyncIntervalMs: Math.max(60_000, Number(process.env.SSX_DESK_TRAINING_STAGES_SYNC_INTERVAL_MS) || 300_000),
   /** Chave da API de combinados da Manager Ops (Daily) — ver server/MANAGER_OPS.md. */
   managerOpsApiKey: process.env.MANAGER_OPS_API_KEY?.trim() || '',
   // Mínimo de um minuto; padrão: cinco minutos.

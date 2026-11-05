@@ -1,5 +1,7 @@
 A integração consulta o SSX Desk na inicialização do backend e a cada cinco minutos. Funciona mesmo sem o painel aberto, enquanto o servidor estiver em execução.
 
+Este documento cobre a leitura de conversas (entrada). Para o envio da trilha de treinamento ao Desk (saída), ver [SSX_DESK_TRAINING_STAGES.md](SSX_DESK_TRAINING_STAGES.md).
+
 Configure no ambiente do **backend**:
 
 ```dotenv

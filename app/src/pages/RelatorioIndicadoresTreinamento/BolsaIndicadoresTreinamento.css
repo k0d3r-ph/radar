@@ -353,13 +353,13 @@
   color: #7c93ad;
 }
 
-/* Quebra de contagem por trás do percentual (No prazo / Fora do prazo / Não realizado /
-   Total avaliado), lado a lado — quatro colunas de largura IGUAL (não flex de largura
-   livre), senão rótulos de tamanhos diferentes ("No prazo" vs. "Não realizado") puxam um
-   item pra fora do centro verdadeiro do card, desalinhado do valor principal acima. */
+/* Quebra de contagem por trás do percentual (Realizados no prazo / Fora do prazo
+   (realizados) / Fora do prazo (não realizados)), lado a lado — três colunas de largura
+   IGUAL (não flex de largura livre), senão rótulos de tamanhos diferentes puxam um item
+   pra fora do centro verdadeiro do card, desalinhado do valor principal acima. */
 .bolsa-card-resumo-contagem {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   justify-items: center;
   gap: 0.2em 1.2em;
   padding-top: 0.2em;

@@ -7,6 +7,20 @@ function normalizarNomeEmpresa(nome: string): string {
   return nome.trim().toLowerCase();
 }
 
+/**
+ * Só entram no indicador de Gol os clientes nas esteiras "Em andamento", "Suspenso" ou
+ * "Concluído" — mesmos buckets exibidos na Home (ver `dadosAtivos`/`dadosSuspensos`/
+ * `dadosConcluidos` em Home.tsx). Fora do indicador: Cancelados, Acompanhamento (Ongoing)
+ * e conclusão unilateral da capacitação, que não representam a esteira de treinamento normal.
+ */
+function pertenceEsteirasElegiveisGol(empresa: Empresa): boolean {
+  return (
+    empresa.conclusaoUnilateralCapacitacao !== true &&
+    !empresa.isOngoing &&
+    !empresa.isCancelled
+  );
+}
+
 function parseDataLocalISO(iso?: string): Date | null {
   if (!iso) return null;
   const [y, m, d] = iso.split("-").map(Number);
@@ -46,6 +60,8 @@ export function calcularGolNoPrazo(empresas: Empresa[], ocorrencias: Ocorrencia[
   const resultados: ResultadoGolTreinamento[] = [];
 
   empresas.forEach((empresa) => {
+    if (!pertenceEsteirasElegiveisGol(empresa)) return;
+
     const dataEntrada = parseDataLocalISO(empresa.dataEntrada);
     if (!dataEntrada) return;
 
@@ -98,6 +114,8 @@ export function calcularNaoRealizadosGolTreinamento(
   const resultados: ResultadoNaoRealizadoGolTreinamento[] = [];
 
   empresas.forEach((empresa) => {
+    if (!pertenceEsteirasElegiveisGol(empresa)) return;
+
     const dataEntrada = parseDataLocalISO(empresa.dataEntrada);
     if (!dataEntrada) return;
 
@@ -108,4 +126,35 @@ export function calcularNaoRealizadosGolTreinamento(
   });
 
   return resultados;
+}
+
+export type ClassificacaoGolCliente =
+  | "noPrazoRealizado"
+  | "foraPrazoRealizado"
+  | "noPrazoNaoRealizado"
+  | "foraPrazoNaoRealizado";
+
+/**
+ * Classifica um único cliente nas 4 combinações possíveis de realizado/não realizado x
+ * dentro/fora do prazo de {@link PRAZO_DIAS_GOL} dias corridos desde a entrada — usado pelo
+ * filtro de Gol da Home. Diferente de {@link calcularGolNoPrazo} (que deixa de fora quem
+ * ainda está dentro do prazo sem Gol, pois não dá pra julgar se vai bater a meta), aqui o
+ * objetivo é outro: permitir filtrar também quem ainda está dentro do prazo sem ter batido.
+ * Retorna `null` quando a empresa não tem `dataEntrada` válida (não dá pra calcular o prazo).
+ */
+export function classificarGolCliente(
+  empresa: Empresa,
+  ocorrencias: Ocorrencia[],
+  agora: number = Date.now(),
+): ClassificacaoGolCliente | null {
+  const dataEntrada = parseDataLocalISO(empresa.dataEntrada);
+  if (!dataEntrada) return null;
+
+  const ocorrenciaGol = encontrarOcorrenciaGol(ocorrencias, empresa.nomeEmpresa);
+  const prazoMs = dataEntrada.getTime() + PRAZO_DIAS_GOL * 24 * 60 * 60 * 1000;
+
+  if (ocorrenciaGol) {
+    return ocorrenciaGol.dataOcorrencia <= prazoMs ? "noPrazoRealizado" : "foraPrazoRealizado";
+  }
+  return agora <= prazoMs ? "noPrazoNaoRealizado" : "foraPrazoNaoRealizado";
 }

@@ -5,6 +5,7 @@ import {
   gerarPeriodosIndicadoresEntreDatas,
   formatarValorKpiTreinamento,
   gerarReferenciasSnapshotSuspensos,
+  listarAvaliacoesCsatNoPeriodo,
   KPI_POR_CHAVE,
   type EventosIndicadoresTreinamento,
   type PeriodoIndicador,
@@ -396,6 +397,7 @@ function CardIndicador({
   snapshotsSuspensos,
   snapshotComparacaoCustom,
   fracaoExtra,
+  contagemExtra,
   resumoContagem,
   tagParcial,
 }: {
@@ -409,9 +411,12 @@ function CardIndicador({
   /** Número absoluto por trás do percentual (ex.: aprovados/total), mostrado junto da
    * meta — hoje só a Validação do Conhecimento usa isso. */
   fracaoExtra?: { parte: number; total: number } | null;
-  /** Quebra de contagem por trás do percentual (ex.: No prazo: 12 / Fora do prazo: 2 / Não
-   * realizado: 1 / Total avaliado: 15), lado a lado em colunas de largura igual — hoje só
-   * o Gol no Prazo usa. */
+  /** Contagem simples (não fração) mostrada abaixo da meta — hoje só o CSAT usa, para
+   * mostrar quantos clientes avaliaram no mês, sem precisar de um "total" de comparação. */
+  contagemExtra?: { total: number; label: string } | null;
+  /** Quebra de contagem por trás do percentual (ex.: Realizados no prazo: 12 / Fora do
+   * prazo (realizados): 2 / Fora do prazo (não realizados): 1), lado a lado em colunas de
+   * largura igual — hoje só o Gol no Prazo usa. */
   resumoContagem?: { label: string; valor: number }[] | null;
   /** O período do valor em destaque ainda não fechou (ex.: mês em andamento) — mostra um
    * selo "PARCIAL" para deixar claro que o número ainda vai mudar até o fim do período. */
@@ -494,6 +499,11 @@ function CardIndicador({
         {fracaoExtra && fracaoExtra.total > 0 && (
           <span className="bolsa-card-fracao-label">
             {fracaoExtra.parte}/{fracaoExtra.total}
+          </span>
+        )}
+        {contagemExtra && (
+          <span className="bolsa-card-fracao-label">
+            {contagemExtra.total} {contagemExtra.label}
           </span>
         )}
         {resumoContagem && (
@@ -657,6 +667,16 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
     return { parte: resultados.filter((r) => r.aprovada).length, total: resultados.length };
   }, [validacaoPorCliente, minutoAtual]);
 
+  // Quantidade de clientes que avaliaram o CSAT no mês corrente — mesma amostra usada
+  // por calcularValorIndicadorBolsa para "csatTreinamento", mostrada como número absoluto
+  // abaixo da meta (diferente da nota em si, que já é uma média).
+  const quantidadeAvaliacoesCsatMes = useMemo(() => {
+    const fim = new Date(minutoAtual * 60000);
+    const inicio = new Date(fim.getFullYear(), fim.getMonth(), 1);
+    const total = listarAvaliacoesCsatNoPeriodo(eventos, inicio, fim, treinador).length;
+    return { total, label: total === 1 ? "avaliação" : "avaliações" };
+  }, [eventos, treinador, minutoAtual]);
+
   const golNoPrazoResultados = useMemo(
     () => calcularGolNoPrazo(empresas, ocorrencias),
     [empresas, ocorrencias],
@@ -708,10 +728,9 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
     const noPrazo = doMes.filter((r) => r.noPrazo).length;
     const foraDoPrazo = doMes.filter((r) => r.atingiuGol && !r.noPrazo).length;
     return [
-      { label: "No prazo", valor: noPrazo },
-      { label: "Fora do prazo", valor: foraDoPrazo },
-      { label: "Não realizado", valor: naoRealizadoDoMes },
-      { label: "Total avaliado", valor: noPrazo + foraDoPrazo + naoRealizadoDoMes },
+      { label: "Realizados no prazo", valor: noPrazo },
+      { label: "Fora do prazo (realizados)", valor: foraDoPrazo },
+      { label: "Fora do prazo (não realizados)", valor: naoRealizadoDoMes },
     ];
   }, [golNoPrazoResultados, naoRealizadosGolNoPrazo, periodosPorGranularidade]);
 
@@ -850,6 +869,7 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
             snapshotsSuspensos={config.chave === "clientesSuspensos" ? snapshotsSuspensos : undefined}
             snapshotComparacaoCustom={config.chave === "golNoPrazo" ? snapshotGolNoPrazoComparacao : undefined}
             fracaoExtra={config.chave === "validacaoConhecimento" ? fracaoValidacaoConhecimentoMes : undefined}
+            contagemExtra={config.chave === "csatTreinamento" ? quantidadeAvaliacoesCsatMes : undefined}
             resumoContagem={config.chave === "golNoPrazo" ? resumoGolNoPrazoMes : undefined}
             tagParcial={config.chave === "golNoPrazo" ? golNoPrazoMesParcial : undefined}
           />

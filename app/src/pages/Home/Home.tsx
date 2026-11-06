@@ -47,6 +47,10 @@ import {
 } from "../../utils/score";
 import { atribuirIdsOcorrencias } from "../../utils/empresaUtils";
 import {
+  classificarGolCliente,
+  type ClassificacaoGolCliente,
+} from "../../utils/golTreinamento";
+import {
   consolidarListaComerciais,
   normalizarNomeComercial,
   compararComercial,
@@ -309,9 +313,10 @@ export default function Home() {
     useState<boolean>(
       () => sessionStorage.getItem("filtroSomenteEsteiraAtual") === "true",
     );
-  // Mostra só clientes dentro do prazo do Gol (até o 30º dia na esteira).
-  const [filtroDia30, setFiltroDia30] = useState<boolean>(
-    () => sessionStorage.getItem("filtroDia30") === "true",
+  // Filtra pela classificação do Gol do cliente (ver classificarGolCliente):
+  // realizado/não realizado cruzado com dentro/fora do prazo de 30 dias corridos da entrada.
+  const [filtroGol, setFiltroGol] = useState<ClassificacaoGolCliente | "">(
+    () => (sessionStorage.getItem("filtroGol") as any) || "",
   );
   const [modalFiltrosAberto, setModalFiltrosAberto] = useState(false);
   const botaoFiltrosRef = useRef<HTMLButtonElement>(null);
@@ -1112,7 +1117,7 @@ export default function Home() {
       "filtroElegivelDeducao",
       String(filtroElegivelDeducao),
     );
-    sessionStorage.setItem("filtroDia30", String(filtroDia30));
+    sessionStorage.setItem("filtroGol", filtroGol);
     sessionStorage.setItem("filtroLoboSolitario", String(filtroLoboSolitario));
     sessionStorage.setItem(
       "filtroSomenteEsteiraAtual",
@@ -1132,7 +1137,7 @@ export default function Home() {
     filtroCardTipo,
     filtroCardAlerta,
     filtroElegivelDeducao,
-    filtroDia30,
+    filtroGol,
     filtroLoboSolitario,
     filtroSomenteEsteiraAtual,
     ordenacaoContrato,
@@ -1461,7 +1466,7 @@ export default function Home() {
     ordenacaoContrato,
     ordenacaoScore,
     filtroElegivelDeducao,
-    filtroDia30,
+    filtroGol,
   ].filter(Boolean).length;
 
   // O filtro vale para todas as esteiras, então o total também considera todas.
@@ -1564,7 +1569,8 @@ export default function Home() {
         const elegivelDeducaoOk =
           !filtroElegivelDeducao || e.gamificacaoDeducaoSuporte?.ativo === true;
 
-        const dia30Ok = !filtroDia30 || e.dias <= 30;
+        const golOk =
+          !filtroGol || classificarGolCliente(e, historico, agora) === filtroGol;
         const loboOk = !filtroLoboSolitario || !!e.loboSolitario;
 
         return (
@@ -1578,7 +1584,7 @@ export default function Home() {
           tipoCardOk &&
           alertaCardOk &&
           elegivelDeducaoOk &&
-          dia30Ok &&
+          golOk &&
           loboOk
         );
       })
@@ -1620,13 +1626,15 @@ export default function Home() {
     filtroCardTipo,
     filtroCardAlerta,
     filtroElegivelDeducao,
-    filtroDia30,
+    filtroGol,
     filtroLoboSolitario,
     ordenacaoContrato,
     ordenacaoScore,
     ordenacaoPrincipal,
     mapaComerciais,
     mapaResponsaveis,
+    historico,
+    agora,
   ]);
 
   const dadosOngoingFiltrados = useMemo(() => {
@@ -1736,6 +1744,8 @@ export default function Home() {
           (filtroCardTipo === "safety" && tipoEfetivo === "Safety") ||
           (filtroCardTipo === "fast" && tipoEfetivo === "Fast");
         const alertaOk = filtroCardAlerta !== "alerta" || e.alerta;
+        const golOk =
+          !filtroGol || classificarGolCliente(e, historico, agora) === filtroGol;
 
         return (
           clienteOk &&
@@ -1745,7 +1755,8 @@ export default function Home() {
           produtoOk &&
           loboOk &&
           tipoOk &&
-          alertaOk
+          alertaOk &&
+          golOk
         );
       })
       .sort((a, b) => {
@@ -1775,10 +1786,13 @@ export default function Home() {
     filtroLoboSolitario,
     filtroCardTipo,
     filtroCardAlerta,
+    filtroGol,
     filtroSomenteEsteiraAtual,
     ordenacaoPrincipal,
     mapaComerciais,
     mapaResponsaveis,
+    historico,
+    agora,
   ]);
 
   const dadosConclusoesFiltrados = useMemo(() => {
@@ -1817,6 +1831,8 @@ export default function Home() {
           (filtroCardTipo === "safety" && tipoEfetivo === "Safety") ||
           (filtroCardTipo === "fast" && tipoEfetivo === "Fast");
         const alertaOk = filtroCardAlerta !== "alerta" || e.alerta;
+        const golOk =
+          !filtroGol || classificarGolCliente(e, historico, agora) === filtroGol;
 
         return (
           clienteOk &&
@@ -1826,7 +1842,8 @@ export default function Home() {
           produtoOk &&
           loboOk &&
           tipoOk &&
-          alertaOk
+          alertaOk &&
+          golOk
         );
       })
       .sort((a, b) => {
@@ -1864,8 +1881,11 @@ export default function Home() {
     filtroLoboSolitario,
     filtroCardTipo,
     filtroCardAlerta,
+    filtroGol,
     filtroSomenteEsteiraAtual,
     ordenacaoPrincipal,
+    historico,
+    agora,
     mapaComerciais,
     mapaResponsaveis,
     compararScore,
@@ -3014,17 +3034,27 @@ export default function Home() {
                 </label>
               )}
 
-              <label
-                className="checkbox-label"
-                title="Mostra apenas clientes dentro do prazo do Gol: até o 30º dia na esteira."
+              <select
+                value={filtroGol}
+                onChange={(e) =>
+                  setFiltroGol(e.target.value as ClassificacaoGolCliente | "")
+                }
+                title="Filtra pela situação do Gol: até 30 dias corridos desde a entrada é dentro do prazo."
               >
-                <input
-                  type="checkbox"
-                  checked={filtroDia30}
-                  onChange={(e) => setFiltroDia30(e.target.checked)}
-                />
-                Dentro do prazo do Gol (até o dia 30)
-              </label>
+                <option value="">Qualquer situação de Gol</option>
+                <option value="noPrazoRealizado">
+                  Fez o Gol em até 30 dias
+                </option>
+                <option value="noPrazoNaoRealizado">
+                  Não fez o Gol, dentro do prazo de 30 dias
+                </option>
+                <option value="foraPrazoRealizado">
+                  Fez o Gol depois de 30 dias
+                </option>
+                <option value="foraPrazoNaoRealizado">
+                  Não fez o Gol depois de 30 dias
+                </option>
+              </select>
             </div>
 
             <div className="modal-filtros-footer">
@@ -3043,6 +3073,7 @@ export default function Home() {
                     filtroCardTipo ||
                     filtroCardAlerta ||
                     filtroElegivelDeducao ||
+                    filtroGol ||
                     filtroLoboSolitario ||
                     filtroSomenteEsteiraAtual ||
                     ordenacaoContrato ||
@@ -3056,6 +3087,7 @@ export default function Home() {
                   setFiltroComercial("");
                   setFiltroProgresso("");
                   setFiltroProduto("");
+                  setFiltroGol("");
                   setFiltroCardStatus("");
                   setFiltroCardTipo("");
                   setFiltroCardAlerta("");

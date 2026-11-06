@@ -3,7 +3,7 @@ import test from 'node:test';
 import {
   TrainingStagesSyncService, linhasEtapaTreinamento, resolverCompanyIdDesk,
 } from '../dist/infrastructure/ssxDesk/TrainingStagesSyncService.js';
-import { listarEmpresasDesk } from '../dist/infrastructure/ssxDesk/trainingStages.js';
+import { listarEmpresasDesk, SsxDeskHttpError } from '../dist/infrastructure/ssxDesk/trainingStages.js';
 
 // Formato real confirmado de GET /companies (ver PLANO_BACKEND_PENDENTE.md): "data" +
 // "meta.total", sem "hasMore"/"offset" — diferente da paginação de training-conversations.
@@ -63,6 +63,30 @@ test('linhasEtapaTreinamento: linha em branco mantém o índice (não desalinha 
   assert.equal(linhas[1].tema, '');
   assert.equal(linhas[0].idDesk, 'id-0');
   assert.equal(linhas[2].idDesk, 'id-2');
+});
+
+test('linhasEtapaTreinamento: última fase vira Concluído quando a esteira foi finalizada', () => {
+  // Sem dataFinalizacao: cliente só chegou na última fase, ainda trabalhando nela.
+  const emAndamento = linhasEtapaTreinamento({
+    temaText: 'Tema 1\nTema 2', currentPhase: 1, updatedAt: 0,
+  });
+  assert.equal(emAndamento[1].status, 'Em andamento');
+
+  // Com dataFinalizacao: esteira inteira já terminada — a última fase também conta como
+  // concluída (sem isso, ela nunca teria uma fase seguinte pra currentPhase "passar por cima").
+  const finalizada = linhasEtapaTreinamento({
+    temaText: 'Tema 1\nTema 2', currentPhase: 1, updatedAt: 0, dataFinalizacao: '2026-11-01',
+  });
+  assert.deepEqual(finalizada.map(l => l.status), ['Concluído', 'Concluído']);
+});
+
+test('linhasEtapaTreinamento: dataFinalizacao só afeta a última fase, não fases intermediárias', () => {
+  const linhas = linhasEtapaTreinamento({
+    temaText: 'Tema 1\nTema 2\nTema 3', currentPhase: 1, updatedAt: 0, dataFinalizacao: '2026-11-01',
+  });
+  // currentPhase aponta pra fase do meio, não pra última — dataFinalizacao não se aplica aqui
+  // (não deveria acontecer na prática, mas o código não deve tratar como "tudo concluído").
+  assert.deepEqual(linhas.map(l => l.status), ['Concluído', 'Em andamento', 'Não concluído']);
 });
 
 test('resolverCompanyIdDesk: só resolve quando o idCentral identifica uma única empresa do Desk', () => {
@@ -262,6 +286,46 @@ test('linha removida (ficou em branco) exclui o id salvo antes, sem recriar', as
   assert.deepEqual(c.chamadas.excluir, ['etapa-2']);
   assert.equal(c.chamadas.criar.length, 0);
   assert.deepEqual(db._empresas().get('e1').ssxDeskTrainingStageIds, ['etapa-1', '', 'etapa-3']);
+});
+
+test('PUT 404 (id salvo não existe mais no Desk) recria a etapa em vez de falhar pra sempre', async () => {
+  const db = database();
+  db._empresas().set('e1', empresa({
+    ssxDeskTrainingStageIds: ['etapa-velha', 'etapa-2'], ssxDeskTrainingStagesSyncedAt: 500, updatedAt: Date.now(),
+  }));
+  const tentativasPut = [];
+  const c = cliente({
+    atualizarEtapaTreinamento: async (_apiKey, id, dados) => {
+      tentativasPut.push(id);
+      if (id === 'etapa-velha') throw new SsxDeskHttpError('SSX Desk (atualizar etapa) respondeu HTTP 404.', 404);
+      return { id, ...dados };
+    },
+  });
+  const service = new TrainingStagesSyncService(db, 'chave', c.fns, semEspera);
+  const stats = await service.sincronizar();
+  assert.equal(stats.processadas, 1);
+  assert.deepEqual(tentativasPut, ['etapa-velha', 'etapa-2'], 'tentou o PUT nas duas linhas antes de recriar a que falhou');
+  assert.equal(c.chamadas.criar.length, 1, 'recriou só a linha cujo id tinha sumido do Desk');
+  assert.deepEqual(c.chamadas.criar[0], { companyId: 'company-1', name: 'Tema 1', status: 'Em andamento', sortOrder: 0 });
+  // O novo id (não mais 'etapa-velha') fica salvo; a linha 2 (PUT normal) mantém o id antigo.
+  assert.deepEqual(db._empresas().get('e1').ssxDeskTrainingStageIds, ['etapa-1', 'etapa-2']);
+});
+
+test('erro HTTP diferente de 404 no PUT continua propagando (não tenta recriar à toa)', async () => {
+  const db = database();
+  db._empresas().set('e1', empresa({
+    temaText: 'Tema 1',
+    ssxDeskTrainingStageIds: ['etapa-1'], ssxDeskTrainingStagesSyncedAt: 500, updatedAt: Date.now(),
+  }));
+  const c = cliente({
+    atualizarEtapaTreinamento: async () => { throw new SsxDeskHttpError('500', 500); },
+  });
+  const service = new TrainingStagesSyncService(db, 'chave', c.fns, semEspera);
+  const stats = await service.sincronizar();
+  assert.equal(c.chamadas.criar.length, 0, 'não recria por causa de um erro que não é 404');
+  assert.equal(stats.processadas, 0);
+  const estado = (await db.doc('integracoes/ssxDeskTrainingStages').get()).data();
+  assert.deepEqual(estado.empresasComFalha, ['e1']);
 });
 
 test('empresa sem temaText fica em semTemas, sem chamar o Desk', async () => {

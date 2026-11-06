@@ -1,7 +1,7 @@
 import type { Firestore } from 'firebase-admin/firestore';
 import {
   atualizarEtapaTreinamento, criarEtapaTreinamento, excluirEtapaTreinamento, listarEmpresasDesk,
-  type CompanyDesk, type StatusEtapaDesk,
+  SsxDeskHttpError, type CompanyDesk, type StatusEtapaDesk,
 } from './trainingStages.js';
 
 const COLECAO = 'empresas';
@@ -32,6 +32,9 @@ interface EmpresaRadar {
   temaText?: string;
   currentPhase: number;
   updatedAt: number;
+  /** Preenchida quando o cliente finaliza a esteira inteira — ver Empresa.dataFinalizacao
+   * em app/src/types.ts e clienteConcluido() em app/src/pages/Home/Home.tsx. */
+  dataFinalizacao?: string;
   ssxDeskTrainingStageIds?: string[];
   ssxDeskTrainingStagesSyncedAt?: number;
 }
@@ -50,9 +53,16 @@ interface LinhaEtapa {
 export function linhasEtapaTreinamento(empresa: EmpresaRadar): LinhaEtapa[] {
   const temas = (empresa.temaText || '').split('\n');
   const idsAntigos = empresa.ssxDeskTrainingStageIds || [];
+  const ultimoIndice = temas.length - 1;
   return temas.map((temaBruto, indice) => {
     const tema = temaBruto.trim();
-    const status: StatusEtapaDesk = indice < empresa.currentPhase ? 'Concluído'
+    // A última fase nunca tem uma fase seguinte pra `currentPhase` avançar e marcá-la como
+    // concluída — o Radar mantém `currentPhase` apontando pra ela mesmo depois de pronta
+    // (ver isFinished em app/src/pages/Esteira/Esteira.tsx). Sem esse caso especial, a
+    // última etapa ficaria "Em andamento" no Desk para sempre, mesmo com o cliente formado.
+    const ultimaFaseFinalizada =
+      indice === ultimoIndice && indice === empresa.currentPhase && !!empresa.dataFinalizacao?.trim();
+    const status: StatusEtapaDesk = indice < empresa.currentPhase || ultimaFaseFinalizada ? 'Concluído'
       : indice === empresa.currentPhase ? 'Em andamento' : 'Não concluído';
     return { indice, tema, status, idDesk: idsAntigos[indice] || '' };
   });
@@ -225,9 +235,19 @@ export class TrainingStagesSyncService {
         });
         ids[linha.indice] = criada.id;
       } else if (precisaReenviar) {
-        await this.cliente.atualizarEtapaTreinamento(this.apiKey, linha.idDesk, {
-          name: linha.tema, status: linha.status, sortOrder: linha.indice,
-        });
+        try {
+          await this.cliente.atualizarEtapaTreinamento(this.apiKey, linha.idDesk, {
+            name: linha.tema, status: linha.status, sortOrder: linha.indice,
+          });
+        } catch (erro) {
+          // O id salvo não existe mais do lado do Desk (apagado por lá, por exemplo) —
+          // recria em vez de ficar tentando atualizar algo que já não existe para sempre.
+          if (!(erro instanceof SsxDeskHttpError) || erro.status !== 404) throw erro;
+          const recriada = await this.cliente.criarEtapaTreinamento(this.apiKey, {
+            companyId, name: linha.tema, status: linha.status, sortOrder: linha.indice,
+          });
+          ids[linha.indice] = recriada.id;
+        }
       }
     }
     // A trilha encolheu (menos linhas do que ids salvos antes): exclui os excedentes.

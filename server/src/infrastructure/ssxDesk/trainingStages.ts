@@ -38,10 +38,22 @@ function cabecalhos(apiKey: string): HeadersInit {
   return { Authorization: `Bearer ${apiKey}`, Accept: 'application/json' };
 }
 
+/** Erro HTTP do Desk com o status preservado — permite ao chamador reagir a um código
+ * específico (ex.: recriar uma etapa que sumiu, em vez de só logar um 404 genérico). */
+export class SsxDeskHttpError extends Error {
+  constructor(message: string, public readonly status: number) {
+    super(message);
+    this.name = 'SsxDeskHttpError';
+  }
+}
+
 async function tratarResposta<T>(response: Response, contexto: string): Promise<T> {
   if (!response.ok) {
     // Nunca registrar o corpo bruto da resposta nem a chave — pode conter dados do cliente.
-    throw new Error(`SSX Desk (${contexto}) respondeu HTTP ${response.status}. Confira a chave, o escopo e o limite de consultas.`);
+    throw new SsxDeskHttpError(
+      `SSX Desk (${contexto}) respondeu HTTP ${response.status}. Confira a chave, o escopo e o limite de consultas.`,
+      response.status,
+    );
   }
   const corpo = await response.json().catch(() => {
     throw new Error(`SSX Desk (${contexto}) devolveu uma resposta que não é JSON.`);

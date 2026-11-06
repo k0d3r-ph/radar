@@ -77,3 +77,35 @@ export function calcularGolNoPrazo(empresas: Empresa[], ocorrencias: Ocorrencia[
 
   return resultados;
 }
+
+export interface ResultadoNaoRealizadoGolTreinamento {
+  empresa: string;
+  /** Fim da janela de 30 dias contada a partir da entrada — mesmo mês de apuração usado por
+   * {@link calcularGolNoPrazo} para quem já expirou sem bater o Gol. */
+  dataReferencia: Date;
+}
+
+/**
+ * Clientes que ainda não bateram o Gol, estejam dentro ou fora dos {@link PRAZO_DIAS_GOL} dias
+ * corridos desde a entrada. Diferente de {@link calcularGolNoPrazo}, não exclui quem ainda está
+ * dentro do prazo — usado só na quebra "Não realizado" do resumo do card, não no percentual
+ * principal de Gol no Prazo (que precisa aguardar o prazo se esgotar para julgar o cliente).
+ */
+export function calcularNaoRealizadosGolTreinamento(
+  empresas: Empresa[],
+  ocorrencias: Ocorrencia[],
+): ResultadoNaoRealizadoGolTreinamento[] {
+  const resultados: ResultadoNaoRealizadoGolTreinamento[] = [];
+
+  empresas.forEach((empresa) => {
+    const dataEntrada = parseDataLocalISO(empresa.dataEntrada);
+    if (!dataEntrada) return;
+
+    if (encontrarOcorrenciaGol(ocorrencias, empresa.nomeEmpresa)) return;
+
+    const prazoMs = dataEntrada.getTime() + PRAZO_DIAS_GOL * 24 * 60 * 60 * 1000;
+    resultados.push({ empresa: empresa.nomeEmpresa, dataReferencia: new Date(prazoMs) });
+  });
+
+  return resultados;
+}

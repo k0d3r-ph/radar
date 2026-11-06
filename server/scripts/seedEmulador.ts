@@ -88,7 +88,9 @@ const EMPRESAS: SeedEmpresa[] = [
     nomeEmpresa: 'Empresa Beta Comércio',
     responsavel: nomeTreinador2,
     currentPhase: 1,
-    dataEntradaDiasAtras: 25,
+    // Entrada > 30 dias atrás com prazo (dataEntrada + 30d) vencido dentro do mês corrente e
+    // sem Gol registrado — exemplo de "Não realizado" (fora do prazo) no card Gol no Prazo.
+    dataEntradaDiasAtras: 35,
     extra: { isSuspended: true, dataSuspensao: dataISO(diasAtras(4)) },
   },
   {
@@ -96,7 +98,9 @@ const EMPRESAS: SeedEmpresa[] = [
     nomeEmpresa: 'Empresa Gama Serviços',
     responsavel: nomeTreinador1,
     currentPhase: 4,
-    dataEntradaDiasAtras: 40,
+    // Prazo de 30 dias vence dentro do mês corrente; ocorrência "Gol" abaixo bate dentro do
+    // prazo — exemplo de "No prazo" no card Gol no Prazo.
+    dataEntradaDiasAtras: 33,
     extra: { dataFinalizacao: dataISO(diasAtras(2)) },
   },
   {
@@ -104,7 +108,9 @@ const EMPRESAS: SeedEmpresa[] = [
     nomeEmpresa: 'Empresa Delta Tech',
     responsavel: nomeTreinador3,
     currentPhase: 1,
-    dataEntradaDiasAtras: 50,
+    // Prazo de 30 dias vence dentro do mês corrente; ocorrência "Gol" abaixo bate fora do
+    // prazo — exemplo de "Fora do prazo" no card Gol no Prazo.
+    dataEntradaDiasAtras: 34,
     extra: { isCancelled: true, whatsappEnviadoEmCancelamento: diasAtras(10).getTime() },
   },
   {
@@ -145,7 +151,9 @@ const OCORRENCIAS: SeedOcorrencia[] = [
   { empresa: 'Empresa Beta Comércio', tipo: 'Solicitação', descricao: 'Pedido de relatório extra de vendas.', departamento: 'Treinamento', responsavel: nomeTreinador2, diasAtras: 6 },
   { empresa: 'Empresa Gama Serviços', tipo: 'Treinamento', descricao: 'Treinamento de relatórios gerenciais.', departamento: 'Treinamento', responsavel: nomeTreinador1, diasAtras: 10, treinamentoResultados: ['Bom', 'Bom'], treinamentoDataSolicitacao: dataISO(diasAtras(14)) },
   { empresa: 'Empresa Gama Serviços', tipo: 'Checkpoint', descricao: 'Checkpoint de conclusão da esteira.', departamento: 'CS', responsavel: nomeCs, diasAtras: 2 },
+  { empresa: 'Empresa Gama Serviços', tipo: 'Gol', descricao: 'Meta combinada (Gol) atingida dentro do prazo.', departamento: 'CS', responsavel: nomeCs, diasAtras: 8 },
   { empresa: 'Empresa Delta Tech', tipo: 'Problema', descricao: 'Reclamação recorrente de lentidão.', departamento: 'Suporte', responsavel: nomeTreinador3, diasAtras: 15 },
+  { empresa: 'Empresa Delta Tech', tipo: 'Gol', descricao: 'Meta combinada (Gol) atingida fora do prazo.', departamento: 'CS', responsavel: nomeCs, diasAtras: 2 },
   { empresa: 'Empresa Épsilon Varejo', tipo: 'Informativa', descricao: 'Boas-vindas e agenda inicial definida.', departamento: 'CS', responsavel: nomeCs, diasAtras: 2 },
   { empresa: 'Empresa Zeta Indústria', tipo: 'Dúvida', descricao: 'Dúvida sobre permissões de usuário.', departamento: 'Suporte', responsavel: nomeTreinador3, diasAtras: 1 },
   { empresa: 'Empresa Zeta Indústria', tipo: 'Treinamento', descricao: 'Treinamento ausente — cliente não compareceu.', departamento: 'Treinamento', responsavel: nomeTreinador3, diasAtras: 7 },

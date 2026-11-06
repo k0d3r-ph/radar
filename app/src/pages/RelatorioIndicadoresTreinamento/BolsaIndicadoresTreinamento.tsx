@@ -9,7 +9,7 @@ import {
   type EventosIndicadoresTreinamento,
   type PeriodoIndicador,
 } from "../../utils/indicadoresTreinamento";
-import { calcularGolNoPrazo } from "../../utils/golTreinamento";
+import { calcularGolNoPrazo, calcularNaoRealizadosGolTreinamento } from "../../utils/golTreinamento";
 import {
   calcularValidacaoPorCliente,
   type ResultadoValidacaoCliente,
@@ -662,6 +662,13 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
     [empresas, ocorrencias],
   );
 
+  // Quebra "Não realizado" do resumo: diferente do percentual principal, conta quem ainda não
+  // bateu o Gol estando dentro ou fora dos 30 dias (ver calcularNaoRealizadosGolTreinamento).
+  const naoRealizadosGolNoPrazo = useMemo(
+    () => calcularNaoRealizadosGolTreinamento(empresas, ocorrencias),
+    [empresas, ocorrencias],
+  );
+
   // O mês corrente só fecha no último instante do próprio mês — enquanto isso não chegar,
   // o percentual mostrado é parcial (vai mudar conforme mais clientes completam os 30 dias).
   const golNoPrazoMesParcial = useMemo(() => {
@@ -679,17 +686,34 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
         r.dataReferencia.getTime() >= mesAtual.inicio.getTime() &&
         r.dataReferencia.getTime() <= mesAtual.fim.getTime(),
     );
-    if (doMes.length === 0) return null;
+    // "Não realizado" usa o mês calendário inteiro (não o corte em "hoje" de mesAtual.fim no
+    // mês em andamento): um cliente ainda dentro dos 30 dias, com prazo terminando mais
+    // adiante neste mês, já deve aparecer aqui — não só depois que o prazo vencer.
+    const inicioMesCalendario = mesAtual.inicio;
+    const fimMesCalendario = new Date(
+      mesAtual.inicio.getFullYear(),
+      mesAtual.inicio.getMonth() + 1,
+      0,
+      23,
+      59,
+      59,
+      999,
+    );
+    const naoRealizadoDoMes = naoRealizadosGolNoPrazo.filter(
+      (r) =>
+        r.dataReferencia.getTime() >= inicioMesCalendario.getTime() &&
+        r.dataReferencia.getTime() <= fimMesCalendario.getTime(),
+    ).length;
+    if (doMes.length === 0 && naoRealizadoDoMes === 0) return null;
     const noPrazo = doMes.filter((r) => r.noPrazo).length;
     const foraDoPrazo = doMes.filter((r) => r.atingiuGol && !r.noPrazo).length;
-    const naoRealizado = doMes.filter((r) => !r.atingiuGol).length;
     return [
       { label: "No prazo", valor: noPrazo },
       { label: "Fora do prazo", valor: foraDoPrazo },
-      { label: "Não realizado", valor: naoRealizado },
-      { label: "Total avaliado", valor: doMes.length },
+      { label: "Não realizado", valor: naoRealizadoDoMes },
+      { label: "Total avaliado", valor: noPrazo + foraDoPrazo + naoRealizadoDoMes },
     ];
-  }, [golNoPrazoResultados, periodosPorGranularidade]);
+  }, [golNoPrazoResultados, naoRealizadosGolNoPrazo, periodosPorGranularidade]);
 
   // Comparação com o mês anterior: enquanto o mês corrente está em andamento, compara contra
   // o MESMO intervalo de dias do mês anterior (não o mês anterior inteiro) — senão um mês

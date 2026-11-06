@@ -409,9 +409,10 @@ function CardIndicador({
   /** Número absoluto por trás do percentual (ex.: aprovados/total), mostrado junto da
    * meta — hoje só a Validação do Conhecimento usa isso. */
   fracaoExtra?: { parte: number; total: number } | null;
-  /** Quebra de contagem por trás do percentual (ex.: No prazo: 12 / Fora do prazo ou não
-   * realizado: 3 / Total avaliado: 15), um bloco por item — hoje só o Gol no Prazo usa. */
-  resumoContagem?: { label: string; valor: number }[] | null;
+  /** Quebra de contagem por trás do percentual (ex.: No prazo: 12 / Fora do prazo: 2 / Não
+   * realizado: 1), lado a lado, mais o total numa linha própria abaixo — hoje só o Gol no
+   * Prazo usa. */
+  resumoContagem?: { itens: { label: string; valor: number }[]; total: { label: string; valor: number } } | null;
   /** O período do valor em destaque ainda não fechou (ex.: mês em andamento) — mostra um
    * selo "PARCIAL" para deixar claro que o número ainda vai mudar até o fim do período. */
   tagParcial?: boolean;
@@ -495,15 +496,21 @@ function CardIndicador({
             {fracaoExtra.parte}/{fracaoExtra.total}
           </span>
         )}
-        {resumoContagem && resumoContagem.length > 0 && (
-          <div className="bolsa-card-resumo-contagem">
-            {resumoContagem.map((item) => (
-              <div className="bolsa-card-resumo-item" key={item.label}>
-                <span className="bolsa-card-resumo-valor">{item.valor}</span>
-                <span className="bolsa-card-resumo-label">{item.label}</span>
-              </div>
-            ))}
-          </div>
+        {resumoContagem && (
+          <>
+            <div className="bolsa-card-resumo-contagem">
+              {resumoContagem.itens.map((item) => (
+                <div className="bolsa-card-resumo-item" key={item.label}>
+                  <span className="bolsa-card-resumo-valor">{item.valor}</span>
+                  <span className="bolsa-card-resumo-label">{item.label}</span>
+                </div>
+              ))}
+            </div>
+            <div className="bolsa-card-resumo-total">
+              <span className="bolsa-card-resumo-total-valor">{resumoContagem.total.valor}</span>
+              <span className="bolsa-card-resumo-label">{resumoContagem.total.label}</span>
+            </div>
+          </>
         )}
       </div>
 
@@ -680,11 +687,16 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
     );
     if (doMes.length === 0) return null;
     const noPrazo = doMes.filter((r) => r.noPrazo).length;
-    return [
-      { label: "No prazo", valor: noPrazo },
-      { label: "Fora do prazo ou não realizado", valor: doMes.length - noPrazo },
-      { label: "Total avaliado", valor: doMes.length },
-    ];
+    const foraDoPrazo = doMes.filter((r) => r.atingiuGol && !r.noPrazo).length;
+    const naoRealizado = doMes.filter((r) => !r.atingiuGol).length;
+    return {
+      itens: [
+        { label: "No prazo", valor: noPrazo },
+        { label: "Fora do prazo", valor: foraDoPrazo },
+        { label: "Não realizado", valor: naoRealizado },
+      ],
+      total: { label: "Total avaliado", valor: doMes.length },
+    };
   }, [golNoPrazoResultados, periodosPorGranularidade]);
 
   // Comparação com o mês anterior: enquanto o mês corrente está em andamento, compara contra

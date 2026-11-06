@@ -353,14 +353,19 @@
   color: #7c93ad;
 }
 
-/* Quebra de contagem por trás do percentual (ex.: No prazo / Fora do prazo ou não
-   realizado / Total avaliado) — três blocos lado a lado, não um texto corrido, pra ler
-   rápido o número de cada categoria sem precisar separar frases por pontuação. */
+/* Quebra de contagem por trás do percentual (No prazo / Fora do prazo / Não realizado) —
+   três colunas de largura IGUAL (não flex de largura livre), senão rótulos de tamanhos
+   diferentes ("No prazo" vs. "Não realizado") puxam o item do meio pra fora do centro
+   verdadeiro do card — e aí ele não bate com "Total avaliado" nem com o valor principal
+   acima, que são centralizados pela largura cheia. O total fica à parte, numa linha
+   própria abaixo (.bolsa-card-resumo-total), sempre no mesmo centro. */
 .bolsa-card-resumo-contagem {
-  display: flex;
-  justify-content: center;
-  gap: 1em;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  justify-items: center;
+  gap: 0.2em 0.6em;
   padding-top: 0.2em;
+  width: 100%;
 }
 
 .bolsa-card-resumo-item {
@@ -368,7 +373,6 @@
   flex-direction: column;
   align-items: center;
   gap: 0.1em;
-  max-width: 7em;
 }
 
 .bolsa-card-resumo-valor {
@@ -384,6 +388,24 @@
   color: #7c93ad;
   text-align: center;
   line-height: 1.15;
+}
+
+.bolsa-card-resumo-total {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1em;
+  width: 100%;
+  margin-top: 0.4em;
+  padding-top: 0.4em;
+  border-top: 1px solid #1d3d63;
+}
+
+.bolsa-card-resumo-total-valor {
+  font-size: 1.1em;
+  font-weight: 700;
+  color: #eaf2fa;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Comparações: uma linha por período (dia/semana/mês anterior), com texto à esquerda,

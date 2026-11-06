@@ -310,6 +310,9 @@ function corPorFavorabilidade(favoravel: boolean | null): string {
 interface LinhaComparacao {
   granularidade: Granularidade;
   label: string;
+  /** Explicação completa do rótulo, exibida como tooltip (title) — usada quando o rótulo
+   * visível precisa ficar curto para não quebrar o layout da coluna estreita do card. */
+  labelTooltip?: string;
   prevStr: string;
   deltaStr: string;
   arrow: string;
@@ -322,6 +325,7 @@ interface ComparacaoSnapshot {
   atual: number | null;
   anterior: number | null;
   label: string;
+  labelTooltip?: string;
 }
 
 function construirComparacao(
@@ -376,6 +380,7 @@ function construirComparacao(
         ? "vs. média da semana anterior"
         : "vs. média do mês anterior"
       : ROTULO_COMPARACAO[granularidade]),
+    labelTooltip: snapshot?.labelTooltip,
     prevStr,
     deltaStr: delta === null ? "—" : formatarDelta(Math.abs(delta)),
     arrow: delta === null || delta === 0 ? "■" : delta > 0 ? "▲" : "▼",
@@ -389,14 +394,27 @@ function CardIndicador({
   config,
   series,
   snapshotsSuspensos,
+  snapshotComparacaoCustom,
   fracaoExtra,
+  resumoContagem,
+  tagParcial,
 }: {
   config: ConfigBolsa;
   series: Record<Granularidade, Ponto[]>;
   snapshotsSuspensos?: Record<Granularidade, ComparacaoSnapshot>;
+  /** Mesmo papel de `snapshotsSuspensos`, mas para indicadores que só precisam substituir a
+   * comparação (ex.: Gol no Prazo comparando o mesmo intervalo de dias do mês anterior
+   * quando o mês atual ainda está em andamento) — não populam as três granularidades. */
+  snapshotComparacaoCustom?: Partial<Record<Granularidade, ComparacaoSnapshot>>;
   /** Número absoluto por trás do percentual (ex.: aprovados/total), mostrado junto da
    * meta — hoje só a Validação do Conhecimento usa isso. */
   fracaoExtra?: { parte: number; total: number } | null;
+  /** Quebra de contagem por trás do percentual (ex.: No prazo: 12 / Fora do prazo ou não
+   * realizado: 3 / Total avaliado: 15), um bloco por item — hoje só o Gol no Prazo usa. */
+  resumoContagem?: { label: string; valor: number }[] | null;
+  /** O período do valor em destaque ainda não fechou (ex.: mês em andamento) — mostra um
+   * selo "PARCIAL" para deixar claro que o número ainda vai mudar até o fim do período. */
+  tagParcial?: boolean;
 }) {
   const granularidadePrincipal = config.granularidadePrincipal ?? "dia";
   const granularidadesComparacao = config.granularidadesComparacao ?? ORDEM_GRANULARIDADES;
@@ -405,7 +423,7 @@ function CardIndicador({
     series[granularidadePrincipal][series[granularidadePrincipal].length - 1]?.valor ??
     null;
   const comparacoes = granularidadesComparacao.map((g) =>
-    construirComparacao(config, g, series[g], ultimo, snapshotsSuspensos?.[g]),
+    construirComparacao(config, g, series[g], ultimo, snapshotsSuspensos?.[g] ?? snapshotComparacaoCustom?.[g]),
   );
   // Primeira comparação da lista configurada (normalmente "dia"; só "mês" para o Gol no Prazo).
   const comparacaoPrincipal = comparacoes[0];
@@ -453,6 +471,14 @@ function CardIndicador({
         <span className={`bolsa-card-pill bolsa-card-pill--${statusClasse}`}>
           <span aria-hidden="true">●</span> {statusTexto}
         </span>
+        {tagParcial && (
+          <span
+            className="bolsa-card-pill bolsa-card-pill--parcial"
+            title="O mês ainda está em andamento — este número é parcial e vai mudar até o fechamento."
+          >
+            Parcial
+          </span>
+        )}
         <h3 className="bolsa-card-titulo">{config.titulo}</h3>
       </div>
 
@@ -469,15 +495,25 @@ function CardIndicador({
             {fracaoExtra.parte}/{fracaoExtra.total}
           </span>
         )}
+        {resumoContagem && resumoContagem.length > 0 && (
+          <div className="bolsa-card-resumo-contagem">
+            {resumoContagem.map((item) => (
+              <div className="bolsa-card-resumo-item" key={item.label}>
+                <span className="bolsa-card-resumo-valor">{item.valor}</span>
+                <span className="bolsa-card-resumo-label">{item.label}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="bolsa-card-comparacoes">
         {comparacoes.map((c) => (
           <div className="bolsa-card-comparacao" key={c.granularidade}>
-            <div className="bolsa-card-comparacao-texto">
-              <span className="bolsa-card-comparacao-label">{c.label}</span>
-              <span className="bolsa-card-comparacao-antes">Antes: {c.prevStr}</span>
-            </div>
+            <span className="bolsa-card-comparacao-label" title={c.labelTooltip ?? c.label}>
+              {c.label}
+            </span>
+            <span className="bolsa-card-comparacao-antes">Antes: {c.prevStr}</span>
             <MiniSparkline pontos={c.serie} cor={c.cor} />
             <div className="bolsa-card-comparacao-delta" style={{ color: c.cor }}>
               <span className="bolsa-card-comparacao-seta">
@@ -620,6 +656,78 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
     return { parte: resultados.filter((r) => r.aprovada).length, total: resultados.length };
   }, [validacaoPorCliente, minutoAtual]);
 
+  const golNoPrazoResultados = useMemo(
+    () => calcularGolNoPrazo(empresas, ocorrencias),
+    [empresas, ocorrencias],
+  );
+
+  // O mês corrente só fecha no último instante do próprio mês — enquanto isso não chegar,
+  // o percentual mostrado é parcial (vai mudar conforme mais clientes completam os 30 dias).
+  const golNoPrazoMesParcial = useMemo(() => {
+    const ref = new Date(minutoAtual * 60000);
+    const fimRealDoMes = new Date(ref.getFullYear(), ref.getMonth() + 1, 0, 23, 59, 59, 999);
+    return fimRealDoMes.getTime() > ref.getTime();
+  }, [minutoAtual]);
+
+  // Quebra de contagem por trás do percentual do mês corrente, mostrada no card.
+  const resumoGolNoPrazoMes = useMemo(() => {
+    const mesAtual = periodosPorGranularidade.mes[periodosPorGranularidade.mes.length - 1];
+    if (!mesAtual) return null;
+    const doMes = golNoPrazoResultados.filter(
+      (r) =>
+        r.dataReferencia.getTime() >= mesAtual.inicio.getTime() &&
+        r.dataReferencia.getTime() <= mesAtual.fim.getTime(),
+    );
+    if (doMes.length === 0) return null;
+    const noPrazo = doMes.filter((r) => r.noPrazo).length;
+    return [
+      { label: "No prazo", valor: noPrazo },
+      { label: "Fora do prazo ou não realizado", valor: doMes.length - noPrazo },
+      { label: "Total avaliado", valor: doMes.length },
+    ];
+  }, [golNoPrazoResultados, periodosPorGranularidade]);
+
+  // Comparação com o mês anterior: enquanto o mês corrente está em andamento, compara contra
+  // o MESMO intervalo de dias do mês anterior (não o mês anterior inteiro) — senão um mês
+  // parcial de poucos dias sempre perderia para um mês fechado inteiro, de forma injusta.
+  const snapshotGolNoPrazoComparacao = useMemo(() => {
+    const ref = new Date(minutoAtual * 60000);
+    const inicioMesAtual = new Date(ref.getFullYear(), ref.getMonth(), 1);
+    const fimRealDoMes = new Date(ref.getFullYear(), ref.getMonth() + 1, 0, 23, 59, 59, 999);
+    const mesEmAndamento = fimRealDoMes.getTime() > ref.getTime();
+
+    const percentualNoPeriodo = (inicio: Date, fim: Date): number | null => {
+      const filtrados = golNoPrazoResultados.filter(
+        (r) => r.dataReferencia.getTime() >= inicio.getTime() && r.dataReferencia.getTime() <= fim.getTime(),
+      );
+      if (filtrados.length === 0) return null;
+      return (filtrados.filter((r) => r.noPrazo).length / filtrados.length) * 100;
+    };
+
+    const atual = percentualNoPeriodo(inicioMesAtual, ref);
+
+    const inicioMesAnterior = new Date(ref.getFullYear(), ref.getMonth() - 1, 1);
+    const ultimoDiaMesAnterior = new Date(ref.getFullYear(), ref.getMonth(), 0).getDate();
+    const fimMesAnterior = mesEmAndamento
+      ? new Date(ref.getFullYear(), ref.getMonth() - 1, Math.min(ref.getDate(), ultimoDiaMesAnterior), 23, 59, 59, 999)
+      : new Date(ref.getFullYear(), ref.getMonth(), 0, 23, 59, 59, 999);
+    const anterior = percentualNoPeriodo(inicioMesAnterior, fimMesAnterior);
+
+    return {
+      mes: {
+        atual,
+        anterior,
+        // Mantém "mês" explícito no rótulo (granularidade sendo comparada) — o texto agora
+        // trunca com reticências em vez de quebrar (ver .bolsa-card-comparacao-label), então
+        // pode ficar um pouco mais longo sem esticar o card; o detalhe completo vai no title.
+        label: mesEmAndamento ? "vs. mesmo período do mês" : "vs. mês anterior",
+        labelTooltip: mesEmAndamento
+          ? "Comparando com o mesmo intervalo de dias do mês anterior, já que o mês atual ainda está em andamento."
+          : "Comparando com o mês anterior fechado por inteiro.",
+      },
+    } satisfies Partial<Record<Granularidade, ComparacaoSnapshot>>;
+  }, [golNoPrazoResultados, minutoAtual]);
+
   const snapshotsSuspensos = useMemo(() => {
     const referencias = gerarReferenciasSnapshotSuspensos(new Date(minutoAtual * 60000 + 59_999));
     const contarNoMomento = (fim: Date) =>
@@ -712,7 +820,10 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
             config={config}
             series={seriesPorIndicador[config.chave]}
             snapshotsSuspensos={config.chave === "clientesSuspensos" ? snapshotsSuspensos : undefined}
+            snapshotComparacaoCustom={config.chave === "golNoPrazo" ? snapshotGolNoPrazoComparacao : undefined}
             fracaoExtra={config.chave === "validacaoConhecimento" ? fracaoValidacaoConhecimentoMes : undefined}
+            resumoContagem={config.chave === "golNoPrazo" ? resumoGolNoPrazoMes : undefined}
+            tagParcial={config.chave === "golNoPrazo" ? golNoPrazoMesParcial : undefined}
           />
         ))}
       </div>

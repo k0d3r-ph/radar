@@ -243,6 +243,13 @@
   background: rgba(148, 163, 184, 0.14);
 }
 
+/* Selo "Parcial": mês em andamento, resultado ainda vai mudar — cor neutra para não
+   competir com o verde/vermelho da pílula de status (meta), que é a informação principal. */
+.bolsa-card-pill--parcial {
+  color: #f0b429;
+  background: rgba(240, 180, 41, 0.14);
+}
+
 .bolsa-card-titulo {
   margin: 0;
   font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
@@ -346,6 +353,39 @@
   color: #7c93ad;
 }
 
+/* Quebra de contagem por trás do percentual (ex.: No prazo / Fora do prazo ou não
+   realizado / Total avaliado) — três blocos lado a lado, não um texto corrido, pra ler
+   rápido o número de cada categoria sem precisar separar frases por pontuação. */
+.bolsa-card-resumo-contagem {
+  display: flex;
+  justify-content: center;
+  gap: 1em;
+  padding-top: 0.2em;
+}
+
+.bolsa-card-resumo-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1em;
+  max-width: 7em;
+}
+
+.bolsa-card-resumo-valor {
+  font-size: 1.3em;
+  font-weight: 700;
+  color: #eaf2fa;
+  font-variant-numeric: tabular-nums;
+}
+
+.bolsa-card-resumo-label {
+  font-size: 0.68em;
+  font-weight: 500;
+  color: #7c93ad;
+  text-align: center;
+  line-height: 1.15;
+}
+
 /* Comparações: uma linha por período (dia/semana/mês anterior), com texto à esquerda,
    mini-gráfico no meio e variação colorida à direita — tudo numa única linha, como no
    painel de referência. */
@@ -354,42 +394,59 @@
   flex-direction: column;
 }
 
+/* Duas linhas: o rótulo ("vs. mês anterior" etc.) ocupa a largura inteira sozinho na
+   primeira — nunca fica espremido pelas colunas do mini-gráfico/variação, que são largura
+   fixa e, numa linha só de 3 colunas, podiam reduzir a coluna do texto a quase 0px (texto
+   cortado virava invisível, ou — antes do corte — quebrava letra por letra). */
 .bolsa-card-comparacao {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 6.4em minmax(5.2em, auto);
+  grid-template-areas:
+    "label label label"
+    "antes spark delta";
   align-items: center;
-  gap: 0.7em;
+  gap: 0.2em 0.7em;
   min-height: 3.3em;
   padding: 0.5em 0;
   border-top: 1px solid #1d3d63;
 }
 
-.bolsa-card-comparacao-texto {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
 .bolsa-card-comparacao-label {
+  grid-area: label;
   font-size: 0.95em;
   font-weight: 600;
   color: #eaf2fa;
-  overflow-wrap: anywhere;
+  /* Trunca com reticências só como rede de segurança (ex.: card extremamente estreito) —
+     com a linha inteira pra si, o texto normal dos rótulos sempre cabe sem cortar. O texto
+     completo continua acessível pelo title (tooltip) no elemento. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  max-width: 100%;
 }
 
 .bolsa-card-comparacao-antes {
+  grid-area: antes;
   font-size: 0.82em;
   color: #a3b8cf;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  max-width: 100%;
 }
 
 .bolsa-mini-sparkline {
+  grid-area: spark;
   display: block;
   width: 100%;
   height: 2em;
 }
 
 .bolsa-card-comparacao-delta {
+  grid-area: delta;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -505,6 +562,9 @@
 
   .bolsa-card-comparacao {
     grid-template-columns: minmax(0, 1fr) minmax(4.6em, auto);
+    grid-template-areas:
+      "label label"
+      "antes delta";
   }
 }
 

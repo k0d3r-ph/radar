@@ -57,7 +57,10 @@ export function calcularGolNoPrazo(empresas: Empresa[], ocorrencias: Ocorrencia[
         empresa: empresa.nomeEmpresa,
         atingiuGol: true,
         noPrazo: ocorrenciaGol.dataOcorrencia <= prazoMs,
-        dataReferencia: new Date(ocorrenciaGol.dataOcorrencia),
+        // Mês de apuração é sempre o do fim da janela de 30 dias (data limite), nunca o
+        // mês em que o Gol foi batido — um Gol fora do prazo conta no mês em que o prazo
+        // se esgotou, não no mês (possivelmente bem posterior) em que o cliente o atingiu.
+        dataReferencia: new Date(prazoMs),
       });
       return;
     }

@@ -2,7 +2,6 @@ export type AbaRelatorio =
   | "esteira"
   | "score"
   | "jornada"
-  | "executiva"
   | "aging"
   | "indicadores"
   | "validacao";
@@ -26,7 +25,6 @@ export function obterAbasRelatorio(role: string | null | undefined): DefinicaoAb
     todas.push(
       { key: "score", label: "Scores dos Clientes" },
       { key: "jornada", label: "Jornada do Cliente" },
-      { key: "executiva", label: "Visão Executiva" },
       { key: "aging", label: "Aging da Esteira" },
       { key: "indicadores", label: "Indicadores de Treinamento" },
     );

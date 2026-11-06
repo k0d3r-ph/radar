@@ -1400,30 +1400,26 @@ ${riscoChurn.length > 0
             ? "Visão Geral"
             : activeTab === "jornada"
               ? "Jornada do Cliente"
-              : activeTab === "executiva"
-                ? "Visão Executiva"
-                : activeTab === "aging"
-                  ? "Aging da Esteira"
-                  : activeTab === "indicadores"
-                    ? "Indicadores de Treinamento"
-                    : activeTab === "validacao"
-                      ? "Validação do Conhecimento"
-                      : "Relatório Geral de Scores"}
+              : activeTab === "aging"
+                ? "Aging da Esteira"
+                : activeTab === "indicadores"
+                  ? "Indicadores de Treinamento"
+                  : activeTab === "validacao"
+                    ? "Validação do Conhecimento"
+                    : "Relatório Geral de Scores"}
         </h1>
         <p>
           {activeTab === "esteira"
             ? "Indicadores consolidados sobre o andamento e status das implantações dos clientes."
             : activeTab === "jornada"
               ? "Acompanhamento do progresso, etapas de treinamento e checkpoints de capacitação dos clientes."
-              : activeTab === "executiva"
-                ? "Panorama consolidado para tomada de decisão estratégica."
-                : activeTab === "aging"
-                  ? "Tempo de permanência dos clientes na esteira de capacitação, por faixa de dias e treinador."
-                  : activeTab === "indicadores"
-                    ? "KPIs de treinamentos, CSAT, suporte e carteira de clientes, por treinador, dia ou semana."
-                    : activeTab === "validacao"
-                      ? "Aprovação, aproveitamento e pontos de reforço das avaliações de conhecimento dos clientes."
-                      : "Estatísticas consolidadas e listagem de clientes baseadas no último cálculo de score."}
+              : activeTab === "aging"
+                ? "Tempo de permanência dos clientes na esteira de capacitação, por faixa de dias e treinador."
+                : activeTab === "indicadores"
+                  ? "KPIs de treinamentos, CSAT, suporte e carteira de clientes, por treinador, dia ou semana."
+                  : activeTab === "validacao"
+                    ? "Aprovação, aproveitamento e pontos de reforço das avaliações de conhecimento dos clientes."
+                    : "Estatísticas consolidadas e listagem de clientes baseadas no último cálculo de score."}
         </p>
       </header>
 
@@ -2121,11 +2117,6 @@ ${riscoChurn.length > 0
         </>
       ) : activeTab === "score" ? (
         <RelatorioScore />
-      ) : activeTab === "executiva" ? (
-        <div className="relatorio-empty">
-          <span className="relatorio-empty-icon">📊</span>
-          <p>Visão Executiva em construção.</p>
-        </div>
       ) : activeTab === "aging" ? (
         <RelatorioAging />
       ) : activeTab === "indicadores" ? (

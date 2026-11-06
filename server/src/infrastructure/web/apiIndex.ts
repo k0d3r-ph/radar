@@ -24,7 +24,10 @@ async function bootstrap() {
   });
 
   iniciarSincronizacaoSsxDesk(adminDb, config.ssxDeskApiKey, config.ssxDeskSyncIntervalMs);
-  iniciarSincronizacaoSsxDeskTrainingStages(adminDb, config.ssxDeskTrainingStagesApiKey, config.ssxDeskTrainingStagesSyncIntervalMs);
+  iniciarSincronizacaoSsxDeskTrainingStages(
+    adminDb, config.ssxDeskTrainingStagesApiKey, config.ssxDeskTrainingStagesSyncIntervalMs,
+    config.ssxDeskTrainingStagesForcarBackfill,
+  );
 }
 
 process.on('unhandledRejection', (reason, promise) => {

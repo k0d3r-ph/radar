@@ -10,6 +10,20 @@ const COLECAO = 'empresas';
 // mesmo motivo do ManagerOpsSyncService.
 const MARGEM_SEGURANCA_MS = 2 * 60_000;
 const PAUSA_ENTRE_CHAMADAS_MS = 600; // Até 100 chamadas/minuto, abaixo das 120 req/min permitidas.
+// As chamadas HTTP ao Desk já têm AbortSignal.timeout próprio; as chamadas ao Firestore
+// não tinham nenhum limite — uma travada (rede, índice faltando, etc.) bloqueava
+// `executando` para sempre e o ciclo nunca chegava a logar nada (nem sucesso, nem erro).
+const TIMEOUT_FIRESTORE_MS = 20_000;
+
+function comTimeout<T>(promise: Promise<T>, rotulo: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(
+      () => reject(new Error(`[SSX Desk Training Stages] Tempo esgotado (${TIMEOUT_FIRESTORE_MS}ms) em: ${rotulo}`)),
+      TIMEOUT_FIRESTORE_MS,
+    )),
+  ]);
+}
 
 interface EmpresaRadar {
   id: string;
@@ -73,6 +87,7 @@ const CLIENTE_PADRAO: TrainingStagesClienteFns = {
 
 export class TrainingStagesSyncService {
   private executando = false;
+  private executandoDesde = 0;
   private companiesDesk: CompanyDesk[] | undefined;
   private companiesDeskLidasEm = 0;
 
@@ -81,22 +96,37 @@ export class TrainingStagesSyncService {
     private readonly apiKey: string,
     private readonly cliente: TrainingStagesClienteFns = CLIENTE_PADRAO,
     private readonly esperar: (ms: number) => Promise<void> = ms => new Promise(resolve => setTimeout(resolve, ms)),
+    /** Ignora o cursor salvo e reconsidera todas as empresas — uso único para o backfill
+     * inicial (ativar em produção pela primeira vez). Ver SSX_DESK_TRAINING_STAGES_FORCAR_BACKFILL
+     * em env.ts; desligar a variável depois de confirmar o backfill. */
+    private readonly forcarBackfill: boolean = false,
   ) {}
 
   async sincronizar() {
-    if (this.executando) return undefined;
+    if (this.executando) {
+      // Com os timeouts acima, isso não deveria mais ficar preso para sempre — mas,
+      // se acontecer de qualquer forma, ao menos fica visível no log em vez de silencioso.
+      console.error(`[SSX Desk Training Stages] Ciclo anterior ainda em andamento (iniciado há ${Date.now() - this.executandoDesde}ms) — pulando este ciclo.`);
+      return undefined;
+    }
     this.executando = true;
+    this.executandoDesde = Date.now();
     try {
       // Mesmo cuidado do Manager Ops: o cursor da próxima vez é o início DESTE ciclo, não
       // o maior updatedAt visto — e sempre avança, mesmo quando uma empresa falha. Uma
       // falha permanente não pode travar o cursor e fazer a consulta por tempo reler
       // quase a coleção inteira a cada ciclo (era exatamente o bug do Manager Ops).
       const inicioDoCiclo = Date.now();
+      console.log('[SSX Desk Training Stages] Ciclo iniciado.');
       const estado = await this.carregarEstado();
+      console.log('[SSX Desk Training Stages] Estado carregado.');
       const companiesDesk = await this.carregarEmpresasDesk();
+      console.log(`[SSX Desk Training Stages] ${companiesDesk.length} empresa(s) do Desk carregadas.`);
 
-      const desde = Math.max(0, estado.lastPushedAt - MARGEM_SEGURANCA_MS);
+      const desde = this.forcarBackfill ? 0 : Math.max(0, estado.lastPushedAt - MARGEM_SEGURANCA_MS);
+      if (this.forcarBackfill) console.log('[SSX Desk Training Stages] Backfill forçado: ignorando o cursor salvo, reconsiderando todas as empresas.');
       const empresas = await this.carregarEmpresasParaEnviar(desde, estado.empresasComFalha);
+      console.log(`[SSX Desk Training Stages] ${empresas.length} empresa(s) do Radar para processar.`);
 
       const stats = { processadas: 0, semVinculo: 0, semTemas: 0, ignoradas: 0 };
       const falhasRestantes = new Set<string>();
@@ -111,13 +141,13 @@ export class TrainingStagesSyncService {
         }
       }
 
-      await this.db.doc('integracoes/ssxDeskTrainingStages').set({
+      await comTimeout(this.db.doc('integracoes/ssxDeskTrainingStages').set({
         lastSuccessAt: Date.now(),
         lastError: falhasRestantes.size ? `${falhasRestantes.size} empresa(s) não foram sincronizadas com o SSX Desk.` : null,
         lastPushedAt: inicioDoCiclo,
         empresasComFalha: [...falhasRestantes],
         ...stats,
-      }, { merge: true });
+      }, { merge: true }), 'gravar estado final');
       return stats;
     } finally {
       this.executando = false;
@@ -125,7 +155,7 @@ export class TrainingStagesSyncService {
   }
 
   private async carregarEstado(): Promise<{ lastPushedAt: number; empresasComFalha: string[] }> {
-    const doc = await this.db.doc('integracoes/ssxDeskTrainingStages').get();
+    const doc = await comTimeout(this.db.doc('integracoes/ssxDeskTrainingStages').get(), 'carregar estado');
     const dados = doc.data() || {};
     return {
       lastPushedAt: typeof dados.lastPushedAt === 'number' ? dados.lastPushedAt : 0,
@@ -146,13 +176,13 @@ export class TrainingStagesSyncService {
   }
 
   private async carregarEmpresasParaEnviar(desde: number, idsComFalhaConhecida: string[]): Promise<EmpresaRadar[]> {
-    const [porTempo, porFalhaConhecida] = await Promise.all([
+    const [porTempo, porFalhaConhecida] = await comTimeout(Promise.all([
       this.db.collection(COLECAO).where('updatedAt', '>', desde).get(),
       // Empresas com falha permanente ficam fora da janela de tempo do cursor — buscadas
       // por id — senão uma falha que nunca se resolve travaria o cursor pra sempre e
       // faria a consulta acima reler quase a coleção inteira a cada ciclo.
       Promise.all(idsComFalhaConhecida.map(id => this.db.collection(COLECAO).doc(id).get())),
-    ]);
+    ]), 'carregar empresas para enviar');
     const porId = new Map<string, EmpresaRadar>();
     for (const d of porTempo.docs) porId.set(d.id, { id: d.id, ...(d.data() as Omit<EmpresaRadar, 'id'>) });
     for (const d of porFalhaConhecida) {
@@ -207,18 +237,20 @@ export class TrainingStagesSyncService {
       await this.cliente.excluirEtapaTreinamento(this.apiKey, idsAntigos[i]);
     }
 
-    await this.db.collection(COLECAO).doc(empresa.id).update({
+    await comTimeout(this.db.collection(COLECAO).doc(empresa.id).update({
       ssxDeskTrainingStageIds: ids,
       ssxDeskTrainingStagesSyncedAt: Date.now(),
-    });
+    }), `gravar ids da empresa ${empresa.id}`);
     return 'processadas' as const;
   }
 }
 
-export function iniciarSincronizacaoSsxDeskTrainingStages(db: Firestore | null, apiKey: string, intervaloMs: number) {
+export function iniciarSincronizacaoSsxDeskTrainingStages(
+  db: Firestore | null, apiKey: string, intervaloMs: number, forcarBackfill = false,
+) {
   if (!apiKey) { console.log('[SSX Desk Training Stages] Sincronização desativada: configure SSX_DESK_TRAINING_STAGES_API_KEY.'); return; }
   if (!db) { console.error('[SSX Desk Training Stages] Sincronização indisponível: Firebase Admin não inicializado.'); return; }
-  const service = new TrainingStagesSyncService(db, apiKey);
+  const service = new TrainingStagesSyncService(db, apiKey, undefined, undefined, forcarBackfill);
   const executar = async () => {
     try {
       const stats = await service.sincronizar();

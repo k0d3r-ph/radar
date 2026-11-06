@@ -3206,6 +3206,17 @@ body.light-theme .modal-filtros-grid select {
 body.light-theme .modal-filtros-grid select:focus {
     border-color: #3b82f6
 }
+body.light-theme .modal-filtros-periodo-entrada label {
+    color: #475569
+}
+body.light-theme .modal-filtros-periodo-entrada input[type="date"] {
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    color: #0f172a
+}
+body.light-theme .modal-filtros-periodo-entrada input[type="date"]:focus {
+    border-color: #3b82f6
+}
 body.light-theme .modal-filtros-limpar {
     border: 1px solid rgba(239, 68, 68, 0.3);
     background: rgba(239, 68, 68, 0.1);
@@ -3696,6 +3707,10 @@ body.light-theme .bolsa-card-pill--neutro {
     background: rgba(148, 163, 184, 0.14);
     color: #475569
 }
+body.light-theme .bolsa-card-pill--parcial {
+    background: rgba(240, 180, 41, 0.14);
+    color: #f0b429
+}
 body.light-theme .bolsa-card-descricao {
     color: #51759c
 }
@@ -3707,6 +3722,12 @@ body.light-theme .bolsa-card-meta-label {
 }
 body.light-theme .bolsa-card-fracao-label {
     color: #5b7491
+}
+body.light-theme .bolsa-card-resumo-valor {
+    color: #0f172a
+}
+body.light-theme .bolsa-card-resumo-label {
+    color: #51759c
 }
 body.light-theme .bolsa-card-comparacao {
     border-top: 1px solid #a8c4e6

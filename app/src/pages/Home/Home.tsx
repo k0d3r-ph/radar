@@ -128,6 +128,23 @@ const CORES_PRODUTO: Record<string, string> = {
   Pro: "#6366f1",
 };
 
+/**
+ * Filtro de período (inclusive) de dataEntrada — ambas as pontas em "YYYY-MM-DD" (mesmo
+ * formato nativo do `<input type="date">" e do campo armazenado), comparáveis como string
+ * sem precisar converter pra Date.
+ */
+function dataEntradaNoPeriodo(
+  dataEntrada: string | undefined,
+  inicio: string,
+  fim: string,
+): boolean {
+  if (!inicio && !fim) return true;
+  if (!dataEntrada) return false;
+  if (inicio && dataEntrada < inicio) return false;
+  if (fim && dataEntrada > fim) return false;
+  return true;
+}
+
 export default function Home() {
   const navigate = useNavigate();
   const { role, user, userName } = useAuth();
@@ -317,6 +334,14 @@ export default function Home() {
   // realizado/não realizado cruzado com dentro/fora do prazo de 30 dias corridos da entrada.
   const [filtroGol, setFiltroGol] = useState<ClassificacaoGolCliente | "">(
     () => (sessionStorage.getItem("filtroGol") as any) || "",
+  );
+  // Período (inclusive) de dataEntrada para localizar clientes que entraram numa janela
+  // específica — formato YYYY-MM-DD (valor nativo do <input type="date">).
+  const [filtroDataEntradaInicio, setFiltroDataEntradaInicio] = useState<string>(
+    () => sessionStorage.getItem("filtroDataEntradaInicio") || "",
+  );
+  const [filtroDataEntradaFim, setFiltroDataEntradaFim] = useState<string>(
+    () => sessionStorage.getItem("filtroDataEntradaFim") || "",
   );
   const [modalFiltrosAberto, setModalFiltrosAberto] = useState(false);
   const botaoFiltrosRef = useRef<HTMLButtonElement>(null);
@@ -1118,6 +1143,8 @@ export default function Home() {
       String(filtroElegivelDeducao),
     );
     sessionStorage.setItem("filtroGol", filtroGol);
+    sessionStorage.setItem("filtroDataEntradaInicio", filtroDataEntradaInicio);
+    sessionStorage.setItem("filtroDataEntradaFim", filtroDataEntradaFim);
     sessionStorage.setItem("filtroLoboSolitario", String(filtroLoboSolitario));
     sessionStorage.setItem(
       "filtroSomenteEsteiraAtual",
@@ -1138,6 +1165,8 @@ export default function Home() {
     filtroCardAlerta,
     filtroElegivelDeducao,
     filtroGol,
+    filtroDataEntradaInicio,
+    filtroDataEntradaFim,
     filtroLoboSolitario,
     filtroSomenteEsteiraAtual,
     ordenacaoContrato,
@@ -1467,6 +1496,7 @@ export default function Home() {
     ordenacaoScore,
     filtroElegivelDeducao,
     filtroGol,
+    filtroDataEntradaInicio || filtroDataEntradaFim,
   ].filter(Boolean).length;
 
   // O filtro vale para todas as esteiras, então o total também considera todas.
@@ -1571,6 +1601,11 @@ export default function Home() {
 
         const golOk =
           !filtroGol || classificarGolCliente(e, historico, agora) === filtroGol;
+        const dataEntradaOk = dataEntradaNoPeriodo(
+          e.dataEntrada,
+          filtroDataEntradaInicio,
+          filtroDataEntradaFim,
+        );
         const loboOk = !filtroLoboSolitario || !!e.loboSolitario;
 
         return (
@@ -1585,6 +1620,7 @@ export default function Home() {
           alertaCardOk &&
           elegivelDeducaoOk &&
           golOk &&
+          dataEntradaOk &&
           loboOk
         );
       })
@@ -1627,6 +1663,8 @@ export default function Home() {
     filtroCardAlerta,
     filtroElegivelDeducao,
     filtroGol,
+    filtroDataEntradaInicio,
+    filtroDataEntradaFim,
     filtroLoboSolitario,
     ordenacaoContrato,
     ordenacaoScore,
@@ -1746,6 +1784,11 @@ export default function Home() {
         const alertaOk = filtroCardAlerta !== "alerta" || e.alerta;
         const golOk =
           !filtroGol || classificarGolCliente(e, historico, agora) === filtroGol;
+        const dataEntradaOk = dataEntradaNoPeriodo(
+          e.dataEntrada,
+          filtroDataEntradaInicio,
+          filtroDataEntradaFim,
+        );
 
         return (
           clienteOk &&
@@ -1756,7 +1799,8 @@ export default function Home() {
           loboOk &&
           tipoOk &&
           alertaOk &&
-          golOk
+          golOk &&
+          dataEntradaOk
         );
       })
       .sort((a, b) => {
@@ -1787,6 +1831,8 @@ export default function Home() {
     filtroCardTipo,
     filtroCardAlerta,
     filtroGol,
+    filtroDataEntradaInicio,
+    filtroDataEntradaFim,
     filtroSomenteEsteiraAtual,
     ordenacaoPrincipal,
     mapaComerciais,
@@ -1833,6 +1879,11 @@ export default function Home() {
         const alertaOk = filtroCardAlerta !== "alerta" || e.alerta;
         const golOk =
           !filtroGol || classificarGolCliente(e, historico, agora) === filtroGol;
+        const dataEntradaOk = dataEntradaNoPeriodo(
+          e.dataEntrada,
+          filtroDataEntradaInicio,
+          filtroDataEntradaFim,
+        );
 
         return (
           clienteOk &&
@@ -1843,7 +1894,8 @@ export default function Home() {
           loboOk &&
           tipoOk &&
           alertaOk &&
-          golOk
+          golOk &&
+          dataEntradaOk
         );
       })
       .sort((a, b) => {
@@ -1882,6 +1934,8 @@ export default function Home() {
     filtroCardTipo,
     filtroCardAlerta,
     filtroGol,
+    filtroDataEntradaInicio,
+    filtroDataEntradaFim,
     filtroSomenteEsteiraAtual,
     ordenacaoPrincipal,
     historico,
@@ -1925,6 +1979,11 @@ export default function Home() {
           (filtroCardTipo === "safety" && tipoEfetivo === "Safety") ||
           (filtroCardTipo === "fast" && tipoEfetivo === "Fast");
         const alertaOk = filtroCardAlerta !== "alerta" || e.alerta;
+        const dataEntradaOk = dataEntradaNoPeriodo(
+          e.dataEntrada,
+          filtroDataEntradaInicio,
+          filtroDataEntradaFim,
+        );
 
         return (
           clienteOk &&
@@ -1934,7 +1993,8 @@ export default function Home() {
           produtoOk &&
           loboOk &&
           tipoOk &&
-          alertaOk
+          alertaOk &&
+          dataEntradaOk
         );
       })
       .sort((a, b) => {
@@ -1961,6 +2021,8 @@ export default function Home() {
     filtroComercial,
     filtroResponsavel,
     filtroProduto,
+    filtroDataEntradaInicio,
+    filtroDataEntradaFim,
     filtroLoboSolitario,
     filtroCardTipo,
     filtroCardAlerta,
@@ -3055,6 +3117,32 @@ export default function Home() {
                   Não fez o Gol depois de 30 dias
                 </option>
               </select>
+
+              <div
+                className="modal-filtros-periodo-entrada"
+                title="Mostra apenas clientes que entraram na esteira dentro do período informado."
+              >
+                <label htmlFor="filtro-entrada-inicio">
+                  Entrada de
+                  <input
+                    id="filtro-entrada-inicio"
+                    type="date"
+                    value={filtroDataEntradaInicio}
+                    max={filtroDataEntradaFim || undefined}
+                    onChange={(e) => setFiltroDataEntradaInicio(e.target.value)}
+                  />
+                </label>
+                <label htmlFor="filtro-entrada-fim">
+                  até
+                  <input
+                    id="filtro-entrada-fim"
+                    type="date"
+                    value={filtroDataEntradaFim}
+                    min={filtroDataEntradaInicio || undefined}
+                    onChange={(e) => setFiltroDataEntradaFim(e.target.value)}
+                  />
+                </label>
+              </div>
             </div>
 
             <div className="modal-filtros-footer">
@@ -3074,6 +3162,8 @@ export default function Home() {
                     filtroCardAlerta ||
                     filtroElegivelDeducao ||
                     filtroGol ||
+                    filtroDataEntradaInicio ||
+                    filtroDataEntradaFim ||
                     filtroLoboSolitario ||
                     filtroSomenteEsteiraAtual ||
                     ordenacaoContrato ||
@@ -3088,6 +3178,8 @@ export default function Home() {
                   setFiltroProgresso("");
                   setFiltroProduto("");
                   setFiltroGol("");
+                  setFiltroDataEntradaInicio("");
+                  setFiltroDataEntradaFim("");
                   setFiltroCardStatus("");
                   setFiltroCardTipo("");
                   setFiltroCardAlerta("");

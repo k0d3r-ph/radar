@@ -3,6 +3,13 @@ import type { Empresa, Ocorrencia } from "../types";
 /** Mesmo prazo de 30 dias corridos usado pela meta de Gol, contados a partir da data de entrada. */
 export const PRAZO_DIAS_GOL = 30;
 
+/**
+ * Mesmo corte usado no Relatório de Aging (RelatorioAging.tsx): antes dessa data o Gol não
+ * era cobrado como meta, então clientes antigos sem Gol nunca contam como "não realizado
+ * fora do prazo" — só aplica a quem entrou na esteira a partir daqui.
+ */
+const DATA_CORTE_GOL = "2026-09-10";
+
 function normalizarNomeEmpresa(nome: string): string {
   return nome.trim().toLowerCase();
 }
@@ -156,5 +163,10 @@ export function classificarGolCliente(
   if (ocorrenciaGol) {
     return ocorrenciaGol.dataOcorrencia <= prazoMs ? "noPrazoRealizado" : "foraPrazoRealizado";
   }
-  return agora <= prazoMs ? "noPrazoNaoRealizado" : "foraPrazoNaoRealizado";
+  if (agora <= prazoMs) return "noPrazoNaoRealizado";
+
+  // "Fora do prazo (não realizado)" só vale para quem entrou a partir do corte do Gol —
+  // antes disso, não bater o Gol não era uma falha, já que a meta ainda não existia.
+  if (empresa.dataEntrada < DATA_CORTE_GOL) return null;
+  return "foraPrazoNaoRealizado";
 }

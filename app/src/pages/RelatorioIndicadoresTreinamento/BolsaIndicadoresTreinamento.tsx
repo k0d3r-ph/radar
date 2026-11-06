@@ -682,8 +682,7 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
     [empresas, ocorrencias],
   );
 
-  // Quebra "Não realizado" do resumo: diferente do percentual principal, conta quem ainda não
-  // bateu o Gol estando dentro ou fora dos 30 dias (ver calcularNaoRealizadosGolTreinamento).
+  // Só conta como "Não realizado" quem não bateu o Gol e já ultrapassou os 30 dias.
   const naoRealizadosGolNoPrazo = useMemo(
     () => calcularNaoRealizadosGolTreinamento(empresas, ocorrencias),
     [empresas, ocorrencias],
@@ -706,23 +705,10 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
         r.dataReferencia.getTime() >= mesAtual.inicio.getTime() &&
         r.dataReferencia.getTime() <= mesAtual.fim.getTime(),
     );
-    // "Não realizado" usa o mês calendário inteiro (não o corte em "hoje" de mesAtual.fim no
-    // mês em andamento): um cliente ainda dentro dos 30 dias, com prazo terminando mais
-    // adiante neste mês, já deve aparecer aqui — não só depois que o prazo vencer.
-    const inicioMesCalendario = mesAtual.inicio;
-    const fimMesCalendario = new Date(
-      mesAtual.inicio.getFullYear(),
-      mesAtual.inicio.getMonth() + 1,
-      0,
-      23,
-      59,
-      59,
-      999,
-    );
     const naoRealizadoDoMes = naoRealizadosGolNoPrazo.filter(
       (r) =>
-        r.dataReferencia.getTime() >= inicioMesCalendario.getTime() &&
-        r.dataReferencia.getTime() <= fimMesCalendario.getTime(),
+        r.dataReferencia.getTime() >= mesAtual.inicio.getTime() &&
+        r.dataReferencia.getTime() <= mesAtual.fim.getTime(),
     ).length;
     if (doMes.length === 0 && naoRealizadoDoMes === 0) return null;
     const noPrazo = doMes.filter((r) => r.noPrazo).length;

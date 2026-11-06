@@ -32,7 +32,10 @@ function carregar(url) {
 const module = carregar(new URL('../src/utils/golTreinamento.ts', import.meta.url));
 await module.link((specifier, importador) => carregar(new URL(specifier, importador.identifier)));
 await module.evaluate();
-const { calcularGolNoPrazo: calcular } = module.namespace;
+const {
+  calcularGolNoPrazo: calcular,
+  calcularNaoRealizadosGolTreinamento: calcularNaoRealizados,
+} = module.namespace;
 
 const DIA_MS = 24 * 60 * 60 * 1000;
 
@@ -90,6 +93,17 @@ test('cliente sem Gol e com prazo vencido conta como não realizado, no mês do 
   assert.equal(resultado.length, 1);
   assert.equal(resultado[0].atingiuGol, false);
   assert.equal(resultado[0].noPrazo, false);
+});
+
+test('quebra de não realizados inclui apenas clientes cujo prazo de 30 dias venceu', () => {
+  const empresas = [
+    empresa({ nomeEmpresa: 'Prazo vencido', dataEntrada: dataISO(new Date(Date.now() - 40 * DIA_MS)) }),
+    empresa({ nomeEmpresa: 'Dentro do prazo', dataEntrada: dataISO(new Date(Date.now() - 5 * DIA_MS)) }),
+  ];
+
+  const resultado = calcularNaoRealizados(empresas, []);
+
+  assert.deepEqual(resultado.map((item) => item.empresa), ['Prazo vencido']);
 });
 
 test('empresa sem dataEntrada não entra no cálculo', () => {

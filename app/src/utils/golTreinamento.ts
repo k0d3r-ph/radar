@@ -109,16 +109,15 @@ export interface ResultadoNaoRealizadoGolTreinamento {
 }
 
 /**
- * Clientes que ainda não bateram o Gol, estejam dentro ou fora dos {@link PRAZO_DIAS_GOL} dias
- * corridos desde a entrada. Diferente de {@link calcularGolNoPrazo}, não exclui quem ainda está
- * dentro do prazo — usado só na quebra "Não realizado" do resumo do card, não no percentual
- * principal de Gol no Prazo (que precisa aguardar o prazo se esgotar para julgar o cliente).
+ * Clientes sem Gol cujo prazo de {@link PRAZO_DIAS_GOL} dias corridos desde a entrada já venceu.
+ * Clientes ainda dentro do prazo não entram como "não realizados" no resumo do card.
  */
 export function calcularNaoRealizadosGolTreinamento(
   empresas: Empresa[],
   ocorrencias: Ocorrencia[],
 ): ResultadoNaoRealizadoGolTreinamento[] {
   const resultados: ResultadoNaoRealizadoGolTreinamento[] = [];
+  const agora = Date.now();
 
   empresas.forEach((empresa) => {
     if (!pertenceEsteirasElegiveisGol(empresa)) return;
@@ -129,6 +128,7 @@ export function calcularNaoRealizadosGolTreinamento(
     if (encontrarOcorrenciaGol(ocorrencias, empresa.nomeEmpresa)) return;
 
     const prazoMs = dataEntrada.getTime() + PRAZO_DIAS_GOL * 24 * 60 * 60 * 1000;
+    if (agora <= prazoMs) return;
     resultados.push({ empresa: empresa.nomeEmpresa, dataReferencia: new Date(prazoMs) });
   });
 

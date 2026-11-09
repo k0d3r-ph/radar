@@ -442,6 +442,44 @@ test('empresa com etapas duplicadas no Desk (reordenação antiga): recupera os 
   assert.deepEqual(db._empresas().get('e1').ssxDeskTrainingStageIds, ['etapa-1a', 'etapa-2']);
 });
 
+test('Desk reporta hasStages=true sem itens e já há ids salvos: não recria (caso real do Numpe, duas gerações de etapas)', async () => {
+  const db = database();
+  db._empresas().set('e1', empresa({
+    temaText: 'Tema 1\nTema 2',
+    ssxDeskTrainingStageIds: ['etapa-1', 'etapa-2'],
+    ssxDeskTrainingStagesSyncedAt: 500, updatedAt: Date.now(),
+  }));
+  const companies = [{
+    id: 'company-1', name: 'Cliente Teste', idCentral: '100',
+    // hasStages: true, mas o Desk não devolveu os itens nesta resposta (API instável) —
+    // sem essa checagem, o fallback "sem dados do Desk" recriaria as duas etapas,
+    // duplicando as que já existem (não visíveis aqui só porque a API falhou em listá-las).
+    trainingStages: { hasStages: true, items: [] },
+  }];
+  const c = cliente({ companies });
+  const service = new TrainingStagesSyncService(db, 'chave', c.fns, semEspera);
+  const stats = await service.sincronizar();
+  assert.equal(stats.processadas, 0);
+  assert.equal(c.chamadas.criar.length, 0, 'não cria nada — melhor pular o ciclo do que arriscar duplicar');
+  assert.equal(c.chamadas.atualizar.length, 0);
+  const estado = (await db.doc('integracoes/ssxDeskTrainingStages').get()).data();
+  assert.deepEqual(estado.empresasComFalha, ['e1'], 'fica marcada pra tentar de novo no próximo ciclo');
+});
+
+test('Desk reporta hasStages=true sem itens, mas é empresa nova (sem ids salvos) — cria normalmente', async () => {
+  const db = database();
+  db._empresas().set('e1', empresa({ temaText: 'Tema 1\nTema 2' })); // sem ssxDeskTrainingStageIds
+  const companies = [{
+    id: 'company-1', name: 'Cliente Teste', idCentral: '100',
+    trainingStages: { hasStages: true, items: [] },
+  }];
+  const c = cliente({ companies });
+  const service = new TrainingStagesSyncService(db, 'chave', c.fns, semEspera);
+  const stats = await service.sincronizar();
+  assert.equal(stats.processadas, 1);
+  assert.equal(c.chamadas.criar.length, 2, 'sem id local salvo, não há risco de duplicar — cria normalmente');
+});
+
 test('empresa parada (updatedAt antigo) mas com uma etapa desatualizada no Desk: reenvia e corrige, mesmo sem precisaReenviar por updatedAt (caso real do Altotrak)', async () => {
   const db = database();
   db._empresas().set('e1', empresa({

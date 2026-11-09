@@ -326,20 +326,27 @@ export class TrainingStagesSyncService {
     // Sempre uma string em cada posição (nunca undefined) — Firestore recusa undefined
     // dentro de arrays, e uma linha em branco nunca antes enviada não tem id salvo.
     const idsAntigos = empresa.ssxDeskTrainingStageIds || [];
+    const etapasDeskEmpresa = companyDesk.trainingStages?.items ?? [];
+    // O Desk reportou que a empresa TEM etapas (hasStages: true) mas não devolveu nenhuma
+    // nesta resposta, e já tínhamos ids salvos daqui — a API provavelmente falhou em
+    // preencher o campo embutido desta vez (ver cautela já documentada em
+    // CompanyDesk.trainingStages, em trainingStages.ts). Confiar cegamente no array local
+    // aqui recriaria tudo, duplicando etapas que já existem (caso real em produção:
+    // cliente Numpe ficou com 24 etapas pra 12 temas — duas gerações completas). Propaga
+    // erro pra entrar em `empresasComFalha` e ser retentado no próximo ciclo, quando a
+    // resposta do Desk deve vir completa.
+    if (etapasDeskEmpresa.length === 0 && companyDesk.trainingStages?.hasStages === true && idsAntigos.some(Boolean)) {
+      throw new Error(
+        `SSX Desk reportou hasStages=true sem itens para "${empresa.nomeEmpresa}", mas já há `
+        + 'ids salvos localmente — pulando este ciclo para não duplicar etapas.',
+      );
+    }
     // Reconcilia pelo estado ATUAL das etapas no Desk (por nome), não só pelo array local —
     // corrige o id de uma linha que foi reordenada desde o último envio e evita recriar uma
     // etapa que já existe, só deslocada de posição (ver reconciliarEtapasEmpresa acima).
-    const etapasDeskEmpresa = companyDesk.trainingStages?.items ?? [];
     const { ids: idsDesk, idsDuplicados, statusDivergente } = reconciliarEtapasEmpresa(
       linhas, idsAntigos, etapasDeskEmpresa,
     );
-    // DEBUG temporário (ver investigação da duplicação relatada em produção — remover depois
-    // de confirmar a causa): mostra o que a reconciliação recebeu de cada lado antes de agir.
-    console.log(`[SSX Desk Training Stages][DEBUG] ${empresa.nomeEmpresa} (${empresa.id}): `
-      + `idsAntigos=${JSON.stringify(idsAntigos)} `
-      + `etapasDeskRecebidas=${etapasDeskEmpresa.length} `
-      + `(${JSON.stringify(etapasDeskEmpresa.map(e => ({ id: e.id, name: e.name })))}) `
-      + `idsDuplicados=${idsDuplicados.length} statusDivergente=${statusDivergente}`);
 
     // Só reenvia quando a empresa mudou desde o último envio — senão toda empresa na
     // janela do ciclo levaria PUT em todas as linhas de novo, sem necessidade (mesmo

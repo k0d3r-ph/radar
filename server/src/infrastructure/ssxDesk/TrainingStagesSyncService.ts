@@ -33,9 +33,6 @@ interface EmpresaRadar {
   temaText?: string;
   currentPhase: number;
   updatedAt: number;
-  /** Preenchida quando o cliente finaliza a esteira inteira — ver Empresa.dataFinalizacao
-   * em app/src/types.ts e clienteConcluido() em app/src/pages/Home/Home.tsx. */
-  dataFinalizacao?: string;
   ssxDeskTrainingStageIds?: string[];
   ssxDeskTrainingStagesSyncedAt?: number;
 }
@@ -54,17 +51,14 @@ interface LinhaEtapa {
 export function linhasEtapaTreinamento(empresa: EmpresaRadar): LinhaEtapa[] {
   const temas = (empresa.temaText || '').split('\n');
   const idsAntigos = empresa.ssxDeskTrainingStageIds || [];
-  const ultimoIndice = temas.length - 1;
   return temas.map((temaBruto, indice) => {
     const tema = temaBruto.trim();
-    // A última fase nunca tem uma fase seguinte pra `currentPhase` avançar e marcá-la como
-    // concluída — o Radar mantém `currentPhase` apontando pra ela mesmo depois de pronta
-    // (ver isFinished em app/src/pages/Esteira/Esteira.tsx). Sem esse caso especial, a
-    // última etapa ficaria "Em andamento" no Desk para sempre, mesmo com o cliente formado.
-    const ultimaFaseFinalizada =
-      indice === ultimoIndice && indice === empresa.currentPhase && !!empresa.dataFinalizacao?.trim();
-    const status: StatusEtapaDesk = indice < empresa.currentPhase || ultimaFaseFinalizada ? 'Concluído'
-      : indice === empresa.currentPhase ? 'Em andamento' : 'Não concluído';
+    // `currentPhase` só avança quando um tema é efetivamente ensinado (ver
+    // reordenarTemasEnsinados em app/src/utils/reordenarTemasEnsinados.ts e o fluxo manual
+    // em Esteira.tsx) — nunca aponta pra um tema "em andamento, ainda não dado". O Radar não
+    // guarda uma fase intermediária entre "não ensinado" e "ensinado": por isso a fase atual
+    // também conta como Concluído, igual às anteriores, nunca como "Em andamento".
+    const status: StatusEtapaDesk = indice <= empresa.currentPhase ? 'Concluído' : 'Não concluído';
     return { indice, tema, status, idDesk: idsAntigos[indice] || '' };
   });
 }

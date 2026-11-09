@@ -5,3 +5,6 @@ dist
 .git
 .gitignore
 Dockerfile
+.env
+.env.*
+serviceAccountKey.json

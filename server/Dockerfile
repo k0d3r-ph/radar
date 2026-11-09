@@ -1,5 +1,5 @@
 # 1. Utiliza imagem oficial do Node.js baseada em Debian (slim)
-FROM node:20-slim
+FROM node:22-slim
 
 # 2. Instala dependências do Chromium e o próprio Chromium (necessário para o whatsapp-web.js)
 RUN apt-get update && apt-get install -y \

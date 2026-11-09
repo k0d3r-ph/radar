@@ -47,11 +47,13 @@ test('listarEmpresasDesk: falhas HTTP e respostas inválidas são rejeitadas sem
   await assert.rejects(listarEmpresasDesk('segredo', async () => Response.json({ data: [{}], meta: { total: 1 } })), /formato/);
 });
 
-test('linhasEtapaTreinamento: status por fase a partir de currentPhase', () => {
+test('linhasEtapaTreinamento: status por fase a partir de currentPhase — a fase atual também conta como Concluído', () => {
+  // currentPhase só avança quando um tema é efetivamente ensinado (nunca aponta pra um
+  // tema ainda não dado) — por isso não existe "Em andamento": só Concluído ou Não concluído.
   const linhas = linhasEtapaTreinamento({
     temaText: 'Tema 1\nTema 2\nTema 3', currentPhase: 1, updatedAt: 0,
   });
-  assert.deepEqual(linhas.map(l => l.status), ['Concluído', 'Em andamento', 'Não concluído']);
+  assert.deepEqual(linhas.map(l => l.status), ['Concluído', 'Concluído', 'Não concluído']);
   assert.deepEqual(linhas.map(l => l.tema), ['Tema 1', 'Tema 2', 'Tema 3']);
 });
 
@@ -65,28 +67,11 @@ test('linhasEtapaTreinamento: linha em branco mantém o índice (não desalinha 
   assert.equal(linhas[2].idDesk, 'id-2');
 });
 
-test('linhasEtapaTreinamento: última fase vira Concluído quando a esteira foi finalizada', () => {
-  // Sem dataFinalizacao: cliente só chegou na última fase, ainda trabalhando nela.
-  const emAndamento = linhasEtapaTreinamento({
-    temaText: 'Tema 1\nTema 2', currentPhase: 1, updatedAt: 0,
-  });
-  assert.equal(emAndamento[1].status, 'Em andamento');
-
-  // Com dataFinalizacao: esteira inteira já terminada — a última fase também conta como
-  // concluída (sem isso, ela nunca teria uma fase seguinte pra currentPhase "passar por cima").
-  const finalizada = linhasEtapaTreinamento({
-    temaText: 'Tema 1\nTema 2', currentPhase: 1, updatedAt: 0, dataFinalizacao: '2026-11-01',
-  });
-  assert.deepEqual(finalizada.map(l => l.status), ['Concluído', 'Concluído']);
-});
-
-test('linhasEtapaTreinamento: dataFinalizacao só afeta a última fase, não fases intermediárias', () => {
-  const linhas = linhasEtapaTreinamento({
-    temaText: 'Tema 1\nTema 2\nTema 3', currentPhase: 1, updatedAt: 0, dataFinalizacao: '2026-11-01',
-  });
-  // currentPhase aponta pra fase do meio, não pra última — dataFinalizacao não se aplica aqui
-  // (não deveria acontecer na prática, mas o código não deve tratar como "tudo concluído").
-  assert.deepEqual(linhas.map(l => l.status), ['Concluído', 'Em andamento', 'Não concluído']);
+test('linhasEtapaTreinamento: última fase vira Concluído assim que alcançada, sem depender de dataFinalizacao', () => {
+  // currentPhase na última fase já é suficiente — não precisa de dataFinalizacao preenchida
+  // pra tirar a última etapa de "Em andamento" (que nem existe mais como status possível).
+  const linhas = linhasEtapaTreinamento({ temaText: 'Tema 1\nTema 2', currentPhase: 1, updatedAt: 0 });
+  assert.deepEqual(linhas.map(l => l.status), ['Concluído', 'Concluído']);
 });
 
 test('resolverCompanyIdDesk: só resolve quando o idCentral identifica uma única empresa do Desk', () => {
@@ -176,10 +161,8 @@ test('reconciliarEtapasEmpresa: id salvo não existe mais no Desk, mas uma etapa
 
 test('reconciliarEtapasEmpresa: etapa já existe com o id e nome certos, mas o status no Desk ficou desatualizado (caso real do Altotrak)', () => {
   // "Conclusão" já tinha id e nome batendo, mas um envio passado mandou "Em andamento" —
-  // o Radar recalcula "Concluído" agora (currentPhase na última fase + dataFinalizacao).
-  const linhas = linhasEtapaTreinamento({
-    temaText: 'Tema 1\nConclusão', currentPhase: 1, updatedAt: 0, dataFinalizacao: '2026-10-13',
-  });
+  // o Radar recalcula "Concluído" agora (currentPhase já alcançou a última fase).
+  const linhas = linhasEtapaTreinamento({ temaText: 'Tema 1\nConclusão', currentPhase: 1, updatedAt: 0 });
   const etapasDesk = [
     etapaDesk({ id: 'etapa-1', name: 'Tema 1', status: 'Concluído' }),
     etapaDesk({ id: 'etapa-2', name: 'Conclusão', status: 'Em andamento' }), // desatualizada
@@ -193,7 +176,7 @@ test('reconciliarEtapasEmpresa: tudo já bate (id, nome e status) — sem diverg
   const linhas = linhasEtapaTreinamento({ temaText: 'Tema 1\nTema 2', currentPhase: 1, updatedAt: 0 });
   const etapasDesk = [
     etapaDesk({ id: 'etapa-1', name: 'Tema 1', status: 'Concluído' }),
-    etapaDesk({ id: 'etapa-2', name: 'Tema 2', status: 'Em andamento' }),
+    etapaDesk({ id: 'etapa-2', name: 'Tema 2', status: 'Concluído' }),
   ];
   const resultado = reconciliarEtapasEmpresa(linhas, ['etapa-1', 'etapa-2'], etapasDesk);
   assert.equal(resultado.statusDivergente, false);
@@ -289,7 +272,7 @@ test('empresa nova: cada linha com tema gera POST e grava o id retornado', async
   const stats = await service.sincronizar();
   assert.equal(stats.processadas, 1);
   assert.equal(c.chamadas.criar.length, 2);
-  assert.deepEqual(c.chamadas.criar[0], { companyId: 'company-1', name: 'Tema 1', status: 'Em andamento', sortOrder: 0 });
+  assert.deepEqual(c.chamadas.criar[0], { companyId: 'company-1', name: 'Tema 1', status: 'Concluído', sortOrder: 0 });
   assert.deepEqual(c.chamadas.criar[1], { companyId: 'company-1', name: 'Tema 2', status: 'Não concluído', sortOrder: 1 });
   assert.deepEqual(db._empresas().get('e1').ssxDeskTrainingStageIds, ['etapa-1', 'etapa-2']);
 });
@@ -404,7 +387,7 @@ test('PUT 404 (id salvo não existe mais no Desk) recria a etapa em vez de falha
   assert.equal(stats.processadas, 1);
   assert.deepEqual(tentativasPut, ['etapa-velha', 'etapa-2'], 'tentou o PUT nas duas linhas antes de recriar a que falhou');
   assert.equal(c.chamadas.criar.length, 1, 'recriou só a linha cujo id tinha sumido do Desk');
-  assert.deepEqual(c.chamadas.criar[0], { companyId: 'company-1', name: 'Tema 1', status: 'Em andamento', sortOrder: 0 });
+  assert.deepEqual(c.chamadas.criar[0], { companyId: 'company-1', name: 'Tema 1', status: 'Concluído', sortOrder: 0 });
   // O novo id (não mais 'etapa-velha') fica salvo; a linha 2 (PUT normal) mantém o id antigo.
   assert.deepEqual(db._empresas().get('e1').ssxDeskTrainingStageIds, ['etapa-1', 'etapa-2']);
 });
@@ -462,7 +445,7 @@ test('empresa com etapas duplicadas no Desk (reordenação antiga): recupera os 
 test('empresa parada (updatedAt antigo) mas com uma etapa desatualizada no Desk: reenvia e corrige, mesmo sem precisaReenviar por updatedAt (caso real do Altotrak)', async () => {
   const db = database();
   db._empresas().set('e1', empresa({
-    temaText: 'Tema 1\nConclusão', currentPhase: 1, dataFinalizacao: '2026-10-13',
+    temaText: 'Tema 1\nConclusão', currentPhase: 1,
     ssxDeskTrainingStageIds: ['etapa-1', 'etapa-2'],
     // syncedAt bem DEPOIS de updatedAt — pelo critério de "mudou desde o último envio",
     // essa empresa estaria "em dia" e não seria reenviada.

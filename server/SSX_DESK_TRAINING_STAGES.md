@@ -29,9 +29,16 @@ Uma linha de `Empresa.temaText` (alinhada por índice com `dataText`) vira uma e
 
 | Posição da linha | Status no Desk |
 |---|---|
-| Antes da fase atual | `Concluído` |
-| A fase atual | `Em andamento` |
+| Até a fase atual (inclusive) | `Concluído` |
 | Depois da fase atual | `Não concluído` |
+
+Só dois estados — nunca `Em andamento`. `currentPhase` só avança quando um tema é
+efetivamente ensinado (ver `reordenarTemasEnsinados` em
+app/src/utils/reordenarTemasEnsinados.ts e o fluxo manual em Esteira.tsx): o Radar não
+distingue "começando a aprender" de "já aprendeu" pra um tema — ou foi dado, ou não foi.
+Mostrar "Em andamento" pra fase atual sugeria uma granularidade que o Radar não tem, e
+causava confusão real (ex.: cliente Numpe, já tinha aprendido "Videotelemetria", a fase
+atual, mas o Desk mostrava "Em andamento" como se ainda estivesse em curso).
 
 Linhas em branco não são enviadas (e, se já tinham uma etapa criada antes, ela é
 excluída do Desk).

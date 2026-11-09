@@ -392,6 +392,39 @@ test('PUT 404 (id salvo não existe mais no Desk) recria a etapa em vez de falha
   assert.deepEqual(db._empresas().get('e1').ssxDeskTrainingStageIds, ['etapa-1', 'etapa-2']);
 });
 
+test('PUT 404 numa etapa recém-confirmada na listagem do Desk NÃO recria (evita duplicar sob falha transitória da API — caso real do Numpe, 3ª geração de etapas)', async () => {
+  const db = database();
+  db._empresas().set('e1', empresa({
+    temaText: 'Tema 1\nTema 2',
+    ssxDeskTrainingStageIds: ['etapa-1', 'etapa-2'], ssxDeskTrainingStagesSyncedAt: 500, updatedAt: Date.now(),
+  }));
+  const companies = [{
+    id: 'company-1', name: 'Cliente Teste', idCentral: '100',
+    // A listagem do Desk CONFIRMA que etapa-1 existe segundos antes do PUT — diferente do
+    // teste acima (sem trainingStages nenhum, onde um 404 é tratado como exclusão real).
+    trainingStages: {
+      hasStages: true,
+      items: [
+        etapaDesk({ id: 'etapa-1', name: 'Tema 1' }),
+        etapaDesk({ id: 'etapa-2', name: 'Tema 2' }),
+      ],
+    },
+  }];
+  const c = cliente({
+    companies,
+    atualizarEtapaTreinamento: async (_apiKey, id) => {
+      if (id === 'etapa-1') throw new SsxDeskHttpError('SSX Desk (atualizar etapa) respondeu HTTP 404.', 404);
+      return { id };
+    },
+  });
+  const service = new TrainingStagesSyncService(db, 'chave', c.fns, semEspera);
+  const stats = await service.sincronizar();
+  assert.equal(stats.processadas, 0);
+  assert.equal(c.chamadas.criar.length, 0, 'não recria — a etapa foi confirmada existente segundos antes');
+  const estado = (await db.doc('integracoes/ssxDeskTrainingStages').get()).data();
+  assert.deepEqual(estado.empresasComFalha, ['e1'], 'fica marcada pra tentar de novo no próximo ciclo');
+});
+
 test('erro HTTP diferente de 404 no PUT continua propagando (não tenta recriar à toa)', async () => {
   const db = database();
   db._empresas().set('e1', empresa({

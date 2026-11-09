@@ -79,6 +79,15 @@ function AppRoutes() {
     }
   }
 
+  function alternarSubmenuRelatorios() {
+    if (menuRecolhido) {
+      setMenuRecolhido(false);
+      setRelatoriosSubmenuAberto(true);
+      return;
+    }
+    setRelatoriosSubmenuAberto((aberto) => !aberto);
+  }
+
   useEffect(() => {
     if (menuAberto) menuCloseRef.current?.focus();
   }, [menuAberto]);
@@ -319,7 +328,7 @@ function AppRoutes() {
                 aria-controls="nav-relatorios-submenu"
                 aria-label="Relatórios"
                 title="Relatórios"
-                onClick={() => setRelatoriosSubmenuAberto((aberto) => !aberto)}
+                onClick={alternarSubmenuRelatorios}
               >
                 <BarChart3 className="nav-link-icon" size={18} aria-hidden="true" />
                 <span className="nav-link-label">Relatórios</span>

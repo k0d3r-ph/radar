@@ -132,10 +132,17 @@ export interface AtualizarEtapaTreinamentoDados {
   notes?: string;
 }
 
+/** O `id` vai na query string (`?id=`), não no caminho — conforme o guia da API do Desk.
+ * `/training-stages/{id}` não existe e responde 404 sempre (era a causa das etapas
+ * duplicadas: todo PUT falhava e o 404 era tratado como "etapa excluída, recriar"). */
+function urlEtapaTreinamento(id: string): string {
+  return `${BASE_URL}/training-stages?id=${encodeURIComponent(id)}`;
+}
+
 export async function atualizarEtapaTreinamento(
   apiKey: string, id: string, dados: AtualizarEtapaTreinamentoDados, fetchApi: typeof fetch = fetch,
 ): Promise<EtapaTreinamentoDesk> {
-  const response = await fetchApi(`${BASE_URL}/training-stages/${encodeURIComponent(id)}`, {
+  const response = await fetchApi(urlEtapaTreinamento(id), {
     method: 'PUT',
     headers: { ...cabecalhos(apiKey), 'Content-Type': 'application/json' },
     body: JSON.stringify(dados),
@@ -150,7 +157,7 @@ export async function atualizarEtapaTreinamento(
 export async function excluirEtapaTreinamento(
   apiKey: string, id: string, fetchApi: typeof fetch = fetch,
 ): Promise<void> {
-  const response = await fetchApi(`${BASE_URL}/training-stages/${encodeURIComponent(id)}`, {
+  const response = await fetchApi(urlEtapaTreinamento(id), {
     method: 'DELETE',
     headers: cabecalhos(apiKey),
     signal: AbortSignal.timeout(20_000), redirect: 'error',

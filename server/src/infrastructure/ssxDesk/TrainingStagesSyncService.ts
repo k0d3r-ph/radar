@@ -388,13 +388,11 @@ export class TrainingStagesSyncService {
         } catch (erro) {
           if (!(erro instanceof SsxDeskHttpError) || erro.status !== 404) throw erro;
           // Só recria no 404 quando o id veio do array local SEM confirmação fresca do
-          // Desk (etapasDeskEmpresa vazio — ver fallback em reconciliarEtapasEmpresa). Se
-          // etapasDeskEmpresa não estava vazio, a reconciliação já confirmou segundos atrás
-          // que esse id existe na própria listagem — um 404 aqui é quase certamente uma
-          // falha transitória da API sob carga, não uma exclusão real. Recriar nesse caso
-          // causou uma 3ª geração inteira de etapas duplicadas em produção (cliente Numpe);
-          // propaga o erro em vez disso, pra entrar em empresasComFalha e ser retentado no
-          // próximo ciclo sem arriscar duplicar algo que muito provavelmente ainda existe.
+          // Desk (etapasDeskEmpresa vazio — ver fallback em reconciliarEtapasEmpresa). Se a
+          // listagem acabou de confirmar que o id existe, um 404 indica erro do nosso lado
+          // (ex.: rota errada — foi assim que o PUT em `/training-stages/{id}` gerou
+          // gerações inteiras de etapas duplicadas), não uma exclusão real. Recriar nesse
+          // caso duplicaria; propaga o erro pra entrar em empresasComFalha.
           if (etapasDeskEmpresa.length > 0) throw erro;
           const recriada = await this.cliente.criarEtapaTreinamento(this.apiKey, {
             companyId, name: linha.tema, status: linha.status, sortOrder: linha.indice,

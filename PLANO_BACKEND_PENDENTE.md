@@ -102,8 +102,9 @@ Seguir o padrão fino de `ManagerOpsClient.ts` (nunca logar corpo/chave,
   como `listarConversas` — devolve `{ id, idCentral, name }[]` para resolver o
   `companyId` (uuid) a partir do `idCentral` do Radar.
 - `criarEtapaTreinamento(apiKey, dados, fetchApi?)`: `POST /training-stages`.
-- `atualizarEtapaTreinamento(apiKey, id, dados, fetchApi?)`: `PUT /training-stages/{id}`.
-- `excluirEtapaTreinamento(apiKey, id, fetchApi?)`: `DELETE /training-stages/{id}`
+- `atualizarEtapaTreinamento(apiKey, id, dados, fetchApi?)`: `PUT /training-stages?id={id}`
+  (o id vai na query string, conforme o guia da API; `/training-stages/{id}` responde 404).
+- `excluirEtapaTreinamento(apiKey, id, fetchApi?)`: `DELETE /training-stages?id={id}`
   (tratar 404 como sucesso, igual a `excluirCombinado`).
 
 #### 2.2 Resolução de empresa → companyId do Desk

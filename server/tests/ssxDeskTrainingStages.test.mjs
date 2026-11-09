@@ -3,7 +3,9 @@ import test from 'node:test';
 import {
   TrainingStagesSyncService, linhasEtapaTreinamento, reconciliarEtapasEmpresa, resolverCompanyIdDesk,
 } from '../dist/infrastructure/ssxDesk/TrainingStagesSyncService.js';
-import { listarEmpresasDesk, SsxDeskHttpError } from '../dist/infrastructure/ssxDesk/trainingStages.js';
+import {
+  atualizarEtapaTreinamento, excluirEtapaTreinamento, listarEmpresasDesk, SsxDeskHttpError,
+} from '../dist/infrastructure/ssxDesk/trainingStages.js';
 
 // Formato real confirmado de GET /companies (ver PLANO_BACKEND_PENDENTE.md): "data" +
 // "meta.total", sem "hasMore"/"offset" — diferente da paginação de training-conversations.
@@ -45,6 +47,29 @@ test('listarEmpresasDesk: falhas HTTP e respostas inválidas são rejeitadas sem
       error => error.message.includes(String(status)) && !error.message.includes('segredo'));
   }
   await assert.rejects(listarEmpresasDesk('segredo', async () => Response.json({ data: [{}], meta: { total: 1 } })), /formato/);
+});
+
+test('atualizarEtapaTreinamento: id vai na query string (guia da API), não no caminho', async () => {
+  let chamada;
+  const etapa = await atualizarEtapaTreinamento('chave', 'abc-123', { status: 'Concluído' }, async (url, options) => {
+    chamada = { url: url.toString(), method: options.method, body: JSON.parse(options.body) };
+    return Response.json({ data: { id: 'abc-123', status: 'Concluído' } });
+  });
+  assert.equal(chamada.url, 'https://ssxdesk.ssatx.com.br/api/integrations/v1/training-stages?id=abc-123');
+  assert.equal(chamada.method, 'PUT');
+  assert.deepEqual(chamada.body, { status: 'Concluído' }, 'o id não vai no corpo');
+  assert.equal(etapa.id, 'abc-123');
+});
+
+test('excluirEtapaTreinamento: id vai na query string e 404 continua tratado como já excluída', async () => {
+  let url;
+  await excluirEtapaTreinamento('chave', 'abc-123', async (u, options) => {
+    url = u.toString();
+    assert.equal(options.method, 'DELETE');
+    return Response.json({ data: { id: 'abc-123' } });
+  });
+  assert.equal(url, 'https://ssxdesk.ssatx.com.br/api/integrations/v1/training-stages?id=abc-123');
+  await excluirEtapaTreinamento('chave', 'sumiu', async () => new Response(null, { status: 404 }));
 });
 
 test('linhasEtapaTreinamento: status por fase a partir de currentPhase — a fase atual também conta como Concluído', () => {

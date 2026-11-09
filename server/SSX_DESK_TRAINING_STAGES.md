@@ -99,6 +99,15 @@ nem faz a consulta por `updatedAt` reler quase a coleção inteira a cada ciclo.
 com falha ficam marcadas em `empresasComFalha` e são retentadas por id, fora da janela de
 tempo do cursor.
 
+### Rotas
+
+`POST /training-stages` cria (corpo com `companyId`). `PUT` e `DELETE` usam a mesma rota
+com o **id na query string**: `/training-stages?id={id}` — conforme o guia da API do Desk.
+`/training-stages/{id}` não existe e responde 404: até 09/11/2026 o cliente usava essa
+rota, então nenhuma atualização nem exclusão chegava ao Desk, e cada PUT com 404 era
+tratado como "etapa excluída, recriar" — origem das etapas duplicadas e dos status presos
+(ex.: Altotrak em "Em andamento", Numpe com três cópias de cada etapa).
+
 ### Rate limit
 
 A API do Desk permite até 120 req/min por chave. O serviço aguarda ~600 ms entre cada

@@ -329,9 +329,17 @@ export class TrainingStagesSyncService {
     // Reconcilia pelo estado ATUAL das etapas no Desk (por nome), não só pelo array local —
     // corrige o id de uma linha que foi reordenada desde o último envio e evita recriar uma
     // etapa que já existe, só deslocada de posição (ver reconciliarEtapasEmpresa acima).
+    const etapasDeskEmpresa = companyDesk.trainingStages?.items ?? [];
     const { ids: idsDesk, idsDuplicados, statusDivergente } = reconciliarEtapasEmpresa(
-      linhas, idsAntigos, companyDesk.trainingStages?.items ?? [],
+      linhas, idsAntigos, etapasDeskEmpresa,
     );
+    // DEBUG temporário (ver investigação da duplicação relatada em produção — remover depois
+    // de confirmar a causa): mostra o que a reconciliação recebeu de cada lado antes de agir.
+    console.log(`[SSX Desk Training Stages][DEBUG] ${empresa.nomeEmpresa} (${empresa.id}): `
+      + `idsAntigos=${JSON.stringify(idsAntigos)} `
+      + `etapasDeskRecebidas=${etapasDeskEmpresa.length} `
+      + `(${JSON.stringify(etapasDeskEmpresa.map(e => ({ id: e.id, name: e.name })))}) `
+      + `idsDuplicados=${idsDuplicados.length} statusDivergente=${statusDivergente}`);
 
     // Só reenvia quando a empresa mudou desde o último envio — senão toda empresa na
     // janela do ciclo levaria PUT em todas as linhas de novo, sem necessidade (mesmo

@@ -130,6 +130,14 @@ function filtrarValidacaoNoPeriodo(
   );
 }
 
+/** O Gol é apurado no mês inteiro em que o cliente completa 30 dias: assim que esse mês
+ * começa, ele já conta — sem esperar o dia exato do vencimento. Por isso o fim do período
+ * (que no mês corrente é "agora") é estendido até o último instante do mês. */
+function naApuracaoDoGol(dataReferencia: Date, inicio: Date, fim: Date): boolean {
+  const fimDoMes = new Date(fim.getFullYear(), fim.getMonth() + 1, 0, 23, 59, 59, 999);
+  return dataReferencia.getTime() >= inicio.getTime() && dataReferencia.getTime() <= fimDoMes.getTime();
+}
+
 function calcularValorIndicadorBolsa(
   chave: ChaveBolsa,
   eventos: EventosIndicadoresTreinamento,
@@ -141,10 +149,8 @@ function calcularValorIndicadorBolsa(
   treinador: string | null,
 ): number | null {
   if (chave === "golNoPrazo") {
-    const resultados = calcularGolNoPrazo(empresas, ocorrencias).filter(
-      (r) =>
-        r.dataReferencia.getTime() >= inicio.getTime() &&
-        r.dataReferencia.getTime() <= fim.getTime(),
+    const resultados = calcularGolNoPrazo(empresas, ocorrencias).filter((r) =>
+      naApuracaoDoGol(r.dataReferencia, inicio, fim),
     );
     if (resultados.length === 0) return null;
     return (resultados.filter((r) => r.noPrazo).length / resultados.length) * 100;
@@ -700,15 +706,11 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
   const resumoGolNoPrazoMes = useMemo(() => {
     const mesAtual = periodosPorGranularidade.mes[periodosPorGranularidade.mes.length - 1];
     if (!mesAtual) return null;
-    const doMes = golNoPrazoResultados.filter(
-      (r) =>
-        r.dataReferencia.getTime() >= mesAtual.inicio.getTime() &&
-        r.dataReferencia.getTime() <= mesAtual.fim.getTime(),
+    const doMes = golNoPrazoResultados.filter((r) =>
+      naApuracaoDoGol(r.dataReferencia, mesAtual.inicio, mesAtual.fim),
     );
-    const naoRealizadoDoMes = naoRealizadosGolNoPrazo.filter(
-      (r) =>
-        r.dataReferencia.getTime() >= mesAtual.inicio.getTime() &&
-        r.dataReferencia.getTime() <= mesAtual.fim.getTime(),
+    const naoRealizadoDoMes = naoRealizadosGolNoPrazo.filter((r) =>
+      naApuracaoDoGol(r.dataReferencia, mesAtual.inicio, mesAtual.fim),
     ).length;
     if (doMes.length === 0 && naoRealizadoDoMes === 0) return null;
     const noPrazo = doMes.filter((r) => r.noPrazo).length;
@@ -720,43 +722,28 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
     ];
   }, [golNoPrazoResultados, naoRealizadosGolNoPrazo, periodosPorGranularidade]);
 
-  // Comparação com o mês anterior: enquanto o mês corrente está em andamento, compara contra
-  // o MESMO intervalo de dias do mês anterior (não o mês anterior inteiro) — senão um mês
-  // parcial de poucos dias sempre perderia para um mês fechado inteiro, de forma injusta.
+  // Comparação com o mês anterior inteiro. Como o Gol é apurado pelo mês em que o cliente
+  // completa 30 dias (e não pelo dia exato), recortar o mês anterior "no mesmo dia" não faz
+  // mais sentido: os Gols já batidos de quem vence no fim do mês atual já entram desde o
+  // dia 1. O selo "Parcial" continua avisando que o mês corrente ainda pode mudar.
   const snapshotGolNoPrazoComparacao = useMemo(() => {
     const ref = new Date(minutoAtual * 60000);
     const inicioMesAtual = new Date(ref.getFullYear(), ref.getMonth(), 1);
-    const fimRealDoMes = new Date(ref.getFullYear(), ref.getMonth() + 1, 0, 23, 59, 59, 999);
-    const mesEmAndamento = fimRealDoMes.getTime() > ref.getTime();
+    const inicioMesAnterior = new Date(ref.getFullYear(), ref.getMonth() - 1, 1);
+    const fimMesAnterior = new Date(ref.getFullYear(), ref.getMonth(), 0, 23, 59, 59, 999);
 
     const percentualNoPeriodo = (inicio: Date, fim: Date): number | null => {
-      const filtrados = golNoPrazoResultados.filter(
-        (r) => r.dataReferencia.getTime() >= inicio.getTime() && r.dataReferencia.getTime() <= fim.getTime(),
-      );
+      const filtrados = golNoPrazoResultados.filter((r) => naApuracaoDoGol(r.dataReferencia, inicio, fim));
       if (filtrados.length === 0) return null;
       return (filtrados.filter((r) => r.noPrazo).length / filtrados.length) * 100;
     };
 
-    const atual = percentualNoPeriodo(inicioMesAtual, ref);
-
-    const inicioMesAnterior = new Date(ref.getFullYear(), ref.getMonth() - 1, 1);
-    const ultimoDiaMesAnterior = new Date(ref.getFullYear(), ref.getMonth(), 0).getDate();
-    const fimMesAnterior = mesEmAndamento
-      ? new Date(ref.getFullYear(), ref.getMonth() - 1, Math.min(ref.getDate(), ultimoDiaMesAnterior), 23, 59, 59, 999)
-      : new Date(ref.getFullYear(), ref.getMonth(), 0, 23, 59, 59, 999);
-    const anterior = percentualNoPeriodo(inicioMesAnterior, fimMesAnterior);
-
     return {
       mes: {
-        atual,
-        anterior,
-        // Mantém "mês" explícito no rótulo (granularidade sendo comparada) — o texto agora
-        // trunca com reticências em vez de quebrar (ver .bolsa-card-comparacao-label), então
-        // pode ficar um pouco mais longo sem esticar o card; o detalhe completo vai no title.
-        label: mesEmAndamento ? "vs. mesmo período do mês" : "vs. mês anterior",
-        labelTooltip: mesEmAndamento
-          ? "Comparando com o mesmo intervalo de dias do mês anterior, já que o mês atual ainda está em andamento."
-          : "Comparando com o mês anterior fechado por inteiro.",
+        atual: percentualNoPeriodo(inicioMesAtual, ref),
+        anterior: percentualNoPeriodo(inicioMesAnterior, fimMesAnterior),
+        label: "vs. mês anterior",
+        labelTooltip: "Comparando com o mês anterior fechado por inteiro. O mês atual é parcial até o fim do mês.",
       },
     } satisfies Partial<Record<Granularidade, ComparacaoSnapshot>>;
   }, [golNoPrazoResultados, minutoAtual]);

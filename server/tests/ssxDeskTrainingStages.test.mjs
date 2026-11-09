@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  TrainingStagesSyncService, linhasEtapaTreinamento, resolverCompanyIdDesk,
+  TrainingStagesSyncService, linhasEtapaTreinamento, reconciliarEtapasEmpresa, resolverCompanyIdDesk,
 } from '../dist/infrastructure/ssxDesk/TrainingStagesSyncService.js';
 import { listarEmpresasDesk, SsxDeskHttpError } from '../dist/infrastructure/ssxDesk/trainingStages.js';
 
@@ -98,7 +98,105 @@ test('resolverCompanyIdDesk: só resolve quando o idCentral identifica uma únic
   assert.equal(resolverCompanyIdDesk({ idCentral: '100' }, companies), 'c1');
   assert.equal(resolverCompanyIdDesk({ idCentral: '200' }, companies), undefined); // ambíguo
   assert.equal(resolverCompanyIdDesk({ idCentral: '999' }, companies), undefined); // sem match
+});
+
+test('resolverCompanyIdDesk: sem idCentral no Radar, cai para nome exato e único (mesma regra da sincronização de entrada)', () => {
+  const companies = [
+    { id: 'c1', name: 'Alfa', idCentral: '100' },
+    { id: 'c2', name: 'Numpe', idCentral: null },
+    { id: 'c3', name: 'Beta', idCentral: '200' },
+    { id: 'c4', name: 'Beta', idCentral: '201' }, // nome ambíguo no Desk
+    { id: 'c5', name: 'Gama', idCentral: '300' },
+  ];
+  // Sem idCentral cadastrado no Radar (caso comum de cadastro antigo) — resolve por nome único.
+  assert.equal(resolverCompanyIdDesk({ nomeEmpresa: 'Numpe' }, companies), 'c2');
+  // Ignora acentos, caixa e espaços nas extremidades, igual à sincronização de entrada.
+  assert.equal(resolverCompanyIdDesk({ nomeEmpresa: '  NUMPÉ  ' }, companies), 'c2');
+  // Nome ambíguo no Desk (duas empresas "Beta") não resolve só por nome.
+  assert.equal(resolverCompanyIdDesk({ nomeEmpresa: 'Beta' }, companies), undefined);
+  // idCentral já preenchido no Radar, mas divergente do idCentral já cadastrado no Desk
+  // pra essa empresa (achada por nome) — não aceita o nome por cima de um conflito real.
+  assert.equal(resolverCompanyIdDesk({ nomeEmpresa: 'Gama', idCentral: '999' }, companies), undefined);
+  // idCentral do Radar sem match e a empresa achada por nome não tem idCentral cadastrado
+  // no Desk (nenhum conflito real, só o Radar aponta pra um idCentral que não existe lá) — resolve.
+  assert.equal(resolverCompanyIdDesk({ nomeEmpresa: 'Numpe', idCentral: '999' }, companies), 'c2');
   assert.equal(resolverCompanyIdDesk({}, companies), undefined); // sem idCentral
+});
+
+function etapaDesk(sobrescritas = {}) {
+  return {
+    id: 'etapa', companyId: 'company-1', name: 'Tema', status: 'Em andamento', sortOrder: 0,
+    notes: null, createdAt: '', updatedAt: '', ...sobrescritas,
+  };
+}
+
+test('reconciliarEtapasEmpresa: sem dados do Desk, confia cegamente no array local (comportamento anterior)', () => {
+  const linhas = linhasEtapaTreinamento({ temaText: 'Tema 1\nTema 2', currentPhase: 0, updatedAt: 0 });
+  const resultado = reconciliarEtapasEmpresa(linhas, ['id-salvo', ''], []);
+  assert.deepEqual(resultado.ids, ['id-salvo', '']);
+  assert.deepEqual(resultado.idsDuplicados, []);
+});
+
+test('reconciliarEtapasEmpresa: recupera o id certo quando a linha foi reordenada (id salvo aponta para outro nome)', () => {
+  // "Validação 2" estava na posição 1 (id "etapa-2"); depois de um tema ensinado fora de
+  // ordem, reordenarTemasEnsinados moveu "Validação 1" pra posição 1 e "Validação 2" pra 0
+  // — o array local (por posição) não acompanhou, mas o Desk ainda tem as duas etapas.
+  const linhas = linhasEtapaTreinamento({
+    temaText: 'Validação 2\nValidação 1', currentPhase: 1, updatedAt: 0,
+  });
+  const etapasDesk = [
+    etapaDesk({ id: 'etapa-1', name: 'Validação 1' }),
+    etapaDesk({ id: 'etapa-2', name: 'Validação 2' }),
+  ];
+  // Array local ainda na ordem antiga: posição 0 tinha "Validação 1" (id etapa-1), posição
+  // 1 tinha "Validação 2" (id etapa-2) — agora desalinhado com o novo temaText.
+  const resultado = reconciliarEtapasEmpresa(linhas, ['etapa-1', 'etapa-2'], etapasDesk);
+  assert.deepEqual(resultado.ids, ['etapa-2', 'etapa-1'], 'recupera o id de cada etapa pelo nome, não pela posição antiga');
+  assert.deepEqual(resultado.idsDuplicados, []);
+});
+
+test('reconciliarEtapasEmpresa: etapa duplicada no Desk (sobra de uma reordenação antiga) é marcada pra excluir', () => {
+  const linhas = linhasEtapaTreinamento({ temaText: 'Validação 1\nValidação 2', currentPhase: 1, updatedAt: 0 });
+  const etapasDesk = [
+    etapaDesk({ id: 'etapa-1a', name: 'Validação 1' }),
+    etapaDesk({ id: 'etapa-1b', name: 'Validação 1' }), // duplicata: sobrou de uma reordenação
+    etapaDesk({ id: 'etapa-2', name: 'Validação 2' }),
+  ];
+  const resultado = reconciliarEtapasEmpresa(linhas, ['etapa-1a', 'etapa-2'], etapasDesk);
+  assert.deepEqual(resultado.ids, ['etapa-1a', 'etapa-2']);
+  assert.deepEqual(resultado.idsDuplicados, ['etapa-1b']);
+});
+
+test('reconciliarEtapasEmpresa: id salvo não existe mais no Desk, mas uma etapa com o mesmo nome existe — reusa em vez de recriar', () => {
+  const linhas = linhasEtapaTreinamento({ temaText: 'Tema 1', currentPhase: 0, updatedAt: 0 });
+  const etapasDesk = [etapaDesk({ id: 'etapa-nova', name: 'Tema 1' })];
+  const resultado = reconciliarEtapasEmpresa(linhas, ['etapa-antiga-sumida'], etapasDesk);
+  assert.deepEqual(resultado.ids, ['etapa-nova']);
+});
+
+test('reconciliarEtapasEmpresa: etapa já existe com o id e nome certos, mas o status no Desk ficou desatualizado (caso real do Altotrak)', () => {
+  // "Conclusão" já tinha id e nome batendo, mas um envio passado mandou "Em andamento" —
+  // o Radar recalcula "Concluído" agora (currentPhase na última fase + dataFinalizacao).
+  const linhas = linhasEtapaTreinamento({
+    temaText: 'Tema 1\nConclusão', currentPhase: 1, updatedAt: 0, dataFinalizacao: '2026-10-13',
+  });
+  const etapasDesk = [
+    etapaDesk({ id: 'etapa-1', name: 'Tema 1', status: 'Concluído' }),
+    etapaDesk({ id: 'etapa-2', name: 'Conclusão', status: 'Em andamento' }), // desatualizada
+  ];
+  const resultado = reconciliarEtapasEmpresa(linhas, ['etapa-1', 'etapa-2'], etapasDesk);
+  assert.deepEqual(resultado.ids, ['etapa-1', 'etapa-2'], 'mantém os ids certos, não recria nada');
+  assert.equal(resultado.statusDivergente, true, 'sinaliza a divergência pra forçar o reenvio');
+});
+
+test('reconciliarEtapasEmpresa: tudo já bate (id, nome e status) — sem divergência', () => {
+  const linhas = linhasEtapaTreinamento({ temaText: 'Tema 1\nTema 2', currentPhase: 1, updatedAt: 0 });
+  const etapasDesk = [
+    etapaDesk({ id: 'etapa-1', name: 'Tema 1', status: 'Concluído' }),
+    etapaDesk({ id: 'etapa-2', name: 'Tema 2', status: 'Em andamento' }),
+  ];
+  const resultado = reconciliarEtapasEmpresa(linhas, ['etapa-1', 'etapa-2'], etapasDesk);
+  assert.equal(resultado.statusDivergente, false);
 });
 
 // Firestore falso mínimo: suporta doc().get/set/update/update, collection().where('updatedAt','>',x).get.
@@ -326,6 +424,67 @@ test('erro HTTP diferente de 404 no PUT continua propagando (não tenta recriar 
   assert.equal(stats.processadas, 0);
   const estado = (await db.doc('integracoes/ssxDeskTrainingStages').get()).data();
   assert.deepEqual(estado.empresasComFalha, ['e1']);
+});
+
+test('empresa com etapas duplicadas no Desk (reordenação antiga): recupera os ids certos por nome e exclui a sobra', async () => {
+  const db = database();
+  db._empresas().set('e1', empresa({
+    temaText: 'Validação 1\nValidação 2',
+    // Array local desalinhado (mesmo bug relatado): guardava "Validação 2" na posição 0.
+    ssxDeskTrainingStageIds: ['etapa-2', 'etapa-1a'],
+    ssxDeskTrainingStagesSyncedAt: 500, updatedAt: Date.now(),
+  }));
+  const companies = [{
+    id: 'company-1', name: 'Cliente Teste', idCentral: '100',
+    trainingStages: {
+      hasStages: true,
+      items: [
+        etapaDesk({ id: 'etapa-1a', name: 'Validação 1', sortOrder: 0 }),
+        etapaDesk({ id: 'etapa-1b', name: 'Validação 1', sortOrder: 1 }), // duplicata órfã
+        etapaDesk({ id: 'etapa-2', name: 'Validação 2', sortOrder: 2 }),
+      ],
+    },
+  }];
+  const c = cliente({ companies });
+  const service = new TrainingStagesSyncService(db, 'chave', c.fns, semEspera);
+  const stats = await service.sincronizar();
+  assert.equal(stats.processadas, 1);
+  assert.equal(c.chamadas.criar.length, 0, 'não recria etapas que já existem, só deslocadas');
+  assert.deepEqual(c.chamadas.excluir, ['etapa-1b'], 'exclui só a duplicata órfã');
+  assert.deepEqual(
+    c.chamadas.atualizar.map(a => a.id).sort(),
+    ['etapa-1a', 'etapa-2'],
+    'atualiza as duas etapas certas (recuperadas por nome), não as posições desalinhadas',
+  );
+  assert.deepEqual(db._empresas().get('e1').ssxDeskTrainingStageIds, ['etapa-1a', 'etapa-2']);
+});
+
+test('empresa parada (updatedAt antigo) mas com uma etapa desatualizada no Desk: reenvia e corrige, mesmo sem precisaReenviar por updatedAt (caso real do Altotrak)', async () => {
+  const db = database();
+  db._empresas().set('e1', empresa({
+    temaText: 'Tema 1\nConclusão', currentPhase: 1, dataFinalizacao: '2026-10-13',
+    ssxDeskTrainingStageIds: ['etapa-1', 'etapa-2'],
+    // syncedAt bem DEPOIS de updatedAt — pelo critério de "mudou desde o último envio",
+    // essa empresa estaria "em dia" e não seria reenviada.
+    ssxDeskTrainingStagesSyncedAt: Date.now(), updatedAt: Date.now() - 1_000_000,
+  }));
+  const companies = [{
+    id: 'company-1', name: 'Cliente Teste', idCentral: '100',
+    trainingStages: {
+      hasStages: true,
+      items: [
+        etapaDesk({ id: 'etapa-1', name: 'Tema 1', status: 'Concluído', sortOrder: 0 }),
+        etapaDesk({ id: 'etapa-2', name: 'Conclusão', status: 'Em andamento', sortOrder: 1 }), // travada
+      ],
+    },
+  }];
+  const c = cliente({ companies });
+  const service = new TrainingStagesSyncService(db, 'chave', c.fns, semEspera);
+  const stats = await service.sincronizar();
+  assert.equal(stats.processadas, 1, 'reprocessa mesmo sem updatedAt ter mudado, por causa da divergência de status');
+  const putConclusao = c.chamadas.atualizar.find((a) => a.id === 'etapa-2');
+  assert.ok(putConclusao, 'reenviou a etapa "Conclusão"');
+  assert.equal(putConclusao.dados.status, 'Concluído', 'corrige o status travado no Desk');
 });
 
 test('empresa sem temaText fica em semTemas, sem chamar o Desk', async () => {

@@ -40,21 +40,49 @@ excluída do Desk).
 
 - `Empresa.ssxDeskTrainingStageIds`: um id de etapa do Desk por linha de `temaText`, na
   mesma posição — alinhado por índice, mesma convenção de `blocoText`/`reagendamentosText`.
-  Reordenar linhas manualmente na Esteira pode desalinhar um id antigo; é o mesmo
-  trade-off que já existe hoje para bloco/reagendamento, não um risco novo.
+  Reordenar linhas manualmente na Esteira (ou um tema ensinado fora de sequência via
+  `reordenarTemasEnsinados`, no Histórico) desalinha esse array do array local. Para não
+  depender só dele, cada ciclo reconcilia pelo estado ATUAL das etapas no Desk (o
+  `trainingStages` embutido em cada empresa de `GET /companies`): recupera o id certo pelo
+  **nome** da etapa quando o id salvo localmente aponta pra um nome diferente, e exclui
+  qualquer etapa duplicada que sobre sem corresponder a nenhuma linha atual (ver
+  `reconciliarEtapasEmpresa` em TrainingStagesSyncService.ts). Sem esse cuidado, uma
+  reordenação acabava renomeando a etapa errada e/ou criando uma etapa duplicada para um
+  tema que já existia no Desk — já aconteceu em produção (duas etapas de "Validação do
+  Conhecimento" para o mesmo cliente). Quando o Desk não traz esse campo (ausente/vazio),
+  a reconciliação volta a confiar cegamente no array local, como antes.
 - `Empresa.ssxDeskTrainingStagesSyncedAt`: marca a última vez que a trilha daquela
   empresa foi publicada — usado para decidir se precisa reenviar (compara contra
-  `updatedAt` da empresa), mesmo papel do `managerOpsSyncedAt` do Manager Ops.
+  `updatedAt` da empresa), mesmo papel do `managerOpsSyncedAt` do Manager Ops. Uma
+  duplicata encontrada na reconciliação acima, ou uma etapa já existente cujo `status`
+  no Desk diverge do que o Radar calcula agora, também força o reenvio mesmo sem
+  `updatedAt` ter mudado — sem isso, um PUT que saiu com o status errado uma única vez
+  (por qualquer motivo transitório) ficava errado pra sempre, porque nada no Radar muda
+  depois disso pra disparar um novo envio. Caso real confirmado em produção: a etapa
+  "Conclusão" do cliente Altotrak foi criada com `status: "Em andamento"` no primeiro
+  envio (06/11/2026) e ficou presa assim por semanas, mesmo com o Radar já calculando
+  `"Concluído"` pra ela o tempo todo — nada no cadastro mudou depois daquele envio, então
+  `precisaReenviar` continuava `false` em todo ciclo seguinte. Essa checagem de status só
+  se aplica a empresas que entram no ciclo (pelo cursor incremental ou por falha
+  conhecida); uma empresa já travada como o Altotrak só é reconsiderada por um backfill
+  (`SSX_DESK_TRAINING_STAGES_FORCAR_BACKFILL=true`, ver "Configuração" abaixo) — rode um
+  após publicar essa correção pra sanar quem já ficou preso.
 
 ### Vínculo da empresa com o `companyId` do Desk
 
-Resolvido por `Empresa.idCentral`: só aceita quando identifica uma única empresa do lado
-do Desk (`GET /companies`, cacheado por 1h). Sem `idCentral`, ou com `idCentral`
-compartilhado por mais de uma empresa do Desk, a empresa fica em `semVinculo` e é
-retentada no próximo ciclo. **Não verifica duplicidade de `idCentral` entre empresas do
-próprio Radar** (exigiria carregar a coleção inteira a cada ciclo) — um cadastro
-duplicado no Radar já quebraria a sincronização de entrada do SSX Desk
-(`trainingConversations.resolverEmpresa`) antes de chegar aqui, então não é um risco novo.
+Prioriza `Empresa.idCentral`: aceita quando identifica uma única empresa do lado do Desk
+(`GET /companies`, cacheado por 1h). Sem `idCentral` no Radar (cadastro antigo, ver
+`vincularIdCentral.ts`), ou com `idCentral` compartilhado por mais de uma empresa do
+Desk, cai para nome exato e único (ignorando acentos, caixa e espaços) — mesma regra já
+usada pela sincronização de entrada (`trainingConversations.resolverEmpresa`); rejeita o
+nome quando a empresa já tem um `idCentral` próprio que diverge do idCentral já cadastrado
+no Desk pra essa mesma empresa (conflito real, não "sem idCentral"). Sem resolver nem por
+id nem por nome, a empresa fica em `semVinculo` e é retentada no próximo ciclo; os nomes
+(até 50 por ciclo) ficam em `integracoes/ssxDeskTrainingStages.nomesSemVinculo`, pra saber
+quem revisar sem precisar ler logs. **Não verifica duplicidade de `idCentral`/nome entre
+empresas do próprio Radar** (exigiria carregar a coleção inteira a cada ciclo) — um
+cadastro duplicado no Radar já quebraria a sincronização de entrada do SSX Desk antes de
+chegar aqui, então não é um risco novo.
 
 ### Cursor e falhas
 
@@ -85,9 +113,12 @@ mesmo padrão de `trainingConversations.listarConversas`.
 ## Limitações conhecidas
 
 - **Alinhamento por índice** entre `temaText` e `ssxDeskTrainingStageIds`: reordenar
-  linhas manualmente pode fazer um id antigo apontar para a etapa errada do Desk. Mesmo
-  trade-off já aceito para `blocoText`/`reagendamentosText`.
-- **Duplicidade de `idCentral` no Radar** não é verificada por este serviço (ver acima).
+  linhas manualmente pode desalinhar um id antigo. Mitigado pela reconciliação por nome
+  contra o estado atual do Desk (ver "Vínculo entre os dois sistemas" acima) — mas só
+  funciona quando o Desk devolve o `trainingStages` embutido por empresa; sem esse campo,
+  ainda vale o comportamento anterior (confia no array local). Continua existindo também
+  quando duas linhas do meio têm exatamente o mesmo nome (sem como diferenciar por nome).
+- **Duplicidade de `idCentral`/nome no Radar** não é verificada por este serviço (ver acima).
 - **Paginação de `GET /companies` não documentada**: a resposta real confirmada traz
   `{ data: [...], meta: { total } }`, sem `hasMore` nem `offset` (diferente de
   `training-conversations`). `listarEmpresasDesk` faz uma única chamada sem parâmetros de

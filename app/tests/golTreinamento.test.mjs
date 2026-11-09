@@ -70,15 +70,18 @@ test('mês de referência é o do fim do prazo de 30 dias, não o mês em que o 
   assert.equal(resultado[0].dataReferencia.getFullYear(), 2026);
 });
 
-test('Gol batido dentro do prazo também usa o fim do prazo como mês de referência', () => {
-  const entrada = new Date(2026, 0, 15);
-  const golDentroDoPrazo = new Date(2026, 0, 20);
+test('Gol batido dentro do prazo usa o mês do próprio Gol como mês de referência', () => {
+  // Entrou em 25/jan, prazo vence 24/fev — mas já bateu o Gol em 28/jan, ainda em janeiro.
+  // Não precisa esperar fevereiro (vencimento do prazo) para contar esse sucesso.
+  const entrada = new Date(2026, 0, 25);
+  const golDentroDoPrazo = new Date(2026, 0, 28);
   const resultado = calcular(
     [empresa({ nomeEmpresa: 'Cliente A', dataEntrada: dataISO(entrada) })],
     [ocorrenciaGol('Cliente A', golDentroDoPrazo.getTime())],
   );
   assert.equal(resultado[0].noPrazo, true);
-  assert.equal(resultado[0].dataReferencia.getMonth(), 1); // fevereiro, fim do prazo
+  assert.equal(resultado[0].dataReferencia.getMonth(), 0); // janeiro, mês do Gol
+  assert.equal(resultado[0].dataReferencia.getTime(), golDentroDoPrazo.getTime());
 });
 
 test('cliente ainda dentro da janela de 30 dias, sem Gol, fica fora do cálculo', () => {

@@ -52,7 +52,9 @@ export interface ResultadoGolTreinamento {
   empresa: string;
   atingiuGol: boolean;
   noPrazo: boolean;
-  /** Data em que o resultado passou a valer: a do Gol, ou o fim do prazo de 30 dias quando não bateu. */
+  /** Data em que o resultado passou a valer: a do próprio Gol quando batido dentro do prazo
+   * (não precisa esperar o vencimento dos 30 dias para contar um sucesso já conhecido); o
+   * fim do prazo de 30 dias quando o Gol foi batido fora do prazo ou quando não bateu. */
   dataReferencia: Date;
 }
 
@@ -76,14 +78,16 @@ export function calcularGolNoPrazo(empresas: Empresa[], ocorrencias: Ocorrencia[
     const prazoMs = dataEntrada.getTime() + PRAZO_DIAS_GOL * 24 * 60 * 60 * 1000;
 
     if (ocorrenciaGol) {
+      const noPrazo = ocorrenciaGol.dataOcorrencia <= prazoMs;
       resultados.push({
         empresa: empresa.nomeEmpresa,
         atingiuGol: true,
-        noPrazo: ocorrenciaGol.dataOcorrencia <= prazoMs,
-        // Mês de apuração é sempre o do fim da janela de 30 dias (data limite), nunca o
-        // mês em que o Gol foi batido — um Gol fora do prazo conta no mês em que o prazo
-        // se esgotou, não no mês (possivelmente bem posterior) em que o cliente o atingiu.
-        dataReferencia: new Date(prazoMs),
+        noPrazo,
+        // Dentro do prazo: apura no mês em que o Gol foi batido — não precisa esperar o
+        // vencimento dos 30 dias para contar um sucesso já conhecido. Fora do prazo: continua
+        // apurando no mês do vencimento (não no mês, possivelmente bem posterior, em que o
+        // cliente finalmente atingiu o Gol).
+        dataReferencia: noPrazo ? new Date(ocorrenciaGol.dataOcorrencia) : new Date(prazoMs),
       });
       return;
     }

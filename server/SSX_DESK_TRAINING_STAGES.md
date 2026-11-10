@@ -60,7 +60,7 @@ excluída do Desk).
   a reconciliação volta a confiar cegamente no array local, como antes.
 - `Empresa.ssxDeskTrainingStagesSyncedAt`: marca a última vez que a trilha daquela
   empresa foi publicada — usado para decidir se precisa reenviar (compara contra
-  `updatedAt` da empresa), mesmo papel do `managerOpsSyncedAt` do Manager Ops. Uma
+  `updatedAt` da empresa). Uma
   duplicata encontrada na reconciliação acima, ou uma etapa já existente cujo `status`
   no Desk diverge do que o Radar calcula agora, também força o reenvio mesmo sem
   `updatedAt` ter mudado — sem isso, um PUT que saiu com o status errado uma única vez
@@ -93,7 +93,7 @@ chegar aqui, então não é um risco novo.
 
 ### Cursor e falhas
 
-Mesma correção já aplicada ao Manager Ops: o cursor sempre avança no fim do ciclo,
+O cursor sempre avança no fim do ciclo,
 independente de alguma empresa ter falhado — uma falha permanente nunca trava o cursor
 nem faz a consulta por `updatedAt` reler quase a coleção inteira a cada ciclo. Empresas
 com falha ficam marcadas em `empresasComFalha` e são retentadas por id, fora da janela de

@@ -7,16 +7,14 @@ import { InitializeClient } from '../../application/use-cases/InitializeClient.j
 import { GetConnectionStatus } from '../../application/use-cases/GetConnectionStatus.js';
 import { DisconnectClient } from '../../application/use-cases/DisconnectClient.js';
 import { SendMediaMessage } from '../../application/use-cases/SendMediaMessage.js';
+import { AutenticadorRadar } from '../../adapters/middlewares/autenticacaoRadar.js';
+import { adminAuth, adminDb } from '../firebase/firebaseAdmin.js';
+import { FirestoreUsuariosRepository } from '../firebase/UsuariosRepository.js';
 import { config } from '../config/env.js';
 
 /**
- * Processo do bot do WhatsApp. CSAT, ocorrências, sincronização, IA e
- * Centrais rodam separados em apiIndex.ts — ver comentário lá.
- *
- * A sincronização com a Manager Ops (Daily — ver server/MANAGER_OPS.md) está desativada:
- * mesmo com a correção do cursor (ver ManagerOpsSyncService.ts), ficou instável e
- * consumindo leituras demais do Firestore. Reative chamando iniciarSincronizacaoManagerOps
- * aqui de novo só depois de investigar a fundo.
+ * Processo do bot do WhatsApp. CSAT, ocorrências, sincronização, IA,
+ * Centrais e gestão de usuários rodam separados em apiIndex.ts — ver comentário lá.
  */
 async function bootstrap() {
   console.log('Iniciando Radar WhatsApp Server...');
@@ -37,12 +35,13 @@ async function bootstrap() {
     getConnectionStatus
   );
 
-  // 4. Cria o servidor Express e HTTP
-  const app = createExpressApp(controller, whatsappWebClient);
+  // 4. Cria o servidor Express e HTTP; todas as rotas e o socket exigem login no Radar
+  const autenticador = new AutenticadorRadar(adminAuth, adminDb ? new FirestoreUsuariosRepository(adminDb) : null);
+  const app = createExpressApp(controller, whatsappWebClient, autenticador);
   const httpServer = createServer(app);
 
   // 5. Instancia o servidor Socket.io
-  const io = createSocketServer(httpServer, whatsappWebClient);
+  const io = createSocketServer(httpServer, whatsappWebClient, autenticador);
 
   // 6. Inicia o servidor HTTP
   httpServer.listen(config.port, () => {

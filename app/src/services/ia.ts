@@ -1,5 +1,6 @@
 import type { Ocorrencia } from "../types";
 import { RADAR_API_URL } from './apiConfig.ts';
+import { auth } from './firebase';
 
 const STREAM_ERROR_MARKER = "[[ERRO_IA]]";
 
@@ -8,9 +9,13 @@ export async function resumirOcorrencias(
   ocorrencias: Ocorrencia[],
   onChunk?: (textoAcumulado: string) => void
 ): Promise<string> {
+  if (!auth.currentUser) throw new Error("Entre novamente no Radar para gerar o resumo.");
   const response = await fetch(`${RADAR_API_URL}/api/ia/resumir`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${await auth.currentUser.getIdToken()}`,
+    },
     body: JSON.stringify({ nomeCliente, ocorrencias }),
   });
 

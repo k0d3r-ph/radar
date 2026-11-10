@@ -30,9 +30,5 @@ export const config = {
    * ciclo após o deploy — para o backfill da ativação inicial em produção. Desligar depois
    * de confirmar que o backfill rodou (senão força de novo a cada restart). */
   ssxDeskTrainingStagesForcarBackfill: process.env.SSX_DESK_TRAINING_STAGES_FORCAR_BACKFILL === 'true',
-  /** Chave da API de combinados da Manager Ops (Daily) — ver server/MANAGER_OPS.md. */
-  managerOpsApiKey: process.env.MANAGER_OPS_API_KEY?.trim() || '',
-  // Mínimo de um minuto; padrão: cinco minutos.
-  managerOpsSyncIntervalMs: Math.max(60_000, Number(process.env.MANAGER_OPS_SYNC_INTERVAL_MS) || 300_000),
   profilePhotosDir: process.env.PROFILE_PHOTOS_DIR || path.resolve(process.cwd(), 'data/profile-photos'),
 };

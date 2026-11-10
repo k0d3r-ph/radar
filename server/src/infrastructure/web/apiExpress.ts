@@ -14,6 +14,9 @@ import { IndiceSincronizacao } from '../firebase/IndiceSincronizacao.js';
 import { SincronizarTarefasAutomaticas } from '../../application/use-cases/SincronizarTarefasAutomaticas.js';
 import { LimparTarefasConcluidas } from '../../application/use-cases/LimparTarefasConcluidas.js';
 import { ProfilePhotosController } from '../../adapters/controllers/ProfilePhotosController.js';
+import { UsuariosController } from '../../adapters/controllers/UsuariosController.js';
+import { GerenciarUsuarios } from '../../application/use-cases/GerenciarUsuarios.js';
+import { AutenticadorRadar, PERFIS_GESTORES, PERFIS_RADAR } from '../../adapters/middlewares/autenticacaoRadar.js';
 import { config } from '../config/env.js';
 
 const profilePhotoParser = express.raw({
@@ -60,6 +63,12 @@ export function createApiApp({ tarefasAutomaticas = false }: { tarefasAutomatica
   const app = criarAppBase();
 
   const usuariosRepo = adminDb ? new FirestoreUsuariosRepository(adminDb) : null;
+  const autenticador = new AutenticadorRadar(adminAuth, usuariosRepo);
+
+  const usuariosController = new UsuariosController(adminAuth && adminDb ? new GerenciarUsuarios(adminAuth, adminDb) : null);
+  app.post('/api/usuarios', autenticador.exigir(PERFIS_GESTORES), (req, res) => usuariosController.criar(req, res));
+  app.post('/api/usuarios/:uid/redefinir-senha', autenticador.exigir(PERFIS_GESTORES), (req, res) => usuariosController.redefinirSenha(req, res));
+  app.delete('/api/usuarios/:uid', autenticador.exigir(PERFIS_GESTORES), (req, res) => usuariosController.excluir(req, res));
 
   const profilePhotosController = new ProfilePhotosController(adminAuth, config.profilePhotosDir);
   app.get('/api/profile-photos', (req, res) => profilePhotosController.listar(req, res));
@@ -126,7 +135,7 @@ export function createApiApp({ tarefasAutomaticas = false }: { tarefasAutomatica
   app.post('/api/sincronizacao/:colecao/documentos', (req, res) => sincronizacaoController.documentos(req, res));
 
   const iaController = new IaController();
-  app.post('/api/ia/resumir', (req, res) => iaController.resumir(req, res));
+  app.post('/api/ia/resumir', autenticador.exigir(PERFIS_RADAR), (req, res) => iaController.resumir(req, res));
 
   const centraisController = new CentraisController(usuariosRepo, adminAuth);
   app.get('/api/centrais/id-central', (req, res) => centraisController.buscarIdCentral(req, res));

@@ -5096,6 +5096,9 @@ body.light-theme .status-inativo {
     border: 1px solid #cbd5e1;
     color: #475569
 }
+body.light-theme .acoes-somente-master {
+    color: #475569
+}
 body.light-theme .btn-edit-user {
     border: 1px solid rgba(99, 102, 241, 0.2);
     color: #5563f1

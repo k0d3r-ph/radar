@@ -24,6 +24,7 @@ Leia a documentação correspondente quando a tarefa envolver essas funcionalida
 
 - `app/PENDENCIAS_E_ESTRELAS.md`: semáforo, pendências e favoritos.
 - `server/SINCRONIZACAO.md`: índice de versões, caches e consumo do Firestore.
+- `server/AUTENTICACAO.md`: perfis exigidos por rota, gestão de usuários pela API e regras de produção do Firestore (`firestore.rules.producao`).
 - `server/CSAT.md`: reservas, sequências, respostas e acesso público.
 - `server/SSX_DESK.md`: importação, vínculos e deduplicação.
 - `server/EMULADOR.md`: Firebase Emulator Suite local, para desenvolver sem consumir a cota do Firestore de produção.

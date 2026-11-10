@@ -1,9 +1,18 @@
 import { Server as HttpServer } from 'http';
 import { Server as SocketServer } from 'socket.io';
 import { IWhatsAppService } from '../../domain/interfaces/IWhatsAppService.js';
+import { AcessoNegadoError, AutenticadorRadar, PERFIS_GESTORES } from '../../adapters/middlewares/autenticacaoRadar.js';
 import { config } from '../config/env.js';
 
-export function createSocketServer(httpServer: HttpServer, whatsappService: IWhatsAppService): SocketServer {
+/** Mensagens de erro do handshake lidas pelo frontend (WhatsAppSettings). */
+export const ERRO_SOCKET_NAO_AUTORIZADO = 'nao_autorizado';
+export const ERRO_SOCKET_INDISPONIVEL = 'autenticacao_indisponivel';
+
+export function createSocketServer(
+  httpServer: HttpServer,
+  whatsappService: IWhatsAppService,
+  autenticador: AutenticadorRadar,
+): SocketServer {
   const allowedOrigins = config.corsOrigin
     ? config.corsOrigin.split(',').map(o => o.trim())
     : ['*'];
@@ -21,6 +30,18 @@ export function createSocketServer(httpServer: HttpServer, whatsappService: IWha
       methods: ['GET', 'POST'],
       credentials: true
     }
+  });
+
+  // O status emitido traz o QR Code de pareamento e o número conectado: só a tela /whatsapp (treinador e master) recebe.
+  io.use((socket, next) => {
+    const token = typeof socket.handshake.auth?.token === 'string' ? socket.handshake.auth.token : undefined;
+    autenticador.autenticar(token, PERFIS_GESTORES).then(
+      () => next(),
+      (erro) => {
+        const indisponivel = !(erro instanceof AcessoNegadoError) || erro.status === 503;
+        next(new Error(indisponivel ? ERRO_SOCKET_INDISPONIVEL : ERRO_SOCKET_NAO_AUTORIZADO));
+      },
+    );
   });
 
   io.on('connection', (socket) => {

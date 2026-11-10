@@ -31,7 +31,7 @@ Como no CSAT, remova essas coleções de qualquer `allow` abrangente: permissõe
 
 Nas permissões de escrita de ocorrências, restrinja também a criação/alteração de registros que contenham `validacaoTentativaId` à API, preservando a leitura para perfis autorizados. Isso impede modificar respostas históricas indiretamente pelo SDK. A API Admin continuará podendo registrar notificações e respostas do CSAT. A interface bloqueia a edição genérica, mas o controle definitivo é a regra de escrita publicada. A exclusão de ocorrências deve seguir a política existente; uma tentativa concluída nunca deve ser reaberta nem recriada por ausência da ocorrência.
 
-As regras reais de produção não estão neste repositório. Sua incorporação e publicação ficam como etapa de implantação; nenhum dado de produção foi alterado durante o desenvolvimento.
+A cópia de referência das regras de produção fica em `firestore.rules.producao` (ver [AUTENTICACAO.md](AUTENTICACAO.md)), com esses bloqueios já incorporados; a publicação é feita manualmente no console.
 
 ## Tarefas automáticas
 

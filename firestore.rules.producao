@@ -1,0 +1,113 @@
+// Regras de PRODUÇÃO do Firestore — cópia de referência, publicada manualmente no
+// console do Firebase (Firestore > Regras). NÃO é usada pelo Emulator Suite, que lê
+// firestore.rules (aberto, só para desenvolvimento local). Nunca rode
+// "firebase deploy --only firestore:rules" achando que publica este arquivo.
+//
+// Mudanças em relação à versão anterior (10/11/2026):
+// - "logado" passa a exigir cadastro ativo no Radar (usuarios/{uid} existe e não está inativo),
+//   não só uma conta do Firebase Auth;
+// - o próprio usuário não cria o cadastro nem altera role/inativo/cargo etc. — só o que a tela
+//   grava ao definir a senha e a migração automática do perfil legado crc → cs;
+// - treinador não cria, promove, edita nem exclui Master;
+// - gamificacao_pontos deixa de ser legível sem login.
+// Cadastro de usuários: feito pela API (Firebase Admin, POST /api/usuarios), que ignora estas regras.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function cadastroAtual() {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data;
+    }
+
+    function ehUsuarioRadar() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
+        && cadastroAtual().get('inativo', false) != true;
+    }
+
+    function temPerfil(perfis) {
+      return ehUsuarioRadar() && cadastroAtual().get('role', '') in perfis;
+    }
+
+    function ehMaster() {
+      return temPerfil(['master']);
+    }
+
+    function ehTreinadorOuMaster() {
+      return temPerfil(['treinador', 'master']);
+    }
+
+    match /usuarios/{userId} {
+      // O próprio cadastro é legível mesmo inativado: o login usa isso para avisar que a conta foi desativada.
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow read: if ehTreinadorOuMaster();
+
+      // Próprio cadastro: só os campos gravados ao definir a senha (registrarSenhaDefinida)
+      // e a migração automática crc → cs (AuthContext). Cadastro sem perfil conta como suporte.
+      allow update: if request.auth != null && request.auth.uid == userId
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['nome', 'email', 'needsPasswordChange', 'updatedAt', 'role'])
+        && request.resource.data.get('email', resource.data.get('email', '')) == resource.data.get('email', request.auth.token.email)
+        && (
+          request.resource.data.get('role', 'suporte') == resource.data.get('role', 'suporte')
+          || (resource.data.get('role', '') == 'crc' && request.resource.data.get('role', '') == 'cs')
+        );
+
+      // Treinador e Master gerenciam os demais; só Master mexe em um Master ou promove alguém a Master.
+      allow update: if ehMaster() || (ehTreinadorOuMaster()
+        && resource.data.get('role', '') != 'master'
+        && request.resource.data.get('role', '') != 'master');
+      allow delete: if ehMaster() || (ehTreinadorOuMaster() && resource.data.get('role', '') != 'master');
+
+      // Criação só pela API (Firebase Admin).
+      allow create: if false;
+    }
+
+    match /gamificacao_pontos/{document} {
+      allow read: if ehUsuarioRadar();
+      allow create, update: if ehTreinadorOuMaster();
+      // Descontos por contato de Suporte e registros de chamado/falha só o Master remove.
+      allow delete: if ehTreinadorOuMaster()
+        && (!(resource.data.get('tipoAcao', '') in ['desconto_suporte', 'chamado_falha']) || ehMaster());
+    }
+
+    match /ocorrencias/{document} {
+      allow read: if ehUsuarioRadar();
+      // Ocorrências da Validação do conhecimento (validacaoTentativaId) só a API grava.
+      allow create: if ehUsuarioRadar()
+        && !('validacaoTentativaId' in request.resource.data);
+      allow update: if ehUsuarioRadar()
+        && !('validacaoTentativaId' in resource.data)
+        && !('validacaoTentativaId' in request.resource.data);
+      allow delete: if ehMaster();
+    }
+
+    match /empresas/{document} {
+      allow read, write: if ehUsuarioRadar();
+    }
+
+    match /checklist_tarefas/{docId} {
+      allow read, write: if ehUsuarioRadar();
+    }
+
+    match /configuracoes/{documento} {
+      allow read: if ehUsuarioRadar();
+      allow write: if ehMaster();
+    }
+
+    match /temasOcorrencia/{docId} {
+      allow read: if ehUsuarioRadar();
+      allow create, delete: if ehMaster();
+      allow update: if false;
+    }
+
+    // Acessadas só pela API (Firebase Admin).
+    match /csatReservas/{document=**} { allow read, write: if false; }
+    match /csatLinks/{document=**} { allow read, write: if false; }
+    match /csatControle/{document=**} { allow read, write: if false; }
+    match /validacao_perguntas/{document=**} { allow read, write: if false; }
+    match /validacao_tentativas/{document=**} { allow read, write: if false; }
+    match /validacao_clientes/{document=**} { allow read, write: if false; }
+    match /validacao_controle/{document=**} { allow read, write: if false; }
+  }
+}

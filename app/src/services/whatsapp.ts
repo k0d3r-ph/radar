@@ -1,4 +1,16 @@
 import { WHATSAPP_API_URL } from './apiConfig.ts';
+import { auth } from './firebase';
+
+/** O bot exige login no Radar em todas as rotas. */
+async function cabecalhosAutenticados(extras: Record<string, string> = {}): Promise<Record<string, string>> {
+  if (!auth.currentUser) throw new Error('Entre novamente no Radar para usar o WhatsApp.');
+  return { ...extras, Authorization: `Bearer ${await auth.currentUser.getIdToken()}` };
+}
+
+/** Token para o handshake do Socket.IO do bot (tela de WhatsApp). */
+export async function obterTokenSocketWhatsApp(): Promise<string | undefined> {
+  return auth.currentUser?.getIdToken();
+}
 
 export interface WhatsAppSessionState {
   status: 'disconnected' | 'qrcode' | 'authenticating' | 'connected';
@@ -10,7 +22,9 @@ export interface WhatsAppSessionState {
 }
 
 export async function obterStatusWhatsApp(): Promise<WhatsAppSessionState> {
-  const response = await fetch(`${WHATSAPP_API_URL}/api/whatsapp/status`);
+  const response = await fetch(`${WHATSAPP_API_URL}/api/whatsapp/status`, {
+    headers: await cabecalhosAutenticados(),
+  });
   if (!response.ok) {
     throw new Error('Falha ao obter status do WhatsApp.');
   }
@@ -20,10 +34,12 @@ export async function obterStatusWhatsApp(): Promise<WhatsAppSessionState> {
 
 export async function desconectarWhatsApp(): Promise<void> {
   const response = await fetch(`${WHATSAPP_API_URL}/api/whatsapp/disconnect`, {
-    method: 'POST'
+    method: 'POST',
+    headers: await cabecalhosAutenticados(),
   });
   if (!response.ok) {
-    throw new Error('Falha ao desconectar o WhatsApp.');
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || 'Falha ao desconectar o WhatsApp.');
   }
 }
 
@@ -42,9 +58,7 @@ export async function enviarMensagemWhatsApp(params: EnviarMensagemWhatsAppParam
   try {
     const response = await fetch(`${WHATSAPP_API_URL}/api/whatsapp/send`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: await cabecalhosAutenticados({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(params),
       signal: controller.signal,
     });

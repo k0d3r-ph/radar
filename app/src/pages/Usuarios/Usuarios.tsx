@@ -21,9 +21,10 @@ import {
 import {
   criarNovoUsuario,
   listarUsuarios,
-  removerUsuarioFirestore,
   atualizarRoleUsuario,
   atualizarDadosUsuario,
+  redefinirSenhaUsuario,
+  excluirUsuario,
 } from "../../services/auth";
 import type { UsuarioDocument, CargoCsUsuario } from "../../services/auth";
 import { formatarNome } from "../../utils/formatarNome";
@@ -31,7 +32,6 @@ import { atuaComoTreinador } from "../../utils/perfis";
 import { elegivelNotificacoesGestao } from "../../services/notificacoes";
 import { useAuth } from "../../context/AuthContext";
 import { listarLancamentosPontos, reassociarPontosTreinador } from "../../services/gamificacao";
-import { WHATSAPP_API_URL } from "../../services/apiConfig.ts";
 import "./Usuarios.css";
 
 const ROLE_DISPLAY: Record<string, string> = {
@@ -244,10 +244,7 @@ export const Usuarios: React.FC = () => {
 
     setSubmitting(true);
     try {
-      await criarNovoUsuario(email.trim(), senhaTemp.trim(), role, nome.trim());
-      // Retrieve the new user's uid to store cargo/telefone
-      const lista = await listarUsuarios(true);
-      const novoUsuario = lista.find((u) => u.email.toLowerCase() === email.trim().toLowerCase());
+      const uidNovoUsuario = await criarNovoUsuario(email.trim(), senhaTemp.trim(), role, nome.trim());
       const fator = atuaComoTreinador(role)
         ? parseFatorCapacidade(fatorCapacidade)
         : undefined;
@@ -255,8 +252,8 @@ export const Usuarios: React.FC = () => {
         role,
         cargo,
       } as UsuarioDocument);
-      if (novoUsuario && (cargo || telefone.trim() || fator !== undefined)) {
-        await atualizarDadosUsuario(novoUsuario.uid, {
+      if (cargo || telefone.trim() || fator !== undefined) {
+        await atualizarDadosUsuario(uidNovoUsuario, {
           cargo: cargo || undefined,
           telefone: telefone.trim() || undefined,
           fatorCapacidade: fator,
@@ -279,17 +276,9 @@ export const Usuarios: React.FC = () => {
       setNotificarCancelado(true);
       setNotificarConclusao(true);
       await carregarUsuarios();
-    } catch (error: any) {
+    } catch (error) {
       console.error("Erro ao criar usuário:", error);
-      let msg = "Erro ao cadastrar usuário.";
-      if (error.code === "auth/email-already-in-use") {
-        msg = "Este e-mail já está sendo utilizado por outro usuário.";
-      } else if (error.code === "auth/invalid-email") {
-        msg = "O formato do e-mail é inválido.";
-      } else if (error.code === "auth/weak-password") {
-        msg = "A senha fornecida é muito fraca.";
-      }
-      toast.error(msg);
+      toast.error(error instanceof Error && error.message ? error.message : "Erro ao cadastrar usuário.");
     } finally {
       setSubmitting(false);
     }
@@ -298,22 +287,13 @@ export const Usuarios: React.FC = () => {
   const handleExcluir = async (uid: string) => {
     setDeletingUid(uid);
     try {
-      const response = await fetch(`${WHATSAPP_API_URL}/api/whatsapp/users/${uid}`, {
-        method: "DELETE"
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.success) {
-        toast.success("Usuário excluído por completo (Autenticação e Banco)!");
-        setConfirmarExclusaoUid(null);
-        await carregarUsuarios();
-      } else {
-        toast.error(data.error || "Erro ao excluir o registro do usuário.");
-      }
+      await excluirUsuario(uid);
+      toast.success("Usuário excluído por completo (Autenticação e Banco)!");
+      setConfirmarExclusaoUid(null);
+      await carregarUsuarios();
     } catch (error) {
       console.error("Erro ao excluir usuário:", error);
-      toast.error("Erro ao tentar conectar ao servidor para excluir o usuário.");
+      toast.error(error instanceof Error && error.message ? error.message : "Erro ao excluir o usuário.");
     } finally {
       setDeletingUid(null);
     }
@@ -388,32 +368,23 @@ export const Usuarios: React.FC = () => {
 
     setResettingPassword(true);
     try {
-      const response = await fetch(`${WHATSAPP_API_URL}/api/whatsapp/users/${resetPasswordUser.uid}/reset-password`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ novaSenha: novaSenhaTemp.trim() })
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.success) {
-        toast.success(`Senha do usuário ${resetPasswordUser.nome} redefinida com sucesso!`);
-        setResetPasswordUser(null);
-        setNovaSenhaTemp("");
-        setMostrarNovaSenhaTemp(false);
-        await carregarUsuarios();
-      } else {
-        toast.error(data.error || "Erro ao redefinir a senha do usuário.");
-      }
-    } catch (error: any) {
+      await redefinirSenhaUsuario(resetPasswordUser.uid, novaSenhaTemp.trim());
+      toast.success(`Senha do usuário ${resetPasswordUser.nome} redefinida com sucesso!`);
+      setResetPasswordUser(null);
+      setNovaSenhaTemp("");
+      setMostrarNovaSenhaTemp(false);
+      await carregarUsuarios();
+    } catch (error) {
       console.error("Erro ao redefinir senha:", error);
-      toast.error("Erro ao tentar conectar ao servidor para redefinir a senha.");
+      toast.error(error instanceof Error && error.message ? error.message : "Erro ao redefinir a senha do usuário.");
     } finally {
       setResettingPassword(false);
     }
   };
+
+  // Mesma regra do servidor e das regras do Firestore: treinador não altera um Master.
+  const podeGerenciarUsuario = (usuario: UsuarioDocument) =>
+    currentUserRole === "master" || (currentUserRole === "treinador" && usuario.role !== "master");
 
   const usuarioParaExcluir = users.find((u) => u.uid === confirmarExclusaoUid);
   const usuariosFiltrados = users.filter((usuario) => {
@@ -766,9 +737,12 @@ export const Usuarios: React.FC = () => {
                       </td>
                       <td className="action-col">
                         <div className="action-buttons-wrapper">
-                          {(currentUserRole === "master" ||
-                            (currentUserRole === "treinador" &&
-                              u.role !== "master")) && (
+                          {!podeGerenciarUsuario(u) ? (
+                            <span className="acoes-somente-master">
+                              Somente um Master altera este usuário
+                            </span>
+                          ) : (
+                          <>
                             <button
                               className="btn-edit-user"
                               onClick={() => {
@@ -792,7 +766,6 @@ export const Usuarios: React.FC = () => {
                             >
                               <Edit2 size={16} />
                             </button>
-                          )}
                           <button
                             className="btn-reset-password-user"
                             onClick={() => {
@@ -822,6 +795,8 @@ export const Usuarios: React.FC = () => {
                           >
                             <Trash2 size={16} />
                           </button>
+                          </>
+                          )}
                         </div>
                       </td>
                     </tr>

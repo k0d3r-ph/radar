@@ -7,8 +7,7 @@ import { normalizarNome } from './trainingConversations.js';
 
 const COLECAO = 'empresas';
 // Reconsulta um pouco antes do cursor para não perder itens salvos no meio do ciclo
-// anterior — reprocessar uma empresa por engano é inofensivo aqui (tudo é idempotente),
-// mesmo motivo do ManagerOpsSyncService.
+// anterior — reprocessar uma empresa por engano é inofensivo aqui (tudo é idempotente).
 const MARGEM_SEGURANCA_MS = 2 * 60_000;
 const PAUSA_ENTRE_CHAMADAS_MS = 600; // Até 100 chamadas/minuto, abaixo das 120 req/min permitidas.
 // As chamadas HTTP ao Desk já têm AbortSignal.timeout próprio; as chamadas ao Firestore
@@ -45,8 +44,7 @@ interface LinhaEtapa {
 }
 
 /** Uma linha por fase de `temaText` (mesmo formato de app/src/utils/temasEsteira.ts —
- * duplicado aqui porque o servidor não compila o código do app, mesmo motivo documentado
- * em ManagerOpsSyncService.prazoApartirDoDueDate). Linhas em branco são mantidas na
+ * duplicado aqui porque o servidor não compila o código do app). Linhas em branco são mantidas na
  * posição (índice) para não desalinhar `ssxDeskTrainingStageIds`, mas não são enviadas. */
 export function linhasEtapaTreinamento(empresa: EmpresaRadar): LinhaEtapa[] {
   const temas = (empresa.temaText || '').split('\n');
@@ -190,8 +188,7 @@ export function reconciliarEtapasEmpresa(
   return { ids, idsDuplicados, statusDivergente };
 }
 
-/** Funções do cliente injetáveis, para testar a lógica de sincronização sem bater na
- * API real — mesmo papel do `cliente` do ManagerOpsSyncService. */
+/** Funções do cliente injetáveis, para testar a lógica de sincronização sem bater na API real. */
 export interface TrainingStagesClienteFns {
   listarEmpresasDesk: typeof listarEmpresasDesk;
   criarEtapaTreinamento: typeof criarEtapaTreinamento;
@@ -230,10 +227,9 @@ export class TrainingStagesSyncService {
     this.executando = true;
     this.executandoDesde = Date.now();
     try {
-      // Mesmo cuidado do Manager Ops: o cursor da próxima vez é o início DESTE ciclo, não
-      // o maior updatedAt visto — e sempre avança, mesmo quando uma empresa falha. Uma
-      // falha permanente não pode travar o cursor e fazer a consulta por tempo reler
-      // quase a coleção inteira a cada ciclo (era exatamente o bug do Manager Ops).
+      // O cursor da próxima vez é o início DESTE ciclo, não o maior updatedAt visto — e
+      // sempre avança, mesmo quando uma empresa falha. Uma falha permanente não pode travar
+      // o cursor e fazer a consulta por tempo reler quase a coleção inteira a cada ciclo.
       const inicioDoCiclo = Date.now();
       console.log('[SSX Desk Training Stages] Ciclo iniciado.');
       const estado = await this.carregarEstado();
@@ -291,7 +287,7 @@ export class TrainingStagesSyncService {
 
   private async carregarEmpresasDesk(): Promise<CompanyDesk[]> {
     // Lista de empresas do Desk muda raramente — mesma estratégia de cache de uma hora
-    // já usada para `usuarios` no Manager Ops e no SSX Desk de entrada.
+    // já usada para `usuarios` no SSX Desk de entrada.
     const agora = Date.now();
     if (this.companiesDesk && agora - this.companiesDeskLidasEm < 60 * 60 * 1000) return this.companiesDesk;
     this.companiesDesk = await this.cliente.listarEmpresasDesk(this.apiKey);
@@ -349,8 +345,7 @@ export class TrainingStagesSyncService {
     );
 
     // Só reenvia quando a empresa mudou desde o último envio — senão toda empresa na
-    // janela do ciclo levaria PUT em todas as linhas de novo, sem necessidade (mesmo
-    // cuidado do `managerOpsSyncedAt` no Manager Ops). Duplicatas recuperadas do Desk e
+    // janela do ciclo levaria PUT em todas as linhas de novo, sem necessidade. Duplicatas recuperadas do Desk e
     // uma etapa com status desatualizado lá sempre precisam de correção, então também
     // contam como "precisa reenviar" — sem isso, um envio que saiu errado uma vez (ver
     // caso real do Altotrak: "Conclusão" ficou presa em "Em andamento" desde o primeiro

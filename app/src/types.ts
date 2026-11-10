@@ -431,11 +431,6 @@ export interface TarefaChecklist {
   pausada?: boolean;
   updatedAt?: number;
   concluidaEm?: number;
-  /** ID do combinado correspondente na Manager Ops (Daily), para sincronização idempotente. */
-  idTarefaDaily?: string;
-  /** Timestamp da última sincronização bem-sucedida com a Daily (puxada ou empurrada) —
-   * usado para decidir o que falta empurrar e para o "quem editou por último" valer. */
-  managerOpsSyncedAt?: number;
   id?: string;
   treinadorId: string;
   treinadorNome: string;

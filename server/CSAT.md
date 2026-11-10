@@ -30,6 +30,6 @@ match /csatLinks/{document=**} { allow read, write: if false; }
 match /csatControle/{document=**} { allow read, write: if false; }
 ```
 
-Regras permissivas com `match /{document=**}` também precisam excluir essas coleções: permissões Firestore são combinadas por OR, então um deny específico não anula um allow abrangente. As regras do projeto não estão neste repositório e precisam ser conferidas no Firebase antes da publicação para garantir a privacidade das reservas e dos tokens.
+Regras permissivas com `match /{document=**}` também precisam excluir essas coleções: permissões Firestore são combinadas por OR, então um deny específico não anula um allow abrangente. A cópia de referência das regras de produção fica em `firestore.rules.producao` (ver [AUTENTICACAO.md](AUTENTICACAO.md)); confira que a versão publicada no console é a mesma antes de cada publicação, para garantir a privacidade das reservas e dos tokens.
 
 Validação: `node node_modules/typescript/bin/tsc` seguido de `node --test tests/csat.test.mjs` no diretório `server`. Para a cópia automática no frontend, em `app/`: `node --experimental-vm-modules --test tests/csatClipboard.test.mjs`. Cobre os dois fluxos, ordem da cópia, bloqueio/ausência da área de transferência e falhas de geração sem copiar links.

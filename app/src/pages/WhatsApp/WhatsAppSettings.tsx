@@ -18,6 +18,7 @@ import {
 import {
   desconectarWhatsApp,
   enviarMensagemWhatsApp,
+  obterTokenSocketWhatsApp,
   obterWhatsAppSocketUrl,
   type WhatsAppSessionState
 } from "../../services/whatsapp";
@@ -64,7 +65,28 @@ export const WhatsAppSettings: React.FC = () => {
   useEffect(() => {
     const socketUrl = obterWhatsAppSocketUrl();
     console.log("Conectando ao Socket.io do WhatsApp em:", socketUrl);
-    const newSocket = io(socketUrl);
+    // Chamado a cada (re)conexão, então o token renovado pelo Firebase é sempre o atual.
+    const newSocket = io(socketUrl, {
+      auth: (callback) => {
+        obterTokenSocketWhatsApp().then(
+          (token) => callback({ token }),
+          () => callback({}),
+        );
+      },
+    });
+
+    let avisoAcessoExibido = false;
+    newSocket.on("connect_error", (erro) => {
+      setSocketConectado(false);
+      // Sem permissão não adianta tentar de novo; erro de rede continua com a reconexão automática.
+      if (erro.message === "nao_autorizado") {
+        newSocket.disconnect();
+        if (!avisoAcessoExibido) {
+          avisoAcessoExibido = true;
+          toast.error("Seu acesso ao painel do WhatsApp foi recusado. Entre novamente no Radar ou peça acesso a um Master.");
+        }
+      }
+    });
 
     newSocket.on("connect", () => {
       console.log("Conectado ao Socket.io do WhatsApp.");

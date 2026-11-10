@@ -281,6 +281,12 @@
   gap: 8px;
 }
 
+.acoes-somente-master {
+  font-size: 12px;
+  color: #9ca3af;
+  text-align: center;
+}
+
 /* Base style for action buttons */
 .btn-edit-user,
 .btn-reset-password-user,

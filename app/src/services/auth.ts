@@ -2,14 +2,12 @@ import {
   signInWithEmailAndPassword,
   signOut,
   updatePassword,
-  createUserWithEmailAndPassword,
-  getAuth,
   sendPasswordResetEmail,
 } from "firebase/auth";
 import type { User } from "firebase/auth";
 import { doc, getDoc, setDoc, deleteDoc, collection, getDocs, query, orderBy } from "firebase/firestore";
-import { initializeApp, deleteApp } from "firebase/app";
-import { auth, db, firebaseConfig } from "./firebase";
+import { auth, db } from "./firebase";
+import { RADAR_API_URL } from "./apiConfig.ts";
 
 const COLLECTION_USUARIOS = "usuarios";
 
@@ -116,28 +114,50 @@ export interface UsuarioDocument {
   inativo?: boolean;
 }
 
-export async function criarNovoUsuario(email: string, senhaTemp: string, role: string, nome: string): Promise<void> {
-  invalidarCacheUsuarios();
-  const tempAppName = `temp-register-${Date.now()}`;
-  const tempApp = initializeApp(firebaseConfig, tempAppName);
-  const tempAuth = getAuth(tempApp);
-
+/** Chama a gestão de usuários da API (treinador e master); devolve o corpo ou lança a mensagem do servidor. */
+async function chamarGestaoUsuarios(caminho: string, init: RequestInit): Promise<{ uid?: string }> {
+  if (!auth.currentUser) throw new Error("Entre novamente no Radar.");
+  const token = await auth.currentUser.getIdToken();
+  let response: Response;
   try {
-    const userCredential = await createUserWithEmailAndPassword(tempAuth, email, senhaTemp);
-    const uid = userCredential.user.uid;
-
-    await setDoc(doc(db, COLLECTION_USUARIOS, uid), {
-      email,
-      role,
-      needsPasswordChange: true,
-      nome,
-      createdAt: Date.now()
+    response = await fetch(`${RADAR_API_URL}/api/usuarios${caminho}`, {
+      ...init,
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
     });
-
-    await signOut(tempAuth);
-  } finally {
-    await deleteApp(tempApp);
+  } catch {
+    throw new Error("Não foi possível conectar ao servidor do Radar. Verifique sua conexão e tente novamente.");
   }
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data.success !== true) {
+    throw new Error(data.error || `O servidor recusou a operação (HTTP ${response.status}).`);
+  }
+  return data;
+}
+
+/** Cria a conta pelo servidor: o cadastro público do Firebase Auth fica desativado. Devolve o UID. */
+export async function criarNovoUsuario(email: string, senhaTemp: string, role: string, nome: string): Promise<string> {
+  invalidarCacheUsuarios();
+  const { uid } = await chamarGestaoUsuarios("", {
+    method: "POST",
+    body: JSON.stringify({ email, senhaTemporaria: senhaTemp, role, nome }),
+  });
+  if (!uid) throw new Error("O servidor não devolveu o identificador do novo usuário.");
+  return uid;
+}
+
+/** Define uma senha temporária; o usuário troca no próximo acesso. */
+export async function redefinirSenhaUsuario(uid: string, novaSenha: string): Promise<void> {
+  invalidarCacheUsuarios();
+  await chamarGestaoUsuarios(`/${encodeURIComponent(uid)}/redefinir-senha`, {
+    method: "POST",
+    body: JSON.stringify({ novaSenha }),
+  });
+}
+
+/** Exclui a conta de acesso e o cadastro; os registros vinculados ao usuário são mantidos. */
+export async function excluirUsuario(uid: string): Promise<void> {
+  invalidarCacheUsuarios();
+  await chamarGestaoUsuarios(`/${encodeURIComponent(uid)}`, { method: "DELETE" });
 }
 
 let cachedUsuarios: UsuarioDocument[] | null = null;

@@ -1,7 +1,7 @@
 // ATENÇÃO: regras deliberadamente abertas, só para o Firebase Emulator Suite
 // rodando local (ver server/EMULADOR.md) — nunca existe nenhum dado real atrás
-// delas. As regras de produção são administradas direto no console do Firebase
-// e não existem neste repositório; NUNCA rode "firebase deploy --only
+// delas. As regras de produção são publicadas direto no console do Firebase; a
+// cópia de referência fica em firestore.rules.producao. NUNCA rode "firebase deploy --only
 // firestore:rules" com este arquivo.
 rules_version = '2';
 

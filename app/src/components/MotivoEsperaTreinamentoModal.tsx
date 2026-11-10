@@ -6,11 +6,13 @@ import "./MotivoEsperaTreinamentoModal.css";
 
 interface Props {
   dias: number;
+  /** Treinador responsável, quando quem responde não é quem deu o treinamento. */
+  treinador?: string;
   onConfirmar: (motivo: MotivoEsperaTreinamento) => void;
   onCancelar: () => void;
 }
 
-export function MotivoEsperaTreinamentoModal({ dias, onConfirmar, onCancelar }: Props) {
+export function MotivoEsperaTreinamentoModal({ dias, treinador, onConfirmar, onCancelar }: Props) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const cancelarRef = useRef<HTMLButtonElement>(null);
   const [motivo, setMotivo] = useState<MotivoEsperaTreinamento | null>(null);
@@ -46,7 +48,9 @@ export function MotivoEsperaTreinamentoModal({ dias, onConfirmar, onCancelar }: 
         <label><input type="radio" required name={grupoId} value="cliente" checked={motivo === "cliente"}
           onChange={() => setMotivo("cliente")} /><span>Sim, o cliente solicitou.</span></label>
         <label><input type="radio" required name={grupoId} value="agenda_treinador" checked={motivo === "agenda_treinador"}
-          onChange={() => setMotivo("agenda_treinador")} /><span>Não, a data mais distante foi sugerida por mim devido à disponibilidade da minha agenda.</span></label>
+          onChange={() => setMotivo("agenda_treinador")} /><span>{treinador
+            ? <>Não, a data mais distante foi definida pela disponibilidade da agenda de <strong>{treinador}</strong>.</>
+            : "Não, a data mais distante foi sugerida por mim devido à disponibilidade da minha agenda."}</span></label>
       </fieldset>
       <p className="espera-treinamento-nota">São considerados apenas os dias de segunda a sexta. O motivo ficará registrado e a espera continuará na média geral do relatório.</p>
       <div className="espera-treinamento-acoes">

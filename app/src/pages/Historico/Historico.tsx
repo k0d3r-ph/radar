@@ -934,6 +934,9 @@ export function Historico() {
   const [diasConfirmacaoEspera, setDiasConfirmacaoEspera] = useState<
     number | null
   >(null);
+  const [treinadorConfirmacaoEspera, setTreinadorConfirmacaoEspera] = useState<
+    string | undefined
+  >(undefined);
   const respostaEsperaRef = useRef<
     ((motivo: MotivoEsperaTreinamento | null) => void) | null
   >(null);
@@ -947,10 +950,12 @@ export function Historico() {
 
   function perguntarMotivoEspera(
     dias: number,
+    treinador?: string,
   ): Promise<MotivoEsperaTreinamento | null> {
     if (respostaEsperaRef.current) return Promise.resolve(null);
     return new Promise((resolve) => {
       respostaEsperaRef.current = resolve;
+      setTreinadorConfirmacaoEspera(treinador);
       setDiasConfirmacaoEspera(dias);
     });
   }
@@ -2167,8 +2172,32 @@ export function Historico() {
       return;
     }
     let motivoEspera = avaliacaoEspera.motivo;
-    if (avaliacaoEspera.precisaConfirmar && avaliacaoEspera.dias !== null) {
-      motivoEspera = await perguntarMotivoEspera(avaliacaoEspera.dias);
+    // A espera depende só das datas. Numa edição que não mexe na solicitação nem na
+    // realização, o motivo fica como estava (inclusive "não informado"); se uma data
+    // mudar, a pergunta volta — em nome do treinador quando quem edita é outra pessoa.
+    // A conclusão de reserva do CSAT registra o treinamento agora e continua perguntando.
+    const editorEhResponsavel =
+      normalizar(formatarNome(userName)) === normalizar(responsavelFinal);
+    const datasEsperaInalteradas =
+      !!editandoId &&
+      !reservaEditando &&
+      !!ocorrenciaOriginal &&
+      (ocorrenciaOriginal.treinamentoDataSolicitacao || "") ===
+        (form.treinamentoDataSolicitacao || "") &&
+      obterDataRealizacaoTreinamento(ocorrenciaOriginal) === dataRealizacaoStr;
+    if (
+      avaliacaoEspera.precisaConfirmar &&
+      avaliacaoEspera.dias !== null &&
+      datasEsperaInalteradas
+    ) {
+      motivoEspera = motivoEsperaValido(ocorrenciaOriginal?.treinamentoMotivoEspera)
+        ? ocorrenciaOriginal.treinamentoMotivoEspera
+        : null;
+    } else if (avaliacaoEspera.precisaConfirmar && avaliacaoEspera.dias !== null) {
+      motivoEspera = await perguntarMotivoEspera(
+        avaliacaoEspera.dias,
+        editorEhResponsavel ? undefined : responsavelFinal,
+      );
       if (!motivoEsperaValido(motivoEspera)) return;
       setForm((anterior) => ({
         ...anterior,
@@ -7215,6 +7244,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       {diasConfirmacaoEspera !== null && (
         <MotivoEsperaTreinamentoModal
           dias={diasConfirmacaoEspera}
+          treinador={treinadorConfirmacaoEspera}
           onConfirmar={responderMotivoEspera}
           onCancelar={() => responderMotivoEspera(null)}
         />

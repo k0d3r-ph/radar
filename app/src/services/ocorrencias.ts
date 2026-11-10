@@ -15,7 +15,7 @@ import {
 } from "firebase/firestore";
 
 import { auth, db } from "./firebase";
-import type { Empresa, LancamentoPonto, Ocorrencia } from "../types";
+import type { Empresa, LancamentoPonto, MotivoEsperaTreinamento, Ocorrencia } from "../types";
 import { sincronizarColecao } from "./sincronizacaoIncremental";
 import { RADAR_API_URL } from './apiConfig.ts';
 import { exigeClienteAtivoParaTreinamento, MENSAGEM_TREINAMENTO_SUSPENSO, normalizarEmpresaOcorrencia } from "../utils/registroTreinamento";
@@ -672,5 +672,67 @@ export async function adicionarAtualizacaoValidacao(
   if (cachedOcorrencias) {
     cachedOcorrencias = cachedOcorrencias.map(o => o.id === id ? { ...o, ...resultado } : o);
   }
+  return resultado;
+}
+
+/** Campos de uma ocorrência da Validação do conhecimento que o Master edita pela API. */
+export type EdicaoOcorrenciaValidacao = {
+  descricao: string;
+  departamento: string;
+  responsavel: string;
+  dataOcorrencia: number;
+  createdAt: number;
+  treinamentoDataSolicitacao: string;
+  treinamentoTempoAgenda: string;
+  treinamentoSolicitante: string;
+  treinamentoMotivoEspera: MotivoEsperaTreinamento | null;
+  treinamentoResultados: ("Bom" | "Ruim")[];
+};
+
+/**
+ * Ocorrências da Validação do conhecimento só são gravadas pela API (regras do Firestore).
+ * A API também replica os campos compartilhados para a tentativa e o ponto de gamificação.
+ */
+export async function editarOcorrenciaValidacao(
+  id: string,
+  dados: EdicaoOcorrenciaValidacao,
+  opcoes: { treinadorId?: string; updatedAtEsperado?: number } = {},
+): Promise<EdicaoOcorrenciaValidacao & Pick<Ocorrencia, "atualizacoes" | "updatedAt">> {
+  if (!auth.currentUser) throw new Error("Entre no Radar para editar a ocorrência.");
+  const token = await auth.currentUser.getIdToken();
+  let response: Response;
+  try {
+    response = await fetch(`${RADAR_API_URL}/api/ocorrencias/${encodeURIComponent(id)}/validacao`, {
+      method: "PATCH",
+      headers: { Authorization: ["Bearer", token].join(" "), "Content-Type": "application/json" },
+      body: JSON.stringify({ ...dados, ...opcoes }),
+      signal: AbortSignal.timeout(20_000),
+    });
+  } catch {
+    throw new Error("Não foi possível conectar à API para salvar a ocorrência. Tente novamente.");
+  }
+
+  const resposta: unknown = await response.json().catch(() => null);
+  if (!response.ok) {
+    const mensagem = resposta && typeof resposta === "object" && "error" in resposta && typeof resposta.error === "string"
+      ? resposta.error
+      : "Não foi possível salvar a ocorrência.";
+    throw new Error(mensagem);
+  }
+  if (!resposta || typeof resposta !== "object"
+    || !("atualizacoes" in resposta) || !Array.isArray(resposta.atualizacoes)
+    || !("updatedAt" in resposta) || typeof resposta.updatedAt !== "number") {
+    throw new Error("A API retornou uma resposta inválida. Confira se o backend está atualizado.");
+  }
+  const resultado = {
+    ...dados,
+    atualizacoes: resposta.atualizacoes as NonNullable<Ocorrencia["atualizacoes"]>,
+    updatedAt: resposta.updatedAt,
+  };
+  if (cachedOcorrencias) {
+    cachedOcorrencias = cachedOcorrencias.map(o => o.id === id ? { ...o, ...resultado } : o);
+  }
+  // O ponto de gamificação da validação também pode ter mudado.
+  invalidarCacheGamificacao();
   return resultado;
 }

@@ -3060,4 +3060,14 @@ body:not(.dark-theme) .hist-ia-copy-btn {
   color: #7c3aed;
 }
 
-
+/* Aviso no formulário ao editar uma ocorrência da Validação do conhecimento (Master). */
+.hist-aviso-validacao {
+  margin-bottom: 1rem;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  background: rgba(99, 102, 241, 0.12);
+  color: #c7d2fe;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}

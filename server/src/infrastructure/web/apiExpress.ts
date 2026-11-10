@@ -98,6 +98,7 @@ export function createApiApp({ tarefasAutomaticas = false }: { tarefasAutomatica
   app.delete('/api/gamificacao/pontos/:id/excedente', (req, res) => gamificacaoController.removerPontoExcedente(req, res));
   app.patch('/api/ocorrencias/:id/favorito', (req, res) => ocorrenciasController.definirFavorita(req, res));
   app.post('/api/ocorrencias/:id/atualizacoes', (req, res) => ocorrenciasController.adicionarAtualizacaoValidacao(req, res));
+  app.patch('/api/ocorrencias/:id/validacao', (req, res) => ocorrenciasController.editarOcorrenciaValidacao(req, res));
   const indice = adminDb ? new IndiceSincronizacao(adminDb) : null;
   if (tarefasAutomaticas && adminDb && indice) {
     const tarefas = new SincronizarTarefasAutomaticas(adminDb, indice);

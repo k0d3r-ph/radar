@@ -24,6 +24,7 @@ import {
   removerOcorrencia,
   definirOcorrenciaFavorita,
   adicionarAtualizacaoValidacao,
+  editarOcorrenciaValidacao,
   validarClienteParaNovoTreinamento,
   type AcaoLancamentoPonto,
 } from "../../services/ocorrencias";
@@ -894,6 +895,12 @@ export function Historico() {
   const novaOcorrenciaRef = useRef<HTMLButtonElement>(null);
   const listaOcorrenciasRef = useRef<HTMLDivElement>(null);
   const [editandoId, setEditandoId] = useState<string | null>(null);
+  // Master editando uma ocorrência da Validação do conhecimento: salva pela API e mantém
+  // empresa, tipo e temas fixos (eles ligam o registro à tentativa e à esteira).
+  const editandoValidacao =
+    role === "master" &&
+    !!editandoId &&
+    ocorrencias.some((o) => o.id === editandoId && !!o.validacaoTentativaId);
   const editandoImportadaSsx =
     !!editandoId &&
     ocorrencias.some((o) => o.id === editandoId && o.origem === "ssx-desk");
@@ -1724,9 +1731,9 @@ export function Historico() {
       );
       return;
     }
-    if (o.validacaoTentativaId) {
+    if (o.validacaoTentativaId && role !== "master") {
       toast.info(
-        "Esta ocorrência registra uma tentativa concluída da Validação do conhecimento e não pode ser editada aqui.",
+        "Esta ocorrência registra uma tentativa concluída da Validação do conhecimento e só pode ser editada por um Master.",
         {
           action: {
             label: "Abrir validação",
@@ -1918,6 +1925,7 @@ export function Historico() {
     );
 
     if (
+      !editandoValidacao &&
       form.tipo === "Treinamento" &&
       (form.temaOcorrencia ?? []).some(
         (t) => normalizar(t) === normalizar("Validação do conhecimento"),
@@ -2252,6 +2260,43 @@ export function Historico() {
             gamificacaoPontoId: undefined,
           }),
     };
+
+    if (editandoValidacao && editandoId && ocorrenciaOriginal) {
+      // Sem efeitos colaterais do fluxo comum (score, esteira, alertas, WhatsApp): a
+      // avaliação já foi registrada; aqui só se corrigem os dados da ocorrência.
+      const treinadorResponsavel = usuariosList.find(
+        (u) =>
+          (u.role === "master" || u.role === "treinador") &&
+          formatarNome(u.nome).toLowerCase() ===
+            formatarNome(responsavelFinal).toLowerCase(),
+      );
+      setSalvando(true);
+      await editarOcorrenciaValidacao(
+        editandoId,
+        {
+          descricao: base.descricao,
+          departamento: base.departamento,
+          responsavel: base.responsavel,
+          dataOcorrencia: base.dataOcorrencia ?? 0,
+          createdAt: base.createdAt ?? ocorrenciaOriginal.createdAt ?? 0,
+          treinamentoDataSolicitacao: base.treinamentoDataSolicitacao ?? "",
+          treinamentoTempoAgenda: (base.treinamentoTempoAgenda ?? "").trim(),
+          treinamentoSolicitante: base.treinamentoSolicitante ?? "",
+          treinamentoMotivoEspera: motivoEsperaValido(motivoEspera)
+            ? motivoEspera
+            : null,
+          treinamentoResultados: validResultados,
+        },
+        {
+          treinadorId: treinadorResponsavel?.uid,
+          updatedAtEsperado: ocorrenciaOriginal.updatedAt,
+        },
+      );
+      await carregar();
+      cancelar({ skipConfirmacao: true });
+      toast.success("Ocorrência atualizada!");
+      return;
+    }
 
     if (exigeClienteAtivoParaTreinamento(form, origemTreinamento)) {
       if (!empresaObjeto.id) {
@@ -5977,11 +6022,21 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               </button>
             </div>
 
+            {editandoValidacao && (
+              <div className="hist-aviso-validacao" role="note">
+                Ocorrência da Validação do conhecimento. Empresa, tipo e temas
+                ficam fixos porque ligam o registro à avaliação e à esteira. As
+                demais alterações valem também para a Validação e a Gamificação
+                e ficam registradas nas atualizações.
+              </div>
+            )}
+
             <div className="hist-campo">
               <label>Empresa *</label>
               <input
                 list="empresas-list"
                 value={form.empresa}
+                disabled={editandoValidacao}
                 onChange={(e) => set("empresa", e.target.value)}
                 placeholder="Digite para buscar..."
               />
@@ -6088,6 +6143,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               </label>
               <select
                 value={form.tipo}
+                disabled={editandoValidacao}
                 onChange={(e) => {
                   const valor = e.target.value;
                   if (
@@ -6462,7 +6518,20 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               </div>
             )}
 
-            {form.tipo === "Treinamento" && (
+            {form.tipo === "Treinamento" && editandoValidacao && (
+              <div className="hist-campo">
+                <label>Temas abordados</label>
+                <div className="temas-selecionados">
+                  {(form.temaOcorrencia ?? []).map((tema) => (
+                    <span key={tema} className="tema-tag">
+                      {tema}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {form.tipo === "Treinamento" && !editandoValidacao && (
               <div className="hist-campo">
                 <label>Temas abordados (obrigatório)</label>
 
@@ -6685,6 +6754,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             )}
 
             {form.tipo === "Treinamento" &&
+              !editandoValidacao &&
               !isSelectedEmpresaOngoing &&
               !temaForaEsteira &&
               (form.temaOcorrencia ?? []).some(
@@ -6912,6 +6982,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               </>
             )}
 
+            {!editandoValidacao && (
             <div className="hist-campo hist-campo-row">
               <label className="checkbox-label">
                 <input
@@ -6937,8 +7008,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 Retirar do alerta ✅
               </label>
             </div>
+            )}
 
             {(() => {
+              if (editandoValidacao) return null;
               const empresaObjetoForm = empresasList.find(
                 (e) => normalizar(e.nomeEmpresa) === normalizar(form.empresa),
               );

@@ -2844,6 +2844,11 @@ body.light-theme .hist-ia-texto::-webkit-scrollbar-track {
 body.light-theme .hist-ia-texto::-webkit-scrollbar-thumb {
     background: rgba(139, 92, 246, 0.35)
 }
+body.light-theme .hist-aviso-validacao {
+    border: 1px solid rgba(99, 102, 241, 0.4);
+    background: rgba(99, 102, 241, 0.12);
+    color: #4668f0
+}
 
 /* ── pages/Home/Home.css ── */
 body.light-theme .monitoramento-page {

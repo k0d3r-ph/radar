@@ -93,6 +93,11 @@ export interface UsuarioDocument {
    */
   suspensoDistribuicao?: boolean;
   /**
+   * Inclusão do treinador na fila de "Próximo cliente". Ausente em cadastros antigos
+   * (ver `incluidoNaFilaDistribuicao` em utils/filaDistribuicao.ts).
+   */
+  participaDistribuicao?: boolean;
+  /**
    * Habilitação por tipo de mensagem de gestão via WhatsApp (Suspenso, Alerta, Cancelado,
    * Conclusão). Quando o campo está ausente (`undefined`), o tipo é considerado habilitado —
    * só fica desabilitado quando o próprio usuário/admin desmarca explicitamente (`false`).
@@ -191,6 +196,8 @@ export async function listarUsuarios(forceRefresh = false): Promise<UsuarioDocum
       fatorCapacidade:
         typeof data.fatorCapacidade === "number" ? data.fatorCapacidade : undefined,
       suspensoDistribuicao: !!data.suspensoDistribuicao,
+      participaDistribuicao:
+        typeof data.participaDistribuicao === "boolean" ? data.participaDistribuicao : undefined,
       notificarSuspenso: data.notificarSuspenso,
       notificarAlerta: data.notificarAlerta,
       notificarCancelado: data.notificarCancelado,
@@ -223,6 +230,7 @@ export async function atualizarDadosUsuario(
     nome?: string;
     fatorCapacidade?: number;
     suspensoDistribuicao?: boolean;
+    participaDistribuicao?: boolean;
     notificarSuspenso?: boolean;
     notificarAlerta?: boolean;
     notificarCancelado?: boolean;

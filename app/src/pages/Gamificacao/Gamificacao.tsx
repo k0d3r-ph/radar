@@ -1,3 +1,4 @@
+import { elegivelFilaDistribuicao } from "../../utils/filaDistribuicao";
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -976,12 +977,8 @@ export const Gamificacao: React.FC = () => {
         };
       });
 
-    const treinadoresElegiveis = trainers.filter((t) => {
-      if (t.suspensoDistribuicao || t.inativo) return false;
-      const primeiroNome =
-        formatarNome(t.nome).split(" ")[0]?.toLowerCase() || "";
-      return primeiroNome !== "jean" && primeiroNome !== "jeff";
-    });
+    // Inclusão e suspensão (férias) são definidas no cadastro do usuário.
+    const treinadoresElegiveis = trainers.filter(elegivelFilaDistribuicao);
 
     return treinadoresElegiveis
       .map((t) => {

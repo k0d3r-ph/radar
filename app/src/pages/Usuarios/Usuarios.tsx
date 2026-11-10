@@ -29,6 +29,7 @@ import {
 import type { UsuarioDocument, CargoCsUsuario } from "../../services/auth";
 import { formatarNome } from "../../utils/formatarNome";
 import { atuaComoTreinador } from "../../utils/perfis";
+import { incluidoNaFilaDistribuicao } from "../../utils/filaDistribuicao";
 import { elegivelNotificacoesGestao } from "../../services/notificacoes";
 import { useAuth } from "../../context/AuthContext";
 import { listarLancamentosPontos, reassociarPontosTreinador } from "../../services/gamificacao";
@@ -94,6 +95,7 @@ export const Usuarios: React.FC = () => {
   const [editingUserTelefone, setEditingUserTelefone] = useState("");
   const [editingUserFator, setEditingUserFator] = useState("");
   const [editingUserSuspenso, setEditingUserSuspenso] = useState(false);
+  const [editingUserNaFila, setEditingUserNaFila] = useState(true);
   const [editingUserNotificarSuspenso, setEditingUserNotificarSuspenso] = useState(true);
   const [editingUserNotificarAlerta, setEditingUserNotificarAlerta] = useState(true);
   const [editingUserNotificarCancelado, setEditingUserNotificarCancelado] = useState(true);
@@ -343,6 +345,7 @@ export const Usuarios: React.FC = () => {
           ? (parseFatorCapacidade(editingUserFator) ?? FATOR_CAPACIDADE_PADRAO)
           : undefined,
         suspensoDistribuicao: atuaComoTreinador(editingUserRole) ? editingUserSuspenso : undefined,
+        participaDistribuicao: atuaComoTreinador(editingUserRole) ? editingUserNaFila : undefined,
         notificarSuspenso: elegivelNotificacoes ? editingUserNotificarSuspenso : undefined,
         notificarAlerta: elegivelNotificacoes ? editingUserNotificarAlerta : undefined,
         notificarCancelado: elegivelNotificacoes ? editingUserNotificarCancelado : undefined,
@@ -725,7 +728,16 @@ export const Usuarios: React.FC = () => {
                               ? "Primeiro Acesso Pendente"
                               : "Ativo"}
                         </span>
-                        {atuaComoTreinador(u.role) && u.suspensoDistribuicao && (
+                        {atuaComoTreinador(u.role) && !incluidoNaFilaDistribuicao(u) && (
+                          <span
+                            className="status-badge status-pending"
+                            style={{ marginLeft: "6px" }}
+                            title="Não incluído na fila de distribuição de Próximo cliente"
+                          >
+                            Fora da fila
+                          </span>
+                        )}
+                        {atuaComoTreinador(u.role) && incluidoNaFilaDistribuicao(u) && u.suspensoDistribuicao && (
                           <span
                             className="status-badge status-pending"
                             style={{ marginLeft: "6px" }}
@@ -756,6 +768,9 @@ export const Usuarios: React.FC = () => {
                                     : "",
                                 );
                                 setEditingUserSuspenso(!!u.suspensoDistribuicao);
+                                setEditingUserNaFila(
+                                  incluidoNaFilaDistribuicao({ ...u, role: "treinador" }),
+                                );
                                 setEditingUserNotificarSuspenso(u.notificarSuspenso !== false);
                                 setEditingUserNotificarAlerta(u.notificarAlerta !== false);
                                 setEditingUserNotificarCancelado(u.notificarCancelado !== false);
@@ -1013,11 +1028,26 @@ export const Usuarios: React.FC = () => {
                 <label style={{ fontSize: "13px", fontWeight: 600, color: "var(--lt-texto-e5e7eb, #e5e7eb)", display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
                   <input
                     type="checkbox"
+                    checked={editingUserNaFila}
+                    onChange={(e) => setEditingUserNaFila(e.target.checked)}
+                  />
+                  Incluir na fila de "Próximo cliente"
+                </label>
+                <label style={{ fontSize: "13px", fontWeight: 600, color: "var(--lt-texto-e5e7eb, #e5e7eb)", display: "flex", alignItems: "center", gap: "8px", cursor: editingUserNaFila ? "pointer" : "not-allowed", marginTop: "8px", opacity: editingUserNaFila ? 1 : 0.6 }}>
+                  <input
+                    type="checkbox"
                     checked={editingUserSuspenso}
+                    disabled={!editingUserNaFila}
+                    aria-describedby={editingUserNaFila ? undefined : "fila-suspensao-ajuda"}
                     onChange={(e) => setEditingUserSuspenso(e.target.checked)}
                   />
                   Suspender da fila de "Próximo cliente" (ex.: férias)
                 </label>
+                {!editingUserNaFila && (
+                  <small id="fila-suspensao-ajuda" style={{ fontSize: "12px", color: "var(--lt-texto-9ca3af, #9ca3af)", display: "block", marginTop: "4px" }}>
+                    Disponível para quem está incluído na fila.
+                  </small>
+                )}
               </div>
             )}
             {elegivelNotificacoesGestao({

@@ -28,6 +28,11 @@ lerna-debug.log*
 *.sln
 *.sw?
 
+# Credenciais do Firebase Admin: ficam só no servidor, nunca no repositório (ele é público)
+serviceAccountKey.json
+serviceAccountKey.json.*
+*-firebase-adminsdk-*.json
+
 # Environment variables
 .env
 .env.local

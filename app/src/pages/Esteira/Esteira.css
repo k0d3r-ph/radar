@@ -953,6 +953,274 @@ body {
   color: #a1a1aa;
 }
 
+/* Aplicação dos temas: ocupa a largura inteira da página (fora da coluna da
+   imagem) para caberem as 30 colunas D-N; em telas menores a tabela rola na
+   horizontal mantendo a coluna dos temas fixa à esquerda. */
+.temas-secao.aplicacao-temas-secao {
+  max-width: none;
+  margin: 0;
+}
+
+.aplicacao-temas-ajuda {
+  margin: -6px 0 14px;
+  font-size: 0.85rem;
+  color: rgba(238, 243, 255, 0.75);
+}
+
+.aplicacao-temas-vazio {
+  margin: 0;
+  font-size: 0.9rem;
+  color: rgba(238, 243, 255, 0.75);
+}
+
+.aplicacao-temas-scroll {
+  overflow-x: auto;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+}
+
+.aplicacao-temas-scroll:focus-visible {
+  outline: 2px solid #7aa2ff;
+  outline-offset: 2px;
+}
+
+.aplicacao-temas-tabela {
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.85rem;
+}
+
+.aplicacao-temas-tabela th,
+.aplicacao-temas-tabela td {
+  border-right: 1px solid rgba(255, 255, 255, 0.15);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 0;
+  text-align: center;
+}
+
+.aplicacao-temas-tabela thead th {
+  padding: 10px 6px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: #eef3ff;
+}
+
+.aplicacao-temas-tabela tbody tr:last-child th,
+.aplicacao-temas-tabela tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.aplicacao-temas-tabela tr > :last-child {
+  border-right: none;
+}
+
+.aplicacao-temas-tabela .aplicacao-temas-tema {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  min-width: 180px;
+  max-width: 220px;
+  padding: 8px 12px;
+  text-align: left;
+  font-weight: 500;
+  background: #1f2230;
+}
+
+.aplicacao-temas-tema span {
+  display: block;
+  overflow-wrap: break-word;
+}
+
+.aplicacao-temas-tema small {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.78rem;
+  color: rgba(238, 243, 255, 0.7);
+}
+
+.aplicacao-temas-linha--pendente .aplicacao-temas-tema span {
+  color: rgba(238, 243, 255, 0.6);
+}
+
+.aplicacao-temas-celula {
+  display: block;
+  width: 44px;
+  height: 48px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: white;
+  font-size: 1.2rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.aplicacao-temas-celula:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.aplicacao-temas-celula:focus-visible {
+  outline: 2px solid #7aa2ff;
+  outline-offset: -2px;
+}
+
+.aplicacao-temas-celula--marcada {
+  background: rgba(122, 162, 255, 0.25);
+}
+
+.aplicacao-temas-celula:disabled {
+  cursor: not-allowed;
+}
+
+.aplicacao-temas-linha--pendente .aplicacao-temas-celula:disabled,
+.aplicacao-temas-celula:disabled:not(.aplicacao-temas-celula--marcada) {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.aplicacao-temas-tabela {
+  width: 100%;
+}
+
+.aplicacao-temas-tabela td .aplicacao-temas-celula {
+  width: 100%;
+  min-width: 40px;
+}
+
+/* Gráfico de dias até a aplicação, abaixo da tabela. */
+.aplicacao-grafico-titulo {
+  margin: 28px 0 10px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.aplicacao-grafico-resumo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin-bottom: 12px;
+  font-size: 0.85rem;
+  color: rgba(238, 243, 255, 0.75);
+}
+
+.aplicacao-grafico-resumo strong {
+  color: #eef3ff;
+}
+
+.aplicacao-grafico-scroll {
+  overflow-x: auto;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  background: #1f2230;
+}
+
+.aplicacao-grafico-area {
+  position: relative;
+  min-width: 100%;
+  margin: 0 auto;
+}
+
+.aplicacao-grafico-area svg {
+  display: block;
+  overflow: visible;
+}
+
+.aplicacao-grafico-grade {
+  stroke: rgba(255, 255, 255, 0.1);
+  stroke-width: 1;
+}
+
+.aplicacao-grafico-eixo,
+.aplicacao-grafico-data {
+  fill: rgba(238, 243, 255, 0.65);
+  font-size: 12px;
+}
+
+.aplicacao-grafico-tema {
+  fill: #eef3ff;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* Dia realizado sem D-N marcado entre dias marcados: rótulo em vermelho + "sem marcação". */
+.aplicacao-grafico-tema.aplicacao-grafico-tema--sem-marcacao,
+.aplicacao-grafico-data.aplicacao-grafico-tema--sem-marcacao {
+  fill: #f87171;
+  font-weight: 600;
+}
+
+.aplicacao-grafico-valor,
+.aplicacao-grafico-media-rotulo {
+  fill: #eef3ff;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.aplicacao-grafico-media {
+  stroke: rgba(238, 243, 255, 0.45);
+  stroke-width: 1;
+  stroke-dasharray: 6 4;
+}
+
+.aplicacao-grafico-linha {
+  fill: none;
+  stroke: #5b8def;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.aplicacao-grafico-ponto {
+  fill: #5b8def;
+}
+
+.aplicacao-grafico-ponto.aplicacao-grafico-ponto--nao-aplicado {
+  fill: #f87171;
+}
+
+.aplicacao-grafico-resumo .aplicacao-grafico-resumo--nao-aplicado strong {
+  color: #f87171;
+}
+
+.aplicacao-grafico-cursor {
+  stroke: rgba(238, 243, 255, 0.35);
+  stroke-width: 1;
+}
+
+.aplicacao-grafico-alvo {
+  cursor: pointer;
+  outline: none;
+}
+
+.aplicacao-grafico-alvo:focus-visible {
+  stroke: #7aa2ff;
+  stroke-width: 2;
+}
+
+.aplicacao-grafico-tooltip {
+  position: absolute;
+  z-index: 3;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: max-content;
+  max-width: 240px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: #0f1117;
+  color: #eef3ff;
+  font-size: 0.8rem;
+  pointer-events: none;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.aplicacao-grafico-tooltip span {
+  color: rgba(238, 243, 255, 0.75);
+}
+
 @media (max-width: 860px) {
   .app-shell {
     padding: 16px;

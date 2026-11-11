@@ -1096,6 +1096,109 @@ body.light-theme .templates-modal-item:hover {
 body.light-theme .templates-modal-item-desc {
     color: #475569
 }
+body.light-theme .aplicacao-temas-ajuda {
+    color: #334155
+}
+body.light-theme .aplicacao-temas-vazio {
+    color: #334155
+}
+body.light-theme .aplicacao-temas-scroll {
+    border: 1px solid #d5dce5
+}
+body.light-theme .aplicacao-temas-scroll:focus-visible {
+    outline: 2px solid #7aa2ff
+}
+body.light-theme .aplicacao-temas-tabela th,
+body.light-theme .aplicacao-temas-tabela td {
+    border-right: 1px solid #d5dce5;
+    border-bottom: 1px solid #d5dce5
+}
+body.light-theme .aplicacao-temas-tabela thead th {
+    color: #0f172a
+}
+body.light-theme .aplicacao-temas-tabela .aplicacao-temas-tema {
+    background: #ffffff
+}
+body.light-theme .aplicacao-temas-tema small {
+    color: #475569
+}
+body.light-theme .aplicacao-temas-linha--pendente .aplicacao-temas-tema span {
+    color: #475569
+}
+body.light-theme .aplicacao-temas-celula {
+    color: #0f172a
+}
+body.light-theme .aplicacao-temas-celula:hover:not(:disabled) {
+    background: #e2e8f0
+}
+body.light-theme .aplicacao-temas-celula:focus-visible {
+    outline: 2px solid #7aa2ff
+}
+body.light-theme .aplicacao-temas-celula--marcada {
+    background: rgba(122, 162, 255, 0.25)
+}
+body.light-theme .aplicacao-temas-linha--pendente .aplicacao-temas-celula:disabled,
+body.light-theme .aplicacao-temas-celula:disabled:not(.aplicacao-temas-celula--marcada) {
+    background: #f8fafc
+}
+body.light-theme .aplicacao-grafico-resumo {
+    color: #334155
+}
+body.light-theme .aplicacao-grafico-resumo strong {
+    color: #0f172a
+}
+body.light-theme .aplicacao-grafico-scroll {
+    border: 1px solid #d5dce5;
+    background: #ffffff
+}
+body.light-theme .aplicacao-grafico-grade {
+    stroke: rgba(255, 255, 255, 0.1)
+}
+body.light-theme .aplicacao-grafico-eixo,
+body.light-theme .aplicacao-grafico-data {
+    fill: #475569
+}
+body.light-theme .aplicacao-grafico-tema {
+    fill: #0f172a
+}
+body.light-theme .aplicacao-grafico-tema.aplicacao-grafico-tema--sem-marcacao,
+body.light-theme .aplicacao-grafico-data.aplicacao-grafico-tema--sem-marcacao {
+    fill: #e61313
+}
+body.light-theme .aplicacao-grafico-valor,
+body.light-theme .aplicacao-grafico-media-rotulo {
+    fill: #0f172a
+}
+body.light-theme .aplicacao-grafico-media {
+    stroke: #64748b
+}
+body.light-theme .aplicacao-grafico-linha {
+    stroke: #2d6dea
+}
+body.light-theme .aplicacao-grafico-ponto {
+    fill: #2d6dea
+}
+body.light-theme .aplicacao-grafico-ponto.aplicacao-grafico-ponto--nao-aplicado {
+    fill: #e61313
+}
+body.light-theme .aplicacao-grafico-resumo .aplicacao-grafico-resumo--nao-aplicado strong {
+    color: #e61313
+}
+body.light-theme .aplicacao-grafico-cursor {
+    stroke: #64748b
+}
+body.light-theme .aplicacao-grafico-alvo:focus-visible {
+    stroke: #2f69ee
+}
+body.light-theme .aplicacao-grafico-tooltip {
+    border: 1px solid #d5dce5;
+    background: #f4f6fa;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.077);
+    color: #eef3ff
+}
+body.light-theme .aplicacao-grafico-tooltip span {
+    color: rgba(238, 243, 255, 0.75)
+}
 
 /* ── pages/Gamificacao/Gamificacao.css ── */
 body.light-theme .gamificacao-page {

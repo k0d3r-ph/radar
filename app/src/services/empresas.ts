@@ -3,6 +3,7 @@ import {
   addDoc,
   deleteDoc,
   updateDoc,
+  deleteField,
   runTransaction,
   doc,
   getDocs,
@@ -76,6 +77,32 @@ export async function aplicarReducaoScoreEmpresa(
     cachedEmpresas = cachedEmpresas.map((e) => e.id === empresaId ? { ...e, ...resultado.dados } : e);
   }
   return resultado?.descricao ?? null;
+}
+
+/**
+ * Marca (ou limpa, com `null`) o D-N de aplicação de um dia de treinamento. Grava só
+ * a chave daquele dia, para não sobrescrever marcações feitas em paralelo em outros dias.
+ */
+export async function registrarAplicacaoTema(
+  empresaId: string,
+  diaTreinamento: string,
+  diaAplicacao: number | null,
+): Promise<void> {
+  const updatedAt = Date.now();
+  await updateDoc(doc(db, COLLECTION, empresaId), {
+    [`aplicacaoTemasDias.${diaTreinamento}`]: diaAplicacao ?? deleteField(),
+    updatedAt,
+  });
+
+  if (cachedEmpresas) {
+    cachedEmpresas = cachedEmpresas.map((e) => {
+      if (e.id !== empresaId) return e;
+      const aplicacaoTemasDias = { ...(e.aplicacaoTemasDias ?? {}) };
+      if (diaAplicacao === null) delete aplicacaoTemasDias[diaTreinamento];
+      else aplicacaoTemasDias[diaTreinamento] = diaAplicacao;
+      return { ...e, aplicacaoTemasDias, updatedAt };
+    });
+  }
 }
 
 export async function salvarEmpresas(

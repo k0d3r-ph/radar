@@ -25,7 +25,8 @@
     "test:favoritos": "npm run build && node --test tests/favoritos.test.mjs",
     "test:sincronizacao": "npm run build && node --test tests/sincronizacao.test.mjs",
     "test:whatsapp-media": "npm run build && node --test tests/whatsappMedia.test.mjs",
-    "test:centrais": "npm run build && node --test tests/planilhaCentrais.test.mjs"
+    "test:centrais": "npm run build && node --test tests/planilhaCentrais.test.mjs",
+    "seed:aplicacao": "tsx scripts/seedAplicacaoTemasEmulador.ts"
   },
   "dependencies": {
     "@google/genai": "^2.13.0",

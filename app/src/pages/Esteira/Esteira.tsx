@@ -6,6 +6,7 @@ import {
   salvarEmpresas,
   listarEmpresas,
   removerEmpresa,
+  registrarAplicacaoTema,
 } from "../../services/empresas";
 import { listarOcorrencias } from "../../services/ocorrencias";
 import { calcularStatusEsteiraCliente } from "../../utils/monitoramento";
@@ -31,6 +32,9 @@ import {
 import { isDiaUtilComFeriados } from "../../utils/feriados";
 import { avancarDiasUteisComFeriados } from "../../utils/prazoTreinamento";
 import { TemasEsteiraEditor } from "./TemasEsteiraEditor";
+import { TabelaAplicacaoTemas } from "./TabelaAplicacaoTemas";
+import { GraficoAplicacaoTemas } from "./GraficoAplicacaoTemas";
+import { montarLinhasAplicacaoTemas } from "../../utils/aplicacaoTemas";
 
 function normalizarNome(nome: string) {
   return nome
@@ -187,6 +191,42 @@ function Esteira() {
     if (!empresaSelecionada) return null;
     return calcularStatusEsteiraCliente(empresaSelecionada, ocorrencias);
   }, [empresaSelecionada, ocorrencias]);
+
+  // Usa o cadastro salvo (nome e temas gravados), não o rascunho do formulário: as
+  // ocorrências se ligam ao cliente pelo nome já registrado.
+  const linhasAplicacaoTemas = useMemo(() => {
+    if (!empresaSelecionada) return [];
+    return montarLinhasAplicacaoTemas({
+      nomeEmpresa: empresaSelecionada.nomeEmpresa,
+      ocorrencias,
+      temaText: empresaSelecionada.temaText,
+      dataText: empresaSelecionada.dataText,
+      blocoText: empresaSelecionada.blocoText,
+      marcacoes: empresaSelecionada.aplicacaoTemasDias,
+    });
+  }, [empresaSelecionada, ocorrencias]);
+  const [salvandoAplicacaoChave, setSalvandoAplicacaoChave] = useState<
+    string | null
+  >(null);
+
+  const marcarAplicacaoTema = async (chave: string, dia: number | null) => {
+    if (!empresaSelecionada?.id || !isTreinador || salvandoAplicacaoChave)
+      return;
+    setSalvandoAplicacaoChave(chave);
+    try {
+      await registrarAplicacaoTema(empresaSelecionada.id, chave, dia);
+      // Recarrega do cache já atualizado, para o "Salvar empresa" seguinte não
+      // acusar conflito pelo updatedAt alterado por esta marcação.
+      setEmpresas(await listarEmpresas());
+    } catch (error) {
+      console.error("[aplicação dos temas] Falha ao salvar marcação:", error);
+      toast.error(
+        "Não foi possível salvar a marcação. Verifique a conexão e tente novamente.",
+      );
+    } finally {
+      setSalvandoAplicacaoChave(null);
+    }
+  };
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -1098,6 +1138,35 @@ function Esteira() {
       </div>
       </div>
       </div>
+
+      {/* Fora da coluna da imagem para usar a largura inteira da página: assim
+          cabem mais colunas D-N e o gráfico sem rolagem horizontal. */}
+      {empresaSelecionada && (
+        <section
+          className="temas-secao aplicacao-temas-secao"
+          aria-labelledby="aplicacao-temas-titulo"
+        >
+          <div className="temas-secao-header">
+            <h2 id="aplicacao-temas-titulo">Aplicação dos temas na base</h2>
+          </div>
+          <p className="aplicacao-temas-ajuda">
+            Marque com ✕ depois de quantos dias do treinamento o cliente aplicou
+            na base os temas daquele dia. Só é possível marcar dias com
+            ocorrência de Treinamento registrada; a marcação é salva na hora.
+          </p>
+          <TabelaAplicacaoTemas
+            linhas={linhasAplicacaoTemas}
+            salvandoChave={salvandoAplicacaoChave}
+            disabled={!isTreinador}
+            onMarcar={marcarAplicacaoTema}
+          />
+
+          <h3 className="aplicacao-grafico-titulo">
+            Dias até a aplicação, por tema
+          </h3>
+          <GraficoAplicacaoTemas linhas={linhasAplicacaoTemas} />
+        </section>
+      )}
 
       <GestaoNotificacaoModal
         open={gestaoConfirmModalOpen}

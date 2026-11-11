@@ -50,6 +50,10 @@ Acrescenta 8 clientes e 95 ocorrências sintéticas, identificados por `[Demo Jo
 
 No Radar, abra Relatórios > Jornada do cliente e busque `Demo Jornada`. Use Todos para incluir a jornada concluída. Há exemplos de queda por suporte, recuperação após 15 dias, mudança pelas respostas do questionário, Fast estável e ausência de score. O comando não cria logins; use os usuários locais já cadastrados. Detalhes das regras em `app/JORNADA_CLIENTE.md`.
 
+## Exemplo para a aplicação dos temas (Esteira)
+
+Com o Firestore local rodando, execute em `server/` `npm run seed:aplicacao`. Cria o cliente `[Demo Aplicação] Central Exemplo` (IDs `demo-aplicacao-`) com treinamentos passados e D-N já marcados, um treinamento recente sem marcação, um agendamento futuro e o tema "Início" (que não entra na tabela). Na Esteira, selecione o cliente e role até "Aplicação dos temas na base". Repetir o comando regrava só esses registros, com datas relativas ao dia atual; o destino é fixo em `127.0.0.1:8080`.
+
 ## O que NÃO depende do emulador
 
 A sincronização do SSX Desk ainda faz chamadas HTTP reais ao vendor (`SSX_DESK_API_KEY`)

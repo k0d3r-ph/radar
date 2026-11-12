@@ -1083,6 +1083,21 @@ body {
   width: 100%;
 }
 
+/* Treinamento realizado sem nenhum D-N marcado: tom fraco de vermelho na linha toda
+   (a coluna fixa precisa de fundo opaco, por isso o gradiente sobre a cor dela). */
+.aplicacao-temas-linha--sem-aplicacao td,
+.aplicacao-temas-linha--sem-aplicacao .aplicacao-temas-celula:disabled:not(.aplicacao-temas-celula--marcada) {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.aplicacao-temas-tabela .aplicacao-temas-linha--sem-aplicacao .aplicacao-temas-tema {
+  background: linear-gradient(rgba(239, 68, 68, 0.14), rgba(239, 68, 68, 0.14)), #1f2230;
+}
+
+.aplicacao-temas-linha--sem-aplicacao .aplicacao-temas-tema small {
+  color: #fca5a5;
+}
+
 .aplicacao-temas-tabela td .aplicacao-temas-celula {
   width: 100%;
   min-width: 40px;

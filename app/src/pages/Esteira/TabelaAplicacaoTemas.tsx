@@ -16,6 +16,11 @@ function descreverLinha(linha: LinhaAplicacaoTema) {
   return linha.data ? `${temas} (${linha.data})` : temas;
 }
 
+/** Treinamento realizado, com marcação já liberada (D-1 em diante) e nenhum D-N marcado. */
+function semAplicacaoMarcada(linha: LinhaAplicacaoTema) {
+  return linha.realizado && linha.diaMarcado == null && (linha.diasDecorridos ?? 0) >= 1;
+}
+
 function motivoBloqueio(linha: LinhaAplicacaoTema, dia: number, disabled?: boolean) {
   if (!linha.realizado) return "Disponível depois que houver uma ocorrência de Treinamento com esses temas.";
   if (disabled) return "Somente treinadores podem marcar a aplicação.";
@@ -56,15 +61,23 @@ export function TabelaAplicacaoTemas({ linhas, salvandoChave, disabled, onMarcar
           {linhas.map((linha) => {
             const descricao = descreverLinha(linha);
             const salvando = salvandoChave === linha.chave;
+            const semAplicacao = semAplicacaoMarcada(linha);
+            const classeLinha = !linha.realizado
+              ? "aplicacao-temas-linha--pendente"
+              : semAplicacao
+                ? "aplicacao-temas-linha--sem-aplicacao"
+                : "";
             return (
-              <tr key={linha.chave} className={linha.realizado ? "" : "aplicacao-temas-linha--pendente"}>
+              <tr key={linha.chave} className={classeLinha}>
                 <th scope="row" className="aplicacao-temas-tema">
                   <span>{linha.temas.join(", ")}</span>
                   <small>
                     {linha.realizado
                       ? (linha.diasDecorridos ?? 0) < 1
                         ? `(${linha.data}) · marcação liberada a partir de amanhã (D-1)`
-                        : `(${linha.data})`
+                        : semAplicacao
+                          ? `(${linha.data}) · sem aplicação marcada`
+                          : `(${linha.data})`
                       : linha.data
                         ? `Previsto ${linha.data} · aguardando treinamento`
                         : "Aguardando treinamento"}

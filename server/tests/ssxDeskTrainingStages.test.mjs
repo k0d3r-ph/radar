@@ -15,8 +15,10 @@ const COMPANY_DESK_REAL = {
   trainingStages: {
     hasStages: true,
     items: [
-      { id: 'd4ai...', name: 'Treinamento inicial', status: 'Concluído', sortOrder: 0, notes: null,
-        createdAt: '2026-10-01T12:00:00.000Z', updatedAt: '2026-10-15T09:30:00.000Z' },
+      {
+        id: 'd4ai...', name: 'Treinamento inicial', status: 'Concluído', sortOrder: 0, notes: null,
+        createdAt: '2026-10-01T12:00:00.000Z', updatedAt: '2026-10-15T09:30:00.000Z'
+      },
     ],
   },
   evaluation: { count: 3, overallAverage: 4.2 },
@@ -24,7 +26,7 @@ const COMPANY_DESK_REAL = {
 
 test('listarEmpresasDesk: aceita o formato real (data + meta.total, sem hasMore), ignorando campos extras', async () => {
   const resultado = await listarEmpresasDesk('chave-de-teste', async (url, options) => {
-    assert.equal(url.toString(), 'https://ssxdesk.ssatx.com.br/api/integrations/v1/companies');
+    assert.equal(url.toString(), 'https://desk.systemsat.com.br/api/integrations/v1/companies');
     assert.equal(options.headers.Authorization, 'Bearer chave-de-teste');
     assert.equal(options.redirect, 'error');
     return Response.json({ data: [COMPANY_DESK_REAL], meta: { total: 1 } });
@@ -55,7 +57,7 @@ test('atualizarEtapaTreinamento: id vai na query string (guia da API), não no c
     chamada = { url: url.toString(), method: options.method, body: JSON.parse(options.body) };
     return Response.json({ data: { id: 'abc-123', status: 'Concluído' } });
   });
-  assert.equal(chamada.url, 'https://ssxdesk.ssatx.com.br/api/integrations/v1/training-stages?id=abc-123');
+  assert.equal(chamada.url, 'https://desk.systemsat.com.br/api/integrations/v1/training-stages?id=abc-123');
   assert.equal(chamada.method, 'PUT');
   assert.deepEqual(chamada.body, { status: 'Concluído' }, 'o id não vai no corpo');
   assert.equal(etapa.id, 'abc-123');
@@ -68,7 +70,7 @@ test('excluirEtapaTreinamento: id vai na query string e 404 continua tratado com
     assert.equal(options.method, 'DELETE');
     return Response.json({ data: { id: 'abc-123' } });
   });
-  assert.equal(url, 'https://ssxdesk.ssatx.com.br/api/integrations/v1/training-stages?id=abc-123');
+  assert.equal(url, 'https://desk.systemsat.com.br/api/integrations/v1/training-stages?id=abc-123');
   await excluirEtapaTreinamento('chave', 'sumiu', async () => new Response(null, { status: 404 }));
 });
 
@@ -287,7 +289,7 @@ function cliente(sobrescritas = {}) {
   };
 }
 
-const semEspera = async () => {};
+const semEspera = async () => { };
 
 test('empresa nova: cada linha com tema gera POST e grava o id retornado', async () => {
   const db = database();

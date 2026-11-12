@@ -2,7 +2,7 @@
  * ver server/SSX_DESK_TRAINING_STAGES.md. Escopo `training-stages:write`, chave
  * própria (SSX_DESK_TRAINING_STAGES_API_KEY), nunca a de leitura de conversas. */
 
-export type StatusEtapaDesk = 'Em andamento' | 'Concluído' | 'Não concluído';
+export type StatusEtapaDesk = "Em andamento" | "Concluído" | "Não concluído";
 
 export interface EtapaTreinamentoDesk {
   id: string;
@@ -32,22 +32,28 @@ export interface CompanyDesk {
   trainingStages?: TrainingStagesEmbutido;
 }
 
-const BASE_URL = 'https://ssxdesk.ssatx.com.br/api/integrations/v1';
+const BASE_URL = "https://desk.systemsat.com.br/api/integrations/v1";
 
 function cabecalhos(apiKey: string): HeadersInit {
-  return { Authorization: `Bearer ${apiKey}`, Accept: 'application/json' };
+  return { Authorization: `Bearer ${apiKey}`, Accept: "application/json" };
 }
 
 /** Erro HTTP do Desk com o status preservado — permite ao chamador reagir a um código
  * específico (ex.: recriar uma etapa que sumiu, em vez de só logar um 404 genérico). */
 export class SsxDeskHttpError extends Error {
-  constructor(message: string, public readonly status: number) {
+  constructor(
+    message: string,
+    public readonly status: number,
+  ) {
     super(message);
-    this.name = 'SsxDeskHttpError';
+    this.name = "SsxDeskHttpError";
   }
 }
 
-async function tratarResposta<T>(response: Response, contexto: string): Promise<T> {
+async function tratarResposta<T>(
+  response: Response,
+  contexto: string,
+): Promise<T> {
   if (!response.ok) {
     // Nunca registrar o corpo bruto da resposta nem a chave — pode conter dados do cliente.
     throw new SsxDeskHttpError(
@@ -56,7 +62,9 @@ async function tratarResposta<T>(response: Response, contexto: string): Promise<
     );
   }
   const corpo = await response.json().catch(() => {
-    throw new Error(`SSX Desk (${contexto}) devolveu uma resposta que não é JSON.`);
+    throw new Error(
+      `SSX Desk (${contexto}) devolveu uma resposta que não é JSON.`,
+    );
   });
   return corpo as T;
 }
@@ -66,8 +74,15 @@ async function tratarResposta<T>(response: Response, contexto: string): Promise<
  * que não nos interessam e não devem quebrar a validação se mudarem. */
 function validarCompany(value: unknown): value is CompanyDesk {
   const c = value as CompanyDesk | null;
-  return !!c && typeof c.id === 'string' && !!c.id && typeof c.name === 'string'
-    && (c.idCentral === null || c.idCentral === undefined || typeof c.idCentral === 'string');
+  return (
+    !!c &&
+    typeof c.id === "string" &&
+    !!c.id &&
+    typeof c.name === "string" &&
+    (c.idCentral === null ||
+      c.idCentral === undefined ||
+      typeof c.idCentral === "string")
+  );
 }
 
 /**
@@ -83,22 +98,38 @@ function validarCompany(value: unknown): value is CompanyDesk {
  * server/SSX_DESK_TRAINING_STAGES.md).
  */
 export async function listarEmpresasDesk(
-  apiKey: string, fetchApi: typeof fetch = fetch,
+  apiKey: string,
+  fetchApi: typeof fetch = fetch,
 ): Promise<CompanyDesk[]> {
   const response = await fetchApi(`${BASE_URL}/companies`, {
     headers: cabecalhos(apiKey),
-    signal: AbortSignal.timeout(30_000), redirect: 'error',
+    signal: AbortSignal.timeout(30_000),
+    redirect: "error",
   });
-  if (!response.ok) throw new Error(`SSX Desk (listar empresas) respondeu HTTP ${response.status}. Confira a chave, o escopo e o limite de consultas.`);
-  const body = await response.json() as { data: unknown[]; meta: { total: number } };
-  if (!body || !Array.isArray(body.data) || !body.data.every(validarCompany)
-    || !body.meta || !Number.isInteger(body.meta.total) || body.meta.total < 0) {
-    throw new Error('Resposta do SSX Desk (listar empresas) fora do formato esperado.');
+  if (!response.ok)
+    throw new Error(
+      `SSX Desk (listar empresas) respondeu HTTP ${response.status}. Confira a chave, o escopo e o limite de consultas.`,
+    );
+  const body = (await response.json()) as {
+    data: unknown[];
+    meta: { total: number };
+  };
+  if (
+    !body ||
+    !Array.isArray(body.data) ||
+    !body.data.every(validarCompany) ||
+    !body.meta ||
+    !Number.isInteger(body.meta.total) ||
+    body.meta.total < 0
+  ) {
+    throw new Error(
+      "Resposta do SSX Desk (listar empresas) fora do formato esperado.",
+    );
   }
   if (body.data.length < body.meta.total) {
     throw new Error(
-      `SSX Desk (listar empresas) retornou ${body.data.length} de ${body.meta.total} empresas — `
-      + 'a API não documentou paginação para /companies; confirme com o SSX Desk como pedir o restante.',
+      `SSX Desk (listar empresas) retornou ${body.data.length} de ${body.meta.total} empresas — ` +
+        "a API não documentou paginação para /companies; confirme com o SSX Desk como pedir o restante.",
     );
   }
   return body.data as CompanyDesk[];
@@ -113,15 +144,21 @@ export interface CriarEtapaTreinamentoDados {
 }
 
 export async function criarEtapaTreinamento(
-  apiKey: string, dados: CriarEtapaTreinamentoDados, fetchApi: typeof fetch = fetch,
+  apiKey: string,
+  dados: CriarEtapaTreinamentoDados,
+  fetchApi: typeof fetch = fetch,
 ): Promise<EtapaTreinamentoDesk> {
   const response = await fetchApi(`${BASE_URL}/training-stages`, {
-    method: 'POST',
-    headers: { ...cabecalhos(apiKey), 'Content-Type': 'application/json' },
+    method: "POST",
+    headers: { ...cabecalhos(apiKey), "Content-Type": "application/json" },
     body: JSON.stringify(dados),
-    signal: AbortSignal.timeout(20_000), redirect: 'error',
+    signal: AbortSignal.timeout(20_000),
+    redirect: "error",
   });
-  const corpo = await tratarResposta<{ data: EtapaTreinamentoDesk }>(response, 'criar etapa');
+  const corpo = await tratarResposta<{ data: EtapaTreinamentoDesk }>(
+    response,
+    "criar etapa",
+  );
   return corpo.data;
 }
 
@@ -140,28 +177,41 @@ function urlEtapaTreinamento(id: string): string {
 }
 
 export async function atualizarEtapaTreinamento(
-  apiKey: string, id: string, dados: AtualizarEtapaTreinamentoDados, fetchApi: typeof fetch = fetch,
+  apiKey: string,
+  id: string,
+  dados: AtualizarEtapaTreinamentoDados,
+  fetchApi: typeof fetch = fetch,
 ): Promise<EtapaTreinamentoDesk> {
   const response = await fetchApi(urlEtapaTreinamento(id), {
-    method: 'PUT',
-    headers: { ...cabecalhos(apiKey), 'Content-Type': 'application/json' },
+    method: "PUT",
+    headers: { ...cabecalhos(apiKey), "Content-Type": "application/json" },
     body: JSON.stringify(dados),
-    signal: AbortSignal.timeout(20_000), redirect: 'error',
+    signal: AbortSignal.timeout(20_000),
+    redirect: "error",
   });
-  const corpo = await tratarResposta<{ data: EtapaTreinamentoDesk }>(response, 'atualizar etapa');
+  const corpo = await tratarResposta<{ data: EtapaTreinamentoDesk }>(
+    response,
+    "atualizar etapa",
+  );
   return corpo.data;
 }
 
 /** Exclusão — 404 aqui só significa que a etapa já não existe mais do lado do Desk, não é
  * um erro de sincronização (o resultado desejado, ela não existir, já está garantido). */
 export async function excluirEtapaTreinamento(
-  apiKey: string, id: string, fetchApi: typeof fetch = fetch,
+  apiKey: string,
+  id: string,
+  fetchApi: typeof fetch = fetch,
 ): Promise<void> {
   const response = await fetchApi(urlEtapaTreinamento(id), {
-    method: 'DELETE',
+    method: "DELETE",
     headers: cabecalhos(apiKey),
-    signal: AbortSignal.timeout(20_000), redirect: 'error',
+    signal: AbortSignal.timeout(20_000),
+    redirect: "error",
   });
   if (response.status === 404) return;
-  await tratarResposta<{ id: string; deleted: boolean }>(response, 'excluir etapa');
+  await tratarResposta<{ id: string; deleted: boolean }>(
+    response,
+    "excluir etapa",
+  );
 }

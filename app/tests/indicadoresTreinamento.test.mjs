@@ -251,6 +251,23 @@ test('Suspensos conta quem estava com acesso suspenso no fim do período', () =>
   assert.equal(calcular('clientesSuspensos', eventos, new Date(2026, 9, 1), new Date(2026, 9, 31, 23, 59, 59), null), 2);
 });
 
+test('suspensão encerrada por cancelamento termina no instante do encerramento, não na última edição', () => {
+  const empresas = [{
+    nomeEmpresa: 'Cancelado suspenso', responsavel: 'Natália Teixeira',
+    isSuspended: false, isCancelled: true,
+    suspensaoEncerradaEm: new Date(2026, 9, 10).getTime(),
+    // Editado bem depois: não pode esticar o período suspenso até aqui.
+    updatedAt: new Date(2026, 11, 1).getTime(),
+  }];
+  const ocorrencias = [
+    { empresa: 'Cancelado suspenso', suspenderCliente: true, createdAt: new Date(2026, 9, 1).getTime() },
+  ];
+  const eventos = construir(empresas, ocorrencias, [], [{ nome: 'Natália Teixeira' }]);
+
+  assert.equal(calcular('clientesSuspensos', eventos, new Date(0), new Date(2026, 9, 5, 23, 59, 59), null), 1);
+  assert.equal(calcular('clientesSuspensos', eventos, new Date(0), new Date(2026, 9, 31, 23, 59, 59), null), 0);
+});
+
 test('conta suspensão ativa sem data cadastrada no período atual, mas não em períodos anteriores', () => {
   const agora = new Date();
   const eventos = construir([

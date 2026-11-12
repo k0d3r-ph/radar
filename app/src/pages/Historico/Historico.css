@@ -1162,6 +1162,13 @@
   gap: 8px;
 }
 
+/* Consequência de uma opção marcável (ex.: cancelar o cliente), logo abaixo dela. */
+.hist-campo-ajuda {
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--lt-texto-94a3b8, #94a3b8);
+}
+
 .hist-campo label {
   font-size: 0.88rem;
   font-weight: 600;

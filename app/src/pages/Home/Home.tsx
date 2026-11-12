@@ -35,7 +35,11 @@ import {
 import type { Empresa, Ocorrencia } from "../../types";
 import { useAuth } from "../../context/AuthContext";
 import { formatarNome } from "../../utils/formatarNome";
-import { BASE_CS_LIST, normalizarNomeCS, compararCS } from "../../utils/cs";
+import { normalizarNomeCS, compararCS, ehUsuarioCs } from "../../utils/cs";
+import {
+  alteracoesEncerrarSuspensao,
+  encerraSuspensao,
+} from "../../utils/suspensaoCliente";
 import { atuaComoTreinador } from "../../utils/perfis";
 import {
   calcularScoreEfetivo,
@@ -67,7 +71,6 @@ import { toast } from "sonner";
 import {
   obterDestinatariosGestao,
   montarMensagemSuspensaoGestao,
-  montarMensagemCanceladoGestao,
   montarMensagemRetornoEsteiraGestao,
   montarMensagemConclusaoEsteiraGestao,
 } from "../../services/notificacoes";
@@ -308,9 +311,9 @@ export default function Home() {
   const [filtroProduto, setFiltroProduto] = useState(
     () => sessionStorage.getItem("filtroProduto") || "",
   );
-  const [filtroCardStatus, setFiltroCardStatus] = useState<
-    "concluidos" | ""
-  >(() => (sessionStorage.getItem("filtroCardStatus") as any) || "");
+  const [filtroCardStatus, setFiltroCardStatus] = useState<"concluidos" | "">(
+    () => (sessionStorage.getItem("filtroCardStatus") as any) || "",
+  );
   const [filtroCardTipo, setFiltroCardTipo] = useState<"safety" | "fast" | "">(
     () => (sessionStorage.getItem("filtroCardTipo") as any) || "",
   );
@@ -337,9 +340,10 @@ export default function Home() {
   );
   // Período (inclusive) de dataEntrada para localizar clientes que entraram numa janela
   // específica — formato YYYY-MM-DD (valor nativo do <input type="date">).
-  const [filtroDataEntradaInicio, setFiltroDataEntradaInicio] = useState<string>(
-    () => sessionStorage.getItem("filtroDataEntradaInicio") || "",
-  );
+  const [filtroDataEntradaInicio, setFiltroDataEntradaInicio] =
+    useState<string>(
+      () => sessionStorage.getItem("filtroDataEntradaInicio") || "",
+    );
   const [filtroDataEntradaFim, setFiltroDataEntradaFim] = useState<string>(
     () => sessionStorage.getItem("filtroDataEntradaFim") || "",
   );
@@ -369,15 +373,15 @@ export default function Home() {
     [historico, empresas],
   );
 
-  const [listaCS, setListaCS] = useState<string[]>(() => {
-    return [...BASE_CS_LIST].sort((a, b) => a.localeCompare(b, "pt-BR"));
-  });
+  // CS cadastrados em Usuários com o perfil CS (ativos e inativos, para filtrar
+  // registros antigos). Ver `ehUsuarioCs` em utils/cs.ts.
+  const [csUsuarios, setCsUsuarios] = useState<string[]>([]);
 
   const [comerciaisUsuarios, setComerciaisUsuarios] = useState<string[]>([]);
   const [treinadoresUsuarios, setTreinadoresUsuarios] = useState<string[]>([]);
   // Só usuários ativos — alimentam os selects de novo cadastro/edição de cliente.
-  // Usuários inativados continuam em treinadoresUsuarios/comerciaisUsuarios/listaCS
-  // (via empresas já cadastradas) para não sumir dos filtros e registros antigos.
+  // Usuários inativados continuam em treinadoresUsuarios/comerciaisUsuarios/csUsuarios
+  // para não sumir dos filtros e registros antigos.
   const [treinadoresAtivos, setTreinadoresAtivos] = useState<string[]>([]);
   const [comerciaisAtivos, setComerciaisAtivos] = useState<string[]>([]);
   const [listaCSCadastro, setListaCSCadastro] = useState<string[]>([]);
@@ -386,14 +390,44 @@ export default function Home() {
   // (nomes antigos, de quem não está mais ativo). Reaproveita a mesma
   // consolidação do Comercial, que já resolve "Jean" x "Jean Faria" como o
   // mesmo treinador em vez de duplicar na lista.
-  const { lista: listaResponsaveis, mapaCanonical: mapaResponsaveis } =
-    useMemo(() => {
-      const todosBrutos = [
-        ...treinadoresUsuarios,
-        ...empresas.map((e) => e.responsavel).filter(Boolean),
-      ];
-      return consolidarListaComerciais(todosBrutos);
-    }, [treinadoresUsuarios, empresas]);
+  const {
+    lista: listaResponsaveisConsolidada,
+    mapaCanonical: mapaResponsaveis,
+  } = useMemo(() => {
+    const todosBrutos = [
+      ...treinadoresUsuarios,
+      ...empresas.map((e) => e.responsavel).filter(Boolean),
+    ];
+    return consolidarListaComerciais(todosBrutos);
+  }, [treinadoresUsuarios, empresas]);
+
+  // O filtro mostra só quem tem perfil de treinador em Usuários. Nomes gravados em
+  // clientes antigos de quem mudou de perfil (ex.: virou CS) não entram; o mapa
+  // continua consolidando "Jean" x "Jean Faria" para o filtro achar esses clientes.
+  const listaResponsaveis = useMemo(
+    () =>
+      comOpcaoAtual(
+        listaResponsaveisConsolidada.filter((nome) =>
+          treinadoresUsuarios.some((usuario) =>
+            compararComercial(usuario, nome, mapaResponsaveis),
+          ),
+        ),
+        filtroResponsavel,
+      ),
+    [
+      listaResponsaveisConsolidada,
+      treinadoresUsuarios,
+      mapaResponsaveis,
+      filtroResponsavel,
+    ],
+  );
+
+  // Mesma regra para o CS: só usuários com perfil CS. O valor já escolhido continua
+  // na lista para poder ser visto e limpo, mesmo que o perfil tenha mudado.
+  const listaCS = useMemo(
+    () => comOpcaoAtual(csUsuarios, filtroCs),
+    [csUsuarios, filtroCs],
+  );
 
   const { lista: listaComercial, mapaCanonical: mapaComerciais } =
     useMemo(() => {
@@ -729,12 +763,17 @@ export default function Home() {
     // Congela a contagem de dias na esteira ao suspender o cliente, registrando
     // a data da suspensão para uso em calcularDiasNaEsteira. Ao retornar (checkbox
     // desmarcado por aqui), acumula os dias que ficaram congelados.
+    // Concluído, cancelado ou concluído unilateralmente sai dos Suspensos: ao salvar o
+    // cadastro nesse estado, a suspensão é encerrada (ver utils/suspensaoCliente.ts).
+    const suspensoAoSalvar =
+      !!clienteForm.isSuspended && !encerraSuspensao(clienteForm);
     let dataSuspensao = clienteForm.dataSuspensao;
     let diasSuspensoAcumulado = clienteForm.diasSuspensoAcumulado || 0;
-    if (clienteForm.isSuspended && !empresaExistente?.isSuspended) {
+    let suspensaoEncerradaEm = clienteForm.suspensaoEncerradaEm;
+    if (suspensoAoSalvar && !empresaExistente?.isSuspended) {
       const hoje = new Date();
       dataSuspensao = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-${String(hoje.getDate()).padStart(2, "0")}`;
-    } else if (!clienteForm.isSuspended && empresaExistente?.isSuspended) {
+    } else if (!suspensoAoSalvar && empresaExistente?.isSuspended) {
       // Mesma contagem da coluna "Dias suspenso": a partir da ocorrência de
       // suspensão, ou da dataSuspensao quando não há ocorrência.
       const nomeEmpresa = empresaExistente.nomeEmpresa.trim().toLowerCase();
@@ -742,7 +781,9 @@ export default function Home() {
         empresaExistente,
         historico.filter((o) => o.empresa.trim().toLowerCase() === nomeEmpresa),
       );
-      dataSuspensao = undefined;
+      // String vazia: salvarEmpresas descarta undefined e a data antiga ficaria gravada.
+      dataSuspensao = "";
+      if (encerraSuspensao(clienteForm)) suspensaoEncerradaEm = Date.now();
     }
 
     // Se o treinador esquecer de preencher a data de entrada, assume hoje —
@@ -766,8 +807,10 @@ export default function Home() {
       telefone: contatosValidos[0]?.telefone || "",
       emails: emailsValidos,
       dataEntrada: dataEntradaFinal,
+      isSuspended: suspensoAoSalvar,
       dataSuspensao,
       diasSuspensoAcumulado,
+      suspensaoEncerradaEm,
       gamificacaoDeducaoSuporte:
         role === "master"
           ? clienteForm.gamificacaoDeducaoSuporte
@@ -809,7 +852,7 @@ export default function Home() {
     if (
       !empresaSalva.isSuspended &&
       empresaExistente?.isSuspended &&
-      !empresaSalva.isCancelled
+      !encerraSuspensao(empresaSalva)
     ) {
       obterDestinatariosGestao(empresaSalva, "retorno")
         .then(({ destinatarios, avisos }) => {
@@ -829,25 +872,8 @@ export default function Home() {
         );
     }
 
-    // Cliente acabou de ser cancelado agora (não estava cancelado antes): notifica Supervisor + CS + Comercial
-    if (empresaSalva.isCancelled && !empresaExistente?.isCancelled) {
-      obterDestinatariosGestao(empresaSalva, "cancelado")
-        .then(({ destinatarios, avisos }) => {
-          if (destinatarios.length === 0) return;
-          setGestaoDestinatarios(destinatarios);
-          setGestaoAvisos(avisos);
-          setGestaoMensagem(montarMensagemCanceladoGestao(empresaSalva));
-          setGestaoEmpresaId(empresaSalva.id);
-          setGestaoEmpresaEvento("cancelado");
-          setGestaoConfirmModalOpen(true);
-        })
-        .catch((err) =>
-          console.error(
-            "[notificações] Falha ao montar destinatários de cancelamento:",
-            err,
-          ),
-        );
-    }
+    // O cancelamento (e a notificação de gestão dele) é feito por uma ocorrência
+    // Informativa no Histórico, não mais pelo cadastro.
 
     if (
       antigoNome &&
@@ -911,25 +937,17 @@ export default function Home() {
         ),
       );
 
-      const csRoleMatch = (u: (typeof usersList)[number]) =>
-        u.role?.toLowerCase() === "cs" ||
-        u.cargo?.toLowerCase() === "analista" ||
-        u.cargo?.toLowerCase() === "cs";
       const comercialRoleMatch = (u: (typeof usersList)[number]) =>
         u.role?.toLowerCase() === "comercial" ||
         u.cargo?.toLowerCase() === "comercial";
 
       const csFromUsers = usersList
-        .filter((u) => csRoleMatch(u) && u.nome?.trim())
+        .filter((u) => ehUsuarioCs(u) && u.nome?.trim())
         .map((u) => normalizarNomeCS(u.nome.trim()));
 
-      // Nomes de CS inativados: usados para excluir da lista de cadastro mesmo
-      // quando o nome também está fixo em BASE_CS_LIST.
-      const csInativosNomes = new Set(
-        usersList
-          .filter((u) => csRoleMatch(u) && u.inativo && u.nome?.trim())
-          .map((u) => normalizarNomeCS(u.nome.trim())),
-      );
+      const csFromUsersAtivos = usersList
+        .filter((u) => ehUsuarioCs(u) && !u.inativo && u.nome?.trim())
+        .map((u) => normalizarNomeCS(u.nome.trim()));
 
       const comercialFromUsers = usersList
         .filter((u) => comercialRoleMatch(u) && u.nome?.trim())
@@ -987,6 +1005,22 @@ export default function Home() {
             comercialNormalizado !== empresa.comercialResponsavel
           ) {
             empresa.comercialResponsavel = comercialNormalizado;
+            mudouEmpresa = true;
+          }
+        }
+
+        // Registros antigos suspensos e, ao mesmo tempo, cancelados/concluídos (ex.:
+        // conclusão unilateral feita antes desta regra): encerra a suspensão uma vez.
+        if (empresa.isSuspended && encerraSuspensao(empresa)) {
+          const nomeEmpresa = empresa.nomeEmpresa.trim().toLowerCase();
+          const encerrar = alteracoesEncerrarSuspensao(
+            empresa,
+            ocorrenciasLista.filter(
+              (o) => o.empresa.trim().toLowerCase() === nomeEmpresa,
+            ),
+          );
+          if (encerrar) {
+            Object.assign(empresa, encerrar);
             mudouEmpresa = true;
           }
         }
@@ -1061,44 +1095,14 @@ export default function Home() {
       setEmpresas(empresasLista);
       setHistorico(ocorrenciasLista);
 
-      const csFromEmpresas = empresasLista
-        .map((e) => normalizarNomeCS(e.csResponsavel))
-        .filter(Boolean);
-
-      const allDiscoveredCS = [
-        ...BASE_CS_LIST,
-        ...csFromEmpresas,
-        ...csFromUsers,
-      ];
-
-      setListaCS(() => {
-        const uniqueNames = new Set<string>();
-        allDiscoveredCS.forEach((nome) => {
-          const norm = normalizarNomeCS(nome);
-          if (norm) {
-            uniqueNames.add(norm);
-          }
-        });
-        return Array.from(uniqueNames).sort((a, b) =>
+      const unicosOrdenados = (nomes: string[]) =>
+        Array.from(new Set(nomes.filter(Boolean))).sort((a, b) =>
           a.localeCompare(b, "pt-BR"),
         );
-      });
-
-      // CS disponíveis para novo cadastro: BASE_CS_LIST é uma lista fixa no
-      // código (não ligada a nenhum usuário), então um CS só some daqui se
-      // também existir um usuário cadastrado com esse nome marcado inativo.
-      setListaCSCadastro(() => {
-        const uniqueNames = new Set<string>();
-        [...BASE_CS_LIST, ...csFromUsers].forEach((nome) => {
-          const norm = normalizarNomeCS(nome);
-          if (norm && !csInativosNomes.has(norm)) {
-            uniqueNames.add(norm);
-          }
-        });
-        return Array.from(uniqueNames).sort((a, b) =>
-          a.localeCompare(b, "pt-BR"),
-        );
-      });
+      setCsUsuarios(unicosOrdenados(csFromUsers));
+      // Novo cadastro/edição: só CS ativos (o valor atual do cliente é mantido
+      // por comOpcaoAtual).
+      setListaCSCadastro(unicosOrdenados(csFromUsersAtivos));
 
       setLoading(false);
     }
@@ -1600,7 +1604,8 @@ export default function Home() {
           !filtroElegivelDeducao || e.gamificacaoDeducaoSuporte?.ativo === true;
 
         const golOk =
-          !filtroGol || classificarGolCliente(e, historico, agora) === filtroGol;
+          !filtroGol ||
+          classificarGolCliente(e, historico, agora) === filtroGol;
         const dataEntradaOk = dataEntradaNoPeriodo(
           e.dataEntrada,
           filtroDataEntradaInicio,
@@ -1783,7 +1788,8 @@ export default function Home() {
           (filtroCardTipo === "fast" && tipoEfetivo === "Fast");
         const alertaOk = filtroCardAlerta !== "alerta" || e.alerta;
         const golOk =
-          !filtroGol || classificarGolCliente(e, historico, agora) === filtroGol;
+          !filtroGol ||
+          classificarGolCliente(e, historico, agora) === filtroGol;
         const dataEntradaOk = dataEntradaNoPeriodo(
           e.dataEntrada,
           filtroDataEntradaInicio,
@@ -1878,7 +1884,8 @@ export default function Home() {
           (filtroCardTipo === "fast" && tipoEfetivo === "Fast");
         const alertaOk = filtroCardAlerta !== "alerta" || e.alerta;
         const golOk =
-          !filtroGol || classificarGolCliente(e, historico, agora) === filtroGol;
+          !filtroGol ||
+          classificarGolCliente(e, historico, agora) === filtroGol;
         const dataEntradaOk = dataEntradaNoPeriodo(
           e.dataEntrada,
           filtroDataEntradaInicio,
@@ -4085,7 +4092,8 @@ export default function Home() {
             <span
               className="collapsible-count-badge"
               style={{
-                background: "var(--lt-fundo-6b728033, rgba(107, 114, 128, 0.2))",
+                background:
+                  "var(--lt-fundo-6b728033, rgba(107, 114, 128, 0.2))",
                 color: "var(--lt-texto-9ca3af, #9ca3af)",
               }}
             >
@@ -5476,27 +5484,6 @@ export default function Home() {
                     }
                   />
                   Cliente Ongoing 🔄
-                </label>
-                <label
-                  className="checkbox-label"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    cursor: "pointer",
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={clienteForm.isCancelled ?? false}
-                    onChange={(e) =>
-                      setClienteForm({
-                        ...clienteForm,
-                        isCancelled: e.target.checked,
-                      })
-                    }
-                  />
-                  Cliente Cancelado ❌
                 </label>
               </div>
             </div>

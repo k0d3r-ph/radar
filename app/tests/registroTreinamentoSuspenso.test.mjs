@@ -24,7 +24,8 @@ test('formulário real interrompe treinamento suspenso antes de validações e e
   assert.ok(handler);
   const mensagens = [];
   const estado = {
-    reservaEditando: null, editandoId: null, editandoImportadaSsx: false, userName: 'Treinador',
+    reservaEditando: null, editandoId: null, editandoImportadaSsx: false, editandoValidacao: false,
+    role: 'treinador', userName: 'Treinador',
     form: { empresa: 'Cliente', tipo: 'Treinamento', departamento: 'Treinamento', descricao: 'Realizado' },
     empresasList: [{ id: 'cliente', nomeEmpresa: 'Cliente', isSuspended: true }], ocorrencias: [],
     formatarNome: valor => valor, normalizar: normalizarEmpresaOcorrencia, bloquearTreinamentoSuspenso,

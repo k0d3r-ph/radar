@@ -4,6 +4,13 @@ import { BolsaIndicadoresTreinamento } from "./BolsaIndicadoresTreinamento";
 import { isEmpresaInterna } from "../../services/empresas";
 import { obterColecaoCompleta } from "../../services/sincronizacaoIncremental";
 import { listarUsuarios } from "../../services/auth";
+import {
+  DOC_METAS_PAINEL_TREINAMENTO,
+  listarMetasIndicadores,
+  salvarMetasIndicadores,
+  type MetasIndicadores,
+} from "../../services/metasIndicadores";
+import { useAuth } from "../../context/AuthContext";
 import { atuaComoTreinador } from "../../utils/perfis";
 import {
   construirEventosIndicadoresTreinamento,
@@ -21,6 +28,8 @@ interface Props {
 }
 
 export const RelatorioIndicadoresTreinamento: React.FC<Props> = ({ modoTv = false }) => {
+  const { role } = useAuth();
+  const [metas, setMetas] = useState<MetasIndicadores>({});
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [ocorrencias, setOcorrencias] = useState<Ocorrencia[]>([]);
   const [lancamentos, setLancamentos] = useState<LancamentoPonto[]>([]);
@@ -53,7 +62,15 @@ export const RelatorioIndicadoresTreinamento: React.FC<Props> = ({ modoTv = fals
           obterColecaoCompleta<TentativaValidacao>("validacao_tentativas").catch(() => []),
         ]);
         const usuariosLista = inicial ? await listarUsuarios(true) : null;
+        // Uma leitura por atualização (a cada 20 min), para as TVs receberem metas novas
+        // sem recarregar. Se falhar, mantém as metas já exibidas em vez de travar o painel.
+        const metasSalvas = await listarMetasIndicadores(DOC_METAS_PAINEL_TREINAMENTO).catch((error) => {
+          console.error("Erro ao carregar as metas do painel de treinamento:", error);
+          return null;
+        });
         if (!ativo) return;
+
+        if (metasSalvas) setMetas(metasSalvas);
 
         setEmpresas(empresasLista.filter((e) => !isEmpresaInterna(e)));
         setOcorrencias(ocorrenciasLista);
@@ -122,6 +139,12 @@ export const RelatorioIndicadoresTreinamento: React.FC<Props> = ({ modoTv = fals
     [empresas, ocorrencias, lancamentos, treinadoresEquipe],
   );
 
+  async function salvarMetas(novas: MetasIndicadores) {
+    await salvarMetasIndicadores(novas, DOC_METAS_PAINEL_TREINAMENTO);
+    setMetas(novas);
+    toast.success("Metas do painel salvas.");
+  }
+
   return (
     <div className="indicadores-treinamento-container">
       {loading ? (
@@ -138,6 +161,8 @@ export const RelatorioIndicadoresTreinamento: React.FC<Props> = ({ modoTv = fals
           treinador={null}
           atualizadoEm={atualizadoEm}
           modoTv={modoTv}
+          metas={metas}
+          onSalvarMetas={role === "master" ? salvarMetas : undefined}
         />
       )}
     </div>

@@ -4,12 +4,17 @@ import { db } from "./firebase";
 
 const COLLECTION = "configuracoes";
 const DOC_METAS = "metasIndicadores";
+/** Metas do painel ao vivo "Indicadores de Treinamento" — documento separado das metas
+ * da Gamificação, que usam outras chaves e outra tela. */
+export const DOC_METAS_PAINEL_TREINAMENTO = "metasPainelTreinamento";
 
 /** Meta de cada indicador, indexada pela chave da coluna (ex.: "notaCsat"). */
 export type MetasIndicadores = Record<string, number>;
 
-export async function listarMetasIndicadores(): Promise<MetasIndicadores> {
-  const snapshot = await getDoc(doc(db, COLLECTION, DOC_METAS));
+export async function listarMetasIndicadores(
+  documento: string = DOC_METAS,
+): Promise<MetasIndicadores> {
+  const snapshot = await getDoc(doc(db, COLLECTION, documento));
   if (!snapshot.exists()) return {};
 
   const dados = snapshot.data()?.metas;
@@ -28,9 +33,10 @@ export async function listarMetasIndicadores(): Promise<MetasIndicadores> {
 
 export async function salvarMetasIndicadores(
   metas: MetasIndicadores,
+  documento: string = DOC_METAS,
 ): Promise<void> {
   await setDoc(
-    doc(db, COLLECTION, DOC_METAS),
+    doc(db, COLLECTION, documento),
     { metas, updatedAt: Date.now() },
     { merge: true },
   );

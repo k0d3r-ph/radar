@@ -556,8 +556,12 @@ export function construirEventosIndicadoresTreinamento(
         });
       }
     } else if (inicioSuspensao) {
-      const fimCadastro = e.updatedAt && Number.isFinite(e.updatedAt)
-        ? new Date(e.updatedAt)
+      // Suspensão encerrada por cancelamento/conclusão (sem ocorrência de retorno): usa o
+      // instante gravado nesse encerramento. O updatedAt muda a cada edição do cadastro
+      // e esticaria o período suspenso; fica só para registros antigos.
+      const instanteFim = e.suspensaoEncerradaEm ?? e.updatedAt;
+      const fimCadastro = instanteFim && Number.isFinite(instanteFim)
+        ? new Date(instanteFim)
         : null;
       if (fimCadastro && fimCadastro > inicioSuspensao) {
         clientesSuspensos.push({

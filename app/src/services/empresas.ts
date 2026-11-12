@@ -118,6 +118,12 @@ export async function salvarEmpresas(
   const updatedAt = Date.now();
 
   if (id) {
+    // Cancelamento é definitivo e só é gravado pela ocorrência Informativa (transação em
+    // services/ocorrencias.ts). Telas que regravam o cadastro inteiro a partir de um
+    // retrato antigo não podem tirar o cliente dos Cancelados.
+    delete dadosLimpos.isCancelled;
+    const { isCancelled: _isCancelledIgnorado, ...empresaSemCancelamento } = empresa;
+    void _isCancelledIgnorado;
     const ref = doc(db, COLLECTION, id);
 
     if (opcoes?.updatedAtEsperado !== undefined) {
@@ -143,7 +149,7 @@ export async function salvarEmpresas(
     // Atualização Otimista do Cache
     if (cachedEmpresas) {
       cachedEmpresas = cachedEmpresas.map((e) =>
-        e.id === id ? ({ ...e, ...empresa, ...dadosLimpos, updatedAt } as Empresa) : e
+        e.id === id ? ({ ...e, ...empresaSemCancelamento, ...dadosLimpos, updatedAt } as Empresa) : e
       );
     }
 

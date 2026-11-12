@@ -1,15 +1,14 @@
 import { formatarNome } from "./formatarNome";
 
-export const BASE_CS_LIST: string[] = [
-  "Ana Carolina",
-  "Eduarda Melo",
-  "Jeferson Augusto",
-  "João Pedro",
-  "Juan Candia",
-  "Lucas Barreto",
-  "Luiz Felipe",
-  "Rafaela Agnelo",
-];
+/**
+ * Usuário que aparece como CS nos filtros e no cadastro de clientes: perfil (`role`)
+ * "cs" em Usuários. O cargo (Supervisor/Analista/Comercial) não decide — um treinador
+ * com cargo "Analista" não é CS. Para incluir ou tirar alguém, altere o perfil do
+ * usuário; não há lista fixa de nomes no código.
+ */
+export function ehUsuarioCs(usuario: { role?: string }): boolean {
+  return usuario.role?.trim().toLowerCase() === "cs";
+}
 
 /** Mapeamento de apelidos e primeiros nomes para o nome completo padronizado de cada CS */
 const ALIASES_CS: Record<string, string> = {

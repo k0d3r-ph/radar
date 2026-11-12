@@ -83,7 +83,11 @@ service cloud.firestore {
     }
 
     match /empresas/{document} {
-      allow read, write: if ehUsuarioRadar();
+      allow read, create, delete: if ehUsuarioRadar();
+      // Cancelamento é definitivo: nenhuma gravação tira um cliente dos Cancelados.
+      allow update: if ehUsuarioRadar()
+        && (resource.data.get('isCancelled', false) != true
+          || request.resource.data.get('isCancelled', false) == true);
     }
 
     match /checklist_tarefas/{docId} {

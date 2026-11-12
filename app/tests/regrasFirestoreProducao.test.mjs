@@ -175,6 +175,17 @@ test('permissões de negócio preservadas: painel e demais perfis gravam empresa
   await permitido(deleteDoc(doc(clienteComo('master1'), 'ocorrencias/o1')));
 });
 
+test('cliente cancelado não sai dos Cancelados, nem pelo Master', async () => {
+  await semear('empresas/cancelado', { nomeEmpresa: 'Cancelado', isCancelled: true });
+  for (const uid of ['master1', 'treinador1']) {
+    const db = clienteComo(uid);
+    await negado(setDoc(doc(db, 'empresas/cancelado'), { isCancelled: false }, { merge: true }));
+    await negado(setDoc(doc(db, 'empresas/cancelado'), { nomeEmpresa: 'Sem o campo' }));
+    await permitido(setDoc(doc(db, 'empresas/cancelado'), { nomeEmpresa: `Cancelado ${uid}` }, { merge: true }));
+  }
+  await permitido(setDoc(doc(clienteComo('treinador1'), 'empresas/e1'), { isCancelled: true }, { merge: true }));
+});
+
 test('gamificação, configurações, temas e coleções da API mantêm as regras anteriores', async () => {
   const treinador = clienteComo('treinador1');
   const suporte = clienteComo('suporte1');

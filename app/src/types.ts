@@ -173,6 +173,12 @@ export type Empresa = {
   dataSuspensao?: string;
   /** Soma dos dias já passados em suspensões anteriores, para excluir do total de dias na esteira ao retornar. */
   diasSuspensoAcumulado?: number;
+  /**
+   * Quando a suspensão foi encerrada por um estado final (cancelamento, conclusão
+   * unilateral ou esteira concluída), sem ocorrência de retorno à esteira. Usado pelo
+   * indicador de Suspensos para fechar o período. Ver `utils/suspensaoCliente.ts`.
+   */
+  suspensaoEncerradaEm?: number;
   isCancelled?: boolean;
   /** Exibe avisos de contato com o Suporte na Home. Ausente equivale a true. */
   exibirAvisosSuporte?: boolean;
@@ -301,6 +307,8 @@ export type Ocorrencia = {
   retornarEsteira?: boolean;
   /** Marca que esta ocorrência foi a responsável por suspender o cliente temporariamente. */
   suspenderCliente?: boolean;
+  /** Ocorrência Informativa que cancelou o cliente (antes feito pelo cadastro na Home). Definitivo. */
+  cancelarCliente?: boolean;
   temaForaEsteira?: boolean;
   /** Nota CSAT do contato com o Suporte (opcional, só preenchida quando departamento é "Suporte"). */
   csatSuporte?: "Bom" | "Ruim";
@@ -353,6 +361,7 @@ export type OcorrenciaForm = {
   horaCriacao?: string;
   retornarEsteira?: boolean;
   suspenderCliente?: boolean;
+  cancelarCliente?: boolean;
   temaForaEsteira?: boolean;
   conclusaoUnilateralCapacitacao?: boolean;
   csatSuporte?: "Bom" | "Ruim" | "";

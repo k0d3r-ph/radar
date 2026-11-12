@@ -17,6 +17,8 @@ import {
 } from "../../utils/validacaoConhecimentoIndicadores";
 import type { Empresa, Ocorrencia } from "../../types";
 import type { TentativaValidacao } from "../../../../server/src/domain/validacaoConhecimento";
+import type { MetasIndicadores } from "../../services/metasIndicadores";
+import { EditarMetasPainelModal, type IndicadorMetaEditavel } from "./EditarMetasPainelModal";
 import "./BolsaIndicadoresTreinamento.css";
 
 type Granularidade = "dia" | "semana" | "mes";
@@ -67,7 +69,7 @@ const INDICADORES_BOLSA: ConfigBolsa[] = [
     titulo: "Suspensos",
     descricao: "Clientes em treinamento que estavam suspensos ao fim de cada período.",
     menorEhMelhor: true,
-    meta: 0,
+    meta: 5,
   },
   {
     chave: "validacaoConhecimento",
@@ -97,6 +99,29 @@ const INDICADORES_BOLSA: ConfigBolsa[] = [
     granularidadesComparacao: ["mes"],
   },
 ];
+
+/** Limites aceitos ao editar a meta de cada card (ver EditarMetasPainelModal). */
+const LIMITES_META_BOLSA: Record<ChaveBolsa, Omit<IndicadorMetaEditavel, "chave" | "titulo" | "menorEhMelhor" | "meta">> = {
+  golNoPrazo: { unidade: "%", minimo: 0, maximo: 100, casasDecimais: 0 },
+  clientesSuspensos: { unidade: "clientes", minimo: 0, maximo: 999, casasDecimais: 0 },
+  validacaoConhecimento: { unidade: "%", minimo: 0, maximo: 100, casasDecimais: 0 },
+  contatosSuporteTreinamento: { unidade: "contatos/dia", minimo: 0, maximo: 999, casasDecimais: 0 },
+  csatTreinamento: { unidade: "/ 5", minimo: 1, maximo: 5, casasDecimais: 1 },
+};
+
+/** Meta salva pelo Master quando válida; senão, a meta padrão definida no código. */
+function aplicarMetasSalvas(metas: MetasIndicadores | undefined): ConfigBolsa[] {
+  return INDICADORES_BOLSA.map((config) => {
+    const salva = metas?.[config.chave];
+    const limites = LIMITES_META_BOLSA[config.chave];
+    const valida =
+      typeof salva === "number" &&
+      Number.isFinite(salva) &&
+      salva >= limites.minimo &&
+      salva <= limites.maximo;
+    return valida ? { ...config, meta: salva } : config;
+  });
+}
 
 function gerarUltimosMeses(quantidade: number): PeriodoIndicador[] {
   const agora = new Date();
@@ -418,8 +443,8 @@ function CardIndicador({
    * meta — hoje só a Validação do Conhecimento usa isso. */
   fracaoExtra?: { parte: number; total: number } | null;
   /** Contagem simples (não fração) mostrada abaixo da meta — hoje só o CSAT usa, para
-   * mostrar quantos clientes avaliaram no mês, sem precisar de um "total" de comparação. */
-  contagemExtra?: { total: number; label: string } | null;
+   * mostrar quantos clientes avaliaram no mês e, em `detalhe`, a taxa CSAT do mês. */
+  contagemExtra?: { total: number; label: string; detalhe?: string } | null;
   /** Quebra de contagem por trás do percentual (ex.: Realizados no prazo: 12 / Fora do
    * prazo (realizados): 2 / Fora do prazo (não realizados): 1), lado a lado em colunas de
    * largura igual — hoje só o Gol no Prazo usa. */
@@ -508,8 +533,13 @@ function CardIndicador({
           </span>
         )}
         {contagemExtra && (
-          <span className="bolsa-card-fracao-label">
+          <span className="bolsa-card-fracao-label bolsa-card-fracao-label--compacta">
             {contagemExtra.total} {contagemExtra.label}
+          </span>
+        )}
+        {contagemExtra?.detalhe && (
+          <span className="bolsa-card-fracao-label bolsa-card-fracao-label--compacta">
+            {contagemExtra.detalhe}
           </span>
         )}
         {resumoContagem && (
@@ -558,6 +588,10 @@ interface Props {
    * tela inteira, como o modo foco, mas sem depender da Fullscreen API (a própria
    * aba, maximizada, já cumpre esse papel — ver App.tsx). */
   modoTv?: boolean;
+  /** Metas salvas pelo Master; chaves ausentes ou inválidas usam a meta padrão do código. */
+  metas?: MetasIndicadores;
+  /** Presente só para quem pode editar as metas (Master) — mostra o botão "Editar metas". */
+  onSalvarMetas?: (metas: MetasIndicadores) => Promise<void>;
 }
 
 /**
@@ -574,7 +608,11 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
   treinador,
   atualizadoEm,
   modoTv = false,
+  metas,
+  onSalvarMetas,
 }) => {
+  const indicadores = useMemo(() => aplicarMetasSalvas(metas), [metas]);
+  const [editandoMetas, setEditandoMetas] = useState(false);
   const validacaoPorCliente = useMemo(
     () => calcularValidacaoPorCliente(tentativasValidacao),
     [tentativasValidacao],
@@ -680,7 +718,14 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
     const fim = new Date(minutoAtual * 60000);
     const inicio = new Date(fim.getFullYear(), fim.getMonth(), 1);
     const total = listarAvaliacoesCsatNoPeriodo(eventos, inicio, fim, treinador).length;
-    return { total, label: total === 1 ? "avaliação" : "avaliações" };
+    // Taxa CSAT: treinamentos realizados no mês que receberam avaliação, sobre o total de
+    // realizados — mesmo cálculo do indicador "Taxa CSAT" do relatório de treinamento.
+    const taxa = calcularValorKpiTreinamento("taxaCsat", eventos, inicio, fim, treinador);
+    return {
+      total,
+      label: total === 1 ? "avaliação" : "avaliações",
+      detalhe: `Taxa CSAT: ${taxa === null ? "—" : `${Math.round(taxa)}%`}`,
+    };
   }, [eventos, treinador, minutoAtual]);
 
   const golNoPrazoResultados = useMemo(
@@ -768,7 +813,7 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
 
   const ticker = useMemo(
     () =>
-      INDICADORES_BOLSA.map((config) => {
+      indicadores.map((config) => {
         const granularidadePrincipal = config.granularidadePrincipal ?? "dia";
         const serie = seriesPorIndicador[config.chave][granularidadePrincipal];
         const snapshot = config.chave === "clientesSuspensos" ? snapshotsSuspensos[granularidadePrincipal] : undefined;
@@ -784,7 +829,7 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
           rotulo: comparacao.label,
         };
       }),
-    [seriesPorIndicador, snapshotsSuspensos],
+    [indicadores, seriesPorIndicador, snapshotsSuspensos],
   );
   const tickerDuplicado = [...ticker, ...ticker, ...ticker];
 
@@ -810,6 +855,16 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
           </p>
         </div>
         <div className="bolsa-indicadores-header-direita">
+          {/* Fora do modo foco/TV: são telas de exibição, não de configuração. */}
+          {!modoTv && !modoFoco && onSalvarMetas && (
+            <button
+              type="button"
+              className="bolsa-modo-foco-btn bolsa-editar-metas-btn"
+              onClick={() => setEditandoMetas(true)}
+            >
+              Editar metas
+            </button>
+          )}
           {!modoTv && (
             <button
               type="button"
@@ -834,7 +889,7 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
       </div>
 
       <div className="bolsa-indicadores-grid-cards">
-        {INDICADORES_BOLSA.map((config) => (
+        {indicadores.map((config) => (
           <CardIndicador
             key={config.chave}
             config={config}
@@ -873,6 +928,23 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
           ))}
         </div>
       </div>
+
+      {editandoMetas && onSalvarMetas && (
+        <EditarMetasPainelModal
+          indicadores={indicadores.map((config) => ({
+            chave: config.chave,
+            titulo: config.titulo,
+            menorEhMelhor: config.menorEhMelhor,
+            meta: config.meta ?? null,
+            ...LIMITES_META_BOLSA[config.chave],
+          }))}
+          onSalvar={async (novas) => {
+            await onSalvarMetas({ ...(metas ?? {}), ...novas });
+            setEditandoMetas(false);
+          }}
+          onCancelar={() => setEditandoMetas(false)}
+        />
+      )}
     </div>
   );
 };

@@ -3,7 +3,10 @@ import { calcularDiasSuspensaoAtual } from "../../utils/monitoramento";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { podeEditarOcorrencia, podeIncluirAtualizacaoOcorrencia } from "../../utils/permissoesOcorrencia";
+import {
+  podeEditarOcorrencia,
+  podeIncluirAtualizacaoOcorrencia,
+} from "../../utils/permissoesOcorrencia";
 import "./CsatReservas.css";
 import {
   requisicaoCsat,
@@ -47,6 +50,7 @@ import {
   montarMensagemAlertaGestao,
   montarMensagemConclusaoEsteiraGestao,
   montarMensagemSuspensaoGestao,
+  montarMensagemCanceladoGestao,
   montarMensagemRetornoEsteiraGestao,
   montarMensagemAlertaRetiradoGestao,
   montarMensagemChamadoAbertoCS,
@@ -132,6 +136,11 @@ import {
 } from "../../utils/score";
 import { estaDentroDoExpediente } from "../../utils/expediente";
 import {
+  alteracoesEncerrarSuspensao,
+  clienteEstaSuspenso,
+  encerraSuspensao,
+} from "../../utils/suspensaoCliente";
+import {
   atribuirIdsOcorrencias,
   obterInfoTipoOcorrencia,
 } from "../../utils/empresaUtils";
@@ -162,7 +171,10 @@ const FILTRO_TREINAMENTO_REA = "__treinamento_rea__";
 /** O filtro de tipo aceita múltiplas seleções; o parâmetro de URL "tipo" guarda os
  * valores separados por vírgula (compatível com links antigos de valor único). */
 function parseFiltroTipoParam(raw: string | null): string[] {
-  return (raw || "").split(",").map((v) => v.trim()).filter(Boolean);
+  return (raw || "")
+    .split(",")
+    .map((v) => v.trim())
+    .filter(Boolean);
 }
 
 /** Indica se uma ocorrência corresponde a um dos valores selecionados no filtro de tipo
@@ -182,9 +194,7 @@ function ocorrenciaCombinaTipo(o: Ocorrencia, valor: string): boolean {
   if (valor === FILTRO_TREINAMENTO_AUS) {
     return (
       o.tipo === "Treinamento" &&
-      (o.temaOcorrencia || []).some(
-        (t) => t.trim().toLowerCase() === "ausente",
-      )
+      (o.temaOcorrencia || []).some((t) => t.trim().toLowerCase() === "ausente")
     );
   }
   if (valor === FILTRO_TREINAMENTO_REA) {
@@ -472,6 +482,7 @@ const EMPTY: OcorrenciaForm = {
   horaCriacao: "",
   retornarEsteira: false,
   suspenderCliente: false,
+  cancelarCliente: false,
   temaForaEsteira: false,
   csatSuporte: "",
   chamadoAberto: false,
@@ -906,8 +917,8 @@ export function Historico() {
     ocorrencias.some((o) => o.id === editandoId && o.origem === "ssx-desk");
   const [busca, setBusca] = useState(() => searchParams.get("busca") || "");
   const [buscaAssunto, setBuscaAssunto] = useState("");
-  const [filtroTipo, setFiltroTipo] = useState<string[]>(
-    () => parseFiltroTipoParam(searchParams.get("tipo")),
+  const [filtroTipo, setFiltroTipo] = useState<string[]>(() =>
+    parseFiltroTipoParam(searchParams.get("tipo")),
   );
   const [filtroTipoAberto, setFiltroTipoAberto] = useState(false);
   const filtroTipoRef = useRef<HTMLDivElement>(null);
@@ -1291,15 +1302,17 @@ export function Historico() {
 
     // Determina o evento a partir do tipo da ocorrência, para reusar a mesma regra de
     // habilitação por tipo de mensagem na busca de destinatários "frescos".
-    const evento: EventoNotificacaoGestao = oc.suspenderCliente
-      ? "suspenso"
-      : oc.alerta
-        ? "alerta"
-        : oc.retornarEsteira
-          ? "retorno"
-          : oc.retirarAlerta
-            ? "alerta_retirado"
-            : "conclusao";
+    const evento: EventoNotificacaoGestao = oc.cancelarCliente
+      ? "cancelado"
+      : oc.suspenderCliente
+        ? "suspenso"
+        : oc.alerta
+          ? "alerta"
+          : oc.retornarEsteira
+            ? "retorno"
+            : oc.retirarAlerta
+              ? "alerta_retirado"
+              : "conclusao";
 
     // Filtra só os que falharam (se houver registro) — caso contrário reusa todos
     const falhos = (oc.whatsappDestinatarios ?? []).filter(
@@ -1319,7 +1332,9 @@ export function Historico() {
 
     // Reconstrói a mensagem com base no tipo da ocorrência
     let mensagem: string;
-    if (evento === "suspenso") {
+    if (evento === "cancelado") {
+      mensagem = montarMensagemCanceladoGestao(empresaObjeto, oc.id);
+    } else if (evento === "suspenso") {
       mensagem = montarMensagemSuspensaoGestao(empresaObjeto, oc.id);
     } else if (evento === "alerta") {
       mensagem = montarMensagemAlertaGestao(empresaObjeto, oc.id);
@@ -1341,7 +1356,9 @@ export function Historico() {
     setGestaoOcorrenciaId(oc.id);
     setGestaoOcorrenciaEvento(evento);
     setGestaoConclusaoEmpresaId(
-      evento === "conclusao" ? empresaObjeto.id : undefined,
+      evento === "conclusao" || evento === "cancelado"
+        ? empresaObjeto.id
+        : undefined,
     );
     setGestaoConfirmModalOpen(true);
   }
@@ -1441,7 +1458,9 @@ export function Historico() {
       return;
     }
     if (!selecionada?.id) {
-      toast.error("Não foi possível localizar a ocorrência para registrar a atualização.");
+      toast.error(
+        "Não foi possível localizar a ocorrência para registrar a atualização.",
+      );
       return;
     }
 
@@ -1462,7 +1481,10 @@ export function Historico() {
     try {
       let atualizadoLocal: Ocorrencia;
       if (selecionada.validacaoTentativaId) {
-        const resultado = await adicionarAtualizacaoValidacao(selecionada.id, novaDescricaoAtual.trim());
+        const resultado = await adicionarAtualizacaoValidacao(
+          selecionada.id,
+          novaDescricaoAtual.trim(),
+        );
         atualizadoLocal = { ...selecionada, ...resultado };
       } else {
         await salvarOcorrencia(atualizado);
@@ -1657,6 +1679,7 @@ export function Historico() {
       if (campo === "empresa") {
         next.temaOcorrencia = [];
         next.conclusaoUnilateralCapacitacao = false;
+        next.cancelarCliente = false;
         setTemasRevisados([]);
         setIsRevisao(false);
         setTemaOcorrenciaOngoingText("");
@@ -1684,6 +1707,7 @@ export function Historico() {
       }
       if (campo === "tipo" && valor !== "Informativa") {
         next.conclusaoUnilateralCapacitacao = false;
+        next.cancelarCliente = false;
       }
       return next;
     });
@@ -1819,6 +1843,7 @@ export function Historico() {
       horaCriacao: horaCriacaoFormatada,
       retornarEsteira: o.retornarEsteira ?? false,
       suspenderCliente: o.suspenderCliente ?? false,
+      cancelarCliente: o.cancelarCliente ?? false,
       csatSuporte: o.csatSuporte ?? "",
       chamadoAberto: o.chamadoAberto ?? false,
       chamadoDescricao: o.chamadoDescricao ?? "",
@@ -1903,11 +1928,7 @@ export function Historico() {
       editandoId &&
       !reservaEditando &&
       (!ocorrenciaOriginalParaPermissao ||
-        !podeEditarOcorrencia(
-          role,
-          cargo,
-          ocorrenciaOriginalParaPermissao,
-        ))
+        !podeEditarOcorrencia(role, cargo, ocorrenciaOriginalParaPermissao))
     ) {
       toast.error(
         "Somente supervisores podem editar ocorrências do próprio departamento.",
@@ -1966,6 +1987,17 @@ export function Historico() {
       form.tipo === "Informativa" &&
       form.conclusaoUnilateralCapacitacao === true &&
       ocorrenciaOriginal?.conclusaoUnilateralCapacitacao !== true;
+    // Cancelar o cliente pela Informativa (antes era o checkbox do cadastro na Home).
+    // Mesmos perfis que editavam o cadastro. O cancelamento é definitivo: não há
+    // reativação (ver também firestore.rules.producao e salvarEmpresas).
+    const podeCancelarCliente =
+      !reservaEditando && (role === "master" || role === "treinador");
+    const podeAlterarCancelamento =
+      podeCancelarCliente && form.tipo === "Informativa";
+    const cancelarClienteAgora =
+      podeAlterarCancelamento &&
+      form.cancelarCliente === true &&
+      ocorrenciaOriginal?.cancelarCliente !== true;
 
     if (!empresaObjeto) {
       toast.error(
@@ -1983,6 +2015,29 @@ export function Historico() {
       toast.error(MENSAGEM_TREINAMENTO_SUSPENSO);
       return;
     }
+    if (cancelarClienteAgora && concluirUnilateralmente) {
+      toast.error(
+        "Escolha só uma ação: cancelar o cliente ou concluir a capacitação unilateralmente.",
+      );
+      return;
+    }
+    if (cancelarClienteAgora && !empresaObjeto.id) {
+      toast.error("Selecione um cadastro válido para cancelar o cliente.");
+      return;
+    }
+    // Cancelar ou concluir unilateralmente tira o cliente dos Suspensos: a suspensão é
+    // encerrada junto, e esta ocorrência não suspende nem "retorna à esteira".
+    const encerraSuspensaoNestaOcorrencia =
+      (cancelarClienteAgora && !empresaObjeto.isCancelled) ||
+      concluirUnilateralmente;
+    const historicoEmpresaObjeto = ocorrencias.filter(
+      (o) =>
+        o.id !== editandoId &&
+        normalizar(o.empresa) === normalizar(empresaObjeto.nomeEmpresa),
+    );
+    const camposEncerrarSuspensao = encerraSuspensaoNestaOcorrencia
+      ? alteracoesEncerrarSuspensao(empresaObjeto, historicoEmpresaObjeto)
+      : null;
 
     // Empresas internas (ex.: Systemsat) permitem registrar ocorrências para
     // fins de histórico, mas não devem disparar automações de esteira/WhatsApp
@@ -2190,10 +2245,15 @@ export function Historico() {
       avaliacaoEspera.dias !== null &&
       datasEsperaInalteradas
     ) {
-      motivoEspera = motivoEsperaValido(ocorrenciaOriginal?.treinamentoMotivoEspera)
+      motivoEspera = motivoEsperaValido(
+        ocorrenciaOriginal?.treinamentoMotivoEspera,
+      )
         ? ocorrenciaOriginal.treinamentoMotivoEspera
         : null;
-    } else if (avaliacaoEspera.precisaConfirmar && avaliacaoEspera.dias !== null) {
+    } else if (
+      avaliacaoEspera.precisaConfirmar &&
+      avaliacaoEspera.dias !== null
+    ) {
       motivoEspera = await perguntarMotivoEspera(
         avaliacaoEspera.dias,
         editorEhResponsavel ? undefined : responsavelFinal,
@@ -2232,6 +2292,12 @@ export function Historico() {
           ? form.tipo === "Informativa" &&
             form.conclusaoUnilateralCapacitacao === true
           : ocorrenciaOriginal?.conclusaoUnilateralCapacitacao || undefined,
+      cancelarCliente: podeCancelarCliente
+        ? form.tipo === "Informativa" && form.cancelarCliente === true
+        : ocorrenciaOriginal?.cancelarCliente,
+      ...(encerraSuspensaoNestaOcorrencia
+        ? { suspenderCliente: false, retornarEsteira: false }
+        : {}),
       temaForaEsteira:
         form.tipo === "Treinamento" ? temaForaEsteira : undefined,
       csatSuporte:
@@ -2589,10 +2655,13 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       concluirUnilateralmente && empresaObjeto.id
         ? {
             empresaId: empresaObjeto.id,
-            dataFinalizacao:
-              FORMATAR_DATA_BRASILIA.format(finalCreatedAt ?? Date.now()),
+            dataFinalizacao: FORMATAR_DATA_BRASILIA.format(
+              finalCreatedAt ?? Date.now(),
+            ),
+            encerrarSuspensao: camposEncerrarSuspensao,
           }
         : undefined;
+    let cancelamentoAplicado = false;
     const reverterConclusaoUnilateralmente =
       !!editandoId &&
       (role === "master" || role === "cs") &&
@@ -2629,9 +2698,18 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             ...(reverterConclusaoUnilateralmente
               ? { reverterConclusaoUnilateralmente: true }
               : {}),
+            ...(cancelarClienteAgora && empresaObjeto.id
+              ? {
+                  cancelamentoCliente: {
+                    empresaId: empresaObjeto.id,
+                    encerrarSuspensao: camposEncerrarSuspensao,
+                  },
+                }
+              : {}),
           },
         );
         savedId = resultado.id;
+        cancelamentoAplicado = resultado.cancelamentoAplicado;
         if (acaoLancamentoPonto) pontoId = resultado.gamificacaoPontoId;
       }
     } catch (error) {
@@ -2948,7 +3026,16 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       }
     }
 
-    if (form.retornarEsteira) {
+    // Follow up final que conclui a esteira (ver bloco mais abaixo): também encerra a
+    // suspensão, então esta ocorrência não suspende o cliente.
+    const concluiPorFollowUp =
+      form.tipo === "Follow up final" &&
+      !!base.followUpEncaminharSuporte &&
+      !!empresaObjeto.id &&
+      !empresaObjeto.dataFollowUpFinal &&
+      !!empresaObjeto.dataFinalizacao?.trim();
+
+    if (form.retornarEsteira && !encerraSuspensaoNestaOcorrencia) {
       try {
         // Ao retornar da esteira Suspensos, soma o tempo congelado ao acumulado
         // para que os dias suspensos não voltem a contar em calcularDiasNaEsteira.
@@ -2982,7 +3069,13 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       } catch (error) {
         console.error("Erro ao remover suspensão da empresa:", error);
       }
-    } else if (form.suspenderCliente && !empresaObjeto.isSuspended) {
+    } else if (
+      form.suspenderCliente &&
+      !empresaObjeto.isSuspended &&
+      !encerraSuspensaoNestaOcorrencia &&
+      !concluiPorFollowUp &&
+      !encerraSuspensao(empresaObjeto)
+    ) {
       try {
         const hoje = new Date();
         const dataSuspensao = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-${String(hoje.getDate()).padStart(2, "0")}`;
@@ -3059,6 +3152,35 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       }
     }
 
+    // Cliente cancelado por esta ocorrência (gravado na transação acima): notifica
+    // Supervisor + CS + Comercial, como fazia o checkbox do cadastro na Home.
+    if (cancelarClienteAgora && cancelamentoAplicado && !empresaInterna) {
+      const empresaCancelada: Empresa = {
+        ...empresaObjeto,
+        ...(camposEncerrarSuspensao ?? {}),
+        isCancelled: true,
+      };
+      obterDestinatariosGestao(empresaCancelada, "cancelado")
+        .then(({ destinatarios, avisos }) => {
+          if (destinatarios.length === 0) return;
+          setGestaoDestinatarios(destinatarios);
+          setGestaoAvisos(avisos);
+          setGestaoMensagem(
+            montarMensagemCanceladoGestao(empresaCancelada, savedId),
+          );
+          setGestaoOcorrenciaId(savedId);
+          setGestaoOcorrenciaEvento("cancelado");
+          setGestaoConclusaoEmpresaId(empresaObjeto.id);
+          setGestaoConfirmModalOpen(true);
+        })
+        .catch((err) =>
+          console.error(
+            "[notificações] Falha ao montar destinatários de cancelamento:",
+            err,
+          ),
+        );
+    }
+
     // Follow up final com "Encaminhar pro suporte": preenche dataFollowUpFinal com
     // a data deste registro, concluindo o acompanhamento (ver clienteConcluido() na
     // Home). Não sobrescreve se o campo já estiver preenchido (idempotente ao reeditar).
@@ -3071,7 +3193,16 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       try {
         const hoje = new Date();
         const dataFollowUpFinal = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-${String(hoje.getDate()).padStart(2, "0")}`;
-        await salvarEmpresas({ id: empresaObjeto.id, dataFollowUpFinal });
+        // Com a data de finalização já preenchida, o cliente fica concluído e sai dos
+        // Suspensos (ver utils/suspensaoCliente.ts).
+        const encerrarSuspensaoFollowUp = concluiPorFollowUp
+          ? alteracoesEncerrarSuspensao(empresaObjeto, historicoEmpresaObjeto)
+          : null;
+        await salvarEmpresas({
+          id: empresaObjeto.id,
+          dataFollowUpFinal,
+          ...(encerrarSuspensaoFollowUp ?? {}),
+        });
       } catch (error) {
         console.error(
           "Erro ao preencher a data de follow up final da empresa:",
@@ -3087,6 +3218,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
     // coisas acontecem na mesma ocorrência, vai uma única mensagem.
     const retornouEsteira =
       !!form.retornarEsteira &&
+      !encerraSuspensaoNestaOcorrencia &&
       !ocorrenciaOriginal?.retornarEsteira &&
       !!empresaObjeto.isSuspended;
     const alertaRetirado =
@@ -4466,11 +4598,20 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
       {/* Barra de filtros */}
       <div className="hist-filtros">
-        <div className="hist-resultados-resumo" role="status" aria-live="polite">
+        <div
+          className="hist-resultados-resumo"
+          role="status"
+          aria-live="polite"
+        >
           <strong>{totalItems}</strong>{" "}
-          {totalItems === 1 ? "ocorrência encontrada" : "ocorrências encontradas"}
+          {totalItems === 1
+            ? "ocorrência encontrada"
+            : "ocorrências encontradas"}
           {filtrosAtivosCount > 0 && (
-            <span>{filtrosAtivosCount} {filtrosAtivosCount === 1 ? "filtro ativo" : "filtros ativos"}</span>
+            <span>
+              {filtrosAtivosCount}{" "}
+              {filtrosAtivosCount === 1 ? "filtro ativo" : "filtros ativos"}
+            </span>
           )}
         </div>
         <div className="hist-filtros-main">
@@ -4761,6 +4902,19 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                           ▶️
                         </span>
                       )}
+                      {o.cancelarCliente && (
+                        <span
+                          style={{
+                            marginLeft: "6px",
+                          }}
+                          role="img"
+                          aria-label="Ocorrência que cancelou o cliente"
+                          title="Ocorrência que cancelou o cliente"
+                        >
+                          ❌
+                        </span>
+                      )}
+
                       {o.chamadoAberto && (
                         <span
                           style={{
@@ -5782,6 +5936,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               {(selecionada.whatsappStatus ||
                 selecionada.alerta ||
                 selecionada.suspenderCliente ||
+                selecionada.cancelarCliente ||
                 selecionada.retirarAlerta ||
                 selecionada.retornarEsteira ||
                 podeNotificarTreinamento(selecionada)) && (
@@ -5877,6 +6032,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                           selecionada.alerta ||
                           selecionada.retirarAlerta ||
                           selecionada.suspenderCliente ||
+                          selecionada.cancelarCliente ||
                           selecionada.retornarEsteira
                         ) {
                           reabrirNotificacaoGestao(selecionada);
@@ -5990,7 +6146,11 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
               <div className="botoes">
                 {!novaAtualizacaoAberta &&
-                  podeIncluirAtualizacaoOcorrencia(role, cargo, selecionada) && (
+                  podeIncluirAtualizacaoOcorrencia(
+                    role,
+                    cargo,
+                    selecionada,
+                  ) && (
                     <button
                       className="btn-secondary btn-small"
                       onClick={() => setNovaAtualizacaoAberta(true)}
@@ -7012,31 +7172,31 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
             )}
 
             {!editandoValidacao && (
-            <div className="hist-campo hist-campo-row">
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={form.alerta ?? false}
-                  disabled={form.retirarAlerta ?? false}
-                  onChange={(e) =>
-                    setForm({ ...form, alerta: e.target.checked })
-                  }
-                />
-                Definir como alerta 🔥
-              </label>
+              <div className="hist-campo hist-campo-row">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={form.alerta ?? false}
+                    disabled={form.retirarAlerta ?? false}
+                    onChange={(e) =>
+                      setForm({ ...form, alerta: e.target.checked })
+                    }
+                  />
+                  Definir como alerta 🔥
+                </label>
 
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={form.retirarAlerta ?? false}
-                  disabled={form.alerta ?? false}
-                  onChange={(e) =>
-                    setForm({ ...form, retirarAlerta: e.target.checked })
-                  }
-                />
-                Retirar do alerta ✅
-              </label>
-            </div>
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={form.retirarAlerta ?? false}
+                    disabled={form.alerta ?? false}
+                    onChange={(e) =>
+                      setForm({ ...form, retirarAlerta: e.target.checked })
+                    }
+                  />
+                  Retirar do alerta ✅
+                </label>
+              </div>
             )}
 
             {(() => {
@@ -7044,7 +7204,18 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
               const empresaObjetoForm = empresasList.find(
                 (e) => normalizar(e.nomeEmpresa) === normalizar(form.empresa),
               );
-              const isSuspended = empresaObjetoForm?.isSuspended ?? false;
+              // Cancelado, concluído ou concluído unilateralmente já saiu dos Suspensos;
+              // cancelar ou concluir nesta ocorrência também encerra a suspensão.
+              if (
+                (empresaObjetoForm && encerraSuspensao(empresaObjetoForm)) ||
+                form.cancelarCliente ||
+                form.conclusaoUnilateralCapacitacao
+              ) {
+                return null;
+              }
+              const isSuspended = empresaObjetoForm
+                ? clienteEstaSuspenso(empresaObjetoForm)
+                : false;
               const canReactivate =
                 role === "master" || role === "treinador" || role === "cs";
               if (!canReactivate) return null;
@@ -7111,7 +7282,9 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                     normalizar(form.empresa),
                 );
                 const ocorrenciaOriginal = editandoId
-                  ? ocorrencias.find((ocorrencia) => ocorrencia.id === editandoId)
+                  ? ocorrencias.find(
+                      (ocorrencia) => ocorrencia.id === editandoId,
+                    )
                   : null;
                 const vinculadaAEstaOcorrencia =
                   !!ocorrenciaOriginal?.conclusaoUnilateralCapacitacao &&
@@ -7127,7 +7300,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                         type="checkbox"
                         checked={form.conclusaoUnilateralCapacitacao ?? false}
                         disabled={
-                          salvando || !empresaConclusao?.id || jaFinalizada
+                          salvando ||
+                          !empresaConclusao?.id ||
+                          jaFinalizada ||
+                          !!form.cancelarCliente
                         }
                         onChange={(e) =>
                           setForm({
@@ -7137,6 +7313,69 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                         }
                       />
                       Concluir capacitação unilateralmente
+                    </label>
+                  </div>
+                );
+              })()}
+
+            {!reservaEditando &&
+              form.tipo === "Informativa" &&
+              (role === "master" || role === "treinador") &&
+              (() => {
+                const empresaCancelamento = empresasList.find(
+                  (empresa) =>
+                    normalizar(empresa.nomeEmpresa) ===
+                    normalizar(form.empresa),
+                );
+                const ocorrenciaOriginal = editandoId
+                  ? ocorrencias.find(
+                      (ocorrencia) => ocorrencia.id === editandoId,
+                    )
+                  : null;
+                const cancelado = !!empresaCancelamento?.isCancelled;
+                // Cancelamento é definitivo: cliente já cancelado (por esta ou por outra
+                // ocorrência) não tem opção de sair dos Cancelados.
+                if (cancelado || ocorrenciaOriginal?.cancelarCliente) {
+                  return (
+                    <div className="hist-campo">
+                      <label className="checkbox-label">
+                        <input type="checkbox" checked disabled />
+                        {ocorrenciaOriginal?.cancelarCliente
+                          ? "Cliente cancelado por esta ocorrência ❌"
+                          : "Cliente cancelado ❌"}
+                      </label>
+                      <small className="hist-campo-ajuda">
+                        O cancelamento é definitivo e não pode ser desfeito.
+                      </small>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="hist-campo">
+                    <label
+                      className="checkbox-label"
+                      style={{
+                        fontWeight: 600,
+                        color: "var(--lt-texto-ef4444, #ef4444)",
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={form.cancelarCliente ?? false}
+                        disabled={
+                          salvando ||
+                          !empresaCancelamento?.id ||
+                          !!form.conclusaoUnilateralCapacitacao
+                        }
+                        aria-describedby="hist-ajuda-cancelamento"
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            cancelarCliente: e.target.checked,
+                          })
+                        }
+                      />
+                      Cliente cancelado ❌
                     </label>
                   </div>
                 );
@@ -8298,13 +8537,15 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
         titulo={
           gestaoOcorrenciaEvento === "suspenso"
             ? "⏸️ Notificar Supervisor, CS e Comercial sobre a suspensão?"
-            : gestaoOcorrenciaEvento === "conclusao"
-              ? "🎉 Notificar Supervisor, CS e Comercial sobre a conclusão da esteira?"
-              : gestaoOcorrenciaEvento === "retorno"
-                ? "🔄 Notificar Supervisor, CS e Comercial sobre o retorno à esteira?"
-                : gestaoOcorrenciaEvento === "alerta_retirado"
-                  ? "✅ Notificar Supervisor, CS e Comercial sobre a retirada do alerta?"
-                  : "⚠️ Notificar Supervisor, CS e Comercial sobre o alerta?"
+            : gestaoOcorrenciaEvento === "cancelado"
+              ? "🚫 Notificar Supervisor, CS e Comercial sobre o cancelamento?"
+              : gestaoOcorrenciaEvento === "conclusao"
+                ? "🎉 Notificar Supervisor, CS e Comercial sobre a conclusão da esteira?"
+                : gestaoOcorrenciaEvento === "retorno"
+                  ? "🔄 Notificar Supervisor, CS e Comercial sobre o retorno à esteira?"
+                  : gestaoOcorrenciaEvento === "alerta_retirado"
+                    ? "✅ Notificar Supervisor, CS e Comercial sobre a retirada do alerta?"
+                    : "⚠️ Notificar Supervisor, CS e Comercial sobre o alerta?"
         }
         destinatarios={gestaoDestinatarios}
         avisos={gestaoAvisos}
@@ -8324,6 +8565,19 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                   enviadoEm,
                   destinatarios,
                 }),
+              });
+            }
+            // Mesmos campos que o cancelamento pelo cadastro gravava: o indicador
+            // "Clientes cancelados" usa a data desse envio.
+            if (
+              gestaoOcorrenciaEvento === "cancelado" &&
+              gestaoConclusaoEmpresaId
+            ) {
+              await salvarEmpresas({
+                id: gestaoConclusaoEmpresaId,
+                whatsappStatusCancelamento: status,
+                whatsappEnviadoEmCancelamento: enviadoEm,
+                whatsappDestinatariosCancelamento: destinatarios,
               });
             }
             await salvarOcorrencia({

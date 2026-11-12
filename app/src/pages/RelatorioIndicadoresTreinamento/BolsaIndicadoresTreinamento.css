@@ -353,6 +353,13 @@
   color: #7c93ad;
 }
 
+/* CSAT: número de avaliações e taxa CSAT empilhados, um pouco menores que a fração
+   da Validação para as duas linhas caberem sem empurrar as comparações do card. */
+.bolsa-card-fracao-label--compacta {
+  font-size: 1.3em;
+  line-height: 1.25;
+}
+
 /* Quebra de contagem por trás do percentual (Realizados no prazo / Fora do prazo
    (realizados) / Fora do prazo (não realizados)), lado a lado — três colunas de largura
    IGUAL (não flex de largura livre), senão rótulos de tamanhos diferentes puxam um item

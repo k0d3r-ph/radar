@@ -108,6 +108,72 @@ function removerUndefined<T>(valor: T): T {
   return valor;
 }
 
+/**
+ * Cancelar o cliente pela ocorrência Informativa, gravado na mesma transação da
+ * ocorrência: as duas coisas vão juntas, ou nenhuma vai. O cancelamento é definitivo.
+ */
+export interface AcaoCancelamentoCliente {
+  empresaId: string;
+  /** Campos que encerram a suspensão ao cancelar (ver `alteracoesEncerrarSuspensao`). */
+  encerrarSuspensao?: Partial<Empresa> | null;
+}
+
+interface CancelamentoLido {
+  ref: DocumentReference;
+  empresa: Empresa;
+}
+
+/** Leitura (antes de qualquer escrita da transação) e validação do cadastro alvo. */
+async function lerCancelamentoCliente(
+  transaction: Transaction,
+  acao: AcaoCancelamentoCliente | undefined,
+  nomeEmpresa: string,
+): Promise<CancelamentoLido | undefined> {
+  if (!acao) return undefined;
+  const ref = doc(db, "empresas", acao.empresaId);
+  const snapshot = await transaction.get(ref);
+  if (!snapshot.exists()) {
+    throw new Error("Não foi possível localizar o cadastro do cliente para cancelá-lo.");
+  }
+  const empresa = snapshot.data() as Empresa;
+  if (normalizarEmpresaOcorrencia(empresa.nomeEmpresa) !== normalizarEmpresaOcorrencia(nomeEmpresa)) {
+    throw new Error("O cliente da ocorrência não corresponde ao cadastro selecionado.");
+  }
+  return { ref, empresa };
+}
+
+/** Só escreve; devolve true quando o cadastro mudou (cliente já cancelado não é regravado). */
+function aplicarCancelamentoCliente(
+  transaction: Transaction,
+  acao: AcaoCancelamentoCliente | undefined,
+  lido: CancelamentoLido | undefined,
+  updatedAt: number,
+): boolean {
+  if (!acao || !lido || lido.empresa.isCancelled) return false;
+  transaction.update(lido.ref, {
+    isCancelled: true,
+    ...camposEncerrarSuspensao(lido.empresa, acao.encerrarSuspensao),
+    updatedAt,
+  });
+  return true;
+}
+
+/** A conclusão unilateral tira o cliente dos Suspensos; aplica só se ele ainda está suspenso. */
+function camposEncerrarSuspensao(
+  empresa: Empresa,
+  campos: Partial<Empresa> | null | undefined,
+): Partial<Empresa> {
+  if (!empresa.isSuspended) return {};
+  // Sem os dias calculados por quem chamou (o cadastro ficou suspenso depois da leitura
+  // da tela), encerra a suspensão mesmo assim e preserva o acumulado anterior.
+  return removerUndefined({
+    isSuspended: false,
+    dataSuspensao: "",
+    diasSuspensoAcumulado: campos?.diasSuspensoAcumulado,
+    suspensaoEncerradaEm: campos?.suspensaoEncerradaEm ?? Date.now(),
+  });
+}
+
 export async function salvarOcorrencia(
   ocorrencia: Ocorrencia,
   opcoes?: {
@@ -118,14 +184,28 @@ export async function salvarOcorrencia(
     concluirEsteiraUnilateralmente?: {
       empresaId: string;
       dataFinalizacao: string;
+      /**
+       * Campos que encerram a suspensão (ver `alteracoesEncerrarSuspensao`). Só são
+       * aplicados se o cadastro lido na transação ainda estiver suspenso.
+       */
+      encerrarSuspensao?: Partial<Empresa> | null;
     };
     reverterConclusaoUnilateralmente?: boolean;
+    cancelamentoCliente?: AcaoCancelamentoCliente;
   },
-) {
+): Promise<{ id: string; gamificacaoPontoId?: string; cancelamentoAplicado: boolean }> {
   // A estrela é alterada somente pelo endpoint que valida perfil e limite por cliente.
   const { horaOcorrencia, id, favorita, favoritadaPor, favoritadaEm, favoritaEmpresaId, ...dados } = ocorrencia as any;
 
   const dadosLimpos = removerUndefined(dados);
+  if (
+    opcoes?.cancelamentoCliente &&
+    (ocorrencia.tipo !== "Informativa" || opcoes.concluirEsteiraUnilateralmente)
+  ) {
+    throw new Error(
+      "O cancelamento do cliente exige uma ocorrência Informativa, sem conclusão unilateral na mesma ocorrência.",
+    );
+  }
   if (
     opcoes?.concluirEsteiraUnilateralmente &&
     (ocorrencia.tipo !== "Informativa" ||
@@ -150,6 +230,7 @@ export async function salvarOcorrencia(
     let restauracaoConclusaoUnilateral:
       | NonNullable<Ocorrencia["conclusaoUnilateralEstadoAnterior"]>
       | undefined;
+    let cancelamentoAplicado = false;
     await runTransaction(db, async transaction => {
       const atual = await transaction.get(ref);
       if (!atual.exists() && (opcoes?.concluirEsteiraUnilateralmente || opcoes?.reverterConclusaoUnilateralmente)) {
@@ -275,6 +356,11 @@ export async function salvarOcorrencia(
         empresaConclusaoAtual = empresaSnapshot.data() as Empresa;
         restauracaoConclusaoUnilateral = estadoAnterior;
       }
+      const cancelamentoLido = await lerCancelamentoCliente(
+        transaction,
+        opcoes?.cancelamentoCliente,
+        dadosLimpos.empresa ?? ocorrenciaAtual?.empresa ?? "",
+      );
 
       // Escritas (dados lidos acima): o lançamento de pontos vai na mesma transação da
       // ocorrência, para nunca ficar órfão se um dos dois falhar.
@@ -307,6 +393,10 @@ export async function salvarOcorrencia(
           conclusaoUnilateralCapacitacao: true,
           conclusaoUnilateralOcorrenciaId: id,
           temasConcluidosUnilateralmente: temasUnilaterais,
+          ...camposEncerrarSuspensao(
+            empresaConclusaoAtual,
+            opcoes.concluirEsteiraUnilateralmente.encerrarSuspensao,
+          ),
           updatedAt,
         });
       } else if (
@@ -333,6 +423,12 @@ export async function salvarOcorrencia(
           updatedAt,
         });
       }
+      cancelamentoAplicado = aplicarCancelamentoCliente(
+        transaction,
+        opcoes?.cancelamentoCliente,
+        cancelamentoLido,
+        updatedAt,
+      );
       if (opcoes?.removerDescontoSuporteId) {
         transaction.delete(
           doc(db, COLLECTION_PONTOS, opcoes.removerDescontoSuporteId),
@@ -363,7 +459,8 @@ export async function salvarOcorrencia(
     }
     if (
       opcoes?.concluirEsteiraUnilateralmente ||
-      opcoes?.reverterConclusaoUnilateralmente
+      opcoes?.reverterConclusaoUnilateralmente ||
+      cancelamentoAplicado
     ) {
       invalidarCacheEmpresas();
     }
@@ -397,7 +494,7 @@ export async function salvarOcorrencia(
           : o
       );
     }
-    return { id, gamificacaoPontoId };
+    return { id, gamificacaoPontoId, cancelamentoAplicado };
   }
 
   const createdAt = ocorrencia.createdAt || Date.now();
@@ -412,15 +509,22 @@ export async function salvarOcorrencia(
   let estadoAnteriorConclusaoUnilateral:
     | NonNullable<Ocorrencia["conclusaoUnilateralEstadoAnterior"]>
     | undefined;
+  let cancelamentoAplicado = false;
   if (
     exigeClienteAtivoParaTreinamento(ocorrencia) ||
-    opcoes?.concluirEsteiraUnilateralmente
+    opcoes?.concluirEsteiraUnilateralmente ||
+    opcoes?.cancelamentoCliente
   ) {
     docRef = doc(collection(db, COLLECTION));
     await runTransaction(db, async transaction => {
       if (exigeClienteAtivoParaTreinamento(ocorrencia)) {
         await validarDestinoTreinamento(transaction, ocorrencia.empresa, opcoes?.empresaId);
       }
+      const cancelamentoLido = await lerCancelamentoCliente(
+        transaction,
+        opcoes?.cancelamentoCliente,
+        ocorrencia.empresa,
+      );
       let atualEmpresa: Empresa | undefined;
       if (opcoes?.concluirEsteiraUnilateralmente) {
         const empresaRef = doc(
@@ -472,6 +576,12 @@ export async function salvarOcorrencia(
       }
       gamificacaoPontoId = aplicarLancamentoPonto(transaction, opcoes?.lancamentoPonto);
       const gamificacao = opcoes?.lancamentoPonto ? { gamificacaoPontoId: gamificacaoPontoId ?? "" } : {};
+      cancelamentoAplicado = aplicarCancelamentoCliente(
+        transaction,
+        opcoes?.cancelamentoCliente,
+        cancelamentoLido,
+        updatedAt,
+      );
       if (opcoes?.concluirEsteiraUnilateralmente && atualEmpresa) {
         const temas = (atualEmpresa.temaText || "")
           .split("\n")
@@ -501,6 +611,10 @@ export async function salvarOcorrencia(
             conclusaoUnilateralCapacitacao: true,
             conclusaoUnilateralOcorrenciaId: docRef.id,
             temasConcluidosUnilateralmente: temasUnilaterais,
+            ...camposEncerrarSuspensao(
+              atualEmpresa,
+              opcoes.concluirEsteiraUnilateralmente.encerrarSuspensao,
+            ),
             updatedAt: Date.now(),
           },
         );
@@ -517,7 +631,7 @@ export async function salvarOcorrencia(
       });
     });
     if (opcoes?.lancamentoPonto) invalidarCacheGamificacao();
-    if (opcoes?.concluirEsteiraUnilateralmente) invalidarCacheEmpresas();
+    if (opcoes?.concluirEsteiraUnilateralmente || cancelamentoAplicado) invalidarCacheEmpresas();
   } else docRef = await addDoc(collection(db, COLLECTION), novoDocumento);
 
   const novaOcorrencia = {
@@ -539,7 +653,7 @@ export async function salvarOcorrencia(
     cachedOcorrencias = [novaOcorrencia, ...cachedOcorrencias];
   }
 
-  return { id: docRef.id, gamificacaoPontoId };
+  return { id: docRef.id, gamificacaoPontoId, cancelamentoAplicado };
 }
 
 export async function listarOcorrencias(forceRefresh = false, limitCount?: number) {

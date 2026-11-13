@@ -39,15 +39,19 @@ export class WhatsAppWebClient implements IWhatsAppService {
     const clientId = 'radar-whatsapp-session';
     const sessionDir = path.join(dataPath, `session-${clientId}`);
 
+    // Os arquivos Singleton* são links simbólicos para "<hostname>-<pid>" do processo que os
+    // criou. Ao recriar o container, o alvo some e o link fica quebrado: fs.existsSync segue
+    // o link e devolve false, então a trava nunca era removida e o Chromium recusava o perfil
+    // ("The profile appears to be in use by another Chromium process"). Remove o próprio link.
     for (const fileName of ['SingletonLock', 'SingletonSocket', 'SingletonCookie']) {
+      const filePath = path.join(sessionDir, fileName);
       try {
-        const filePath = path.join(sessionDir, fileName);
-        if (fs.existsSync(filePath)) {
-          console.log(`[WhatsApp] Removendo arquivo de lock do Puppeteer existente em: ${filePath}`);
-          fs.unlinkSync(filePath);
-        }
+        fs.unlinkSync(filePath);
+        console.log(`[WhatsApp] Lock do Chromium removido: ${filePath}`);
       } catch (error) {
-        console.warn(`[WhatsApp] Aviso ao tentar limpar ${fileName} (pode ser ignorado se não houver lock):`, error);
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+          console.warn(`[WhatsApp] Aviso ao tentar limpar ${fileName}:`, error);
+        }
       }
     }
   }

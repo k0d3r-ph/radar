@@ -8,7 +8,11 @@ export const isSolicitanteTreinamento = (valor: unknown): valor is typeof SOLICI
 export type RespostaValidacao = 'correto' | 'parcial' | 'incorreto';
 /** `ativa: false` tira a pergunta de novas avaliações; tentativas antigas guardam o próprio texto. */
 export interface PerguntaConhecimento { id: string; secao: Secao; texto: string; preferida: boolean; ativa?: boolean }
-export interface QuestaoValidacao extends PerguntaConhecimento { resposta: RespostaValidacao | null; origem: 'banco' | 'mantida' | 'manual' }
+/**
+ * `respostaParcial` é opcional e não entra na nota: registra a validação parcial feita no
+ * início de uma agenda de treinamento, antes da validação final. Ausente em registros antigos.
+ */
+export interface QuestaoValidacao extends PerguntaConhecimento { resposta: RespostaValidacao | null; respostaParcial?: RespostaValidacao | null; origem: 'banco' | 'mantida' | 'manual' }
 export interface TentativaValidacao {
   id: string; empresaId: string; empresa: string; treinadorId: string; treinadorNome: string;
   status: 'andamento' | 'pausada' | 'concluida' | 'cancelada'; numero: number; anteriorId: string | null;
@@ -62,7 +66,7 @@ export function montarQuestoes(banco: PerguntaConhecimento[], secoes: Secao[], a
   const corretas = new Set(anteriores.flatMap(t => t.questoes.filter(q => q.resposta === 'correto').map(q => q.id)));
   const textosCorretos = new Set(anteriores.flatMap(t => t.questoes.filter(q => q.resposta === 'correto').map(q => normalizarConhecimento(q.texto))));
   const ultima = anteriores[0];
-  const selecionadas: QuestaoValidacao[] = (ultima?.questoes || []).filter(q => q.resposta !== 'correto' && !corretas.has(q.id)).map(q => ({ ...q, resposta: null, origem: 'mantida' }));
+  const selecionadas: QuestaoValidacao[] = (ultima?.questoes || []).filter(q => q.resposta !== 'correto' && !corretas.has(q.id)).map(({ respostaParcial: _parcial, ...q }) => ({ ...q, resposta: null, origem: 'mantida' }));
   const avisos: string[] = [];
   const disponiveis = banco.filter(q => q.ativa !== false && secoes.includes(q.secao) && !corretas.has(q.id) && !textosCorretos.has(normalizarConhecimento(q.texto)));
   // Sorteia dentro de cada prioridade; no conteúdo básico, usa as preferidas primeiro.

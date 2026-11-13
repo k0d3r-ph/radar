@@ -5517,6 +5517,43 @@ body.light-theme .validacao-questao-rodape {
 body.light-theme .validacao-questao-rodape strong {
     color: #334155
 }
+body.light-theme .validacao-parcial {
+    border-top: 1px dashed #e2e8f0
+}
+body.light-theme .validacao-parcial-cabecalho h3 {
+    color: #334155
+}
+body.light-theme .validacao-parcial-cabecalho h3 span {
+    color: #475569
+}
+body.light-theme .validacao-dica-desmarcar {
+    color: #64748b
+}
+body.light-theme .validacao-parcial-bloqueio {
+    color: #ac630e
+}
+body.light-theme .validacao-substituir-atual {
+    border: 1px solid #e2e8f0;
+    background: #f8fafc
+}
+body.light-theme .validacao-impressao-dialog .validacao-substituir-atual p {
+    color: #0f172a
+}
+body.light-theme .validacao-impressao-dialog .validacao-substituir-aviso {
+    color: #ac630e
+}
+body.light-theme .validacao-substituir-lista {
+    border-top: 1px solid #e2e8f0
+}
+body.light-theme .validacao-substituir-lista li {
+    border-bottom: 1px solid #e2e8f0
+}
+body.light-theme .validacao-substituir-lista li > span {
+    color: #0f172a
+}
+body.light-theme .validacao-substituir-lista li strong {
+    color: #475569
+}
 body.light-theme .validacao-page .validacao-questao-ferramentas button {
     color: #475569
 }

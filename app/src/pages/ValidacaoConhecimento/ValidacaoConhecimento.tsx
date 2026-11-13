@@ -29,6 +29,7 @@ import type { Empresa, Ocorrencia } from '../../types';
 import { salvarOcorrencia } from '../../services/ocorrencias';
 import './ValidacaoConhecimento.css';
 import { QuestaoConhecimentoCard } from './QuestaoConhecimentoCard';
+import { SubstituirPerguntaModal } from './SubstituirPerguntaModal';
 import { ImpressaoValidacaoModal } from '../../components/ImpressaoValidacaoModal';
 
 const numero = (n: number) => n.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
@@ -56,6 +57,7 @@ export function ValidacaoConhecimento() {
   const [erro, setErro] = useState('');
   const [conclusaoAberta, setConclusaoAberta] = useState(false);
   const [reservasPendentes, setReservasPendentes] = useState<ReservaCsat[]>([]);
+  const [substituindoId, setSubstituindoId] = useState<string | null>(null);
   const [cronometroIniciadoEm, setCronometroIniciadoEm] = useState<number | null>(null);
   const [cronometroAcumuladoMs, setCronometroAcumuladoMs] = useState(0);
   const [agoraCronometro, setAgoraCronometro] = useState(Date.now);
@@ -274,8 +276,24 @@ export function ValidacaoConhecimento() {
     item.scrollIntoView({ block: 'center', behavior: 'smooth' });
     item.querySelector<HTMLInputElement>('input[type=radio]:not(:disabled)')?.focus({ preventScroll: true });
   }
-  const disponiveis = banco.filter(q => q.ativa !== false && (!atual || atual.secoes.includes(q.secao)) && !corretas.has(q.id) && !atual?.questoes.some(item => item.id === q.id) && normalizarConhecimento(`${q.secao} ${q.texto}`).includes(normalizarConhecimento(busca)))
+  // Perguntas do banco que podem entrar nesta avaliação: ativas, das seções dela, fora do
+  // formulário e não respondidas corretamente antes (mesmas regras de adicionar()).
+  const textosCorretos = new Set(tentativas.filter(t => t.status === 'concluida').flatMap(t => t.questoes.filter(q => q.resposta === 'correto').map(q => normalizarConhecimento(q.texto))));
+  const elegiveis = banco.filter(q => q.ativa !== false && (!atual || atual.secoes.includes(q.secao)) && !corretas.has(q.id) && !textosCorretos.has(normalizarConhecimento(q.texto))
+    && !atual?.questoes.some(item => item.id === q.id || normalizarConhecimento(item.texto) === normalizarConhecimento(q.texto)))
     .sort((a, b) => Number(b.preferida) - Number(a.preferida) || a.secao.localeCompare(b.secao, 'pt-BR'));
+  const disponiveis = elegiveis.filter(q => normalizarConhecimento(`${q.secao} ${q.texto}`).includes(normalizarConhecimento(busca)));
+  const motivoBloqueioParcial = atual?.status === 'pausada' ? 'Avaliação pausada. Use “Retomar avaliação” para marcar.'
+    : atual?.status === 'andamento' && !editavel ? `Somente ${atual.treinadorNome} (treinador responsável) ou Master pode marcar.` : undefined;
+  const indiceSubstituicao = atual && substituindoId ? atual.questoes.findIndex(q => q.id === substituindoId) : -1;
+  function substituir(indice: number, nova: PerguntaConhecimento) {
+    if (!atual || !editavel) return;
+    alterar({ questoes: atual.questoes.map((q, i) => i === indice ? { ...nova, resposta: null, origem: 'banco' } : q) });
+    setSubstituindoId(null);
+    toast.success(`Pergunta ${indice + 1} substituída.`);
+    // O cartão é recriado com o novo ID; devolve o foco ao botão equivalente.
+    requestAnimationFrame(() => questoesRef.current?.children[indice]?.querySelector<HTMLButtonElement>('.validacao-substituir')?.focus());
+  }
 
   return <main className="validacao-page" aria-busy={carregando || ocupado}>
     <header><h1>Validação do conhecimento</h1><p>Avalie o aprendizado, acompanhe tentativas e registre o treinamento com CSAT.</p></header>
@@ -324,7 +342,7 @@ export function ValidacaoConhecimento() {
             if (e.currentTarget.contains(e.relatedTarget as Node)) return;
             setAlvoArraste(null);
           }}
-        >{atual.questoes.map((q, i) => <QuestaoConhecimentoCard key={q.id} questao={q} indice={i} total={atual.questoes.length} valor={10 / atual.questoes.length} editavel={editavel} ocupado={ocupado} podeMoverCima={i > 0} podeMoverBaixo={i < atual.questoes.length - 1} arrastando={arrastandoIndex === i} alvoArraste={alvoArraste?.indice === i ? alvoArraste.posicao : null} onAlterar={updates => atualizarQuestao(q.id, updates)} onMover={direcao => moverQuestao(i, direcao)} onMoverPara={posicao => moverQuestaoParaPosicao(i, posicao)} onArrastarInicio={e => { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(i)); setArrastandoIndex(i); }} onArrastarSobre={aoArrastarQuestaoSobre(i)} onSoltar={aoSoltarQuestao} onArrasteFim={aoFinalizarArrasteQuestao} onRemover={async () => {
+        >{atual.questoes.map((q, i) => <QuestaoConhecimentoCard key={q.id} questao={q} indice={i} total={atual.questoes.length} valor={10 / atual.questoes.length} editavel={editavel} ocupado={ocupado} podeMoverCima={i > 0} podeMoverBaixo={i < atual.questoes.length - 1} arrastando={arrastandoIndex === i} alvoArraste={alvoArraste?.indice === i ? alvoArraste.posicao : null} exibirParcial={atual.status !== 'concluida' || !!q.respostaParcial} motivoBloqueioParcial={motivoBloqueioParcial} onAlterar={updates => atualizarQuestao(q.id, updates)} onMover={direcao => moverQuestao(i, direcao)} onMoverPara={posicao => moverQuestaoParaPosicao(i, posicao)} onArrastarInicio={e => { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(i)); setArrastandoIndex(i); }} onArrastarSobre={aoArrastarQuestaoSobre(i)} onSoltar={aoSoltarQuestao} onArrasteFim={aoFinalizarArrasteQuestao} onSubstituir={() => setSubstituindoId(q.id)} onRemover={async () => {
           if (await confirmar({ titulo: 'Remover esta pergunta?', descricao: `${q.texto}\n\nA pontuação será redistribuída entre as perguntas restantes.`, textoConfirmar: 'Remover pergunta', textoCancelar: 'Manter pergunta', destrutivo: true })) {
             alterar({ questoes: atual.questoes.filter(item => item.id !== q.id) });
             requestAnimationFrame(() => {
@@ -338,6 +356,13 @@ export function ValidacaoConhecimento() {
       </>}
     </>}
     {modalConfirmacao}
+    {atual && indiceSubstituicao >= 0 && <SubstituirPerguntaModal
+      questao={atual.questoes[indiceSubstituicao]}
+      posicao={indiceSubstituicao + 1}
+      opcoes={elegiveis}
+      onCancelar={() => setSubstituindoId(null)}
+      onSelecionar={nova => substituir(indiceSubstituicao, nova)}
+    />}
     {conclusaoAberta && atual && <ImpressaoValidacaoModal
       tentativa={atual.numero}
       empresa={atual.empresa}

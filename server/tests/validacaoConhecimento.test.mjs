@@ -357,6 +357,37 @@ test('descrição registra perguntas, respostas e notas com resultado inclusivo 
     assert.equal(data.get(`ocorrencias/${t.id}`).descricao, descricao);
   }
 });
+test('validação parcial é opcional, não altera a nota e aparece antes/depois na ocorrência', async () => {
+  const { repo, data } = setup();
+  const t = await repo.iniciar({ empresaId: 'e1', manutencao: 'basica' }, usuario);
+  const parciais = ['incorreto', 'parcial', 'correto'];
+  const questoes = t.questoes.map((q, i) => ({ ...q, resposta: i === 2 ? 'parcial' : 'correto', respostaParcial: parciais[i] ?? null }));
+  const salva = await repo.salvar(t.id, { ...t, questoes, treinamentoTempoAgenda: '01:00', treinamentoSolicitante: 'Cliente' }, usuario);
+  assert.equal(salva.questoes[0].respostaParcial, 'incorreto');
+  assert.equal('respostaParcial' in salva.questoes[3], false);
+  await assert.rejects(repo.salvar(t.id, { ...salva, questoes: salva.questoes.map(q => ({ ...q, respostaParcial: 'talvez' })) }, usuario), /resposta válida/);
+  const finalizada = await repo.concluir(t.id, salva.revisao, usuario);
+  assert.equal(finalizada.nota, calcularResultadoValidacao(questoes).nota);
+  const descricao = data.get(`ocorrencias/${t.id}`).descricao;
+  assert.ok(descricao.includes(`Validação parcial: 3 de ${questoes.length} perguntas marcadas antes da validação final — 2 evoluíram, 0 mantiveram, 1 regrediu.`));
+  assert.ok(descricao.includes(`1. ${questoes[0].texto} (${questoes[0].secao})
+Validação parcial: Incorreto
+Validação final: Correto
+Pontuação: 1/1`));
+  assert.ok(descricao.includes(`3. ${questoes[2].texto} (${questoes[2].secao})
+Validação parcial: Correto
+Validação final: Parcial
+Pontuação: 0,5/1`));
+  assert.ok(descricao.includes(`4. ${questoes[3].texto} (${questoes[3].secao})
+Resposta: Correto
+Pontuação: 1/1`));
+});
+test('nova tentativa não herda a validação parcial das perguntas mantidas', () => {
+  const [q] = PERGUNTAS_INICIAIS;
+  const { questoes } = montarQuestoes(PERGUNTAS_INICIAIS, ['Temas iniciais'], [{ questoes: [{ ...q, resposta: 'incorreto', respostaParcial: 'parcial', origem: 'banco' }] }]);
+  assert.equal(questoes[0].id, q.id);
+  assert.equal('respostaParcial' in questoes[0], false);
+});
 test('suspensão, proprietário, campos inválidos e perguntas duplicadas são conferidos no servidor', async () => {
   const { repo, data } = setup();
   const t = await repo.iniciar({ empresaId: 'e1', manutencao: 'basica' }, usuario);

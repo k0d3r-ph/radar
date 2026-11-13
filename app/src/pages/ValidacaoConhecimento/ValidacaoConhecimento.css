@@ -93,6 +93,28 @@ input.validacao-questao-numero--edicao::-webkit-outer-spin-button, input.validac
 .validacao-opcao--selecionada .validacao-opcao-marca { border-color: currentColor; }
 .validacao-questao-rodape { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding-top: 14px; margin-top: 18px; border-top: 1px solid #334155; color: #94a3b8; font-size: 12px; }
 .validacao-questao-rodape strong { color: #cbd5e1; }
+.validacao-parcial { margin-top: 16px; padding-top: 14px; border-top: 1px dashed #334155; }
+.validacao-parcial-cabecalho { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 9px; }
+.validacao-parcial-cabecalho h3 { margin: 0; color: #cbd5e1; font-size: 12px; font-weight: 600; }
+.validacao-parcial-cabecalho h3 span { color: #94a3b8; font-weight: 400; }
+.validacao-dica-desmarcar { color: #64748b; }
+.validacao-parcial-bloqueio { margin: 0 0 9px; color: #fcd34d; font-size: 12px; }
+.validacao-respostas--parcial .validacao-opcao { padding: 9px 14px; }
+.validacao-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.validacao-substituir-dialog { width: min(760px, calc(100vw - 32px)); }
+.validacao-substituir-conteudo { display: grid; gap: 14px; }
+.validacao-substituir-atual { padding: 12px 14px; border: 1px solid #334155; border-radius: 10px; background: #0f172a; }
+.validacao-impressao-dialog .validacao-substituir-atual p { margin: 4px 0 0; color: #e2e8f0; font-size: 14px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+.validacao-impressao-dialog .validacao-substituir-aviso { color: #fcd34d; }
+.validacao-substituir-filtros { display: grid; grid-template-columns: minmax(160px, 220px) 1fr; gap: 12px; }
+.validacao-substituir-filtros label { margin: 0; }
+.validacao-impressao-dialog .validacao-substituir-contagem { font-size: 12px; }
+.validacao-substituir-lista { list-style: none; margin: 0; padding: 0; max-height: min(46dvh, 420px); overflow-y: auto; border-top: 1px solid #334155; }
+.validacao-substituir-lista li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 4px; border-bottom: 1px solid #334155; }
+.validacao-substituir-lista li > span { display: grid; gap: 3px; color: #e2e8f0; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.validacao-substituir-lista li strong { color: #94a3b8; font-size: 11px; font-weight: 600; }
+.validacao-substituir-lista button { flex: none; }
+@media (max-width: 720px) { .validacao-substituir-filtros { grid-template-columns: 1fr; } .validacao-substituir-lista li { flex-direction: column; align-items: stretch; } }
 .validacao-questao-ferramentas { display: flex; align-items: center; gap: 14px; }
 .validacao-page .validacao-questao-ferramentas button { padding: 6px 8px; border: 0; border-radius: 6px; background: transparent; font-size: 12px; color: #94a3b8; }
 .validacao-page .validacao-questao-ferramentas button:hover:not(:disabled) { background: rgba(148,163,184,.12); color: #e2e8f0; }

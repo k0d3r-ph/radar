@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react';
 import type { DragEvent } from 'react';
-import { ArrowDown, ArrowUp, Check, CheckCircle2, CircleMinus, GripVertical, PencilLine, Star, Trash2, XCircle } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, CheckCircle2, CircleMinus, GripVertical, PencilLine, Replace, Star, Trash2, XCircle } from 'lucide-react';
 import type { QuestaoValidacao } from '../../../../server/src/domain/validacaoConhecimento';
+import { ValidacaoParcialSecao } from './ValidacaoParcialSecao';
 
 interface Props {
   questao: QuestaoValidacao; indice: number; total: number; valor: number; editavel: boolean; ocupado: boolean;
@@ -11,6 +12,10 @@ interface Props {
   /** Se definido, esta pergunta é o alvo atual do arraste — "antes"/"depois" indica de
    * que lado a pergunta arrastada cairia, conforme a metade da linha sob o cursor. */
   alvoArraste: 'antes' | 'depois' | null;
+  /** Mostra a validação parcial: sempre com a avaliação aberta; concluída, só se foi marcada. */
+  exibirParcial: boolean;
+  /** Por que a validação parcial está bloqueada (avaliação pausada, outro treinador). */
+  motivoBloqueioParcial?: string;
   onAlterar: (updates: Partial<QuestaoValidacao>) => void;
   onMover: (direcao: 'cima' | 'baixo') => void;
   onMoverPara: (novaPosicao: number) => void;
@@ -18,6 +23,7 @@ interface Props {
   onArrastarSobre: (e: DragEvent<HTMLLIElement>) => void;
   onSoltar: () => void;
   onArrasteFim: () => void;
+  onSubstituir: () => void;
   onRemover: () => void;
 }
 const pontos = (n: number) => n.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
@@ -27,7 +33,7 @@ const OPCOES = [
   { valor: 'incorreto', label: 'Incorreto', fator: 0, icone: XCircle },
 ] as const;
 
-export function QuestaoConhecimentoCard({ questao: q, indice, total, valor, editavel, ocupado, podeMoverCima, podeMoverBaixo, arrastando, alvoArraste, onAlterar, onMover, onMoverPara, onArrastarInicio, onArrastarSobre, onSoltar, onArrasteFim, onRemover }: Props) {
+export function QuestaoConhecimentoCard({ questao: q, indice, total, valor, editavel, ocupado, podeMoverCima, podeMoverBaixo, arrastando, alvoArraste, exibirParcial, motivoBloqueioParcial, onAlterar, onMover, onMoverPara, onArrastarInicio, onArrastarSobre, onSoltar, onArrasteFim, onSubstituir, onRemover }: Props) {
   const [editandoTexto, setEditandoTexto] = useState(false);
   const [editandoNumero, setEditandoNumero] = useState(false);
   const [numeroRascunho, setNumeroRascunho] = useState('');
@@ -116,13 +122,14 @@ export function QuestaoConhecimentoCard({ questao: q, indice, total, valor, edit
     </div>
     {editavel && editandoTexto ? <label className="validacao-edicao-pergunta">Texto da pergunta<textarea id={`texto-${q.id}`} ref={textoRef} value={q.texto} disabled={ocupado} onChange={e => onAlterar({ texto: e.target.value })} maxLength={2000} /></label> : <p className="validacao-pergunta-texto" id={`texto-${q.id}`}>{q.texto}</p>}
     <fieldset className="validacao-respostas" disabled={!editavel || ocupado} aria-labelledby={`texto-${q.id}`}>
-      <legend>Avalie a resposta do cliente</legend>
+      <legend>Avalie a resposta do cliente{editavel && <span className="validacao-dica-desmarcar"> · clique de novo para desmarcar</span>}</legend>
       {OPCOES.map(({ valor: resposta, label, fator, icone: Icone }) => <label key={resposta} className={`validacao-opcao validacao-opcao--${resposta}${q.resposta === resposta ? ' validacao-opcao--selecionada' : ''}`}>
-        <input type="radio" name={`resposta-${q.id}`} checked={q.resposta === resposta} onChange={() => onAlterar({ resposta })} />
+        <input type="radio" name={`resposta-${q.id}`} checked={q.resposta === resposta} onChange={() => onAlterar({ resposta })} onClick={() => { if (q.resposta === resposta) onAlterar({ resposta: null }); }} onKeyDown={e => { if (e.key === ' ' && q.resposta === resposta) { e.preventDefault(); onAlterar({ resposta: null }); } }} />
         <span className="validacao-opcao-linha"><Icone size={17} /><strong>{label}</strong><span className="validacao-opcao-marca">{q.resposta === resposta && <Check size={13} />}</span></span>
         <span className="validacao-opcao-pontos">{pontos(valor * fator)} {valor * fator === 1 ? 'ponto' : 'pontos'}</span>
       </label>)}
     </fieldset>
-    <div className="validacao-questao-rodape"><span>{q.resposta ? <>Obtido <strong>{pontos(obtido)}</strong> de {pontos(valor)} ponto(s)</> : 'Aguardando avaliação'}</span>{editavel && <div className="validacao-questao-ferramentas"><button type="button" disabled={ocupado} onClick={() => { setEditandoTexto(!editandoTexto); if (!editandoTexto) requestAnimationFrame(() => textoRef.current?.focus()); }}><PencilLine size={13} />{editandoTexto ? 'Pronto' : 'Editar pergunta'}</button><button type="button" className="validacao-remover" disabled={ocupado} onClick={onRemover}><Trash2 size={13} />Remover</button></div>}</div>
+    {exibirParcial && <ValidacaoParcialSecao questao={q} indice={indice} editavel={editavel} ocupado={ocupado} motivoBloqueio={motivoBloqueioParcial} onAlterar={respostaParcial => onAlterar({ respostaParcial })} />}
+    <div className="validacao-questao-rodape"><span>{q.resposta ? <>Obtido <strong>{pontos(obtido)}</strong> de {pontos(valor)} ponto(s)</> : 'Aguardando avaliação'}</span>{editavel && <div className="validacao-questao-ferramentas"><button type="button" disabled={ocupado} onClick={() => { setEditandoTexto(!editandoTexto); if (!editandoTexto) requestAnimationFrame(() => textoRef.current?.focus()); }}><PencilLine size={13} />{editandoTexto ? 'Pronto' : 'Editar pergunta'}</button><button type="button" className="validacao-substituir" disabled={ocupado} aria-label={`Substituir pergunta ${indice + 1} por outra do banco`} onClick={onSubstituir}><Replace size={13} />Substituir pergunta</button><button type="button" className="validacao-remover" disabled={ocupado} onClick={onRemover}><Trash2 size={13} />Remover</button></div>}</div>
   </li>;
 }

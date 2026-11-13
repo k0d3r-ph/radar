@@ -22,11 +22,14 @@ export function validarQuestoes(dados: unknown, secoes: Secao[]): QuestaoValidac
     const q = item as Record<string, unknown>;
     const id = validarIdConhecimento(q.id);
     if (typeof q.texto !== 'string' || !q.texto.trim() || q.texto.length > 2000 || !secoes.includes(q.secao as Secao)
-      || ![null, 'correto', 'parcial', 'incorreto'].includes(q.resposta as string | null) || !['banco', 'mantida', 'manual'].includes(String(q.origem))) throw new CsatError(400, 'Preencha a pergunta, a seção elegível e uma resposta válida.');
+      || ![null, 'correto', 'parcial', 'incorreto'].includes(q.resposta as string | null)
+      || ![undefined, null, 'correto', 'parcial', 'incorreto'].includes(q.respostaParcial as string | null | undefined) || !['banco', 'mantida', 'manual'].includes(String(q.origem))) throw new CsatError(400, 'Preencha a pergunta, a seção elegível e uma resposta válida.');
     const texto = q.texto.trim(), normalizado = normalizarConhecimento(texto);
     if (ids.has(id) || textos.has(normalizado)) throw new CsatError(400, 'A avaliação não pode repetir perguntas.');
     ids.add(id); textos.add(normalizado);
-    return { id, texto, secao: q.secao as Secao, preferida: q.preferida === true, resposta: q.resposta as QuestaoValidacao['resposta'], origem: q.origem as QuestaoValidacao['origem'] };
+    // A validação parcial é opcional: só é gravada quando marcada.
+    const parcial = q.respostaParcial ? { respostaParcial: q.respostaParcial as QuestaoValidacao['respostaParcial'] } : {};
+    return { id, texto, secao: q.secao as Secao, preferida: q.preferida === true, resposta: q.resposta as QuestaoValidacao['resposta'], ...parcial, origem: q.origem as QuestaoValidacao['origem'] };
   });
 }
 
@@ -237,14 +240,23 @@ export class GerenciarValidacaoConhecimento {
       const respostas = { correto: 'Correto', parcial: 'Parcial', incorreto: 'Incorreto' };
       const perguntas = t!.questoes.map((q, i) => [
         `${i + 1}. ${q.texto} (${q.secao})`,
-        `Resposta: ${respostas[q.resposta!]}`,
+        // Com validação parcial, mostra o que foi marcado antes e na validação final.
+        ...(q.respostaParcial ? [`Validação parcial: ${respostas[q.respostaParcial]}`, `Validação final: ${respostas[q.resposta!]}`] : [`Resposta: ${respostas[q.resposta!]}`]),
         `Pontuação: ${formatar(calcularResultadoValidacao([q]).nota / t!.questoes.length)}/${formatar(10 / t!.questoes.length)}`,
       ].join('\n')).join('\n\n');
+      const comParcial = t!.questoes.filter(q => q.respostaParcial);
+      const nivel = { incorreto: 0, parcial: 1, correto: 2 };
+      const evolucao = (sinal: number) => comParcial.filter(q => Math.sign(nivel[q.resposta!] - nivel[q.respostaParcial!]) === sinal).length;
+      const resumoParcial = comParcial.length
+        ? `Validação parcial: ${comParcial.length} de ${t!.questoes.length} ${comParcial.length === 1 ? 'pergunta marcada' : 'perguntas marcadas'} antes da validação final — `
+          + [[1, 'evoluiu', 'evoluíram'], [0, 'manteve', 'mantiveram'], [-1, 'regrediu', 'regrediram']].map(([sinal, um, varios]) => { const n = evolucao(sinal as number); return `${n} ${n === 1 ? um : varios}`; }).join(', ') + '.'
+        : '';
       const descricao = [
         `Validação do conhecimento — tentativa ${t!.numero}`,
         `Pontuação total: ${formatar(resultado.nota)}/10`,
         `Aproveitamento: ${formatar(resultado.percentual)}%`,
         `Resultado: ${resultado.aprovada ? 'Aprovado — atingiu o mínimo de 80%.' : 'Não aprovado — não atingiu o mínimo de 80%. Nova tentativa disponível.'}`,
+        ...(resumoParcial ? [resumoParcial] : []),
         ...(impressoes ? ['', impressoes] : []),
         '', 'Perguntas e respostas:', perguntas,
       ].join('\n');

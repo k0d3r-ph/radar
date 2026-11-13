@@ -54,6 +54,10 @@ No Radar, abra Relatórios > Jornada do cliente e busque `Demo Jornada`. Use Tod
 
 Com o Firestore local rodando, execute em `server/` `npm run seed:aplicacao`. Cria o cliente `[Demo Aplicação] Central Exemplo` (IDs `demo-aplicacao-`) com treinamentos passados e D-N já marcados, um treinamento recente sem marcação, um agendamento futuro e o tema "Início" (que não entra na tabela). Na Esteira, selecione o cliente e role até "Aplicação dos temas na base". Repetir o comando regrava só esses registros, com datas relativas ao dia atual; o destino é fixo em `127.0.0.1:8080`.
 
+## Exemplo para a validação parcial do conhecimento
+
+Com o Firestore local rodando e o `npm run seed:emulador` já executado, rode em `server/` `npm run seed:validacao-parcial`. Pelo fluxo real da API, cria `[Demo Validação] Concluída` (validação parcial e final marcadas, avaliação concluída e ocorrência de Treinamento no Histórico) e `[Demo Validação] Em andamento` (parcial marcada em parte das perguntas, final sem resposta). Entre como `treinador2@local.test` e abra Validação do conhecimento. O script imprime o texto da ocorrência gerada. Repetir o comando recria só esses registros (IDs `demo-validacao-`).
+
 ## O que NÃO depende do emulador
 
 A sincronização do SSX Desk ainda faz chamadas HTTP reais ao vendor (`SSX_DESK_API_KEY`)

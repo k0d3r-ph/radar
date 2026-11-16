@@ -80,6 +80,11 @@ export type Empresa = {
 
   /** Nome exato do tema (linha de {@link temaText}) marcado como o "Gol" da esteira. */
   temaGol?: string;
+  /**
+   * Retira o cliente do indicador de Gol (card "Gol no Prazo" e Controle de Gol do Aging).
+   * Só o Master altera. Ausente equivale a false. Ver `utils/golTreinamento.ts`.
+   */
+  excluidoIndicadorGol?: boolean;
 
   /**
    * ID de cada etapa de treinamento ("training stage") já enviada ao SSX Desk, uma por

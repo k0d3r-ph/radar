@@ -113,3 +113,16 @@ test('empresa sem dataEntrada não entra no cálculo', () => {
   const resultado = calcular([empresa({ nomeEmpresa: 'Sem Data' })], []);
   assert.deepEqual(resultado, []);
 });
+
+test('cliente retirado do indicador de Gol pelo Master não entra no cálculo nem nos não realizados', () => {
+  const entrada = dataISO(new Date(Date.now() - 40 * DIA_MS));
+  const empresas = [
+    empresa({ nomeEmpresa: 'Retirado com Gol', dataEntrada: entrada, excluidoIndicadorGol: true }),
+    empresa({ nomeEmpresa: 'Retirado sem Gol', dataEntrada: entrada, excluidoIndicadorGol: true }),
+    empresa({ nomeEmpresa: 'Participa', dataEntrada: entrada, excluidoIndicadorGol: false }),
+  ];
+  const ocorrencias = [ocorrenciaGol('Retirado com Gol', Date.now() - 30 * DIA_MS)];
+
+  assert.deepEqual(calcular(empresas, ocorrencias).map((r) => r.empresa), ['Participa']);
+  assert.deepEqual(calcularNaoRealizados(empresas, ocorrencias).map((r) => r.empresa), ['Participa']);
+});

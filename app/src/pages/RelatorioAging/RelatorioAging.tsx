@@ -7,6 +7,7 @@ import type { Empresa, Ocorrencia } from "../../types";
 import { calcularDiasNaEsteira } from "../../utils/monitoramento/calcularDiasNaEsteira";
 import { calcularDiasCongeladosPorCheckpoint } from "../../utils/monitoramento/calcularDiasCongeladosPorCheckpoint";
 import { formatarNome } from "../../utils/formatarNome";
+import { estaRetiradoDoIndicadorGol } from "../../utils/golTreinamento";
 import "./RelatorioAging.css";
 
 type FaixaAging = "0-15" | "16-30" | "31-45" | "mais45";
@@ -163,7 +164,12 @@ export const RelatorioAging: React.FC = () => {
     const concluido = contagemVazia();
 
     empresasFiltradas
-      .filter((e) => e.dataEntrada && e.dataEntrada >= DATA_CORTE_GOL)
+      .filter(
+        (e) =>
+          e.dataEntrada &&
+          e.dataEntrada >= DATA_CORTE_GOL &&
+          !estaRetiradoDoIndicadorGol(e),
+      )
       .forEach((e) => {
         const ocorrenciaGol = encontrarOcorrenciaGol(
           ocorrencias,

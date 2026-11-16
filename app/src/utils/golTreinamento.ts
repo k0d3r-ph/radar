@@ -10,6 +10,11 @@ export const PRAZO_DIAS_GOL = 30;
  */
 const DATA_CORTE_GOL = "2026-09-10";
 
+/** Cliente retirado manualmente do indicador de Gol pelo Master. */
+export function estaRetiradoDoIndicadorGol(empresa: Empresa): boolean {
+  return empresa.excluidoIndicadorGol === true;
+}
+
 function normalizarNomeEmpresa(nome: string): string {
   return nome.trim().toLowerCase();
 }
@@ -19,9 +24,11 @@ function normalizarNomeEmpresa(nome: string): string {
  * "Concluído" — mesmos buckets exibidos na Home (ver `dadosAtivos`/`dadosSuspensos`/
  * `dadosConcluidos` em Home.tsx). Fora do indicador: Cancelados, Acompanhamento (Ongoing)
  * e conclusão unilateral da capacitação, que não representam a esteira de treinamento normal.
+ * Também fica fora quem o Master retirou manualmente do indicador ({@link Empresa.excluidoIndicadorGol}).
  */
 function pertenceEsteirasElegiveisGol(empresa: Empresa): boolean {
   return (
+    !estaRetiradoDoIndicadorGol(empresa) &&
     empresa.conclusaoUnilateralCapacitacao !== true &&
     !empresa.isOngoing &&
     !empresa.isCancelled

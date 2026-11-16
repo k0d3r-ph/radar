@@ -83,11 +83,17 @@ service cloud.firestore {
     }
 
     match /empresas/{document} {
-      allow read, create, delete: if ehUsuarioRadar();
+      allow read, delete: if ehUsuarioRadar();
+      // Só o Master retira um cliente do indicador de Gol (excluidoIndicadorGol).
+      allow create: if ehUsuarioRadar()
+        && (ehMaster() || request.resource.data.get('excluidoIndicadorGol', false) == false);
       // Cancelamento é definitivo: nenhuma gravação tira um cliente dos Cancelados.
       allow update: if ehUsuarioRadar()
         && (resource.data.get('isCancelled', false) != true
-          || request.resource.data.get('isCancelled', false) == true);
+          || request.resource.data.get('isCancelled', false) == true)
+        && (ehMaster()
+          || request.resource.data.get('excluidoIndicadorGol', false)
+            == resource.data.get('excluidoIndicadorGol', false));
     }
 
     match /checklist_tarefas/{docId} {

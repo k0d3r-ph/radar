@@ -815,6 +815,10 @@ export default function Home() {
         role === "master"
           ? clienteForm.gamificacaoDeducaoSuporte
           : empresaExistente?.gamificacaoDeducaoSuporte,
+      excluidoIndicadorGol:
+        role === "master"
+          ? clienteForm.excluidoIndicadorGol === true
+          : empresaExistente?.excluidoIndicadorGol,
     };
 
     empresaSalva.id = await salvarEmpresas(empresaSalva);
@@ -5487,6 +5491,32 @@ export default function Home() {
                 </label>
               </div>
             </div>
+
+            {role === "master" && (
+              <div className="form-group">
+                <label
+                  className="checkbox-label"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    cursor: "pointer",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={clienteForm.excluidoIndicadorGol === true}
+                    onChange={(e) =>
+                      setClienteForm({
+                        ...clienteForm,
+                        excluidoIndicadorGol: e.target.checked,
+                      })
+                    }
+                  />
+                  Retirar este cliente do indicador de Gol ⚽
+                </label>
+              </div>
+            )}
 
             {role === "master" && (
               <div className="form-group">

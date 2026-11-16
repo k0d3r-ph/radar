@@ -1577,6 +1577,7 @@ export default function Home() {
           );
         const progressoOk =
           !filtroProgresso ||
+          (filtroProgresso === "menor-100" && e.progresso < 100) ||
           (filtroProgresso === "0-25" && e.progresso <= 25) ||
           (filtroProgresso === "26-50" &&
             e.progresso > 25 &&
@@ -3021,6 +3022,7 @@ export default function Home() {
                 onChange={(e) => setFiltroProgresso(e.target.value)}
               >
                 <option value="">Qualquer progresso</option>
+                <option value="menor-100">Menor que 100%</option>
                 <option value="0-25">0% – 25%</option>
                 <option value="26-50">26% – 50%</option>
                 <option value="51-75">51% – 75%</option>

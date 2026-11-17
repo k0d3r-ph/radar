@@ -58,6 +58,10 @@ Com o Firestore local rodando, execute em `server/` `npm run seed:aplicacao`. Cr
 
 Com o Firestore local rodando e o `npm run seed:emulador` já executado, rode em `server/` `npm run seed:validacao-parcial`. Pelo fluxo real da API, cria `[Demo Validação] Concluída` (validação parcial e final marcadas, avaliação concluída e ocorrência de Treinamento no Histórico) e `[Demo Validação] Em andamento` (parcial marcada em parte das perguntas, final sem resposta). Entre como `treinador2@local.test` e abra Validação do conhecimento. O script imprime o texto da ocorrência gerada. Repetir o comando recria só esses registros (IDs `demo-validacao-`).
 
+## Exemplo para o indicador de Validação do Conhecimento (painel)
+
+Com o Firestore local rodando e o `npm run seed:emulador` já executado, rode em `server/` `npm run seed:indicador-validacao`. Pelo fluxo real da API, cria oito clientes `[Demo Indicador]` (IDs `demo-indicador-validacao-`): três avaliações concluídas (duas aprovadas, uma reprovada), um cliente reprovado que refaz com validação parcial aprovada, duas avaliações abertas com parcial ≥ 80% (uma no limite exato), uma com parcial abaixo de 80%, uma aberta sem parcial e uma com só 3 perguntas marcadas (fora da prévia com o mínimo padrão de 5; altere o mínimo na tela de Validação como Master para vê-la entrar). O script imprime o resultado desses clientes pela regra antiga (só concluídas: 2/4 = 50%) e pela nova (com prévias: 5/7 ≈ 71%, 4 pela validação parcial). Abra Relatórios › Indicadores de Treinamento; o card também soma os demais clientes do emulador avaliados no mês. Repetir o comando recria só esses registros.
+
 ## O que NÃO depende do emulador
 
 A sincronização do SSX Desk ainda faz chamadas HTTP reais ao vendor (`SSX_DESK_API_KEY`)

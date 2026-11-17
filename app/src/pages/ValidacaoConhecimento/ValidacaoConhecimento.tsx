@@ -19,6 +19,7 @@ import { calcularResultadoValidacao, identificarConteudoAvaliacao, isSolicitante
 import { duracaoAgendaValida } from '../../../../server/src/domain/duracaoAgenda';
 import { converterDuracaoAgendaParaMs, formatarDuracaoCronometro, formatarTempoCronometro } from '../../utils/cronometroAgenda';
 import { BancoPerguntas } from './BancoPerguntas';
+import { MinimoPreviaParcial } from './MinimoPreviaParcial';
 import { GestaoNotificacaoModal } from '../../components/GestaoNotificacaoModal';
 import { NotificacaoProgressoEsteiraModal } from '../../components/NotificacaoProgressoEsteiraModal';
 import { obterDestinatariosGestao, montarMensagemConclusaoEsteiraGestao } from '../../services/notificacoes';
@@ -324,6 +325,7 @@ export function ValidacaoConhecimento() {
   return <main className="validacao-page" aria-busy={carregando || ocupado}>
     <header><h1>Validação do conhecimento</h1><p>Avalie o aprendizado, acompanhe tentativas e registre o treinamento com CSAT.</p></header>
     {role === 'master' && <BancoPerguntas banco={banco} onSalvar={q => setBanco(lista => [...lista.filter(item => item.id !== q.id), q])} />}
+    {role === 'master' && <MinimoPreviaParcial />}
     {erro && <div role="alert" className="validacao-aviso">{erro} <button type="button" disabled={ocupado || cronometroAtivo} onClick={() => void recarregarDados()}>Recarregar dados</button></div>}
     <section className="validacao-card validacao-selecao">
       <div><label htmlFor="validacao-cliente">Cliente</label><SelectCustomizado id="validacao-cliente" value={empresaId} disabled={ocupado || carregando || cronometroAtivo} ariaLabel="Cliente da validação" placeholder="Selecione um cliente" opcoes={empresas.filter(e => e.id).map(e => ({ value: e.id!, label: `${e.nomeEmpresa}${e.isSuspended ? ' (suspenso)' : e.isCancelled ? ' (cancelado)' : ''}` }))} onChange={id => void selecionarCliente(id)} /></div>

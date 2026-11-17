@@ -5678,6 +5678,12 @@ body.light-theme .validacao-impressao-dialog .validacao-impressao-erro {
 body.light-theme .validacao-impressao-dialog .validacao-analise-status {
     color: #ac630e
 }
+body.light-theme .validacao-minimo-previa-ajuda {
+    color: #475569
+}
+body.light-theme .validacao-minimo-previa-form label {
+    color: #0f172a
+}
 
 /* ── pages/WhatsApp/WhatsAppSettings.css ── */
 body.light-theme .whatsapp-header {

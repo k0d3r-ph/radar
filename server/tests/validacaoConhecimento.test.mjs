@@ -645,3 +645,27 @@ test('conclusão grava a análise de desempenho separada das impressões livres'
   const descricao = data.get(`ocorrencias/${t.id}`).descricao;
   assert.ok(descricao.includes('\n\nAnálise do desempenho:\nDesempenho geral: domínio pleno.\n\nImpressões da agenda:\nCliente pediu material extra.\n\nPerguntas e respostas:'));
 });
+test('salvar grava parcialAtualizadaEm só quando a validação parcial muda e a conclusão o preserva', async () => {
+  const { repo, data } = setup();
+  const t = await repo.iniciar({ empresaId: 'e1', manutencao: 'basica' }, usuario);
+  const semParcial = await repo.salvar(t.id, { ...t, status: 'pausada' }, usuario);
+  assert.equal(semParcial.parcialAtualizadaEm, undefined);
+
+  const comParcial = await repo.salvar(t.id, { ...semParcial, status: 'andamento', questoes: semParcial.questoes.map((q, i) => ({ ...q, respostaParcial: i < 2 ? 'correto' : null })) }, usuario);
+  assert.equal(typeof comParcial.parcialAtualizadaEm, 'number');
+  assert.equal(data.get(`validacao_tentativas/${t.id}`).parcialAtualizadaEm, comParcial.parcialAtualizadaEm);
+
+  // Mudar só a validação final (ou pausar) não move a data da parcial.
+  const anterior = comParcial.parcialAtualizadaEm - 60_000;
+  data.set(`validacao_tentativas/${t.id}`, { ...data.get(`validacao_tentativas/${t.id}`), parcialAtualizadaEm: anterior });
+  const soFinal = await repo.salvar(t.id, { ...comParcial, treinamentoTempoAgenda: '01:00', treinamentoSolicitante: 'Cliente', questoes: comParcial.questoes.map(q => ({ ...q, resposta: 'correto' })) }, usuario);
+  assert.equal(soFinal.parcialAtualizadaEm, anterior);
+
+  // Alterar uma marcação parcial atualiza a data.
+  const novaParcial = await repo.salvar(t.id, { ...soFinal, questoes: soFinal.questoes.map((q, i) => ({ ...q, respostaParcial: i === 0 ? 'incorreto' : q.respostaParcial })) }, usuario);
+  assert.ok(novaParcial.parcialAtualizadaEm > anterior);
+
+  const concluida = await repo.concluir(t.id, novaParcial.revisao, usuario);
+  assert.equal(concluida.parcialAtualizadaEm, novaParcial.parcialAtualizadaEm);
+  assert.equal(data.get(`validacao_tentativas/${t.id}`).parcialAtualizadaEm, novaParcial.parcialAtualizadaEm);
+});

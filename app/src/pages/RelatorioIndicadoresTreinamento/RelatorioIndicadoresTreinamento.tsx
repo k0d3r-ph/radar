@@ -141,7 +141,9 @@ export const RelatorioIndicadoresTreinamento: React.FC<Props> = ({ modoTv = fals
 
   async function salvarMetas(novas: MetasIndicadores) {
     await salvarMetasIndicadores(novas, DOC_METAS_PAINEL_TREINAMENTO);
-    setMetas(novas);
+    // O documento guarda outras configurações (ex.: mínimo da prévia parcial, editado na
+    // tela de Validação); a gravação faz merge, então o estado local também mescla.
+    setMetas((atuais) => ({ ...atuais, ...novas }));
     toast.success("Metas do painel salvas.");
   }
 

@@ -178,7 +178,13 @@ export class GerenciarValidacaoConhecimento {
       if (metadados.treinamentoSolicitante && !isSolicitanteTreinamento(metadados.treinamentoSolicitante)) throw new CsatError(400, 'Selecione quem solicitou entre as opções disponíveis.');
       if (metadados.treinamentoTempoAgenda && !duracaoAgendaValida(metadados.treinamentoTempoAgenda)) throw new CsatError(400, 'Informe a duração da agenda em HH:MM, com minutos entre 00 e 59.');
       if (!timestampBrasilia(metadados.treinamentoDataSolicitacao)) throw new CsatError(400, 'Informe uma data de solicitação válida.');
-      const atualizada = { ...t!, ...metadados, questoes, status: body.status as 'andamento' | 'pausada', revisao: t!.revisao + 1, updatedAt: Date.now() };
+      const agora = Date.now();
+      // Data própria da validação parcial (indicador do painel): só muda quando alguma marcação parcial muda.
+      const parciaisAntes = new Map(t!.questoes.map(q => [q.id, q.respostaParcial ?? null]));
+      const parcialMudou = questoes.some(q => (q.respostaParcial ?? null) !== (parciaisAntes.get(q.id) ?? null))
+        || t!.questoes.some(q => q.respostaParcial && !questoes.some(n => n.id === q.id));
+      const atualizada = { ...t!, ...metadados, questoes, status: body.status as 'andamento' | 'pausada', revisao: t!.revisao + 1, updatedAt: agora,
+        ...(parcialMudou ? { parcialAtualizadaEm: agora } : {}) };
       tx.update(ref, atualizada);
       return atualizada;
     });

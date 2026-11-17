@@ -41,3 +41,16 @@ export async function salvarMetasIndicadores(
     { merge: true },
   );
 }
+
+/** Grava uma única meta, preservando as demais do documento (merge do mapa `metas`). */
+export async function salvarMetaIndicador(
+  chave: string,
+  valor: number,
+  documento: string = DOC_METAS,
+): Promise<void> {
+  await setDoc(
+    doc(db, COLLECTION, documento),
+    { metas: { [chave]: valor }, updatedAt: Date.now() },
+    { merge: true },
+  );
+}

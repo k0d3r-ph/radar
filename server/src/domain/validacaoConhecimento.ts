@@ -21,6 +21,8 @@ export interface TentativaValidacao {
   canceladaEm?: number; canceladaPorId?: string; canceladaPorNome?: string;
   /** Preenchidos quando outro treinador assume a avaliação (ex.: o responsável se ausentou). Ausentes em registros antigos. */
   assumidaDeId?: string; assumidaDeNome?: string; assumidaEm?: number;
+  /** Quando alguma marcação da validação parcial mudou pela última vez. Ausente em registros antigos (use `updatedAt`). */
+  parcialAtualizadaEm?: number;
   nota?: number; percentual?: number; aprovada?: boolean; ocorrenciaId?: string; csatToken?: string;
   concluiuEsteira?: boolean;
   treinamentoDataSolicitacao: string; treinamentoTempoAgenda: string; treinamentoSolicitante: string;

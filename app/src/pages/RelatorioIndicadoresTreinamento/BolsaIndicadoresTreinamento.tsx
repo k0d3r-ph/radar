@@ -13,6 +13,7 @@ import {
 import { calcularGolNoPrazo, calcularNaoRealizadosGolTreinamento } from "../../utils/golTreinamento";
 import {
   calcularValidacaoPorCliente,
+  minimoPreviaParcial,
   type ResultadoValidacaoCliente,
 } from "../../utils/validacaoConhecimentoIndicadores";
 import type { Empresa, Ocorrencia } from "../../types";
@@ -75,7 +76,7 @@ const INDICADORES_BOLSA: ConfigBolsa[] = [
     chave: "validacaoConhecimento",
     titulo: "Validação do Conhecimento",
     descricao:
-      "Percentual de clientes aprovados na validação do conhecimento no mês, considerando só a tentativa mais recente de cada um.",
+      "Percentual de clientes aprovados na validação do conhecimento no mês, pelo resultado mais recente de cada um. Avaliações ainda abertas entram como prévia pela validação parcial, substituída pela final na conclusão.",
     menorEhMelhor: false,
     meta: 80,
     granularidadePrincipal: "mes",
@@ -119,7 +120,11 @@ function aplicarMetasSalvas(metas: MetasIndicadores | undefined): ConfigBolsa[] 
       Number.isFinite(salva) &&
       salva >= limites.minimo &&
       salva <= limites.maximo;
-    return valida ? { ...config, meta: salva } : config;
+    const comMeta = valida ? { ...config, meta: salva } : config;
+    // O mínimo da prévia é configurável (tela de Validação, Master): a descrição mostra o vigente.
+    return config.chave === "validacaoConhecimento"
+      ? { ...comMeta, descricao: `${config.descricao} A prévia exige ao menos ${minimoPreviaParcial(metas)} perguntas com validação parcial marcada.` }
+      : comMeta;
   });
 }
 
@@ -151,7 +156,7 @@ function filtrarValidacaoNoPeriodo(
   fim: Date,
 ): ResultadoValidacaoCliente[] {
   return validacaoPorCliente.filter(
-    (r) => r.concluidaEm >= inicio.getTime() && r.concluidaEm <= fim.getTime(),
+    (r) => r.dataReferencia >= inicio.getTime() && r.dataReferencia <= fim.getTime(),
   );
 }
 
@@ -441,7 +446,7 @@ function CardIndicador({
   snapshotComparacaoCustom?: Partial<Record<Granularidade, ComparacaoSnapshot>>;
   /** Número absoluto por trás do percentual (ex.: aprovados/total), mostrado junto da
    * meta — hoje só a Validação do Conhecimento usa isso. */
-  fracaoExtra?: { parte: number; total: number } | null;
+  fracaoExtra?: { parte: number; total: number; previas?: number } | null;
   /** Contagem simples (não fração) mostrada abaixo da meta — hoje só o CSAT usa, para
    * mostrar quantos clientes avaliaram no mês e, em `detalhe`, a taxa CSAT do mês. */
   contagemExtra?: { total: number; label: string; detalhe?: string } | null;
@@ -532,6 +537,11 @@ function CardIndicador({
             {fracaoExtra.parte}/{fracaoExtra.total}
           </span>
         )}
+        {fracaoExtra && !!fracaoExtra.previas && (
+          <span className="bolsa-card-fracao-label bolsa-card-fracao-label--compacta">
+            {fracaoExtra.previas} pela validação parcial (prévia)
+          </span>
+        )}
         {contagemExtra && (
           <span className="bolsa-card-fracao-label bolsa-card-fracao-label--compacta">
             {contagemExtra.total} {contagemExtra.label}
@@ -614,8 +624,8 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
   const indicadores = useMemo(() => aplicarMetasSalvas(metas), [metas]);
   const [editandoMetas, setEditandoMetas] = useState(false);
   const validacaoPorCliente = useMemo(
-    () => calcularValidacaoPorCliente(tentativasValidacao),
-    [tentativasValidacao],
+    () => calcularValidacaoPorCliente(tentativasValidacao, minimoPreviaParcial(metas)),
+    [tentativasValidacao, metas],
   );
   const [agora, setAgora] = useState(() => new Date());
   const [modoFoco, setModoFoco] = useState(false);
@@ -701,14 +711,18 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
     return resultado;
   }, [eventos, empresas, ocorrencias, validacaoPorCliente, treinador, periodosPorGranularidade]);
 
-  // Fração "aprovados/total" do mês corrente, mostrada embaixo do percentual do card de
+  // Fração "aprovados/total" (e quantos vêm de prévia parcial) do mês corrente, mostrada embaixo do percentual do card de
   // Validação do Conhecimento — mesma amostra usada por calcularValorIndicadorBolsa para
   // essa chave, só que sem converter para percentual.
   const fracaoValidacaoConhecimentoMes = useMemo(() => {
     const fim = new Date(minutoAtual * 60000);
     const inicio = new Date(fim.getFullYear(), fim.getMonth(), 1);
     const resultados = filtrarValidacaoNoPeriodo(validacaoPorCliente, inicio, fim);
-    return { parte: resultados.filter((r) => r.aprovada).length, total: resultados.length };
+    return {
+      parte: resultados.filter((r) => r.aprovada).length,
+      total: resultados.length,
+      previas: resultados.filter((r) => r.previa).length,
+    };
   }, [validacaoPorCliente, minutoAtual]);
 
   // Quantidade de clientes que avaliaram o CSAT no mês corrente — mesma amostra usada

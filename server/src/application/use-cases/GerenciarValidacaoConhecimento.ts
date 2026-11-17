@@ -6,8 +6,10 @@ import type { PerguntaConhecimento, QuestaoValidacao, Secao, TentativaValidacao 
 import { CsatError, prepararReservaCsat } from '../../infrastructure/web/csat.js';
 import { timestampBrasilia } from '../../domain/acompanhamentoEsteira.js';
 import { duracaoAgendaValida } from '../../domain/duracaoAgenda.js';
+import { limparTextoAnalise, montarPromptAnaliseValidacao } from './analiseDesempenhoValidacao.js';
 
 export interface UsuarioValidacao { uid: string; nome: string; role: string }
+export const LIMITE_ANALISE_DESEMPENHO = 4000;
 const idValido = (id: string) => /^[a-zA-Z0-9_-]{1,160}$/.test(id);
 export function validarIdConhecimento(id: unknown): string {
   if (typeof id !== 'string' || !idValido(id)) throw new CsatError(400, 'Identificador inválido.');
@@ -181,6 +183,47 @@ export class GerenciarValidacaoConhecimento {
       return atualizada;
     });
   }
+  /**
+   * Transfere uma avaliação em andamento ou pausada para quem a assume (Master ou treinador),
+   * preservando perguntas e marcações. Usada quando o responsável não pode continuar.
+   * O novo responsável passa a receber o CSAT e a pontuação na conclusão.
+   */
+  async assumir(id: string, revisao: unknown, user: UsuarioValidacao) {
+    const ref = this.db.collection('validacao_tentativas').doc(validarIdConhecimento(id));
+    return this.db.runTransaction(async tx => {
+      const t = (await tx.get(ref)).data() as TentativaValidacao | undefined;
+      if (!t) throw new CsatError(404, 'Avaliação não encontrada. Ela pode ter sido cancelada; recarregue os dados.');
+      if (t.status !== 'andamento' && t.status !== 'pausada') throw new CsatError(409, 'Somente avaliações em andamento ou pausadas podem ser assumidas.');
+      if (t.treinadorId === user.uid) return t; // Reenvio ou já é o responsável.
+      if (revisao !== t.revisao) throw new CsatError(409, 'A avaliação mudou desde que foi aberta. Recarregue antes de assumir.');
+      const agora = Date.now();
+      const atualizada: TentativaValidacao = { ...t, treinadorId: user.uid, treinadorNome: user.nome,
+        assumidaDeId: t.treinadorId, assumidaDeNome: t.treinadorNome, assumidaEm: agora, revisao: t.revisao + 1, updatedAt: agora };
+      tx.update(ref, { treinadorId: atualizada.treinadorId, treinadorNome: atualizada.treinadorNome, assumidaDeId: atualizada.assumidaDeId,
+        assumidaDeNome: atualizada.assumidaDeNome, assumidaEm: agora, revisao: atualizada.revisao, updatedAt: agora });
+      return atualizada;
+    });
+  }
+  /**
+   * Gera a análise de desempenho (validação parcial × final) com IA, sem gravar nada.
+   * Usa as marcações atuais da tela (ainda não salvas), validadas contra as seções da tentativa.
+   */
+  async analisarDesempenho(id: string, body: Record<string, unknown>, user: UsuarioValidacao, gerarTexto: (prompt: string) => Promise<string>) {
+    const t = (await this.db.collection('validacao_tentativas').doc(validarIdConhecimento(id)).get()).data() as TentativaValidacao | undefined;
+    this.autorizar(t, user);
+    if (t!.status !== 'andamento') throw new CsatError(409, 'A análise é gerada para avaliações em andamento, antes da conclusão.');
+    const questoes = validarQuestoes(body.questoes, t!.secoes);
+    if (!questoes.length || questoes.some(q => !q.resposta)) throw new CsatError(400, 'Responda todas as perguntas antes de gerar a análise.');
+    let texto: string;
+    try { texto = await gerarTexto(montarPromptAnaliseValidacao({ empresa: t!.empresa, numero: t!.numero, questoes })); } catch (error) {
+      if (error instanceof CsatError) throw error;
+      console.error('[Validação] Falha ao gerar a análise com IA.', error instanceof Error ? error.message : 'Erro desconhecido');
+      throw new CsatError(502, 'Não foi possível gerar a análise com IA agora. Tente novamente ou escreva a análise manualmente.');
+    }
+    const analise = limparTextoAnalise(texto, LIMITE_ANALISE_DESEMPENHO);
+    if (!analise) throw new CsatError(502, 'A IA não retornou uma análise. Tente novamente ou escreva a análise manualmente.');
+    return { analise };
+  }
   async cancelar(id: string, revisao: unknown, user: UsuarioValidacao) {
     const ref = this.db.collection('validacao_tentativas').doc(validarIdConhecimento(id));
     return this.db.runTransaction(async tx => {
@@ -206,10 +249,13 @@ export class GerenciarValidacaoConhecimento {
       return { id };
     });
   }
-  async concluir(id: string, revisao: unknown, user: UsuarioValidacao, impressoesAgenda?: unknown) {
+  async concluir(id: string, revisao: unknown, user: UsuarioValidacao, impressoesAgenda?: unknown, analiseDesempenho?: unknown) {
     if (impressoesAgenda !== undefined && typeof impressoesAgenda !== 'string') throw new CsatError(400, 'As impressões da agenda devem ser um texto.');
     const impressoes = typeof impressoesAgenda === 'string' ? impressoesAgenda.trim() : '';
     if (impressoes.length > 4000) throw new CsatError(400, 'As impressões da agenda devem ter até 4.000 caracteres.');
+    if (analiseDesempenho !== undefined && typeof analiseDesempenho !== 'string') throw new CsatError(400, 'A análise de desempenho deve ser um texto.');
+    const analise = typeof analiseDesempenho === 'string' ? analiseDesempenho.trim() : '';
+    if (analise.length > LIMITE_ANALISE_DESEMPENHO) throw new CsatError(400, `A análise de desempenho deve ter até ${LIMITE_ANALISE_DESEMPENHO.toLocaleString('pt-BR')} caracteres.`);
     const ref = this.db.collection('validacao_tentativas').doc(validarIdConhecimento(id));
     const token = randomBytes(32).toString('hex');
     return this.db.runTransaction(async tx => {
@@ -257,7 +303,8 @@ export class GerenciarValidacaoConhecimento {
         `Aproveitamento: ${formatar(resultado.percentual)}%`,
         `Resultado: ${resultado.aprovada ? 'Aprovado — atingiu o mínimo de 80%.' : 'Não aprovado — não atingiu o mínimo de 80%. Nova tentativa disponível.'}`,
         ...(resumoParcial ? [resumoParcial] : []),
-        ...(impressoes ? ['', impressoes] : []),
+        ...(analise ? ['', 'Análise do desempenho:', analise] : []),
+        ...(impressoes ? ['', ...(analise ? ['Impressões da agenda:'] : []), impressoes] : []),
         '', 'Perguntas e respostas:', perguntas,
       ].join('\n');
       const pontoId = id;

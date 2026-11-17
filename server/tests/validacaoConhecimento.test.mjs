@@ -563,3 +563,85 @@ test('indicadores consideram só tentativas concluídas no período e destacam p
   assert.equal((await repo.indicadores('2020-01-01', '2020-01-31')).tentativasConcluidas, 0);
   assert.equal(data.size > 0, true);
 });
+test('outro treinador assume avaliação em andamento ou pausada mantendo perguntas e marcações', async () => {
+  for (const status of ['andamento', 'pausada']) {
+    const { repo, data } = setup();
+    data.set('usuarios/u2', { nome: 'Substituto', role: 'treinador' });
+    const substituto = { uid: 'u2', nome: 'Substituto', role: 'treinador' };
+    const t = await repo.iniciar({ empresaId: 'e1', manutencao: 'basica' }, usuario);
+    const questoes = t.questoes.map((q, i) => ({ ...q, resposta: i < 3 ? 'correto' : null, respostaParcial: i < 2 ? 'parcial' : null }));
+    const salva = await repo.salvar(t.id, { ...t, questoes, status }, usuario);
+    // Antes de assumir, o substituto não altera nem cancela.
+    await assert.rejects(repo.salvar(t.id, salva, substituto), /responsável/);
+    await assert.rejects(repo.cancelar(t.id, salva.revisao, substituto), /responsável/);
+    await assert.rejects(repo.assumir(t.id, t.revisao, substituto), /Recarregue/);
+    const assumida = await repo.assumir(t.id, salva.revisao, substituto);
+    assert.equal(assumida.treinadorId, 'u2');
+    assert.equal(assumida.treinadorNome, 'Substituto');
+    assert.equal(assumida.assumidaDeId, usuario.uid);
+    assert.equal(assumida.assumidaDeNome, usuario.nome);
+    assert.equal(assumida.status, status);
+    assert.equal(assumida.revisao, salva.revisao + 1);
+    assert.deepEqual(assumida.questoes, salva.questoes);
+    assert.deepEqual(data.get(`validacao_tentativas/${t.id}`), assumida);
+    assert.equal(data.get('validacao_clientes/e1').ativaId, t.id);
+    // Reenvio é idempotente; o criador original perde a edição.
+    assert.deepEqual(await repo.assumir(t.id, salva.revisao, substituto), assumida);
+    await assert.rejects(repo.salvar(t.id, assumida, usuario), /responsável/);
+    const retomada = await repo.salvar(t.id, { ...assumida, status: 'andamento', treinamentoTempoAgenda: '01:00', questoes: assumida.questoes.map(q => ({ ...q, resposta: 'correto' })) }, substituto);
+    const concluida = await repo.concluir(t.id, retomada.revisao, substituto);
+    assert.equal(concluida.status, 'concluida');
+    assert.equal(data.get(`ocorrencias/${t.id}`).responsavel, 'Substituto');
+    assert.equal(data.get(`gamificacao_pontos/${t.id}`).treinadorId, 'u2');
+    assert.equal(data.get(`validacao_tentativas/${t.id}`).questoes[0].respostaParcial, 'parcial');
+    await assert.rejects(repo.assumir(t.id, concluida.revisao, usuario), /andamento ou pausadas/);
+  }
+});
+test('assumir avaliação cancelada informa que ela não existe mais', async () => {
+  const { repo } = setup();
+  const t = await repo.iniciar({ empresaId: 'e1', manutencao: 'basica' }, usuario);
+  await repo.cancelar(t.id, t.revisao, usuario);
+  await assert.rejects(repo.assumir(t.id, t.revisao, { uid: 'u2', nome: 'Outro', role: 'treinador' }), /não encontrada/);
+});
+test('análise de desempenho usa as marcações da tela, calcula a evolução no servidor e não grava nada', async () => {
+  const { repo, data } = setup();
+  const t = await repo.iniciar({ empresaId: 'e1', manutencao: 'basica' }, usuario);
+  const questoes = t.questoes.map((q, i) => ({ ...q, resposta: i === 1 ? 'incorreto' : 'correto', respostaParcial: i === 0 ? 'incorreto' : i === 1 ? 'parcial' : null }));
+  let prompt = '';
+  const antes = structuredClone([...data.entries()]);
+  const { analise } = await repo.analisarDesempenho(t.id, { questoes }, usuario, async p => { prompt = p; return '### Desempenho geral\n**Bom** resultado.\n* Item\n\n\n\nFim'; });
+  assert.equal(analise, 'Desempenho geral\nBom resultado.\n- Item\n\nFim');
+  assert.match(prompt, /Validação parcial feita em 2 de 10 perguntas: 1 evoluíram, 0 mantiveram e 1 regrediram/);
+  assert.match(prompt, /Pontuação final: 9\/10 \| Aproveitamento: 90%/);
+  assert.match(prompt, /Parcial: Incorreto \| Final: Correto/);
+  assert.match(prompt, /Parcial: não marcada \| Final: Correto/);
+  // Aprovado (≥ 80%): sem seção de recomendação.
+  assert.doesNotMatch(prompt, /Recomendação:/);
+  assert.match(prompt, /não escreva recomendação/);
+  assert.deepEqual([...data.entries()], antes);
+
+  const semParcial = t.questoes.map(q => ({ ...q, resposta: 'correto' }));
+  await repo.analisarDesempenho(t.id, { questoes: semParcial }, usuario, async p => { prompt = p; return 'ok'; });
+  assert.match(prompt, /validação parcial não foi feita/);
+  assert.doesNotMatch(prompt, /Evolução entre a validação parcial e a final/);
+
+  const reprovado = t.questoes.map((q, i) => ({ ...q, resposta: i < 3 ? 'incorreto' : 'correto' }));
+  await repo.analisarDesempenho(t.id, { questoes: reprovado }, usuario, async p => { prompt = p; return 'ok'; });
+  assert.match(prompt, /Não aprovado/);
+  assert.match(prompt, /Recomendação: 1 frase com o próximo passo/);
+  assert.doesNotMatch(prompt, /não escreva recomendação/);
+
+  await assert.rejects(repo.analisarDesempenho(t.id, { questoes: t.questoes }, usuario, async () => 'x'), /Responda todas/);
+  await assert.rejects(repo.analisarDesempenho(t.id, { questoes }, { ...usuario, uid: 'outro' }, async () => 'x'), /responsável/);
+  await assert.rejects(repo.analisarDesempenho(t.id, { questoes }, usuario, async () => { throw new Error('quota'); }), /Não foi possível gerar a análise/);
+  await assert.rejects(repo.analisarDesempenho(t.id, { questoes }, usuario, async () => '  '), /não retornou/);
+});
+test('conclusão grava a análise de desempenho separada das impressões livres', async () => {
+  const { repo, data } = setup();
+  const t = await repo.iniciar({ empresaId: 'e1', manutencao: 'basica' }, usuario);
+  const salva = await repo.salvar(t.id, { ...t, treinamentoTempoAgenda: '01:00', questoes: t.questoes.map(q => ({ ...q, resposta: 'correto' })) }, usuario);
+  await assert.rejects(repo.concluir(t.id, salva.revisao, usuario, '', 'x'.repeat(4001)), /4.000 caracteres/);
+  await repo.concluir(t.id, salva.revisao, usuario, 'Cliente pediu material extra.', 'Desempenho geral: domínio pleno.');
+  const descricao = data.get(`ocorrencias/${t.id}`).descricao;
+  assert.ok(descricao.includes('\n\nAnálise do desempenho:\nDesempenho geral: domínio pleno.\n\nImpressões da agenda:\nCliente pediu material extra.\n\nPerguntas e respostas:'));
+});

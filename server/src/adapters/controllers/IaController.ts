@@ -1,8 +1,7 @@
 import { Request, Response } from 'express';
-import { GoogleGenAI } from '@google/genai';
 import { config } from '../../infrastructure/config/env.js';
+import { criarClienteGemini, gerarStreamComRetry } from '../../infrastructure/ia/gemini.js';
 
-const GEMINI_MODEL = 'gemini-3.6-flash';
 const STREAM_ERROR_MARKER = '[[ERRO_IA]]';
 
 function formatarOcorrenciasParaPrompt(ocorrencias: any[]): string {
@@ -33,36 +32,6 @@ function formatarOcorrenciasParaPrompt(ocorrencias: any[]): string {
     .join('\n\n');
 }
 
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function* gerarStreamComRetry(ai: GoogleGenAI, prompt: string, tentativas = 3): AsyncGenerator<string> {
-  let ultimoErro: any;
-  for (let i = 0; i < tentativas; i++) {
-    let algumTrechoEmitido = false;
-    try {
-      const stream = await ai.models.generateContentStream({
-        model: GEMINI_MODEL,
-        contents: prompt,
-      });
-      for await (const chunk of stream) {
-        algumTrechoEmitido = true;
-        yield chunk.text ?? '';
-      }
-      return;
-    } catch (error: any) {
-      ultimoErro = error;
-      const status = error?.status || error?.httpStatusCode;
-      const isOverload = status === 503 || status === 429;
-      // Já enviamos parte do texto ao cliente: não dá para reiniciar sem duplicar conteúdo.
-      if (algumTrechoEmitido || !isOverload || i === tentativas - 1) throw error;
-      await delay(1000 * (i + 1));
-    }
-  }
-  throw ultimoErro;
-}
-
 export class IaController {
   async resumir(req: Request, res: Response): Promise<void> {
     try {
@@ -81,7 +50,7 @@ export class IaController {
         return;
       }
 
-      const ai = new GoogleGenAI({ apiKey: config.geminiApiKey });
+      const ai = criarClienteGemini();
 
       // Ordenar por data decrescente (mais recente primeiro) e pegar as últimas 15
       const ocorrenciasRecentes = [...ocorrencias]

@@ -19,6 +19,8 @@ export interface TentativaValidacao {
   questoes: QuestaoValidacao[]; secoes: Secao[]; avisos: string[]; revisao: number;
   createdAt: number; updatedAt: number; concluidaEm?: number;
   canceladaEm?: number; canceladaPorId?: string; canceladaPorNome?: string;
+  /** Preenchidos quando outro treinador assume a avaliação (ex.: o responsável se ausentou). Ausentes em registros antigos. */
+  assumidaDeId?: string; assumidaDeNome?: string; assumidaEm?: number;
   nota?: number; percentual?: number; aprovada?: boolean; ocorrenciaId?: string; csatToken?: string;
   concluiuEsteira?: boolean;
   treinamentoDataSolicitacao: string; treinamentoTempoAgenda: string; treinamentoSolicitante: string;

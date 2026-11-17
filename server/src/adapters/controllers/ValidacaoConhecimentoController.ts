@@ -4,11 +4,22 @@ import type { Firestore } from 'firebase-admin/firestore';
 import { GerenciarValidacaoConhecimento } from '../../application/use-cases/GerenciarValidacaoConhecimento.js';
 import type { UsuarioValidacao } from '../../application/use-cases/GerenciarValidacaoConhecimento.js';
 import { CsatError } from '../../infrastructure/web/csat.js';
+import { GeminiIndisponivelError, GeminiTempoEsgotadoError, gerarTextoGemini, sobrecargaGemini } from '../../infrastructure/ia/gemini.js';
+
+/** Chama o Gemini, traduzindo falta de configuração, sobrecarga e demora em respostas legíveis. */
+async function gerarTextoIa(prompt: string): Promise<string> {
+  try { return await gerarTextoGemini(prompt); } catch (error) {
+    if (error instanceof GeminiIndisponivelError) throw new CsatError(503, 'A análise com IA não está configurada no servidor. Escreva a análise manualmente.');
+    if (sobrecargaGemini(error)) throw new CsatError(503, 'O Gemini está com alta demanda no momento. Tente “Gerar análise com IA” novamente em alguns instantes ou escreva a análise manualmente.');
+    if (error instanceof GeminiTempoEsgotadoError) throw new CsatError(504, 'O Gemini demorou demais para responder. Tente “Gerar análise com IA” novamente ou escreva a análise manualmente.');
+    throw error;
+  }
+}
 
 export class ValidacaoConhecimentoController {
   private readonly repo: GerenciarValidacaoConhecimento | null;
-  constructor(private readonly db: Firestore | null, private readonly auth: Auth | null) { this.repo = db ? new GerenciarValidacaoConhecimento(db) : null; }
-  executar = (acao: 'perguntas' | 'adicionar' | 'atualizarPergunta' | 'indicadores' | 'listar' | 'iniciar' | 'salvar' | 'concluir' | 'cancelar') => async (req: Request, res: Response) => {
+  constructor(private readonly db: Firestore | null, private readonly auth: Auth | null, private readonly gerarTexto: (prompt: string) => Promise<string> = gerarTextoIa) { this.repo = db ? new GerenciarValidacaoConhecimento(db) : null; }
+  executar = (acao: 'perguntas' | 'adicionar' | 'atualizarPergunta' | 'indicadores' | 'listar' | 'iniciar' | 'salvar' | 'concluir' | 'cancelar' | 'assumir' | 'analisar') => async (req: Request, res: Response) => {
     res.set('Cache-Control', 'no-store');
     try {
       if (!this.db || !this.auth || !this.repo) throw new CsatError(503, 'Validação indisponível.');
@@ -28,8 +39,10 @@ export class ValidacaoConhecimentoController {
         case 'listar': result = await this.repo.listar(String(req.query.empresaId || '')); break;
         case 'iniciar': result = await this.repo.iniciar(body, user); break;
         case 'salvar': result = await this.repo.salvar(req.params.id, body, user); break;
-        case 'concluir': result = await this.repo.concluir(req.params.id, body.revisao, user, body.impressoesAgenda); break;
+        case 'concluir': result = await this.repo.concluir(req.params.id, body.revisao, user, body.impressoesAgenda, body.analiseDesempenho); break;
         case 'cancelar': result = await this.repo.cancelar(req.params.id, body.revisao, user); break;
+        case 'assumir': result = await this.repo.assumir(req.params.id, body.revisao, user); break;
+        case 'analisar': result = await this.repo.analisarDesempenho(req.params.id, body, user, this.gerarTexto); break;
       }
       res.json(result);
     } catch (error) {

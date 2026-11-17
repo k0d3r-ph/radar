@@ -174,5 +174,13 @@ input.validacao-questao-numero--edicao::-webkit-outer-spin-button, input.validac
 .validacao-page .validacao-impressao-dialog textarea { min-height: 180px; margin: 0; }
 .validacao-page .validacao-impressao-dialog .validacao-template { justify-self: start; }
 .validacao-impressao-dialog .validacao-impressao-erro { color: #fca5a5; }
+.validacao-impressao-dialog:has(#validacao-analise-desempenho) { overflow-y: auto; }
+.validacao-page .validacao-impressao-dialog #validacao-analise-desempenho,
+.validacao-page .validacao-impressao-dialog #validacao-impressoes-agenda { min-height: 140px; }
+.validacao-analise-cabecalho { display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px; }
+.validacao-analise-cabecalho label { flex: 1 1 260px; }
+.validacao-page .validacao-analise-cabecalho .validacao-template { display: inline-flex; align-items: center; gap: 6px; }
+.validacao-impressao-dialog .validacao-analise-status:empty { display: none; }
+.validacao-impressao-dialog .validacao-analise-status { color: #fcd34d; }
 .validacao-impressao-acoes { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
 @media (max-width: 720px) { .validacao-banco-filtros { grid-template-columns: 1fr; } }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DragEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -14,7 +14,7 @@ import { listarOcorrencias } from '../../services/ocorrencias';
 import { linkCsat, requisicaoCsat } from '../../services/csat';
 import type { ReservaCsat } from '../../services/csat';
 import { copiarTexto } from '../../utils/clipboard';
-import { cancelarTentativaConhecimento, concluirTentativaConhecimento, iniciarTentativaConhecimento, listarPerguntasConhecimento, listarTentativasConhecimento, salvarTentativaConhecimento } from '../../services/validacaoConhecimento';
+import { analisarDesempenhoConhecimento, assumirTentativaConhecimento, cancelarTentativaConhecimento, concluirTentativaConhecimento, iniciarTentativaConhecimento, listarPerguntasConhecimento, listarTentativasConhecimento, salvarTentativaConhecimento } from '../../services/validacaoConhecimento';
 import { calcularResultadoValidacao, identificarConteudoAvaliacao, isSolicitanteTreinamento, normalizarConhecimento, SOLICITANTES_TREINAMENTO } from '../../../../server/src/domain/validacaoConhecimento';
 import { duracaoAgendaValida } from '../../../../server/src/domain/duracaoAgenda';
 import { converterDuracaoAgendaParaMs, formatarDuracaoCronometro, formatarTempoCronometro } from '../../utils/cronometroAgenda';
@@ -31,6 +31,7 @@ import './ValidacaoConhecimento.css';
 import { QuestaoConhecimentoCard } from './QuestaoConhecimentoCard';
 import { SubstituirPerguntaModal } from './SubstituirPerguntaModal';
 import { ImpressaoValidacaoModal } from '../../components/ImpressaoValidacaoModal';
+import type { RascunhoConclusao } from '../../components/ImpressaoValidacaoModal';
 
 const numero = (n: number) => n.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
 const rotuloStatus = { andamento: 'Em andamento', pausada: 'Pausada', concluida: 'Concluída', cancelada: 'Cancelada' };
@@ -56,6 +57,8 @@ export function ValidacaoConhecimento() {
   const [alterada, setAlterada] = useState(false);
   const [erro, setErro] = useState('');
   const [conclusaoAberta, setConclusaoAberta] = useState(false);
+  // Análise da IA e impressões em edição no modal de conclusão, por tentativa.
+  const [rascunhoConclusao, setRascunhoConclusao] = useState<RascunhoConclusao & { tentativaId: string } | null>(null);
   const [reservasPendentes, setReservasPendentes] = useState<ReservaCsat[]>([]);
   const [substituindoId, setSubstituindoId] = useState<string | null>(null);
   const [cronometroIniciadoEm, setCronometroIniciadoEm] = useState<number | null>(null);
@@ -126,12 +129,13 @@ export function ValidacaoConhecimento() {
     try { await acao(); return true; } catch (e) { setErro(e instanceof Error ? e.message : 'Não foi possível realizar a operação.'); return false; }
     finally { bloqueio.current = false; setOcupado(false); }
   }
-  async function concluirAvaliacao(impressoesAgenda: string): Promise<boolean> {
+  async function concluirAvaliacao(impressoesAgenda: string, analiseDesempenho: string): Promise<boolean> {
     const tentativa = atual;
     if (!tentativa) return false;
     return executar(async () => {
       const salva = await salvarTentativaConhecimento(tentativa, 'andamento'); guardar(salva);
-      const concluida = await concluirTentativaConhecimento(salva, impressoesAgenda); guardar(concluida);
+      const concluida = await concluirTentativaConhecimento(salva, impressoesAgenda, analiseDesempenho); guardar(concluida);
+      setRascunhoConclusao(null);
       const copiado = !!concluida.csatToken && await copiarTexto(linkCsat(concluida.csatToken));
       toast.success(copiado ? 'Tentativa concluída. Link do CSAT copiado.' : 'Tentativa concluída. Treinamento e CSAT registrados.');
       if (concluida.csatToken && !copiado) toast.warning('O navegador não permitiu copiar automaticamente. Use “Copiar link” ou selecione o endereço no campo do CSAT.');
@@ -257,6 +261,22 @@ export function ValidacaoConhecimento() {
       if (empresaId) { const ts = await listarTentativasConhecimento(empresaId); const tentativa = ts.find(t => t.status === 'andamento' || t.status === 'pausada') || ts[0] || null; resetarCronometro(tentativa?.id || null); setTentativas(ts); setAtual(tentativa); setAlterada(false); }
     });
   }
+  // Outro treinador (ou Master) continua a avaliação de quem não pode seguir, sem perder as marcações.
+  const assumivel = !!atual && (atual.status === 'andamento' || atual.status === 'pausada') && !!user && atual.treinadorId !== user.uid;
+  async function assumirAvaliacao() {
+    if (!atual) return;
+    if (cronometroAtivo) { toast.error('Encerre o cronômetro antes de assumir a avaliação.'); return; }
+    if (!await confirmar({
+      titulo: 'Assumir esta avaliação?',
+      descricao: `${atual.empresa} · Tentativa ${atual.numero}\n\nVocê passa a ser o treinador responsável e continua de onde ${atual.treinadorNome} parou, com as mesmas perguntas e marcações (inclusive a validação parcial). ${atual.treinadorNome} deixa de poder alterá-la. Na conclusão, o treinamento, o CSAT e a pontuação ficam no seu nome.${alterada ? '\n\nAs alterações não salvas nesta tela serão descartadas.' : ''}`,
+      textoConfirmar: 'Assumir avaliação', textoCancelar: 'Voltar',
+    })) return;
+    await executar(async () => {
+      const assumida = await assumirTentativaConhecimento(atual);
+      resetarCronometro(assumida.id); guardar(assumida); setRascunhoConclusao(null);
+      toast.success(assumida.status === 'pausada' ? 'Avaliação assumida. Use “Retomar avaliação” para continuar as marcações.' : 'Avaliação assumida. Você já pode continuar as marcações.');
+    });
+  }
   function adicionar(q: PerguntaConhecimento) {
     if (!atual || !editavel) return;
     if (atual.questoes.some(item => item.id === q.id || normalizarConhecimento(item.texto) === normalizarConhecimento(q.texto))) { toast.error('Esta pergunta já está na avaliação.'); return; }
@@ -283,8 +303,14 @@ export function ValidacaoConhecimento() {
     && !atual?.questoes.some(item => item.id === q.id || normalizarConhecimento(item.texto) === normalizarConhecimento(q.texto)))
     .sort((a, b) => Number(b.preferida) - Number(a.preferida) || a.secao.localeCompare(b.secao, 'pt-BR'));
   const disponiveis = elegiveis.filter(q => normalizarConhecimento(`${q.secao} ${q.texto}`).includes(normalizarConhecimento(busca)));
-  const motivoBloqueioParcial = atual?.status === 'pausada' ? 'Avaliação pausada. Use “Retomar avaliação” para marcar.'
-    : atual?.status === 'andamento' && !editavel ? `Somente ${atual.treinadorNome} (treinador responsável) ou Master pode marcar.` : undefined;
+  const motivoBloqueioParcial = atual?.status === 'pausada'
+    ? (atual.treinadorId === user?.uid || role === 'master' ? 'Avaliação pausada. Use “Retomar avaliação” para marcar.' : `Avaliação pausada por ${atual.treinadorNome}. Para continuar, use “Assumir avaliação”.`)
+    : atual?.status === 'andamento' && !editavel ? `Somente ${atual.treinadorNome} (treinador responsável) ou Master pode marcar. Para continuar, use “Assumir avaliação”.` : undefined;
+  const assinaturaMarcacoes = atual ? JSON.stringify(atual.questoes.map(q => [q.id, q.texto, q.resposta, q.respostaParcial ?? null])) : '';
+  const tentativaAtualId = atual?.id;
+  const guardarRascunhoConclusao = useCallback((r: RascunhoConclusao) => {
+    if (tentativaAtualId) setRascunhoConclusao({ ...r, tentativaId: tentativaAtualId });
+  }, [tentativaAtualId]);
   const indiceSubstituicao = atual && substituindoId ? atual.questoes.findIndex(q => q.id === substituindoId) : -1;
   function substituir(indice: number, nova: PerguntaConhecimento) {
     if (!atual || !editavel) return;
@@ -310,7 +336,7 @@ export function ValidacaoConhecimento() {
       {!atual && !erro && <p>Nenhuma avaliação cadastrada para este cliente. Use “Montar avaliação” para selecionar automaticamente as perguntas dos temas da esteira.</p>}
       {atual && <>
         <section className="validacao-card">
-          <div className="validacao-sessao-cabecalho"><div><span className="validacao-eyebrow">Tentativa {atual.numero}</span><h2>{atual.empresa}</h2><p>Conduzida por {atual.treinadorNome}{alterada ? ' · Alterações não salvas' : ' · Salva'}</p></div><span className={`validacao-status validacao-status--${atual.status}`}>{rotuloStatus[atual.status]}</span></div>
+          <div className="validacao-sessao-cabecalho"><div><span className="validacao-eyebrow">Tentativa {atual.numero}</span><h2>{atual.empresa}</h2><p>Conduzida por {atual.treinadorNome}{atual.assumidaDeNome ? ` (assumida de ${atual.assumidaDeNome})` : ''}{alterada ? ' · Alterações não salvas' : ' · Salva'}</p></div><span className={`validacao-status validacao-status--${atual.status}`}>{rotuloStatus[atual.status]}</span></div>
           <p>Seções da avaliação: {atual.secoes.join(', ')}.</p>
           {atual.status === 'concluida' && <div><h3>Respostas do CSAT</h3>{atual.csatRespostas?.length ? atual.csatRespostas.map((r, i) => <p key={i}>{r.nome}: <AvaliacaoCsat nota={r.nota} experiencia={r.experiencia} />{r.opiniao ? ` — ${r.opiniao}` : ''}</p>) : <p>Aguardando respostas do cliente.</p>}<button type="button" disabled={ocupado} onClick={() => executar(async () => { const lista = await listarTentativasConhecimento(empresaId); setTentativas(lista); const t = lista.find(item => item.id === atual.id); if (t) guardar(t); })}>Atualizar respostas do CSAT</button></div>}
           <div className="validacao-resumo" aria-live="polite"><div><span>Andamento</span><strong>{respondidas}<small> / {atual.questoes.length} respostas</small></strong><progress value={respondidas} max={atual.questoes.length || 1} aria-label="Perguntas respondidas" /></div><div><span>Pontuação</span><strong>{numero(previa?.nota || 0)}<small> / 10 pontos</small></strong><span>{atual.questoes.length ? `${numero(10 / atual.questoes.length)} por pergunta` : 'Adicione perguntas para avaliar'}</span></div><div><span>Aproveitamento</span><strong>{numero(previa?.percentual || 0)}<small>%</small></strong><span>Aprovação a partir de 80%</span></div></div>
@@ -323,7 +349,7 @@ export function ValidacaoConhecimento() {
           <div className="validacao-agenda"><label>Solicitação da agenda<input type="date" value={atual.treinamentoDataSolicitacao} disabled={!editavel || ocupado} onChange={e => alterar({ treinamentoDataSolicitacao: e.target.value })} /></label><label>Duração da agenda (HH:MM)<div className="validacao-cronometro-controle"><InputDuracaoAgenda value={atual.treinamentoTempoAgenda} disabled={!editavel || ocupado || cronometroAtivo} onChange={valor => alterar({ treinamentoTempoAgenda: valor })} erroId={editavel && duracaoInvalida ? 'validacao-duracao-erro' : undefined} />{editavel && <button type="button" className="validacao-cronometro-botao" disabled={ocupado} aria-label={cronometroAtivo ? 'Pausar cronômetro e salvar o tempo parcial' : cronometroAcumuladoMs > 0 ? 'Retomar cronômetro' : 'Iniciar cronômetro'} aria-pressed={cronometroAtivo} onClick={() => cronometroAtivo ? pausarCronometro(Date.now()) : iniciarCronometro(Date.now())}>{cronometroAtivo ? <Pause size={15} aria-hidden="true" /> : <Play size={15} aria-hidden="true" />}{cronometroAtivo ? 'Pausar' : cronometroAcumuladoMs > 0 ? 'Retomar' : 'Iniciar'}</button>}</div>{(cronometroAtivo || cronometroAcumuladoMs > 0) && <output className="validacao-cronometro-tempo" role="timer" aria-label="Tempo decorrido da agenda">{formatarTempoCronometro(tempoCronometroMs)}</output>}{editavel && <small className="validacao-ajuda-campo">Pause para salvar o tempo parcial e continuar em outra agenda. A duração é arredondada para o minuto mais próximo.</small>}{editavel && duracaoInvalida && <small id="validacao-duracao-erro" className="validacao-erro-campo" role="status">Informe HH:MM, com minutos entre 00 e 59. Ex.: 02:00.</small>}</label><label>Quem solicitou<select value={isSolicitanteTreinamento(atual.treinamentoSolicitante) ? atual.treinamentoSolicitante : ''} disabled={!editavel || ocupado} required onChange={e => alterar({ treinamentoSolicitante: e.target.value })}><option value="" disabled>Selecione</option>{SOLICITANTES_TREINAMENTO.map(s => <option key={s} value={s}>{s}</option>)}</select></label></div>
         </section>
         {editavel && reservaBloqueante && <div className="validacao-aviso" role="status">Você tem o CSAT {reservaBloqueante.idSeqFormatted} de {reservaBloqueante.empresa} pendente. Registre essa ocorrência no <Link to={`/historico?empresa=${encodeURIComponent(reservaBloqueante.empresa)}`}>Histórico</Link> antes de concluir esta avaliação, porque a conclusão gera um novo link do CSAT. Você pode salvar e pausar normalmente.</div>}
-        <div className="validacao-acoes validacao-card validacao-acoes--principal"><span className="validacao-acoes-contexto">{respondidas} de {atual.questoes.length} respondidas</span>{editavel && respondidas < atual.questoes.length && <button type="button" className="validacao-proxima" onClick={irParaProximaSemResposta}>Próxima sem resposta</button>}{editavel && <><button type="button" disabled={ocupado || duracaoInvalida || cronometroAtivo} onClick={() => executar(async () => { guardar(await salvarTentativaConhecimento(atual, 'andamento')); toast.success('Avaliação salva.'); })}>Salvar alterações</button><button type="button" disabled={ocupado || duracaoInvalida || cronometroAtivo} onClick={() => executar(async () => { guardar(await salvarTentativaConhecimento(atual, 'pausada')); toast.success('Avaliação pausada. Você pode retomá-la em outra agenda.'); })}>Salvar e pausar</button><button className="validacao-primario" type="button" disabled={ocupado || cronometroAtivo || !duracaoAgendaValida(atual.treinamentoTempoAgenda) || !atual.questoes.length || respondidas !== atual.questoes.length || !!reservaBloqueante || !!cliente?.isSuspended || !!cliente?.isCancelled} onClick={() => setConclusaoAberta(true)}>Concluir avaliação</button></>}{atual.status === 'pausada' && (role === 'master' || atual.treinadorId === user?.uid) && <button type="button" disabled={ocupado} onClick={() => executar(async () => guardar(await salvarTentativaConhecimento(atual, 'andamento')))}>Retomar avaliação</button>}{cancelavel && <button className="validacao-cancelar" type="button" disabled={ocupado || cronometroAtivo} onClick={async () => {
+        <div className="validacao-acoes validacao-card validacao-acoes--principal"><span className="validacao-acoes-contexto">{respondidas} de {atual.questoes.length} respondidas</span>{editavel && respondidas < atual.questoes.length && <button type="button" className="validacao-proxima" onClick={irParaProximaSemResposta}>Próxima sem resposta</button>}{editavel && <><button type="button" disabled={ocupado || duracaoInvalida || cronometroAtivo} onClick={() => executar(async () => { guardar(await salvarTentativaConhecimento(atual, 'andamento')); toast.success('Avaliação salva.'); })}>Salvar alterações</button><button type="button" disabled={ocupado || duracaoInvalida || cronometroAtivo} onClick={() => executar(async () => { guardar(await salvarTentativaConhecimento(atual, 'pausada')); toast.success('Avaliação pausada. Você pode retomá-la em outra agenda.'); })}>Salvar e pausar</button><button className="validacao-primario" type="button" disabled={ocupado || cronometroAtivo || !duracaoAgendaValida(atual.treinamentoTempoAgenda) || !atual.questoes.length || respondidas !== atual.questoes.length || !!reservaBloqueante || !!cliente?.isSuspended || !!cliente?.isCancelled} onClick={() => setConclusaoAberta(true)}>Concluir avaliação</button></>}{atual.status === 'pausada' && (role === 'master' || atual.treinadorId === user?.uid) && <button type="button" disabled={ocupado} onClick={() => executar(async () => guardar(await salvarTentativaConhecimento(atual, 'andamento')))}>Retomar avaliação</button>}{assumivel && <button type="button" disabled={ocupado || cronometroAtivo} title={`Continuar a avaliação iniciada por ${atual.treinadorNome}, mantendo as marcações`} onClick={() => void assumirAvaliacao()}>Assumir avaliação</button>}{cancelavel && <button className="validacao-cancelar" type="button" disabled={ocupado || cronometroAtivo} onClick={async () => {
           if (!await confirmar({ titulo: 'Cancelar a avaliação?', descricao: `${atual.empresa} · Tentativa ${atual.numero}\n\nO formulário e suas respostas serão excluídos, sem contar como tentativa. Nenhum treinamento será registrado, e você poderá gerar outra avaliação com o mesmo número.`, textoConfirmar: 'Cancelar avaliação', textoCancelar: 'Manter avaliação', destrutivo: true })) return;
           void executar(async () => {
             await cancelarTentativaConhecimento(atual);
@@ -368,6 +394,10 @@ export function ValidacaoConhecimento() {
       empresa={atual.empresa}
       ocupado={ocupado}
       erro={erro}
+      rascunho={rascunhoConclusao?.tentativaId === atual.id ? rascunhoConclusao : { analise: '', impressoes: '', assinaturaAnalise: '' }}
+      assinaturaAtual={assinaturaMarcacoes}
+      onRascunho={guardarRascunhoConclusao}
+      gerarAnalise={() => analisarDesempenhoConhecimento(atual)}
       onCancelar={() => setConclusaoAberta(false)}
       onConfirmar={concluirAvaliacao}
     />}

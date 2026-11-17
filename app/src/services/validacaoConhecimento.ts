@@ -6,7 +6,7 @@ import { invalidarCacheGamificacao } from './gamificacao';
 import { isSolicitanteTreinamento } from '../../../server/src/domain/validacaoConhecimento';
 import type { IndicadoresValidacao, PerguntaConhecimento, Secao, TentativaValidacao } from '../../../server/src/domain/validacaoConhecimento';
 
-async function requisicao<T>(path: string, body?: unknown): Promise<T> {
+async function requisicao<T>(path: string, body?: unknown, tempoLimiteMs = 30_000): Promise<T> {
   if (!auth.currentUser) throw new Error('Entre novamente no Radar.');
   const token = await auth.currentUser.getIdToken();
   let response: Response;
@@ -14,7 +14,7 @@ async function requisicao<T>(path: string, body?: unknown): Promise<T> {
     response = await fetch(`${RADAR_API_URL}/api/validacao/${path}`, {
       method: body === undefined ? 'GET' : 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }), signal: AbortSignal.timeout(30_000),
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }), signal: AbortSignal.timeout(tempoLimiteMs),
     });
   } catch { throw new Error('Não foi possível conectar à API da validação. Confira sua conexão e tente novamente; as respostas desta tela foram preservadas.'); }
   const dados = await response.json().catch(() => { throw new Error('A API retornou uma resposta inválida. Confira se o backend está atualizado.'); });
@@ -34,8 +34,14 @@ export const salvarTentativaConhecimento = (t: TentativaValidacao, status: 'anda
   revisao: t.revisao, status, questoes: t.questoes, treinamentoDataSolicitacao: t.treinamentoDataSolicitacao, treinamentoTempoAgenda: t.treinamentoTempoAgenda, // Rascunhos antigos guardavam texto livre; só as opções padrão são aceitas.
   treinamentoSolicitante: isSolicitanteTreinamento(t.treinamentoSolicitante) ? t.treinamentoSolicitante : '',
 });
-export async function concluirTentativaConhecimento(t: TentativaValidacao, impressoesAgenda = ''): Promise<TentativaValidacao> {
-  const concluida = await requisicao<TentativaValidacao>(`tentativas/${t.id}/concluir`, { revisao: t.revisao, impressoesAgenda });
+/** Transfere a avaliação em andamento/pausada para o usuário atual, mantendo as marcações. */
+export const assumirTentativaConhecimento = (t: TentativaValidacao) => requisicao<TentativaValidacao>(`tentativas/${t.id}/assumir`, { revisao: t.revisao });
+/** Gera com IA a análise de desempenho (parcial × final) a partir das marcações atuais da tela. Não grava nada. */
+export const analisarDesempenhoConhecimento = (t: TentativaValidacao) =>
+  // A IA tem até 30 s no servidor (modelo principal + reserva); a folga garante que a mensagem de erro do servidor chegue à tela.
+  requisicao<{ analise: string }>(`tentativas/${t.id}/analise`, { questoes: t.questoes }, 45_000).then(r => r.analise);
+export async function concluirTentativaConhecimento(t: TentativaValidacao, impressoesAgenda = '', analiseDesempenho = ''): Promise<TentativaValidacao> {
+  const concluida = await requisicao<TentativaValidacao>(`tentativas/${t.id}/concluir`, { revisao: t.revisao, impressoesAgenda, analiseDesempenho });
   invalidarCacheEmpresas(); invalidarCacheOcorrencias(); invalidarCacheGamificacao();
   return concluida;
 }

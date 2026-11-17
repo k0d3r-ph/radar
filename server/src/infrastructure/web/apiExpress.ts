@@ -91,6 +91,8 @@ export function createApiApp({ tarefasAutomaticas = false }: { tarefasAutomatica
   app.post('/api/validacao/tentativas/:id/salvar', validacao.executar('salvar'));
   app.post('/api/validacao/tentativas/:id/concluir', validacao.executar('concluir'));
   app.post('/api/validacao/tentativas/:id/cancelar', validacao.executar('cancelar'));
+  app.post('/api/validacao/tentativas/:id/assumir', validacao.executar('assumir'));
+  app.post('/api/validacao/tentativas/:id/analise', validacao.executar('analisar'));
   const ocorrenciasController = new OcorrenciasController(adminDb, adminAuth, usuariosRepo);
   const gamificacaoController = new GamificacaoController(adminDb, adminAuth, usuariosRepo);
   const checklistController = new ChecklistController(adminDb, adminAuth, usuariosRepo);

@@ -3,6 +3,7 @@ import { filtrarEmpresasContatosSuporte, obterCategoriaContatoSuporte } from "./
 import { calcularDiasEsperaTreinamento, LIMITE_ESPERA_LONGA_TREINAMENTO, motivoEsperaValido } from "./esperaTreinamento";
 import { obterPrimeiroTreinamentoRealizado } from "./prazoTreinamento";
 import { estaDentroDoExpediente } from "./expediente";
+import { instanteRealizacaoTreinamento } from "./temasTreinamento";
 
 const DIACRITICOS = new RegExp("[\\u0300-\\u036f]", "g");
 
@@ -407,7 +408,7 @@ export function construirEventosIndicadoresTreinamento(
       ocorrenciasProcessadas.add(o.id);
     }
     const empresa = normalizarNome(o.empresa);
-    const timestamp = o.createdAt ?? o.dataOcorrencia;
+    const timestamp = instanteRealizacaoTreinamento(o);
     if (!timestamp || !Number.isFinite(timestamp)) return;
     const data = inicioDoDia(new Date(timestamp));
     if (Number.isNaN(data.getTime())) return;

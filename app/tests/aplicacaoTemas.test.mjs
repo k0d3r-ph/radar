@@ -25,9 +25,10 @@ await modulo.evaluate();
 const { montarLinhasAplicacaoTemas } = modulo.namespace;
 
 const dia = (d, h = 10) => new Date(2026, 10, d, h).getTime();
+// Como no formulário: createdAt é o momento da aula; dataOcorrencia, o próximo treinamento.
 const treino = (d, temas, extra = {}) => ({
   empresa: "Central X", tipo: "Treinamento", descricao: "", departamento: "", responsavel: "",
-  dataOcorrencia: dia(d), temaOcorrencia: temas, ...extra,
+  createdAt: dia(d), dataOcorrencia: 0, temaOcorrencia: temas, ...extra,
 });
 
 const base = {
@@ -41,7 +42,7 @@ const base = {
 test("agrupa na mesma linha os temas ensinados no mesmo dia, inclusive em ocorrências diferentes", () => {
   const linhas = montarLinhasAplicacaoTemas({
     ...base,
-    ocorrencias: [treino(11, ["Gateway"]), treino(11, ["Debug"], { dataOcorrencia: dia(11, 15) })],
+    ocorrencias: [treino(11, ["Gateway"]), treino(11, ["Debug"], { createdAt: dia(11, 15) })],
     marcacoes: { "2026-11-11": 2 },
   });
   assert.deepEqual(linhas[0], {
@@ -87,10 +88,29 @@ test("não lista o tema Início, com ou sem acento, nem nas linhas realizadas ne
   ]);
 });
 
-test("treinamento com data futura é agendamento: o tema continua aguardando", () => {
+test("usa o dia da aula (createdAt), não a data do próximo treinamento", () => {
   const linhas = montarLinhasAplicacaoTemas({
     ...base,
-    ocorrencias: [treino(11, ["Gateway", "Debug"]), treino(15, ["Cliente"])],
+    ocorrencias: [
+      treino(11, ["Gateway", "Debug"], { createdAt: dia(11, 10), dataOcorrencia: dia(12, 10) }),
+      // Próximo treinamento ainda no futuro: a aula de hoje já conta como realizada.
+      treino(13, ["Cliente"], { dataOcorrencia: dia(20, 10) }),
+    ],
+  });
+  assert.deepEqual(linhas.map((l) => [l.chave, l.temas, l.data]), [
+    ["2026-11-11", ["Gateway", "Debug"], "11/11"],
+    ["2026-11-13", ["Cliente"], "13/11"],
+    ["pendente-2", ["Pessoas"], "13/11"],
+  ]);
+});
+
+test("registro legado sem createdAt usa dataOcorrencia; data futura é agendamento", () => {
+  const linhas = montarLinhasAplicacaoTemas({
+    ...base,
+    ocorrencias: [
+      treino(11, ["Gateway", "Debug"], { createdAt: undefined, dataOcorrencia: dia(11) }),
+      treino(15, ["Cliente"], { createdAt: undefined, dataOcorrencia: dia(15) }),
+    ],
   });
   assert.deepEqual(linhas.map((l) => [l.temas, l.realizado]), [
     [["Gateway", "Debug"], true],

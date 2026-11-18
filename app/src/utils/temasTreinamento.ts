@@ -24,6 +24,20 @@ export function isTreinamentoRealizado(ocorrencia: {
     temas.length > 0 && temas.every(isTemaTreinamento);
 }
 
+/**
+ * Instante em que o treinamento aconteceu. Em ocorrências de Treinamento,
+ * `dataOcorrencia` guarda a data do PRÓXIMO treinamento (campo opcional do
+ * formulário), não a da aula: o registro é feito no momento da aula, então a
+ * data de realização é `createdAt`. `dataOcorrencia` só é usado em registros
+ * antigos sem `createdAt`.
+ */
+export function instanteRealizacaoTreinamento(ocorrencia: {
+  createdAt?: number;
+  dataOcorrencia?: number;
+}): number {
+  return ocorrencia.createdAt || ocorrencia.dataOcorrencia || 0;
+}
+
 /** Recupera também registros antigos com prefixos repetidos e tags duplicadas. */
 export function lerTemasTreinamento(temas: string[], revisaoLegada = false) {
   const selecionados = normalizarTemasTreinamento(temas);

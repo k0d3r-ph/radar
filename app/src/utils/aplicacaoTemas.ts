@@ -1,6 +1,6 @@
 import type { Ocorrencia } from "../types";
 import { normalizarEmpresaOcorrencia } from "./registroTreinamento";
-import { isTreinamentoRealizado, lerTemasTreinamento } from "./temasTreinamento";
+import { instanteRealizacaoTreinamento, isTreinamentoRealizado, lerTemasTreinamento } from "./temasTreinamento";
 import { agruparLinhasEmBlocos, textosParaLinhasTema } from "./temasEsteira";
 
 /** Colunas D-1 … D-30 da tabela de aplicação dos temas na base do cliente. */
@@ -75,8 +75,9 @@ export function montarLinhasAplicacaoTemas(params: {
 
   const treinamentos = ocorrencias
     .filter((o) => normalizarEmpresaOcorrencia(o.empresa || "") === empresa && isTreinamentoRealizado(o))
-    .map((o) => ({ o, instante: o.dataOcorrencia || o.createdAt || 0 }))
-    // Treinamento com data futura é agendamento (mesmo critério de Relatórios), não realizado.
+    // Dia da aula, não o "próximo treinamento" guardado em dataOcorrencia.
+    .map((o) => ({ o, instante: instanteRealizacaoTreinamento(o) }))
+    // Registro legado (sem createdAt) com data futura é agendamento, não realizado.
     .filter(({ instante }) => instante > 0 && instante <= hoje.getTime())
     .sort((a, b) => a.instante - b.instante);
 

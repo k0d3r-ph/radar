@@ -271,12 +271,14 @@ export async function salvarOcorrencia(
           throw new Error('Remova a estrela antes de transferir a ocorrência para outro cliente.');
         }
       }
-      const csat = atual.data()?.csatReservaId ? {
+      // Preserva os campos do CSAT gravados no documento. Registros antigos podem não ter
+      // `idSeqFormatted`; o Firestore rejeita `undefined`, então o campo só entra quando existe.
+      const csat = atual.data()?.csatReservaId ? removerUndefined({
         csatReservaId: atual.data()!.csatReservaId,
         csatRespostas: atual.data()!.csatRespostas || [],
         treinamentoResultados: atual.data()!.treinamentoResultados || [],
         idSeqFormatted: atual.data()!.idSeqFormatted,
-      } : {};
+      }) : {};
 
       if (opcoes?.concluirEsteiraUnilateralmente) {
         empresaConclusaoRef = doc(

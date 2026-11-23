@@ -191,3 +191,56 @@ input.validacao-questao-numero--edicao::-webkit-outer-spin-button, input.validac
 .validacao-minimo-previa-linha { display: flex; gap: 10px; align-items: stretch; flex-wrap: wrap; }
 .validacao-minimo-previa-linha input { width: 110px; flex: 0 0 auto; }
 .validacao-minimo-previa .validacao-erro-campo { margin: 0; }
+
+/* Certificados de treinamento (validação aprovada) */
+.validacao-certificado-acao { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 12px 0; }
+.validacao-certificado-acao span { color: #94a3b8; font-size: 12px; }
+.validacao-impressao-dialog.certificado-dialog { width: min(1080px, calc(100vw - 32px)); max-height: min(94dvh, 900px); overflow-y: auto; display: none; }
+.validacao-impressao-dialog.certificado-dialog[open] { display: grid; gap: 16px; }
+.certificado-dialog { scrollbar-width: thin; scrollbar-color: rgba(148,163,184,.28) transparent; }
+.certificado-dialog::-webkit-scrollbar { width: 8px; }
+.certificado-dialog::-webkit-scrollbar-track { background: transparent; }
+.certificado-dialog::-webkit-scrollbar-button { display: none; }
+.certificado-dialog::-webkit-scrollbar-thumb { background: rgba(148,163,184,.28); border-radius: 99px; }
+.certificado-dialog::-webkit-scrollbar-thumb:hover { background: rgba(148,163,184,.5); }
+.certificado-cabecalho { display: grid; gap: 4px; }
+.certificado-corpo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 20px; align-items: start; }
+.certificado-formulario { display: grid; gap: 14px; min-width: 0; }
+.certificado-dialog fieldset { display: grid; gap: 10px; min-width: 0; margin: 0; padding: 14px; border: 1px solid #334155; border-radius: 10px; }
+.certificado-dialog legend { padding: 0 6px; color: #e2e8f0; font-size: 13px; font-weight: 600; }
+.certificado-dialog label { margin-top: 0; }
+.certificado-dialog small { color: #94a3b8; font-size: 11px; font-weight: 400; line-height: 1.45; }
+.certificado-dialog small.validacao-erro-campo { color: #fca5a5; }
+.certificado-tipo { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.certificado-tipo legend, .certificado-tipo small { grid-column: 1 / -1; }
+.validacao-page .certificado-tipo label { flex-direction: row; align-items: center; gap: 8px; padding: 11px 12px; border: 1px solid #475569; border-radius: 8px; color: #e2e8f0; font-size: 13px; cursor: pointer; }
+.validacao-page .certificado-tipo label.ativo { border-color: rgba(59,130,246,.7); background: rgba(59,130,246,.12); color: #bfdbfe; }
+.certificado-participantes ul { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.certificado-participantes li { display: flex; gap: 8px; align-items: center; }
+.validacao-page .certificado-participantes li.selecionado input { border-color: rgba(59,130,246,.7); }
+.validacao-page .certificado-dialog .certificado-icone { flex: none; padding: 9px; }
+.validacao-page .certificado-dialog .certificado-adicionar { justify-self: start; }
+.certificado-dados { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.certificado-dados legend { grid-column: 1 / -1; }
+.validacao-page .certificado-dados label { gap: 6px; }
+.validacao-page .certificado-dados input[readonly] { color: #94a3b8; background: #111827; }
+.validacao-page .certificado-destinatarios { gap: 4px; }
+.validacao-page .certificado-destinatarios label.whatsapp-destinatario-opcao { display: flex; flex-direction: row; align-items: center; gap: 12px; margin: 0; padding: 10px 12px; border-radius: 8px; color: #e2e8f0; font-size: 13px; line-height: 1.4; }
+.validacao-page .certificado-destinatarios label.whatsapp-destinatario-opcao:hover { background: rgba(148,163,184,.08); }
+.validacao-page .certificado-destinatarios input[type="checkbox"] { flex: none; width: 18px; height: 18px; margin: 0; accent-color: #22c55e; }
+.certificado-destinatarios label span { min-width: 0; overflow-wrap: anywhere; }
+.certificado-destinatarios label small { display: block; margin-top: 2px; color: #fca5a5; }
+.validacao-page .certificado-dialog textarea { min-height: 120px; margin: 0; }
+.certificado-previa { position: sticky; top: 0; display: grid; gap: 8px; margin: 0; min-width: 0; }
+.certificado-previa img { display: block; width: 100%; height: auto; aspect-ratio: 1280 / 904; border-radius: 8px; border: 1px solid #334155; background: #0f172a; }
+.certificado-previa-vazia { display: grid; place-items: center; aspect-ratio: 1280 / 904; padding: 20px; border: 1px dashed #475569; border-radius: 8px; color: #94a3b8; font-size: 13px; text-align: center; }
+.certificado-previa figcaption { color: #94a3b8; font-size: 12px; }
+@media (max-width: 860px) {
+  .certificado-corpo { grid-template-columns: 1fr; }
+  .certificado-previa { position: static; order: -1; }
+}
+@media (max-width: 520px) {
+  .validacao-impressao-dialog.certificado-dialog { padding: 16px; }
+  .certificado-tipo, .certificado-dados { grid-template-columns: 1fr; }
+  .certificado-dialog .validacao-impressao-acoes > button { flex: 1 1 100%; }
+}

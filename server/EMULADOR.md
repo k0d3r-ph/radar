@@ -62,6 +62,10 @@ Com o Firestore local rodando e o `npm run seed:emulador` já executado, rode em
 
 Com o Firestore local rodando e o `npm run seed:emulador` já executado, rode em `server/` `npm run seed:indicador-validacao`. Pelo fluxo real da API, cria oito clientes `[Demo Indicador]` (IDs `demo-indicador-validacao-`): três avaliações concluídas (duas aprovadas, uma reprovada), um cliente reprovado que refaz com validação parcial aprovada, duas avaliações abertas com parcial ≥ 80% (uma no limite exato), uma com parcial abaixo de 80%, uma aberta sem parcial e uma com só 3 perguntas marcadas (fora da prévia com o mínimo padrão de 5; altere o mínimo na tela de Validação como Master para vê-la entrar). O script imprime o resultado desses clientes pela regra antiga (só concluídas: 2/4 = 50%) e pela nova (com prévias: 5/7 ≈ 71%, 4 pela validação parcial). Abra Relatórios › Indicadores de Treinamento; o card também soma os demais clientes do emulador avaliados no mês. Repetir o comando recria só esses registros.
 
+## Exemplo para os certificados de treinamento
+
+Com o Firestore local rodando e o `npm run seed:emulador` já executado, rode em `server/` `npm run seed:certificado`. Cria `[Demo Certificado] Central Exemplo` (IDs `demo-certificado-`) com treinamentos anteriores com duração de agenda (inclui uma revisão e uma ausência, que não soma), dois contatos de WhatsApp fictícios e uma validação aprovada com 90% pelo fluxo real da API, com três participantes no CSAT. Entre como `treinador2@local.test`, abra Validação do conhecimento, selecione o cliente e use "Gerar certificados". O script imprime a carga horária e o período esperados. Repetir o comando recria só esses registros.
+
 ## O que NÃO depende do emulador
 
 A sincronização do SSX Desk ainda faz chamadas HTTP reais ao vendor (`SSX_DESK_API_KEY`)

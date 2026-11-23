@@ -28,7 +28,8 @@
     "test:centrais": "npm run build && node --test tests/planilhaCentrais.test.mjs",
     "seed:aplicacao": "tsx scripts/seedAplicacaoTemasEmulador.ts",
     "seed:validacao-parcial": "tsx scripts/seedValidacaoParcialEmulador.ts",
-    "seed:indicador-validacao": "tsx scripts/seedIndicadorValidacaoParcial.ts"
+    "seed:indicador-validacao": "tsx scripts/seedIndicadorValidacaoParcial.ts",
+    "seed:certificado": "tsx scripts/seedCertificadoEmulador.ts"
   },
   "dependencies": {
     "@google/genai": "^2.13.0",

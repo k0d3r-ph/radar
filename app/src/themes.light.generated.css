@@ -5684,6 +5684,63 @@ body.light-theme .validacao-minimo-previa-ajuda {
 body.light-theme .validacao-minimo-previa-form label {
     color: #0f172a
 }
+body.light-theme .validacao-certificado-acao span {
+    color: #475569
+}
+body.light-theme .certificado-dialog::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.28)
+}
+body.light-theme .certificado-dialog::-webkit-scrollbar-thumb:hover {
+    background: rgba(148, 163, 184, 0.5)
+}
+body.light-theme .certificado-dialog fieldset {
+    border: 1px solid #e2e8f0
+}
+body.light-theme .certificado-dialog legend {
+    color: #0f172a
+}
+body.light-theme .certificado-dialog small {
+    color: #475569
+}
+body.light-theme .certificado-dialog small.validacao-erro-campo {
+    color: #eb1313
+}
+body.light-theme .validacao-page .certificado-tipo label {
+    border: 1px solid #cbd5e1;
+    color: #0f172a
+}
+body.light-theme .validacao-page .certificado-tipo label.ativo {
+    border-color: rgba(59, 130, 246, 0.7);
+    background: rgba(59, 130, 246, 0.12);
+    color: #bfdbfe
+}
+body.light-theme .validacao-page .certificado-participantes li.selecionado input {
+    border-color: rgba(59, 130, 246, 0.7)
+}
+body.light-theme .validacao-page .certificado-dados input[readonly] {
+    background: #f8fafc;
+    color: #475569
+}
+body.light-theme .validacao-page .certificado-destinatarios label.whatsapp-destinatario-opcao {
+    color: #0f172a
+}
+body.light-theme .validacao-page .certificado-destinatarios label.whatsapp-destinatario-opcao:hover {
+    background: rgba(148, 163, 184, 0.08)
+}
+body.light-theme .certificado-destinatarios label small {
+    color: #eb1313
+}
+body.light-theme .certificado-previa img {
+    border: 1px solid #e2e8f0;
+    background: #f8fafc
+}
+body.light-theme .certificado-previa-vazia {
+    border: 1px dashed #cbd5e1;
+    color: #475569
+}
+body.light-theme .certificado-previa figcaption {
+    color: #475569
+}
 
 /* ── pages/WhatsApp/WhatsAppSettings.css ── */
 body.light-theme .whatsapp-header {

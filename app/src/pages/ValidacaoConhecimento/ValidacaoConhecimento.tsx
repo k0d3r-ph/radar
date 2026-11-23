@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DragEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Pause, Play } from 'lucide-react';
+import { Award, Pause, Play } from 'lucide-react';
 import { SelectCustomizado } from '../../components/SelectCustomizado';
 import { InputDuracaoAgenda } from '../../components/InputDuracaoAgenda';
 import { AvaliacaoCsat } from '../../components/AvaliacaoCsat';
@@ -33,7 +33,8 @@ import { QuestaoConhecimentoCard } from './QuestaoConhecimentoCard';
 import { SubstituirPerguntaModal } from './SubstituirPerguntaModal';
 import { ImpressaoValidacaoModal } from '../../components/ImpressaoValidacaoModal';
 import type { RascunhoConclusao } from '../../components/ImpressaoValidacaoModal';
-
+import { CertificadosModal } from './CertificadosModal';
+import { APROVEITAMENTO_MINIMO_CERTIFICADO } from '../../utils/certificadoTreinamento';
 const numero = (n: number) => n.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
 const rotuloStatus = { andamento: 'Em andamento', pausada: 'Pausada', concluida: 'Concluída', cancelada: 'Cancelada' };
 export function ValidacaoConhecimento() {
@@ -58,6 +59,7 @@ export function ValidacaoConhecimento() {
   const [alterada, setAlterada] = useState(false);
   const [erro, setErro] = useState('');
   const [conclusaoAberta, setConclusaoAberta] = useState(false);
+  const [certificadosAbertos, setCertificadosAbertos] = useState(false);
   // Análise da IA e impressões em edição no modal de conclusão, por tentativa.
   const [rascunhoConclusao, setRascunhoConclusao] = useState<RascunhoConclusao & { tentativaId: string } | null>(null);
   const [reservasPendentes, setReservasPendentes] = useState<ReservaCsat[]>([]);
@@ -345,6 +347,7 @@ export function ValidacaoConhecimento() {
           {atual.status === 'concluida' && <div className={`validacao-resultado validacao-resultado--${atual.aprovada ? 'aprovado' : 'reprovado'}`}><strong>{atual.aprovada ? 'Aprovado — atingiu pelo menos 80%.' : 'Não atingiu 80% — nova tentativa disponível.'}</strong><p>Pontuação: {numero(atual.nota || 0)}/10 · Aproveitamento: {numero(atual.percentual || 0)}%.</p>
             {atual.aprovada && <p>{atual.concluiuEsteira ? 'A esteira do cliente foi concluída com esta aprovação.' : 'A data foi registrada no tema “Validação do conhecimento”. Se ainda houver temas pendentes na esteira, ela será concluída quando o último deles for registrado no Histórico.'}</p>}
             {atual.csatToken && <div className="validacao-csat-link"><label>Link do CSAT<input readOnly value={linkCsat(atual.csatToken)} onFocus={event => event.target.select()} /></label><div className="validacao-acoes"><a href={linkCsat(atual.csatToken)} target="_blank" rel="noreferrer">Abrir CSAT desta tentativa</a><button type="button" onClick={async () => { if (await copiarTexto(linkCsat(atual.csatToken!))) toast.success('Link do CSAT copiado.'); else toast.warning('Selecione o endereço no campo Link do CSAT e copie com Ctrl+C.'); }}>Copiar link</button></div></div>}
+            {atual.aprovada && (atual.percentual ?? 0) >= APROVEITAMENTO_MINIMO_CERTIFICADO && <p className="validacao-certificado-acao"><button type="button" className="validacao-primario" disabled={ocupado} onClick={() => setCertificadosAbertos(true)}><Award size={16} aria-hidden="true" />Gerar certificados</button><span>Um certificado por participante, para baixar ou enviar ao cliente pelo WhatsApp.</span></p>}
             <Link to={`/historico?empresa=${encodeURIComponent(atual.empresa)}`}>Ver ocorrências do cliente</Link>
             {atual.concluiuEsteira && <p><button type="button" disabled={ocupado} onClick={() => executar(() => prepararAvisoConclusao(atual))}>Avisar gestão da conclusão</button></p>}
           </div>}
@@ -402,6 +405,13 @@ export function ValidacaoConhecimento() {
       gerarAnalise={() => analisarDesempenhoConhecimento(atual)}
       onCancelar={() => setConclusaoAberta(false)}
       onConfirmar={concluirAvaliacao}
+    />}
+    {certificadosAbertos && atual?.status === 'concluida' && <CertificadosModal
+      key={atual.id}
+      tentativa={atual}
+      cliente={cliente}
+      ocorrencias={ocorrencias}
+      onFechar={() => setCertificadosAbertos(false)}
     />}
     {notificacaoProgresso && <NotificacaoProgressoEsteiraModal
       open

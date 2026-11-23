@@ -100,7 +100,8 @@ export function normalizarTextosTema(
 ) {
   const linhas = textosParaLinhasTema(temaText, dataText, blocoText, reagendamentosText)
     .map((l) => ({
-      tema: l.tema.trim(),
+      // Espaços repetidos no nome são colapsados ao salvar.
+      tema: l.tema.replace(/\s+/g, " ").trim(),
       data: l.data.trim(),
       reagendamentos: l.reagendamentos,
       mesmoDiaDoProximo: l.mesmoDiaDoProximo,

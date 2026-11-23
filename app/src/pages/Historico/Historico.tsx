@@ -3332,6 +3332,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
       if (temasValidos.length > 0) {
         const normTema = (s: string) =>
           s
+            .replace(/\s+/g, " ")
             .trim()
             .toLowerCase()
             .normalize("NFD")
@@ -3512,6 +3513,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
 
         const normTema = (s: string) =>
           s
+            .replace(/\s+/g, " ")
             .trim()
             .toLowerCase()
             .normalize("NFD")
@@ -6854,9 +6856,10 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                         "Cancelado",
                         ...(empresaSelecionada?.temaText
                           ? empresaSelecionada.temaText
-                              .trim()
-                              .split(/\s{2,}|\n/)
-                              .filter(Boolean)
+                              // Um tema por linha, como na esteira. Espaço duplo
+                              // dentro do nome não separa temas.
+                              .split("\n")
+                              .filter((t) => t.trim())
                           : []),
                         // Mantém editáveis temas antigos que saíram da esteira.
                         ...(form.temaOcorrencia ?? []),

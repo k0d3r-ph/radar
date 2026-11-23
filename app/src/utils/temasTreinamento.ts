@@ -1,7 +1,13 @@
 const PREFIXO_REVISAO = "Revisão de ";
 
 export function normalizarTemaTreinamento(tema: string): string {
-  return tema.trim().replace(/^(?:Revisão de\s+)+/i, "").trim();
+  // Espaços repetidos dentro do nome ("Funções do  App") viram um só, para o
+  // tema da ocorrência bater com o da esteira independentemente da digitação.
+  return tema
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/^(?:Revisão de\s+)+/i, "")
+    .trim();
 }
 
 export function normalizarTemasTreinamento(temas: string[]): string[] {

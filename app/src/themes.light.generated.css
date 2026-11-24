@@ -1160,6 +1160,34 @@ body.light-theme .aplicacao-ajustes-removidos li {
 body.light-theme .aplicacao-temas-tema small {
     color: #475569
 }
+body.light-theme .aplicacao-temas-linha--sem-aplicacao > th,
+body.light-theme .aplicacao-temas-linha--sem-aplicacao > td {
+    background: rgba(239, 68, 68, 0.12)
+}
+body.light-theme .aplicacao-temas-tabela .aplicacao-temas-linha--sem-aplicacao > .aplicacao-temas-tema {
+    background: #ffffff
+}
+body.light-theme .aplicacao-temas-linha--sem-aplicacao .aplicacao-temas-tema small {
+    color: #e71313
+}
+body.light-theme .aplicacao-temas-tabela thead th.aplicacao-temas-col-d0 {
+    border-right: 2px solid #cbd5e1
+}
+body.light-theme .aplicacao-temas-tabela td:nth-child(2) {
+    border-right: 2px solid #cbd5e1
+}
+body.light-theme .aplicacao-temas-dica {
+    border-bottom: 1px dotted #cbd5e1
+}
+body.light-theme .aplicacao-temas-dica:focus-visible {
+    outline: 2px solid #7aa2ff
+}
+body.light-theme .aplicacao-temas-dica-texto {
+    border: 1px solid #d5dce5;
+    background: #f8fafc;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.088);
+    color: #0f172a
+}
 body.light-theme .aplicacao-temas-linha--pendente .aplicacao-temas-item-nome {
     color: #475569
 }

@@ -32,6 +32,7 @@ const {
   validarNomeTemaAplicacao,
   lerAjustesAplicacaoTemas,
   atualizacoesMarcacaoAplicacao,
+  isSemAplicacaoMarcada,
 } = modulo.namespace;
 
 const dia = (d, h = 10) => new Date(2026, 10, d, h).getTime();
@@ -258,4 +259,28 @@ test("ajustes malformados vindos do Firestore são ignorados", () => {
     }),
     { renomeados: { a: "A" }, removidos: {}, adicionados: [{ id: "x", tema: "T", dia: "2026-11-11" }] },
   );
+});
+
+test("D-0 (aplicou antes do treinamento) é uma marcação válida; acima de D-30 não", () => {
+  const linhas = montarLinhasAplicacaoTemas({
+    ...base,
+    ocorrencias: [treino(11, ["Gateway", "Debug"])],
+    marcacoes: { "2026-11-11|gateway": 0, "2026-11-11|debug": 31 },
+  });
+  assert.deepEqual(linhas.slice(0, 2).map((l) => l.diaMarcado), [0, undefined]);
+});
+
+test("vermelho só para tema ensinado, com D-1 alcançado e sem marcação", () => {
+  const linhas = montarLinhasAplicacaoTemas({
+    ...base,
+    // Hoje é 14/11: Gateway (11/11) marcado, Debug (11/11) sem marcação, Cliente ensinado hoje.
+    ocorrencias: [treino(11, ["Gateway", "Debug"]), treino(14, ["Cliente"], { createdAt: dia(14, 8) })],
+    marcacoes: { "2026-11-11|gateway": 0 },
+  });
+  assert.deepEqual(linhas.map((l) => [l.temas[0], isSemAplicacaoMarcada(l)]), [
+    ["Gateway", false],
+    ["Debug", true],
+    ["Cliente", false],
+    ["Pessoas", false],
+  ]);
 });

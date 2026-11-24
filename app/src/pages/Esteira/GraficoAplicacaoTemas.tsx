@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { calcularEscalaEixoY } from "../../utils/escalaGrafico";
+import { isSemAplicacaoMarcada } from "../../utils/aplicacaoTemas";
 import type { LinhaAplicacaoTema } from "../../utils/aplicacaoTemas";
 
 type Props = {
@@ -63,13 +64,11 @@ export function GraficoAplicacaoTemas({ linhas }: Props) {
     observar.observe(elemento);
     return () => observar.disconnect();
   }, [temPontos]);
-  // Eixo X: dias realizados do primeiro ao último marcado. Os não marcados nesse
-  // intervalo contam como não aplicados (valor 0, rótulo em vermelho); os anteriores ao
-  // primeiro ou posteriores ao último ficam fora, por ainda não terem com o que comparar.
-  const realizadas = linhas.filter((l) => l.realizado);
-  const primeiro = realizadas.findIndex((l) => l.diaMarcado !== undefined);
-  const ultimo = realizadas.findLastIndex((l) => l.diaMarcado !== undefined);
-  const pontos = primeiro === -1 ? [] : realizadas.slice(primeiro, ultimo + 1);
+  // Eixo X: temas já ensinados, em ordem, que têm marcação ou já passaram do D-1 sem ela.
+  // Estes contam como não aplicados (valor 0, rótulo em vermelho) — a mesma regra da linha
+  // vermelha da tabela, em qualquer posição (inclusive o primeiro tema da esteira). Só
+  // ficam fora os ensinados hoje, que ainda não chegaram ao D-1.
+  const pontos = linhas.filter((l) => l.diaMarcado !== undefined || isSemAplicacaoMarcada(l));
   const marcados = pontos.filter(
     (l): l is LinhaAplicacaoTema & { diaMarcado: number } => l.diaMarcado !== undefined,
   );

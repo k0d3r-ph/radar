@@ -1254,9 +1254,10 @@ function Esteira() {
           <p className="aplicacao-temas-ajuda">
             Marque com ✕ depois de quantos dias do treinamento o cliente aplicou
             cada tema na base — um tema por linha, mesmo quando vários foram
-            ensinados no mesmo dia. Só é possível marcar temas com ocorrência de
+            ensinados no mesmo dia. Use D-0 quando o cliente já aplicava o tema
+            antes do treinamento. Só é possível marcar temas com ocorrência de
             Treinamento registrada ou incluídos com data já passada; a marcação
-            é salva na hora.
+            é salva na hora. Temas sem marcação depois do D-1 ficam em vermelho.
             {isTreinador &&
               " Use o lápis para renomear um tema e o ✕ ao lado do nome para retirar da tabela o que não dá para medir. Esses ajustes valem só para esta tabela e o gráfico — a esteira e as ocorrências não mudam."}
           </p>

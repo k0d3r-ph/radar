@@ -1,10 +1,20 @@
-import type { AjustesAplicacaoTemas, Ocorrencia, TemaAplicacaoAdicionado } from "../types";
+import type {
+  AjustesAplicacaoTemas,
+  Ocorrencia,
+  TemaAplicacaoAdicionado,
+} from "../types";
 import { normalizarEmpresaOcorrencia } from "./registroTreinamento";
-import { instanteRealizacaoTreinamento, isTreinamentoRealizado, lerTemasTreinamento } from "./temasTreinamento";
+import {
+  instanteRealizacaoTreinamento,
+  isTreinamentoRealizado,
+  lerTemasTreinamento,
+} from "./temasTreinamento";
 import { textosParaLinhasTema } from "./temasEsteira";
 
-/** Colunas D-1 … D-30 da tabela de aplicação dos temas na base do cliente. */
+/** Colunas D-0 … D-30 da tabela de aplicação dos temas na base do cliente. */
 export const TOTAL_DIAS_APLICACAO = 30;
+/** D-0: o cliente já aplicou o tema na base antes mesmo do treinamento. */
+export const DIA_APLICACAO_ANTES_DO_TREINAMENTO = 0;
 
 /**
  * Uma linha da tabela "Aplicação dos temas": um tema, já ensinado (`realizado`) ou
@@ -25,7 +35,7 @@ export type LinhaAplicacaoTema = {
   /** DD/MM do treinamento realizado, ou a data planejada na esteira (pode ser vazia). */
   data: string;
   realizado: boolean;
-  /** Dia D-N marcado pelo treinador, quando houver. */
+  /** Dia D-N marcado pelo treinador, quando houver (0 = já aplicou antes do treinamento). */
   diaMarcado?: number;
   /** Dias corridos desde o treinamento até `hoje`; limita quais colunas podem ser marcadas. */
   diasDecorridos?: number;
@@ -39,8 +49,10 @@ export type LinhaAplicacaoTema = {
 };
 
 /** Chave da marcação de um tema em `aplicacaoTemasDias`. */
-export const chaveMarcacaoAplicacao = (diaTreinamento: string, chaveTema: string) =>
-  `${diaTreinamento}|${chaveTema}`;
+export const chaveMarcacaoAplicacao = (
+  diaTreinamento: string,
+  chaveTema: string,
+) => `${diaTreinamento}|${chaveTema}`;
 
 /**
  * Gravações para marcar (ou limpar, com `null`) o D-N de uma linha. Se a linha ainda
@@ -54,7 +66,9 @@ export function atualizacoesMarcacaoAplicacao(
   const atualizacoes: Record<string, number | null> = {};
   const herdada = linha.herdaMarcacaoDoDia;
   if (herdada && linha.diaMarcado !== undefined) {
-    herdada.chaves.forEach((chave) => (atualizacoes[chave] = linha.diaMarcado!));
+    herdada.chaves.forEach(
+      (chave) => (atualizacoes[chave] = linha.diaMarcado!),
+    );
     atualizacoes[herdada.diaTreinamento] = null;
   }
   atualizacoes[linha.chave] = dia;
@@ -76,32 +90,48 @@ export type ItemTemaAplicacao = {
 const limparEspacos = (texto: string) => texto.trim().replace(/\s+/g, " ");
 
 /** Identidade de um tema, sem diferenciar maiúsculas nem espaços extras. */
-export const chaveTemaAplicacao = (tema: string) => limparEspacos(tema).toLowerCase();
+export const chaveTemaAplicacao = (tema: string) =>
+  limparEspacos(tema).toLowerCase();
 const normalizarTema = chaveTemaAplicacao;
 
 const DIA_ISO = /^\d{4}-\d{2}-\d{2}$/;
-const isTexto = (valor: unknown): valor is string => typeof valor === "string" && valor.trim().length > 0;
+const isTexto = (valor: unknown): valor is string =>
+  typeof valor === "string" && valor.trim().length > 0;
 
 function lerMapaTextos(valor: unknown): Record<string, string> {
   if (!valor || typeof valor !== "object" || Array.isArray(valor)) return {};
   return Object.fromEntries(
-    Object.entries(valor as Record<string, unknown>).filter((entrada): entrada is [string, string] => isTexto(entrada[1])),
+    Object.entries(valor as Record<string, unknown>).filter(
+      (entrada): entrada is [string, string] => isTexto(entrada[1]),
+    ),
   );
 }
 
 function isAdicionadoValido(valor: unknown): valor is TemaAplicacaoAdicionado {
   if (!valor || typeof valor !== "object") return false;
   const a = valor as Record<string, unknown>;
-  return isTexto(a.id) && isTexto(a.tema) && typeof a.dia === "string" && DIA_ISO.test(a.dia);
+  return (
+    isTexto(a.id) &&
+    isTexto(a.tema) &&
+    typeof a.dia === "string" &&
+    DIA_ISO.test(a.dia)
+  );
 }
 
 /** Lê os ajustes gravados no Firestore descartando entradas malformadas. */
-export function lerAjustesAplicacaoTemas(valor: unknown): Required<AjustesAplicacaoTemas> {
-  const bruto = valor && typeof valor === "object" ? (valor as Record<string, unknown>) : {};
+export function lerAjustesAplicacaoTemas(
+  valor: unknown,
+): Required<AjustesAplicacaoTemas> {
+  const bruto =
+    valor && typeof valor === "object"
+      ? (valor as Record<string, unknown>)
+      : {};
   return {
     renomeados: lerMapaTextos(bruto.renomeados),
     removidos: lerMapaTextos(bruto.removidos),
-    adicionados: Array.isArray(bruto.adicionados) ? bruto.adicionados.filter(isAdicionadoValido) : [],
+    adicionados: Array.isArray(bruto.adicionados)
+      ? bruto.adicionados.filter(isAdicionadoValido)
+      : [],
   };
 }
 
@@ -114,7 +144,12 @@ export function renomearTemaAplicacao(
   const atual = lerAjustesAplicacaoTemas(ajustes);
   const nome = limparEspacos(novoNome);
   if (item.adicionadoId) {
-    return { ...atual, adicionados: atual.adicionados.map((a) => (a.id === item.adicionadoId ? { ...a, tema: nome } : a)) };
+    return {
+      ...atual,
+      adicionados: atual.adicionados.map((a) =>
+        a.id === item.adicionadoId ? { ...a, tema: nome } : a,
+      ),
+    };
   }
   const renomeados = { ...atual.renomeados };
   if (nome === limparEspacos(item.original)) delete renomeados[item.chave];
@@ -129,9 +164,15 @@ export function removerTemaAplicacao(
 ): Required<AjustesAplicacaoTemas> {
   const atual = lerAjustesAplicacaoTemas(ajustes);
   if (item.adicionadoId) {
-    return { ...atual, adicionados: atual.adicionados.filter((a) => a.id !== item.adicionadoId) };
+    return {
+      ...atual,
+      adicionados: atual.adicionados.filter((a) => a.id !== item.adicionadoId),
+    };
   }
-  return { ...atual, removidos: { ...atual.removidos, [item.chave]: item.original } };
+  return {
+    ...atual,
+    removidos: { ...atual.removidos, [item.chave]: item.original },
+  };
 }
 
 export function restaurarTemaAplicacao(
@@ -150,7 +191,13 @@ export function adicionarTemaAplicacao(
   adicionado: TemaAplicacaoAdicionado,
 ): Required<AjustesAplicacaoTemas> {
   const atual = lerAjustesAplicacaoTemas(ajustes);
-  return { ...atual, adicionados: [...atual.adicionados, { ...adicionado, tema: limparEspacos(adicionado.tema) }] };
+  return {
+    ...atual,
+    adicionados: [
+      ...atual.adicionados,
+      { ...adicionado, tema: limparEspacos(adicionado.tema) },
+    ],
+  };
 }
 
 /** Temas retirados da tabela, com o nome exibido antes da retirada. */
@@ -159,7 +206,10 @@ export function listarTemasRemovidosAplicacao(
 ): { chave: string; nome: string }[] {
   const { removidos, renomeados } = lerAjustesAplicacaoTemas(ajustes);
   return Object.entries(removidos)
-    .map(([chave, original]) => ({ chave, nome: renomeados[chave] ?? original }))
+    .map(([chave, original]) => ({
+      chave,
+      nome: renomeados[chave] ?? original,
+    }))
     .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
 }
 
@@ -180,7 +230,11 @@ export function validarNomeTemaAplicacao(
   if (!chave) return "Informe o nome do tema.";
   if (chave.length > 120) return "Use no máximo 120 caracteres.";
   const repetido = linhas.some((l) =>
-    l.itens.some((i) => !(item && mesmoItem(i, item)) && (chaveTemaAplicacao(i.nome) === chave || i.chave === chave)),
+    l.itens.some(
+      (i) =>
+        !(item && mesmoItem(i, item)) &&
+        (chaveTemaAplicacao(i.nome) === chave || i.chave === chave),
+    ),
   );
   if (repetido) return "Já existe um tema com esse nome na tabela.";
   if (!item && lerAjustesAplicacaoTemas(ajustes).removidos[chave]) {
@@ -211,9 +265,25 @@ function diasEntre(inicioISO: string, fim: Date): number {
   return Math.round((fimDia.getTime() - inicio.getTime()) / 86_400_000);
 }
 
-/** Aceita só marcações D-1 … D-30 vindas do Firestore. */
+/** Aceita só marcações D-0 … D-30 vindas do Firestore. */
 export function isDiaAplicacaoValido(valor: unknown): valor is number {
-  return Number.isInteger(valor) && (valor as number) >= 1 && (valor as number) <= TOTAL_DIAS_APLICACAO;
+  return (
+    Number.isInteger(valor) &&
+    (valor as number) >= DIA_APLICACAO_ANTES_DO_TREINAMENTO &&
+    (valor as number) <= TOTAL_DIAS_APLICACAO
+  );
+}
+
+/**
+ * Tema já ensinado, com o D-1 já alcançado e sem nenhuma marcação: a tabela destaca a
+ * linha em vermelho. Antes disso (previsto, ou treinamento hoje) segue o padrão.
+ */
+export function isSemAplicacaoMarcada(linha: LinhaAplicacaoTema): boolean {
+  return (
+    linha.realizado &&
+    (linha.diasDecorridos ?? 0) >= 1 &&
+    linha.diaMarcado === undefined
+  );
 }
 
 /**
@@ -239,19 +309,34 @@ export function montarLinhasAplicacaoTemas(params: {
   ajustes?: AjustesAplicacaoTemas;
   hoje?: Date;
 }): LinhaAplicacaoTema[] {
-  const { nomeEmpresa, ocorrencias, temaText, dataText, blocoText, marcacoes = {}, hoje = new Date() } = params;
-  const { renomeados, removidos, adicionados } = lerAjustesAplicacaoTemas(params.ajustes);
+  const {
+    nomeEmpresa,
+    ocorrencias,
+    temaText,
+    dataText,
+    blocoText,
+    marcacoes = {},
+    hoje = new Date(),
+  } = params;
+  const { renomeados, removidos, adicionados } = lerAjustesAplicacaoTemas(
+    params.ajustes,
+  );
   const hojeISO = dataLocalISO(hoje);
   const itemOriginal = (original: string): ItemTemaAplicacao => {
     const chave = chaveTemaAplicacao(original);
     return { chave, nome: renomeados[chave] ?? original, original };
   };
   // Retirados continuam contando como ensinados, para não reaparecerem como previstos.
-  const visivel = (item: ItemTemaAplicacao) => !!item.adicionadoId || !removidos[item.chave];
+  const visivel = (item: ItemTemaAplicacao) =>
+    !!item.adicionadoId || !removidos[item.chave];
   const empresa = normalizarEmpresaOcorrencia(nomeEmpresa);
 
   const treinamentos = ocorrencias
-    .filter((o) => normalizarEmpresaOcorrencia(o.empresa || "") === empresa && isTreinamentoRealizado(o))
+    .filter(
+      (o) =>
+        normalizarEmpresaOcorrencia(o.empresa || "") === empresa &&
+        isTreinamentoRealizado(o),
+    )
     // Dia da aula, não o "próximo treinamento" guardado em dataOcorrencia.
     .map((o) => ({ o, instante: instanteRealizacaoTreinamento(o) }))
     // Registro legado (sem createdAt) com data futura é agendamento, não realizado.
@@ -262,9 +347,15 @@ export function montarLinhasAplicacaoTemas(params: {
   const porDia = new Map<string, ItemTemaAplicacao[]>();
 
   for (const { o, instante } of treinamentos) {
-    const { temas, temasRevisados } = lerTemasTreinamento(o.temaOcorrencia ?? [], o.isRevisao);
+    const { temas, temasRevisados } = lerTemasTreinamento(
+      o.temaOcorrencia ?? [],
+      o.isRevisao,
+    );
     const novos = temas.filter(
-      (t) => isTemaComAplicacao(t) && !temasRevisados.includes(t) && !ensinados.has(normalizarTema(t)),
+      (t) =>
+        isTemaComAplicacao(t) &&
+        !temasRevisados.includes(t) &&
+        !ensinados.has(normalizarTema(t)),
     );
     if (novos.length === 0) continue;
     const dia = dataLocalISO(new Date(instante));
@@ -284,7 +375,10 @@ export function montarLinhasAplicacaoTemas(params: {
       const chave = chaveTemaAplicacao(a.tema);
       if (ensinados.has(chave)) return;
       ensinados.add(chave);
-      porDia.set(a.dia, [...(porDia.get(a.dia) ?? []), { chave, nome: a.tema, original: a.tema, adicionadoId: a.id }]);
+      porDia.set(a.dia, [
+        ...(porDia.get(a.dia) ?? []),
+        { chave, nome: a.tema, original: a.tema, adicionadoId: a.id },
+      ]);
     });
 
   const linhasPorTema = [...porDia.entries()]
@@ -296,7 +390,9 @@ export function montarLinhasAplicacaoTemas(params: {
       const temLegado = realizado && isDiaAplicacaoValido(legado);
       // Temas do dia (inclusive retirados) sem marcação própria herdam a antiga do dia.
       const herdeiros = temLegado
-        ? itensDoDia.map((i) => chaveMarcacaoAplicacao(dia, i.chave)).filter((c) => marcacoes[c] === undefined)
+        ? itensDoDia
+            .map((i) => chaveMarcacaoAplicacao(dia, i.chave))
+            .filter((c) => marcacoes[c] === undefined)
         : [];
       return itensDoDia.filter(visivel).map((item): LinhaAplicacaoTema => {
         const chave = chaveMarcacaoAplicacao(dia, item.chave);
@@ -313,7 +409,12 @@ export function montarLinhasAplicacaoTemas(params: {
             diaMarcado: isDiaAplicacaoValido(marcado) ? marcado : undefined,
             diasDecorridos: diasEntre(dia, hoje),
           }),
-          ...(herda && { herdaMarcacaoDoDia: { diaTreinamento: dia, chaves: herdeiros.filter((c) => c !== chave) } }),
+          ...(herda && {
+            herdaMarcacaoDoDia: {
+              diaTreinamento: dia,
+              chaves: herdeiros.filter((c) => c !== chave),
+            },
+          }),
         };
       });
     });
@@ -323,20 +424,27 @@ export function montarLinhasAplicacaoTemas(params: {
 
   const pendentes: LinhaAplicacaoTema[] = [];
   const pendentesVistos = new Set<string>();
-  textosParaLinhasTema(temaText, dataText, blocoText).forEach((linhaEsteira) => {
-    const tema = linhaEsteira.tema.trim();
-    if (!tema || !isTemaComAplicacao(tema) || ensinados.has(normalizarTema(tema))) return;
-    const item = itemOriginal(tema);
-    if (!visivel(item) || pendentesVistos.has(item.chave)) return;
-    pendentesVistos.add(item.chave);
-    pendentes.push({
-      chave: `pendente-${item.chave}`,
-      temas: [item.nome],
-      itens: [item],
-      data: linhaEsteira.data.trim(),
-      realizado: false,
-    });
-  });
+  textosParaLinhasTema(temaText, dataText, blocoText).forEach(
+    (linhaEsteira) => {
+      const tema = linhaEsteira.tema.trim();
+      if (
+        !tema ||
+        !isTemaComAplicacao(tema) ||
+        ensinados.has(normalizarTema(tema))
+      )
+        return;
+      const item = itemOriginal(tema);
+      if (!visivel(item) || pendentesVistos.has(item.chave)) return;
+      pendentesVistos.add(item.chave);
+      pendentes.push({
+        chave: `pendente-${item.chave}`,
+        temas: [item.nome],
+        itens: [item],
+        data: linhaEsteira.data.trim(),
+        realizado: false,
+      });
+    },
+  );
 
   return [...realizadas, ...pendentes, ...futurasIncluidas];
 }

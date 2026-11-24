@@ -1226,6 +1226,73 @@ body {
   color: rgba(238, 243, 255, 0.7);
 }
 
+/* Tema já ensinado, D-1 alcançado e sem marcação: linha inteira em vermelho, com o
+   texto "sem aplicação marcada" para não depender só da cor. */
+.aplicacao-temas-linha--sem-aplicacao > th,
+.aplicacao-temas-linha--sem-aplicacao > td {
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.aplicacao-temas-tabela .aplicacao-temas-linha--sem-aplicacao > .aplicacao-temas-tema {
+  background: #3a1d24;
+}
+
+.aplicacao-temas-linha--sem-aplicacao .aplicacao-temas-tema small {
+  color: #ff8a8a;
+}
+
+.aplicacao-temas-linha--sem-aplicacao .aplicacao-temas-celula:disabled:not(.aplicacao-temas-celula--marcada) {
+  background: transparent;
+}
+
+/* Coluna D-0 (aplicou antes do treinamento), com explicação no hover/foco. */
+.aplicacao-temas-tabela thead th.aplicacao-temas-col-d0 {
+  border-right: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.aplicacao-temas-tabela td:nth-child(2) {
+  border-right: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.aplicacao-temas-dica {
+  position: relative;
+  cursor: help;
+  border-bottom: 1px dotted rgba(238, 243, 255, 0.7);
+}
+
+.aplicacao-temas-dica:focus-visible {
+  outline: 2px solid #7aa2ff;
+  outline-offset: 2px;
+}
+
+.aplicacao-temas-dica-texto {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 5;
+  width: 220px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  background: #11131c;
+  color: #eef3ff;
+  font-size: 0.8rem;
+  font-weight: 400;
+  line-height: 1.35;
+  text-align: left;
+  white-space: normal;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.aplicacao-temas-dica:hover .aplicacao-temas-dica-texto,
+.aplicacao-temas-dica:focus-visible .aplicacao-temas-dica-texto {
+  visibility: visible;
+  opacity: 1;
+}
+
 .aplicacao-temas-linha--pendente .aplicacao-temas-item-nome {
   color: rgba(238, 243, 255, 0.6);
 }

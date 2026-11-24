@@ -76,7 +76,7 @@ const INDICADORES_BOLSA: ConfigBolsa[] = [
     chave: "validacaoConhecimento",
     titulo: "Validação do Conhecimento",
     descricao:
-      "Percentual de clientes aprovados na validação do conhecimento no mês, pelo resultado mais recente de cada um. Avaliações ainda abertas entram como prévia pela validação parcial, substituída pela final na conclusão.",
+      "Clientes aprovados no mês. Avaliações abertas contam pela parcial",
     menorEhMelhor: false,
     meta: 80,
     granularidadePrincipal: "mes",
@@ -123,7 +123,7 @@ function aplicarMetasSalvas(metas: MetasIndicadores | undefined): ConfigBolsa[] 
     const comMeta = valida ? { ...config, meta: salva } : config;
     // O mínimo da prévia é configurável (tela de Validação, Master): a descrição mostra o vigente.
     return config.chave === "validacaoConhecimento"
-      ? { ...comMeta, descricao: `${config.descricao} A prévia exige ao menos ${minimoPreviaParcial(metas)} perguntas com validação parcial marcada.` }
+      ? { ...comMeta, descricao: `${config.descricao} (mín. ${minimoPreviaParcial(metas)} perguntas).` }
       : comMeta;
   });
 }

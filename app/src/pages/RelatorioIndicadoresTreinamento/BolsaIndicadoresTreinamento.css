@@ -268,16 +268,18 @@
   color: #a3b8cf;
 }
 
-/* Valor: fileira elástica do subgrid — cresce para preencher o espaço sobrando e centraliza
-   o número, a unidade e a legenda de meta nesse espaço, como no original. */
+/* Valor: fileira elástica do subgrid — cresce para preencher o espaço sobrando. O conteúdo
+   fica alinhado ao topo (não centralizado): assim o número grande e a meta ficam na mesma
+   altura em todos os cards, mesmo quando um deles tem linhas extras abaixo (fração,
+   prévias, contagem), que antes empurravam o número para cima só naquele card. */
 .bolsa-card-valor-bloco {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 0.4em;
   text-align: center;
-  padding: 0.4em 0;
+  padding: 1.2em 0 0.4em;
 }
 
 .bolsa-card-valor-linha {

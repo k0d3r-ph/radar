@@ -1,18 +1,23 @@
 import type { AjustesAplicacaoTemas, Ocorrencia, TemaAplicacaoAdicionado } from "../types";
 import { normalizarEmpresaOcorrencia } from "./registroTreinamento";
 import { instanteRealizacaoTreinamento, isTreinamentoRealizado, lerTemasTreinamento } from "./temasTreinamento";
-import { agruparLinhasEmBlocos, textosParaLinhasTema } from "./temasEsteira";
+import { textosParaLinhasTema } from "./temasEsteira";
 
 /** Colunas D-1 … D-30 da tabela de aplicação dos temas na base do cliente. */
 export const TOTAL_DIAS_APLICACAO = 30;
 
 /**
- * Uma linha da tabela "Aplicação dos temas": os temas ensinados num mesmo dia
- * (`realizado`) ou, enquanto ainda não houve treinamento, um bloco planejado da
- * esteira (somente leitura).
+ * Uma linha da tabela "Aplicação dos temas": um tema, já ensinado (`realizado`) ou
+ * ainda planejado na esteira (somente leitura). Cada tema tem a própria linha, mesmo
+ * quando vários foram ensinados no mesmo dia, porque o cliente pode aplicar um e não
+ * o outro.
  */
 export type LinhaAplicacaoTema = {
-  /** Dia do treinamento (YYYY-MM-DD) nas linhas realizadas; `pendente-N` nas planejadas. */
+  /**
+   * Nas linhas realizadas, a chave da marcação em `aplicacaoTemasDias`:
+   * `YYYY-MM-DD|<chave do tema>` ({@link chaveMarcacaoAplicacao}). Nas planejadas,
+   * `pendente-<chave do tema>`.
+   */
   chave: string;
   /** Nomes exibidos (já com os ajustes), na mesma ordem de {@link itens}. */
   temas: string[];
@@ -24,7 +29,37 @@ export type LinhaAplicacaoTema = {
   diaMarcado?: number;
   /** Dias corridos desde o treinamento até `hoje`; limita quais colunas podem ser marcadas. */
   diasDecorridos?: number;
+  /**
+   * Presente quando a marcação vem do formato antigo, gravado por dia (`YYYY-MM-DD`) e
+   * compartilhado por todos os temas daquele dia. Lista as chaves por tema de todos os
+   * temas do dia que ainda herdam esse valor (inclusive retirados da tabela), para a
+   * próxima marcação gravá-los um a um antes de apagar a chave do dia.
+   */
+  herdaMarcacaoDoDia?: { diaTreinamento: string; chaves: string[] };
 };
+
+/** Chave da marcação de um tema em `aplicacaoTemasDias`. */
+export const chaveMarcacaoAplicacao = (diaTreinamento: string, chaveTema: string) =>
+  `${diaTreinamento}|${chaveTema}`;
+
+/**
+ * Gravações para marcar (ou limpar, com `null`) o D-N de uma linha. Se a linha ainda
+ * herda a marcação antiga do dia, os demais temas daquele dia recebem esse valor na
+ * própria chave e a chave do dia é apagada — assim mexer num tema não muda os outros.
+ */
+export function atualizacoesMarcacaoAplicacao(
+  linha: LinhaAplicacaoTema,
+  dia: number | null,
+): Record<string, number | null> {
+  const atualizacoes: Record<string, number | null> = {};
+  const herdada = linha.herdaMarcacaoDoDia;
+  if (herdada && linha.diaMarcado !== undefined) {
+    herdada.chaves.forEach((chave) => (atualizacoes[chave] = linha.diaMarcado!));
+    atualizacoes[herdada.diaTreinamento] = null;
+  }
+  atualizacoes[linha.chave] = dia;
+  return atualizacoes;
+}
 
 /** Um tema dentro de uma linha da tabela, com o necessário para renomear ou retirar. */
 export type ItemTemaAplicacao = {
@@ -182,14 +217,16 @@ export function isDiaAplicacaoValido(valor: unknown): valor is number {
 }
 
 /**
- * Monta as linhas da tabela a partir das ocorrências de Treinamento realizadas do
- * cliente (ausências e cancelamentos ficam de fora). Cada tema entra apenas no
- * primeiro dia em que foi ensinado; revisões não abrem linha nova, porque o
+ * Monta as linhas da tabela, uma por tema, a partir das ocorrências de Treinamento
+ * realizadas do cliente (ausências e cancelamentos ficam de fora). Cada tema entra apenas
+ * no primeiro dia em que foi ensinado; revisões não abrem linha nova, porque o
  * aprendizado já foi contado no treinamento original. "Início" também fica de fora
- * (ver {@link TEMAS_SEM_APLICACAO}); um dia só com ele não gera linha. Temas da esteira ainda não
- * ensinados aparecem depois, agrupados pelo bloco planejado e sem permitir marcação.
+ * (ver {@link TEMAS_SEM_APLICACAO}). Temas da esteira ainda não ensinados aparecem
+ * depois, na ordem da esteira e sem permitir marcação. A marcação é por tema
+ * ({@link chaveMarcacaoAplicacao}); a antiga, gravada por dia, vale para todos os temas
+ * daquele dia até que um deles seja alterado.
  * Por fim, os `ajustes` do treinador: nomes trocados, temas retirados (somem da tabela
- * e do gráfico, sem voltar como previstos) e temas incluídos à mão na linha do dia
+ * e do gráfico, sem voltar como previstos) e temas incluídos à mão, cada um na própria linha, com o dia
  * informado — com data futura, a linha fica prevista até o dia chegar.
  */
 export function montarLinhasAplicacaoTemas(params: {
@@ -239,7 +276,7 @@ export function montarLinhasAplicacaoTemas(params: {
     porDia.set(dia, lista);
   }
 
-  // Incluídos à mão entram na linha do dia informado (ou abrem uma). Se uma ocorrência
+  // Incluídos à mão entram como ensinados no dia informado. Se uma ocorrência
   // já registrou o mesmo tema, vale a ocorrência.
   [...adicionados]
     .sort((a, b) => a.dia.localeCompare(b.dia))
@@ -250,44 +287,53 @@ export function montarLinhasAplicacaoTemas(params: {
       porDia.set(a.dia, [...(porDia.get(a.dia) ?? []), { chave, nome: a.tema, original: a.tema, adicionadoId: a.id }]);
     });
 
-  const linhasPorDia = [...porDia.entries()]
-    .map(([dia, itens]) => ({ dia, itens: itens.filter(visivel) }))
-    .filter(({ itens }) => itens.length > 0)
-    .sort((a, b) => a.dia.localeCompare(b.dia))
-    .map(({ dia, itens }): LinhaAplicacaoTema => {
+  const linhasPorTema = [...porDia.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .flatMap(([dia, itensDoDia]) => {
       const [, mes, d] = dia.split("-");
       const realizado = dia <= hojeISO;
-      const marcado = marcacoes[dia];
-      return {
-        chave: dia,
-        temas: itens.map((i) => i.nome),
-        itens,
-        data: `${d}/${mes}`,
-        realizado,
-        ...(realizado && {
-          diaMarcado: isDiaAplicacaoValido(marcado) ? marcado : undefined,
-          diasDecorridos: diasEntre(dia, hoje),
-        }),
-      };
+      const legado = marcacoes[dia];
+      const temLegado = realizado && isDiaAplicacaoValido(legado);
+      // Temas do dia (inclusive retirados) sem marcação própria herdam a antiga do dia.
+      const herdeiros = temLegado
+        ? itensDoDia.map((i) => chaveMarcacaoAplicacao(dia, i.chave)).filter((c) => marcacoes[c] === undefined)
+        : [];
+      return itensDoDia.filter(visivel).map((item): LinhaAplicacaoTema => {
+        const chave = chaveMarcacaoAplicacao(dia, item.chave);
+        const propria = marcacoes[chave];
+        const herda = temLegado && propria === undefined;
+        const marcado = herda ? legado : propria;
+        return {
+          chave,
+          temas: [item.nome],
+          itens: [item],
+          data: `${d}/${mes}`,
+          realizado,
+          ...(realizado && {
+            diaMarcado: isDiaAplicacaoValido(marcado) ? marcado : undefined,
+            diasDecorridos: diasEntre(dia, hoje),
+          }),
+          ...(herda && { herdaMarcacaoDoDia: { diaTreinamento: dia, chaves: herdeiros.filter((c) => c !== chave) } }),
+        };
+      });
     });
-  const realizadas = linhasPorDia.filter((l) => l.realizado);
-  // Inclusão manual com data futura: aparece como prevista, depois dos blocos da esteira.
-  const futurasIncluidas = linhasPorDia.filter((l) => !l.realizado);
+  const realizadas = linhasPorTema.filter((l) => l.realizado);
+  // Inclusão manual com data futura: aparece como prevista, depois dos temas da esteira.
+  const futurasIncluidas = linhasPorTema.filter((l) => !l.realizado);
 
-  const linhasEsteira = textosParaLinhasTema(temaText, dataText, blocoText);
   const pendentes: LinhaAplicacaoTema[] = [];
-  agruparLinhasEmBlocos(linhasEsteira).forEach((indices, i) => {
-    const itens = indices
-      .map((indice) => linhasEsteira[indice].tema.trim())
-      .filter((t) => t && isTemaComAplicacao(t) && !ensinados.has(normalizarTema(t)))
-      .map(itemOriginal)
-      .filter(visivel);
-    if (itens.length === 0) return;
+  const pendentesVistos = new Set<string>();
+  textosParaLinhasTema(temaText, dataText, blocoText).forEach((linhaEsteira) => {
+    const tema = linhaEsteira.tema.trim();
+    if (!tema || !isTemaComAplicacao(tema) || ensinados.has(normalizarTema(tema))) return;
+    const item = itemOriginal(tema);
+    if (!visivel(item) || pendentesVistos.has(item.chave)) return;
+    pendentesVistos.add(item.chave);
     pendentes.push({
-      chave: `pendente-${i}`,
-      temas: itens.map((item) => item.nome),
-      itens,
-      data: linhasEsteira[indices[0]].data.trim(),
+      chave: `pendente-${item.chave}`,
+      temas: [item.nome],
+      itens: [item],
+      data: linhaEsteira.data.trim(),
       realizado: false,
     });
   });

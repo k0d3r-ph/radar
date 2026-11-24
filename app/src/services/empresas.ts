@@ -4,6 +4,7 @@ import {
   deleteDoc,
   updateDoc,
   deleteField,
+  FieldPath,
   runTransaction,
   doc,
   getDocs,
@@ -80,26 +81,32 @@ export async function aplicarReducaoScoreEmpresa(
 }
 
 /**
- * Marca (ou limpa, com `null`) o D-N de aplicação de um dia de treinamento. Grava só
- * a chave daquele dia, para não sobrescrever marcações feitas em paralelo em outros dias.
+ * Grava marcações D-N da tabela de aplicação dos temas: chave → dia (ou `null` para
+ * apagar). Grava só as chaves informadas, para não sobrescrever marcações feitas em
+ * paralelo em outros temas. Ver `atualizacoesMarcacaoAplicacao` em utils/aplicacaoTemas.
  */
 export async function registrarAplicacaoTema(
   empresaId: string,
-  diaTreinamento: string,
-  diaAplicacao: number | null,
+  atualizacoes: Record<string, number | null>,
 ): Promise<void> {
+  const entradas = Object.entries(atualizacoes);
+  if (!entradas.length) return;
   const updatedAt = Date.now();
-  await updateDoc(doc(db, COLLECTION, empresaId), {
-    [`aplicacaoTemasDias.${diaTreinamento}`]: diaAplicacao ?? deleteField(),
-    updatedAt,
-  });
+  // FieldPath: a chave tem o nome do tema, que pode conter ponto.
+  const pares = entradas.flatMap(([chave, dia]) => [
+    new FieldPath("aplicacaoTemasDias", chave),
+    dia ?? deleteField(),
+  ]);
+  await updateDoc(doc(db, COLLECTION, empresaId), new FieldPath("updatedAt"), updatedAt, ...pares);
 
   if (cachedEmpresas) {
     cachedEmpresas = cachedEmpresas.map((e) => {
       if (e.id !== empresaId) return e;
       const aplicacaoTemasDias = { ...(e.aplicacaoTemasDias ?? {}) };
-      if (diaAplicacao === null) delete aplicacaoTemasDias[diaTreinamento];
-      else aplicacaoTemasDias[diaTreinamento] = diaAplicacao;
+      entradas.forEach(([chave, dia]) => {
+        if (dia === null) delete aplicacaoTemasDias[chave];
+        else aplicacaoTemasDias[chave] = dia;
+      });
       return { ...e, aplicacaoTemasDias, updatedAt };
     });
   }

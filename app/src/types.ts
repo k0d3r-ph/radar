@@ -121,9 +121,10 @@ export type Empresa = {
   cadenciaDiasTreinamento?: number;
 
   /**
-   * Depois de quantos dias (D-1 … D-30) o cliente aplicou na base os temas ensinados
-   * em cada dia de treinamento. Chave: data do treinamento (YYYY-MM-DD, fuso local);
-   * valor: o dia marcado. Ver `utils/aplicacaoTemas.ts`.
+   * Depois de quantos dias (D-1 … D-30) o cliente aplicou na base cada tema ensinado.
+   * Chave: `YYYY-MM-DD|<tema normalizado>` (dia do treinamento, fuso local); valor: o dia
+   * marcado. Registros antigos têm só `YYYY-MM-DD`, que vale para todos os temas daquele
+   * dia sem marcação própria. Ver `utils/aplicacaoTemas.ts`.
    */
   aplicacaoTemasDias?: Record<string, number>;
 

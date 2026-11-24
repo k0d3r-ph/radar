@@ -31,6 +31,7 @@ const {
   listarTemasRemovidosAplicacao,
   validarNomeTemaAplicacao,
   lerAjustesAplicacaoTemas,
+  atualizacoesMarcacaoAplicacao,
 } = modulo.namespace;
 
 const dia = (d, h = 10) => new Date(2026, 10, d, h).getTime();
@@ -48,24 +49,55 @@ const base = {
   hoje: new Date(2026, 10, 14, 9),
 };
 
-test("agrupa na mesma linha os temas ensinados no mesmo dia, inclusive em ocorrências diferentes", () => {
+test("cada tema tem a própria linha e a própria marcação, mesmo ensinados no mesmo dia", () => {
   const linhas = montarLinhasAplicacaoTemas({
     ...base,
     ocorrencias: [treino(11, ["Gateway"]), treino(11, ["Debug"], { createdAt: dia(11, 15) })],
-    marcacoes: { "2026-11-11": 2 },
+    marcacoes: { "2026-11-11|gateway": 2 },
   });
   assert.deepEqual(linhas[0], {
-    chave: "2026-11-11", temas: ["Gateway", "Debug"], data: "11/11", realizado: true,
-    itens: [
-      { chave: "gateway", nome: "Gateway", original: "Gateway" },
-      { chave: "debug", nome: "Debug", original: "Debug" },
-    ],
+    chave: "2026-11-11|gateway", temas: ["Gateway"], data: "11/11", realizado: true,
+    itens: [{ chave: "gateway", nome: "Gateway", original: "Gateway" }],
     diaMarcado: 2, diasDecorridos: 3,
   });
-  assert.deepEqual(linhas.slice(1).map((l) => [l.temas, l.realizado, l.data]), [
-    [["Cliente"], false, "12/11"],
-    [["Pessoas"], false, "13/11"],
+  assert.deepEqual([linhas[1].chave, linhas[1].temas, linhas[1].diaMarcado], ["2026-11-11|debug", ["Debug"], undefined]);
+  // Temas previstos também ficam um por linha, mesmo quando a esteira os agrupa num bloco.
+  assert.deepEqual(linhas.slice(2).map((l) => [l.chave, l.temas, l.realizado, l.data]), [
+    ["pendente-cliente", ["Cliente"], false, "12/11"],
+    ["pendente-pessoas", ["Pessoas"], false, "13/11"],
   ]);
+  assert.deepEqual(
+    montarLinhasAplicacaoTemas({ ...base, ocorrencias: [] }).map((l) => l.chave),
+    ["pendente-gateway", "pendente-debug", "pendente-cliente", "pendente-pessoas"],
+  );
+});
+
+test("marcação antiga por dia vale para os temas do dia; alterar um tema grava os outros um a um", () => {
+  const ocorrencias = [treino(11, ["Gateway", "Debug"]), treino(11, ["Cliente"], { createdAt: dia(11, 16) })];
+  const marcacoes = { "2026-11-11": 2 };
+  // Debug retirado da tabela também herda, para não perder a marcação se for restaurado.
+  const ajustes = removerTemaAplicacao(undefined, { chave: "debug", nome: "Debug", original: "Debug" });
+  const linhas = montarLinhasAplicacaoTemas({ ...base, ocorrencias, marcacoes, ajustes });
+  assert.deepEqual(linhas.filter((l) => l.realizado).map((l) => [l.chave, l.diaMarcado]), [
+    ["2026-11-11|gateway", 2],
+    ["2026-11-11|cliente", 2],
+  ]);
+
+  assert.deepEqual(atualizacoesMarcacaoAplicacao(linhas[1], null), {
+    "2026-11-11|gateway": 2,
+    "2026-11-11|debug": 2,
+    "2026-11-11": null,
+    "2026-11-11|cliente": null,
+  });
+
+  // Depois da conversão, cada tema segue só a própria chave.
+  const convertidas = { "2026-11-11|gateway": 2, "2026-11-11|debug": 2 };
+  const depois = montarLinhasAplicacaoTemas({ ...base, ocorrencias, marcacoes: convertidas, ajustes });
+  assert.deepEqual(depois.filter((l) => l.realizado).map((l) => [l.temas[0], l.diaMarcado, !!l.herdaMarcacaoDoDia]), [
+    ["Gateway", 2, false],
+    ["Cliente", undefined, false],
+  ]);
+  assert.deepEqual(atualizacoesMarcacaoAplicacao(depois[1], 4), { "2026-11-11|cliente": 4 });
 });
 
 test("ignora ausências, cancelamentos, outras empresas, revisões e temas já ensinados", () => {
@@ -81,9 +113,10 @@ test("ignora ausências, cancelamentos, outras empresas, revisões e temas já e
     ],
   });
   assert.deepEqual(linhas.map((l) => [l.chave, l.temas]), [
-    ["2026-11-11", ["Gateway", "Debug"]],
-    ["2026-11-13", ["Pessoas"]],
-    ["pendente-1", ["Cliente"]],
+    ["2026-11-11|gateway", ["Gateway"]],
+    ["2026-11-11|debug", ["Debug"]],
+    ["2026-11-13|pessoas", ["Pessoas"]],
+    ["pendente-cliente", ["Cliente"]],
   ]);
 });
 
@@ -96,8 +129,8 @@ test("não lista o tema Início, com ou sem acento, nem nas linhas realizadas ne
     ocorrencias: [treino(10, ["Inicio"]), treino(11, ["Início", "Gateway"])],
   });
   assert.deepEqual(linhas.map((l) => [l.chave, l.temas]), [
-    ["2026-11-11", ["Gateway"]],
-    ["pendente-2", ["Debug"]],
+    ["2026-11-11|gateway", ["Gateway"]],
+    ["pendente-debug", ["Debug"]],
   ]);
 });
 
@@ -111,9 +144,10 @@ test("usa o dia da aula (createdAt), não a data do próximo treinamento", () =>
     ],
   });
   assert.deepEqual(linhas.map((l) => [l.chave, l.temas, l.data]), [
-    ["2026-11-11", ["Gateway", "Debug"], "11/11"],
-    ["2026-11-13", ["Cliente"], "13/11"],
-    ["pendente-2", ["Pessoas"], "13/11"],
+    ["2026-11-11|gateway", ["Gateway"], "11/11"],
+    ["2026-11-11|debug", ["Debug"], "11/11"],
+    ["2026-11-13|cliente", ["Cliente"], "13/11"],
+    ["pendente-pessoas", ["Pessoas"], "13/11"],
   ]);
 });
 
@@ -126,7 +160,8 @@ test("registro legado sem createdAt usa dataOcorrencia; data futura é agendamen
     ],
   });
   assert.deepEqual(linhas.map((l) => [l.temas, l.realizado]), [
-    [["Gateway", "Debug"], true],
+    [["Gateway"], true],
+    [["Debug"], true],
     [["Cliente"], false],
     [["Pessoas"], false],
   ]);
@@ -136,7 +171,7 @@ test("descarta marcação fora de D-1 … D-30", () => {
   const [linha] = montarLinhasAplicacaoTemas({
     ...base,
     ocorrencias: [treino(11, ["Gateway"])],
-    marcacoes: { "2026-11-11": 31 },
+    marcacoes: { "2026-11-11|gateway": 31 },
   });
   assert.equal(linha.diaMarcado, undefined);
 });
@@ -149,42 +184,44 @@ test("renomear troca o nome exibido em linhas realizadas e previstas; voltar ao 
   let ajustes = renomearTemaAplicacao(undefined, itemDe(linhas, "Debug"), "  Leitura   do Debug ");
   ajustes = renomearTemaAplicacao(ajustes, itemDe(linhas, "Pessoas"), "Cadastro de Pessoas");
   linhas = montarLinhasAplicacaoTemas({ ...base, ocorrencias, ajustes });
-  assert.deepEqual(linhas.map((l) => l.temas), [["Gateway", "Leitura do Debug"], ["Cliente"], ["Cadastro de Pessoas"]]);
+  assert.deepEqual(linhas.map((l) => l.temas), [["Gateway"], ["Leitura do Debug"], ["Cliente"], ["Cadastro de Pessoas"]]);
 
   ajustes = renomearTemaAplicacao(ajustes, itemDe(linhas, "Leitura do Debug"), "Debug");
   assert.deepEqual(ajustes.renomeados, { pessoas: "Cadastro de Pessoas" });
 });
 
-test("retirar some com o tema (e com a linha vazia) sem voltar como previsto; restaurar traz de volta", () => {
+test("retirar some com a linha do tema sem voltar como previsto; restaurar traz de volta", () => {
   const ocorrencias = [treino(11, ["Gateway"]), treino(12, ["Debug"])];
-  let linhas = montarLinhasAplicacaoTemas({ ...base, ocorrencias, marcacoes: { "2026-11-12": 1 } });
+  const marcacoes = { "2026-11-12|debug": 1 };
+  let linhas = montarLinhasAplicacaoTemas({ ...base, ocorrencias, marcacoes });
   let ajustes = removerTemaAplicacao(undefined, itemDe(linhas, "Debug"));
   ajustes = removerTemaAplicacao(ajustes, itemDe(linhas, "Cliente"));
-  linhas = montarLinhasAplicacaoTemas({ ...base, ocorrencias, ajustes, marcacoes: { "2026-11-12": 1 } });
-  assert.deepEqual(linhas.map((l) => [l.chave, l.temas]), [["2026-11-11", ["Gateway"]], ["pendente-2", ["Pessoas"]]]);
+  linhas = montarLinhasAplicacaoTemas({ ...base, ocorrencias, ajustes, marcacoes });
+  assert.deepEqual(linhas.map((l) => [l.chave, l.temas]), [["2026-11-11|gateway", ["Gateway"]], ["pendente-pessoas", ["Pessoas"]]]);
   assert.deepEqual(listarTemasRemovidosAplicacao(ajustes).map((r) => r.nome), ["Cliente", "Debug"]);
 
-  // A marcação do dia fica guardada e volta junto com o tema.
+  // A marcação do tema fica guardada e volta junto com ele.
   ajustes = restaurarTemaAplicacao(ajustes, "debug");
-  linhas = montarLinhasAplicacaoTemas({ ...base, ocorrencias, ajustes, marcacoes: { "2026-11-12": 1 } });
-  assert.deepEqual(linhas[1], { ...linhas[1], chave: "2026-11-12", temas: ["Debug"], diaMarcado: 1 });
+  linhas = montarLinhasAplicacaoTemas({ ...base, ocorrencias, ajustes, marcacoes });
+  assert.deepEqual(linhas[1], { ...linhas[1], chave: "2026-11-12|debug", temas: ["Debug"], diaMarcado: 1 });
 });
 
-test("incluir junta o tema ao dia existente, abre linha nova, tira da lista de previstos e respeita data futura", () => {
+test("incluir cria a linha do tema no dia informado, tira da lista de previstos e respeita data futura", () => {
   const ocorrencias = [treino(11, ["Gateway"])];
   let ajustes = adicionarTemaAplicacao(undefined, { id: "a1", tema: "Debug", dia: "2026-11-11" });
   ajustes = adicionarTemaAplicacao(ajustes, { id: "a2", tema: " Calculadora ", dia: "2026-11-09" });
   ajustes = adicionarTemaAplicacao(ajustes, { id: "a3", tema: "Videotelemetria", dia: "2026-11-20" });
-  const linhas = montarLinhasAplicacaoTemas({ ...base, ocorrencias, ajustes, marcacoes: { "2026-11-09": 3 } });
+  const linhas = montarLinhasAplicacaoTemas({ ...base, ocorrencias, ajustes, marcacoes: { "2026-11-09|calculadora": 3 } });
   assert.deepEqual(linhas.map((l) => [l.chave, l.temas, l.realizado]), [
-    ["2026-11-09", ["Calculadora"], true],
-    ["2026-11-11", ["Gateway", "Debug"], true],
-    ["pendente-1", ["Cliente"], false],
-    ["pendente-2", ["Pessoas"], false],
-    ["2026-11-20", ["Videotelemetria"], false],
+    ["2026-11-09|calculadora", ["Calculadora"], true],
+    ["2026-11-11|gateway", ["Gateway"], true],
+    ["2026-11-11|debug", ["Debug"], true],
+    ["pendente-cliente", ["Cliente"], false],
+    ["pendente-pessoas", ["Pessoas"], false],
+    ["2026-11-20|videotelemetria", ["Videotelemetria"], false],
   ]);
   assert.equal(linhas[0].diaMarcado, 3);
-  assert.equal(linhas[4].diaMarcado, undefined);
+  assert.equal(linhas[5].diaMarcado, undefined);
 
   // Excluir um tema incluído apaga a inclusão (não vai para "retirados").
   const semDebug = removerTemaAplicacao(ajustes, itemDe(linhas, "Debug"));
@@ -196,7 +233,7 @@ test("ocorrência vence a inclusão manual do mesmo tema", () => {
   const ajustes = adicionarTemaAplicacao(undefined, { id: "a1", tema: "gateway", dia: "2026-11-13" });
   const linhas = montarLinhasAplicacaoTemas({ ...base, ocorrencias: [treino(11, ["Gateway"])], ajustes });
   assert.deepEqual(linhas[0].temas, ["Gateway"]);
-  assert.equal(linhas.some((l) => l.chave === "2026-11-13"), false);
+  assert.equal(linhas.some((l) => l.chave.startsWith("2026-11-13")), false);
 });
 
 test("validação do nome barra vazio, repetido e tema retirado (na inclusão)", () => {

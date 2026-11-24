@@ -107,7 +107,7 @@ export function AjustesTemasAplicacao({ sugestoes, removidos, salvando, validarN
               {erroDia ??
                 (dia > hojeISO()
                   ? "Data futura: o tema fica como previsto até esse dia."
-                  : "Entra na linha desse dia (ou abre uma) e já pode ser marcado.")}
+                  : "Ganha uma linha própria com essa data e já pode ser marcado.")}
             </small>
           </div>
 

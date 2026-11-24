@@ -38,6 +38,7 @@ import { GraficoAplicacaoTemas } from "./GraficoAplicacaoTemas";
 import { AjustesTemasAplicacao } from "./AjustesTemasAplicacao";
 import {
   montarLinhasAplicacaoTemas,
+  atualizacoesMarcacaoAplicacao,
   adicionarTemaAplicacao,
   chaveTemaAplicacao,
   listarTemasRemovidosAplicacao,
@@ -290,7 +291,9 @@ function Esteira() {
       (atual) => removerTemaAplicacao(atual, item),
       adicionadoId ? `Tema incluído “${item.nome}” excluído.` : `“${item.nome}” saiu da tabela e do gráfico.`,
       adicionadoId
-        ? (atual) => adicionarTemaAplicacao(atual, { id: adicionadoId, tema: item.nome, dia: linha.chave })
+        ? (atual) =>
+            // A chave da linha é "YYYY-MM-DD|tema"; o dia são os 10 primeiros caracteres.
+            adicionarTemaAplicacao(atual, { id: adicionadoId, tema: item.nome, dia: linha.chave.slice(0, 10) })
         : (atual) => restaurarTemaAplicacao(atual, item.chave),
     );
   };
@@ -305,11 +308,15 @@ function Esteira() {
   >(null);
 
   const marcarAplicacaoTema = async (chave: string, dia: number | null) => {
-    if (!empresaSelecionada?.id || !isTreinador || salvandoAplicacaoChave)
+    const linha = linhasAplicacaoTemas.find((l) => l.chave === chave);
+    if (!empresaSelecionada?.id || !isTreinador || salvandoAplicacaoChave || !linha)
       return;
     setSalvandoAplicacaoChave(chave);
     try {
-      await registrarAplicacaoTema(empresaSelecionada.id, chave, dia);
+      await registrarAplicacaoTema(
+        empresaSelecionada.id,
+        atualizacoesMarcacaoAplicacao(linha, dia),
+      );
       // Recarrega do cache já atualizado, para o "Salvar empresa" seguinte não
       // acusar conflito pelo updatedAt alterado por esta marcação.
       setEmpresas(await listarEmpresas());
@@ -1246,9 +1253,10 @@ function Esteira() {
           </div>
           <p className="aplicacao-temas-ajuda">
             Marque com ✕ depois de quantos dias do treinamento o cliente aplicou
-            na base os temas daquele dia. Só é possível marcar dias com
-            ocorrência de Treinamento registrada ou com tema incluído; a
-            marcação é salva na hora.
+            cada tema na base — um tema por linha, mesmo quando vários foram
+            ensinados no mesmo dia. Só é possível marcar temas com ocorrência de
+            Treinamento registrada ou incluídos com data já passada; a marcação
+            é salva na hora.
             {isTreinador &&
               " Use o lápis para renomear um tema e o ✕ ao lado do nome para retirar da tabela o que não dá para medir. Esses ajustes valem só para esta tabela e o gráfico — a esteira e as ocorrências não mudam."}
           </p>

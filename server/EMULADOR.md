@@ -52,7 +52,7 @@ No Radar, abra Relatórios > Jornada do cliente e busque `Demo Jornada`. Use Tod
 
 ## Exemplo para a aplicação dos temas (Esteira)
 
-Com o Firestore local rodando, execute em `server/` `npm run seed:aplicacao`. Cria o cliente `[Demo Aplicação] Central Exemplo` (IDs `demo-aplicacao-`) com treinamentos passados e D-N já marcados, um treinamento recente sem marcação, um agendamento futuro e o tema "Início" (que não entra na tabela). Na Esteira, selecione o cliente e role até "Aplicação dos temas na base". Repetir o comando regrava só esses registros, com datas relativas ao dia atual (e apaga os ajustes de temas feitos na tabela — renomeados, retirados e incluídos); o destino é fixo em `127.0.0.1:8080`.
+Com o Firestore local rodando, execute em `server/` `npm run seed:aplicacao`. Cria o cliente `[Demo Aplicação] Central Exemplo` (IDs `demo-aplicacao-`) com treinamentos passados e D-N já marcados (um dia com dois temas em que só um foi aplicado e um dia ainda no formato antigo de marcação por dia), um treinamento recente sem marcação, um agendamento futuro e o tema "Início" (que não entra na tabela). Na Esteira, selecione o cliente e role até "Aplicação dos temas na base". Repetir o comando regrava só esses registros, com datas relativas ao dia atual (e apaga os ajustes de temas feitos na tabela — renomeados, retirados e incluídos); o destino é fixo em `127.0.0.1:8080`.
 
 ## Exemplo para a validação parcial do conhecimento
 

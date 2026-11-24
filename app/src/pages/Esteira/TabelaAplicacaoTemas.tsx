@@ -29,17 +29,17 @@ function descreverLinha(linha: LinhaAplicacaoTema) {
 }
 
 function motivoBloqueio(linha: LinhaAplicacaoTema, dia: number, disabled?: boolean) {
-  if (!linha.realizado) return "Disponível depois que houver uma ocorrência de Treinamento com esses temas.";
+  if (!linha.realizado) return "Disponível depois que houver uma ocorrência de Treinamento com este tema.";
   if (disabled) return "Somente treinadores podem marcar a aplicação.";
   if ((linha.diasDecorridos ?? 0) < dia) return `D-${dia} ainda não chegou para este treinamento.`;
   return null;
 }
 
 /**
- * Marca, para cada dia de treinamento, depois de quantos dias (D-1 … D-30) o
- * cliente aplicou na base os temas aprendidos. Só os dias com ocorrência de
- * Treinamento (ou tema incluído com data já passada) podem ser marcados; os blocos
- * ainda planejados aparecem bloqueados. Cada tema pode ser renomeado ou retirado.
+ * Marca, para cada tema, depois de quantos dias (D-1 … D-30) do treinamento o
+ * cliente o aplicou na base — uma linha por tema. Só temas com ocorrência de
+ * Treinamento (ou incluídos com data já passada) podem ser marcados; os ainda
+ * planejados aparecem bloqueados. Cada tema pode ser renomeado ou retirado.
  */
 export function TabelaAplicacaoTemas({
   linhas,
@@ -87,7 +87,7 @@ export function TabelaAplicacaoTemas({
         <thead>
           <tr>
             <th scope="col" className="aplicacao-temas-tema">
-              Temas (data)
+              Tema (data)
             </th>
             {DIAS.map((dia) => (
               <th scope="col" key={dia}>

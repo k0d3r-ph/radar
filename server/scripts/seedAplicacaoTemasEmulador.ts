@@ -16,11 +16,23 @@ process.env.METADATA_SERVER_DETECTION = 'none';
 const PREFIXO = 'demo-aplicacao-';
 const NOME = '[Demo Aplicação] Central Exemplo';
 
-/** Dias atrás (negativo = passado), com o dia D-N em que o cliente aplicou (ou null). */
-const TREINAMENTOS: { dias: number; temas: string[]; aplicouEm: number | null }[] = [
-  { dias: -40, temas: ['Início', 'Cadastro de Gateway', 'Debug'], aplicouEm: 2 },
+/**
+ * Dias atrás (negativo = passado), com o dia D-N em que o cliente aplicou cada tema (ou
+ * null). `aplicouEm` vale para todos os temas do dia; `aplicouPorTema` marca um a um.
+ * `legado` grava no formato antigo (uma chave por dia), para testar a conversão.
+ */
+const TREINAMENTOS: {
+  dias: number;
+  temas: string[];
+  aplicouEm: number | null;
+  aplicouPorTema?: Record<string, number | null>;
+  legado?: boolean;
+}[] = [
+  // Mesmo dia, resultados diferentes: Gateway aplicado em D-2, Debug não aplicado.
+  { dias: -40, temas: ['Início', 'Cadastro de Gateway', 'Debug'], aplicouEm: null, aplicouPorTema: { 'Cadastro de Gateway': 2, Debug: null } },
   { dias: -37, temas: ['Cadastro de Rastreador'], aplicouEm: 5 },
-  { dias: -34, temas: ['Cadastro de Veículo', 'Cadastro de Cliente'], aplicouEm: 1 },
+  // Formato antigo: D-1 para os dois temas do dia até um deles ser alterado na tabela.
+  { dias: -34, temas: ['Cadastro de Veículo', 'Cadastro de Cliente'], aplicouEm: 1, legado: true },
   { dias: -30, temas: ['Tela Operacional'], aplicouEm: 9 },
   // Sem marcação entre dias marcados: aparece em vermelho no eixo X do gráfico.
   { dias: -26, temas: ['Pessoas'], aplicouEm: null },
@@ -63,9 +75,20 @@ try {
     return proximo && [...TREINAMENTOS, AGENDADO].some((t) => t.temas.includes(tema) && t.temas.includes(proximo)) ? '1' : '';
   }).join('\n');
 
-  const aplicacaoTemasDias = Object.fromEntries(
-    TREINAMENTOS.filter((t) => t.aplicouEm !== null).map((t) => [iso(diaRelativo(t.dias)), t.aplicouEm]),
-  );
+  // Mesma chave de utils/aplicacaoTemas.ts (chaveMarcacaoAplicacao): dia|tema normalizado.
+  const chaveTema = (tema: string) => tema.trim().replace(/\s+/g, ' ').toLowerCase();
+  const aplicacaoTemasDias: Record<string, number> = {};
+  TREINAMENTOS.forEach((t) => {
+    const dia = iso(diaRelativo(t.dias));
+    if (t.legado) {
+      if (t.aplicouEm !== null) aplicacaoTemasDias[dia] = t.aplicouEm;
+      return;
+    }
+    t.temas.forEach((tema) => {
+      const valor = t.aplicouPorTema ? t.aplicouPorTema[tema] : t.aplicouEm;
+      if (valor !== null && valor !== undefined) aplicacaoTemasDias[`${dia}|${chaveTema(tema)}`] = valor;
+    });
+  });
 
   const batch = db.batch();
   batch.set(db.collection('empresas').doc(`${PREFIXO}central`), {

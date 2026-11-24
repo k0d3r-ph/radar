@@ -83,7 +83,7 @@ const q = (respostaParcial) => ({ id: Math.random().toString(36), secao: 'Temas 
 test('resultado parcial usa só as perguntas marcadas e o mínimo de 80% inclusive', () => {
   assert.equal(resultadoParcialValidacao([q(null), q(undefined)]), null);
   // 4 corretas + 1 parcial = 9/10 unidades (90%); a pergunta sem marcação parcial não conta.
-  assert.deepEqual(resultadoParcialValidacao([q('correto'), q('correto'), q('correto'), q('correto'), q('parcial'), q(null)]), { marcadas: 5, aprovada: true });
+  assert.deepEqual(resultadoParcialValidacao([q('correto'), q('correto'), q('correto'), q('correto'), q('parcial'), q(null)]), { marcadas: 5, nota: 9, percentual: 90, aprovada: true });
   // Exatamente 80%: 3 corretas + 2 parciais = 8/10.
   assert.equal(resultadoParcialValidacao([q('correto'), q('correto'), q('correto'), q('parcial'), q('parcial')]).aprovada, true);
   // 79,x%: 3 corretas + 1 parcial + 1 incorreta = 7/10.

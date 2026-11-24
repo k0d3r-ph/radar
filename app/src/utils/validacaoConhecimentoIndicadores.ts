@@ -28,18 +28,24 @@ export interface ResultadoValidacaoCliente {
  * Resultado da validação parcial: só as perguntas com marcação parcial, com os mesmos pesos da
  * nota final (Correto 1, Parcial 0,5, Incorreto 0) e o mesmo mínimo de 80%. A conta usa unidades
  * inteiras (pesos ×2), como `calcularResultadoValidacao`, para 80% exatos não sofrerem
- * arredondamento. `null` se nenhuma pergunta foi marcada.
+ * arredondamento. `nota` (0–10) e `percentual` consideram só as marcadas, como a aprovação.
+ * `null` se nenhuma pergunta foi marcada.
  */
 export function resultadoParcialValidacao(
   questoes: Pick<QuestaoValidacao, "respostaParcial">[],
-): { marcadas: number; aprovada: boolean } | null {
+): { marcadas: number; nota: number; percentual: number; aprovada: boolean } | null {
   const marcadas = questoes.filter((q) => q.respostaParcial);
   if (!marcadas.length) return null;
   const unidades = marcadas.reduce(
     (soma, q) => soma + (q.respostaParcial === "correto" ? 2 : q.respostaParcial === "parcial" ? 1 : 0),
     0,
   );
-  return { marcadas: marcadas.length, aprovada: unidades * 5 >= 8 * marcadas.length };
+  return {
+    marcadas: marcadas.length,
+    nota: (10 * unidades) / (2 * marcadas.length),
+    percentual: (100 * unidades) / (2 * marcadas.length),
+    aprovada: unidades * 5 >= 8 * marcadas.length,
+  };
 }
 
 function resultadoDaTentativa(t: TentativaValidacao, minimoParcial: number): ResultadoValidacaoCliente | null {

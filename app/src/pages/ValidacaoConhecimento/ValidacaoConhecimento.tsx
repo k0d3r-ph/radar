@@ -35,6 +35,7 @@ import { ImpressaoValidacaoModal } from '../../components/ImpressaoValidacaoModa
 import type { RascunhoConclusao } from '../../components/ImpressaoValidacaoModal';
 import { CertificadosModal } from './CertificadosModal';
 import { APROVEITAMENTO_MINIMO_CERTIFICADO } from '../../utils/certificadoTreinamento';
+import { resultadoParcialValidacao } from '../../utils/validacaoConhecimentoIndicadores';
 const numero = (n: number) => n.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
 const rotuloStatus = { andamento: 'Em andamento', pausada: 'Pausada', concluida: 'Concluída', cancelada: 'Cancelada' };
 export function ValidacaoConhecimento() {
@@ -288,6 +289,9 @@ export function ValidacaoConhecimento() {
   }
   const respondidas = atual?.questoes.filter(q => q.resposta !== null).length || 0;
   const previa = atual?.questoes.length ? calcularResultadoValidacao(atual.questoes.map(q => ({ resposta: q.resposta || 'incorreto' }))) : null;
+  // Validação parcial: mesma conta do indicador do painel (só as perguntas com marcação parcial).
+  const parcial = atual ? resultadoParcialValidacao(atual.questoes) : null;
+  const exibirResumoParcial = !!atual && (atual.status !== 'concluida' || !!parcial);
   const corretas = new Set(tentativas.filter(t => t.status === 'concluida').flatMap(t => t.questoes.filter(q => q.resposta === 'correto').map(q => q.id)));
   // Reservas de clientes suspensos não bloqueiam no servidor; as demais sim.
   const reservaBloqueante = !!atual && atual.treinadorId === user?.uid
@@ -343,7 +347,14 @@ export function ValidacaoConhecimento() {
           <div className="validacao-sessao-cabecalho"><div><span className="validacao-eyebrow">Tentativa {atual.numero}</span><h2>{atual.empresa}</h2><p>Conduzida por {atual.treinadorNome}{atual.assumidaDeNome ? ` (assumida de ${atual.assumidaDeNome})` : ''}{alterada ? ' · Alterações não salvas' : ' · Salva'}</p></div><span className={`validacao-status validacao-status--${atual.status}`}>{rotuloStatus[atual.status]}</span></div>
           <p>Seções da avaliação: {atual.secoes.join(', ')}.</p>
           {atual.status === 'concluida' && <div><h3>Respostas do CSAT</h3>{atual.csatRespostas?.length ? atual.csatRespostas.map((r, i) => <p key={i}>{r.nome}: <AvaliacaoCsat nota={r.nota} experiencia={r.experiencia} />{r.opiniao ? ` — ${r.opiniao}` : ''}</p>) : <p>Aguardando respostas do cliente.</p>}<button type="button" disabled={ocupado} onClick={() => executar(async () => { const lista = await listarTentativasConhecimento(empresaId); setTentativas(lista); const t = lista.find(item => item.id === atual.id); if (t) guardar(t); })}>Atualizar respostas do CSAT</button></div>}
-          <div className="validacao-resumo" aria-live="polite"><div><span>Andamento</span><strong>{respondidas}<small> / {atual.questoes.length} respostas</small></strong><progress value={respondidas} max={atual.questoes.length || 1} aria-label="Perguntas respondidas" /></div><div><span>Pontuação</span><strong>{numero(previa?.nota || 0)}<small> / 10 pontos</small></strong><span>{atual.questoes.length ? `${numero(10 / atual.questoes.length)} por pergunta` : 'Adicione perguntas para avaliar'}</span></div><div><span>Aproveitamento</span><strong>{numero(previa?.percentual || 0)}<small>%</small></strong><span>Aprovação a partir de 80%</span></div></div>
+          <div className="validacao-resumo" aria-live="polite">
+            <div><span>Andamento</span><strong>{respondidas}<small> / {atual.questoes.length} respostas</small></strong><progress value={respondidas} max={atual.questoes.length || 1} aria-label="Perguntas respondidas" />
+              {exibirResumoParcial && <span className="validacao-resumo-parcial">Validação parcial: <b>{parcial?.marcadas ?? 0}</b> / {atual.questoes.length} marcadas</span>}</div>
+            <div><span>Pontuação</span><strong>{numero(previa?.nota || 0)}<small> / 10 pontos</small></strong><span>{atual.questoes.length ? `${numero(10 / atual.questoes.length)} por pergunta` : 'Adicione perguntas para avaliar'}</span>
+              {exibirResumoParcial && <span className="validacao-resumo-parcial">Validação parcial: {parcial ? <><b>{numero(parcial.nota)}</b> / 10 pontos · sobre {parcial.marcadas} marcada{parcial.marcadas === 1 ? '' : 's'}</> : 'nenhuma pergunta marcada'}</span>}</div>
+            <div><span>Aproveitamento</span><strong>{numero(previa?.percentual || 0)}<small>%</small></strong><span>Aprovação a partir de 80%</span>
+              {exibirResumoParcial && <span className="validacao-resumo-parcial">Validação parcial: {parcial ? <><b>{numero(parcial.percentual)}%</b> · {parcial.aprovada ? 'atinge os 80%' : 'abaixo de 80%'}</> : 'nenhuma pergunta marcada'}</span>}</div>
+          </div>
           {atual.status === 'concluida' && <div className={`validacao-resultado validacao-resultado--${atual.aprovada ? 'aprovado' : 'reprovado'}`}><strong>{atual.aprovada ? 'Aprovado — atingiu pelo menos 80%.' : 'Não atingiu 80% — nova tentativa disponível.'}</strong><p>Pontuação: {numero(atual.nota || 0)}/10 · Aproveitamento: {numero(atual.percentual || 0)}%.</p>
             {atual.aprovada && <p>{atual.concluiuEsteira ? 'A esteira do cliente foi concluída com esta aprovação.' : 'A data foi registrada no tema “Validação do conhecimento”. Se ainda houver temas pendentes na esteira, ela será concluída quando o último deles for registrado no Histórico.'}</p>}
             {atual.csatToken && <div className="validacao-csat-link"><label>Link do CSAT<input readOnly value={linkCsat(atual.csatToken)} onFocus={event => event.target.select()} /></label><div className="validacao-acoes"><a href={linkCsat(atual.csatToken)} target="_blank" rel="noreferrer">Abrir CSAT desta tentativa</a><button type="button" onClick={async () => { if (await copiarTexto(linkCsat(atual.csatToken!))) toast.success('Link do CSAT copiado.'); else toast.warning('Selecione o endereço no campo Link do CSAT e copie com Ctrl+C.'); }}>Copiar link</button></div></div>}

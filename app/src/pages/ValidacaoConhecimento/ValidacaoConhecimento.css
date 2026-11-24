@@ -42,6 +42,9 @@
 .validacao-resumo span { color: #94a3b8; font-size: 11px; }
 .validacao-resumo strong { color: #f1f5f9; font-size: 25px; font-weight: 600; line-height: 1.2; }
 .validacao-resumo small { font-size: 12px; font-weight: 400; color: #94a3b8; }
+/* Linha da validação parcial em cada card do resumo, separada dos números da final. */
+.validacao-resumo .validacao-resumo-parcial { margin-top: auto; padding-top: 10px; border-top: 1px dashed #334155; color: #cbd5e1; font-size: 12px; }
+.validacao-resumo-parcial b { color: #fbbf24; font-size: 14px; font-weight: 600; }
 .validacao-resumo progress { width: 100%; height: 5px; border: 0; border-radius: 99px; overflow: hidden; accent-color: #3b82f6; }
 .validacao-resumo progress::-webkit-progress-bar { background: #334155; }
 .validacao-resumo progress::-webkit-progress-value { background: #3b82f6; border-radius: 99px; }

@@ -22,7 +22,16 @@ function carregar(url) {
 const modulo = carregar(new URL("../src/utils/aplicacaoTemas.ts", import.meta.url));
 await modulo.link((specifier, importador) => carregar(new URL(specifier, importador.identifier)));
 await modulo.evaluate();
-const { montarLinhasAplicacaoTemas } = modulo.namespace;
+const {
+  montarLinhasAplicacaoTemas,
+  renomearTemaAplicacao,
+  removerTemaAplicacao,
+  restaurarTemaAplicacao,
+  adicionarTemaAplicacao,
+  listarTemasRemovidosAplicacao,
+  validarNomeTemaAplicacao,
+  lerAjustesAplicacaoTemas,
+} = modulo.namespace;
 
 const dia = (d, h = 10) => new Date(2026, 10, d, h).getTime();
 // Como no formulário: createdAt é o momento da aula; dataOcorrencia, o próximo treinamento.
@@ -47,6 +56,10 @@ test("agrupa na mesma linha os temas ensinados no mesmo dia, inclusive em ocorr�
   });
   assert.deepEqual(linhas[0], {
     chave: "2026-11-11", temas: ["Gateway", "Debug"], data: "11/11", realizado: true,
+    itens: [
+      { chave: "gateway", nome: "Gateway", original: "Gateway" },
+      { chave: "debug", nome: "Debug", original: "Debug" },
+    ],
     diaMarcado: 2, diasDecorridos: 3,
   });
   assert.deepEqual(linhas.slice(1).map((l) => [l.temas, l.realizado, l.data]), [
@@ -126,4 +139,86 @@ test("descarta marcação fora de D-1 … D-30", () => {
     marcacoes: { "2026-11-11": 31 },
   });
   assert.equal(linha.diaMarcado, undefined);
+});
+
+const itemDe = (linhas, nome) => linhas.flatMap((l) => l.itens).find((i) => i.nome === nome);
+
+test("renomear troca o nome exibido em linhas realizadas e previstas; voltar ao original desfaz", () => {
+  const ocorrencias = [treino(11, ["Gateway", "Debug"])];
+  let linhas = montarLinhasAplicacaoTemas({ ...base, ocorrencias });
+  let ajustes = renomearTemaAplicacao(undefined, itemDe(linhas, "Debug"), "  Leitura   do Debug ");
+  ajustes = renomearTemaAplicacao(ajustes, itemDe(linhas, "Pessoas"), "Cadastro de Pessoas");
+  linhas = montarLinhasAplicacaoTemas({ ...base, ocorrencias, ajustes });
+  assert.deepEqual(linhas.map((l) => l.temas), [["Gateway", "Leitura do Debug"], ["Cliente"], ["Cadastro de Pessoas"]]);
+
+  ajustes = renomearTemaAplicacao(ajustes, itemDe(linhas, "Leitura do Debug"), "Debug");
+  assert.deepEqual(ajustes.renomeados, { pessoas: "Cadastro de Pessoas" });
+});
+
+test("retirar some com o tema (e com a linha vazia) sem voltar como previsto; restaurar traz de volta", () => {
+  const ocorrencias = [treino(11, ["Gateway"]), treino(12, ["Debug"])];
+  let linhas = montarLinhasAplicacaoTemas({ ...base, ocorrencias, marcacoes: { "2026-11-12": 1 } });
+  let ajustes = removerTemaAplicacao(undefined, itemDe(linhas, "Debug"));
+  ajustes = removerTemaAplicacao(ajustes, itemDe(linhas, "Cliente"));
+  linhas = montarLinhasAplicacaoTemas({ ...base, ocorrencias, ajustes, marcacoes: { "2026-11-12": 1 } });
+  assert.deepEqual(linhas.map((l) => [l.chave, l.temas]), [["2026-11-11", ["Gateway"]], ["pendente-2", ["Pessoas"]]]);
+  assert.deepEqual(listarTemasRemovidosAplicacao(ajustes).map((r) => r.nome), ["Cliente", "Debug"]);
+
+  // A marcação do dia fica guardada e volta junto com o tema.
+  ajustes = restaurarTemaAplicacao(ajustes, "debug");
+  linhas = montarLinhasAplicacaoTemas({ ...base, ocorrencias, ajustes, marcacoes: { "2026-11-12": 1 } });
+  assert.deepEqual(linhas[1], { ...linhas[1], chave: "2026-11-12", temas: ["Debug"], diaMarcado: 1 });
+});
+
+test("incluir junta o tema ao dia existente, abre linha nova, tira da lista de previstos e respeita data futura", () => {
+  const ocorrencias = [treino(11, ["Gateway"])];
+  let ajustes = adicionarTemaAplicacao(undefined, { id: "a1", tema: "Debug", dia: "2026-11-11" });
+  ajustes = adicionarTemaAplicacao(ajustes, { id: "a2", tema: " Calculadora ", dia: "2026-11-09" });
+  ajustes = adicionarTemaAplicacao(ajustes, { id: "a3", tema: "Videotelemetria", dia: "2026-11-20" });
+  const linhas = montarLinhasAplicacaoTemas({ ...base, ocorrencias, ajustes, marcacoes: { "2026-11-09": 3 } });
+  assert.deepEqual(linhas.map((l) => [l.chave, l.temas, l.realizado]), [
+    ["2026-11-09", ["Calculadora"], true],
+    ["2026-11-11", ["Gateway", "Debug"], true],
+    ["pendente-1", ["Cliente"], false],
+    ["pendente-2", ["Pessoas"], false],
+    ["2026-11-20", ["Videotelemetria"], false],
+  ]);
+  assert.equal(linhas[0].diaMarcado, 3);
+  assert.equal(linhas[4].diaMarcado, undefined);
+
+  // Excluir um tema incluído apaga a inclusão (não vai para "retirados").
+  const semDebug = removerTemaAplicacao(ajustes, itemDe(linhas, "Debug"));
+  assert.deepEqual(semDebug.adicionados.map((a) => a.id), ["a2", "a3"]);
+  assert.deepEqual(semDebug.removidos, {});
+});
+
+test("ocorrência vence a inclusão manual do mesmo tema", () => {
+  const ajustes = adicionarTemaAplicacao(undefined, { id: "a1", tema: "gateway", dia: "2026-11-13" });
+  const linhas = montarLinhasAplicacaoTemas({ ...base, ocorrencias: [treino(11, ["Gateway"])], ajustes });
+  assert.deepEqual(linhas[0].temas, ["Gateway"]);
+  assert.equal(linhas.some((l) => l.chave === "2026-11-13"), false);
+});
+
+test("validação do nome barra vazio, repetido e tema retirado (na inclusão)", () => {
+  const ocorrencias = [treino(11, ["Gateway", "Debug"])];
+  const ajustes = removerTemaAplicacao(undefined, itemDe(montarLinhasAplicacaoTemas({ ...base, ocorrencias }), "Cliente"));
+  const linhas = montarLinhasAplicacaoTemas({ ...base, ocorrencias, ajustes });
+  assert.match(validarNomeTemaAplicacao("  ", linhas, ajustes), /Informe/);
+  assert.match(validarNomeTemaAplicacao("debug", linhas, ajustes), /Já existe/);
+  assert.match(validarNomeTemaAplicacao(" Cliente", linhas, ajustes), /Restaurar/);
+  assert.equal(validarNomeTemaAplicacao("Novo tema", linhas, ajustes), null);
+  // Renomear o próprio tema (só mudando maiúsculas) é permitido.
+  assert.equal(validarNomeTemaAplicacao("DEBUG", linhas, ajustes, itemDe(linhas, "Debug")), null);
+  assert.match(validarNomeTemaAplicacao("Gateway", linhas, ajustes, itemDe(linhas, "Debug")), /Já existe/);
+});
+
+test("ajustes malformados vindos do Firestore são ignorados", () => {
+  assert.deepEqual(
+    lerAjustesAplicacaoTemas({
+      renomeados: { a: "A", b: 3 },
+      removidos: [],
+      adicionados: [{ id: "x", tema: "T", dia: "2026-11-11" }, { id: "y", tema: "", dia: "2026-11-11" }, { id: "z", tema: "T", dia: "11/11" }],
+    }),
+    { renomeados: { a: "A" }, removidos: {}, adicionados: [{ id: "x", tema: "T", dia: "2026-11-11" }] },
+  );
 });

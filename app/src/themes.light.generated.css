@@ -1119,10 +1119,48 @@ body.light-theme .aplicacao-temas-tabela thead th {
 body.light-theme .aplicacao-temas-tabela .aplicacao-temas-tema {
     background: #ffffff
 }
+body.light-theme .aplicacao-temas-item-selo {
+    color: #475569
+}
+body.light-theme .aplicacao-temas-icone {
+    color: #475569
+}
+body.light-theme .aplicacao-temas-icone:hover:not(:disabled) {
+    background: #e2e8f0;
+    color: #0f172a
+}
+body.light-theme .aplicacao-temas-icone:focus-visible {
+    outline: 2px solid #7aa2ff
+}
+body.light-theme .aplicacao-temas-erro {
+    color: #e71313
+}
+body.light-theme .aplicacao-temas-original {
+    color: #475569
+}
+body.light-theme .aplicacao-ajustes-form {
+    border: 1px solid #d5dce5
+}
+body.light-theme .aplicacao-ajustes-campo label {
+    color: #0f172a
+}
+body.light-theme .aplicacao-ajustes-campo small {
+    color: #475569
+}
+body.light-theme .aplicacao-ajustes-campo small.aplicacao-temas-erro {
+    color: #e71313
+}
+body.light-theme .aplicacao-ajustes-removidos {
+    color: #334155
+}
+body.light-theme .aplicacao-ajustes-removidos li {
+    border: 1px dashed #cbd5e1;
+    color: #0f172a
+}
 body.light-theme .aplicacao-temas-tema small {
     color: #475569
 }
-body.light-theme .aplicacao-temas-linha--pendente .aplicacao-temas-tema span {
+body.light-theme .aplicacao-temas-linha--pendente .aplicacao-temas-item-nome {
     color: #475569
 }
 body.light-theme .aplicacao-temas-celula {
@@ -5412,6 +5450,13 @@ body.light-theme .validacao-resumo strong {
 }
 body.light-theme .validacao-resumo small {
     color: #475569
+}
+body.light-theme .validacao-resumo .validacao-resumo-parcial {
+    border-top: 1px dashed #e2e8f0;
+    color: #334155
+}
+body.light-theme .validacao-resumo-parcial b {
+    color: #ab630e
 }
 body.light-theme .validacao-resumo progress::-webkit-progress-bar {
     background: #f1f5f9

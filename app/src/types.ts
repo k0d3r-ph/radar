@@ -38,6 +38,23 @@ export type WhatsappDestinatarioEnvio = {
   erro?: string;
 };
 
+/** Tema incluído à mão na tabela "Aplicação dos temas". */
+export type TemaAplicacaoAdicionado = {
+  id: string;
+  tema: string;
+  /** Dia do treinamento (YYYY-MM-DD, fuso local); a linha da tabela é a desse dia. */
+  dia: string;
+};
+
+/** Ver {@link Empresa.aplicacaoTemasAjustes}. Chaves: nome do tema normalizado (`chaveTemaAplicacao`). */
+export type AjustesAplicacaoTemas = {
+  /** Nome exibido no lugar do nome original. */
+  renomeados?: Record<string, string>;
+  /** Temas fora da tabela; o valor é o nome original, para poder restaurar. */
+  removidos?: Record<string, string>;
+  adicionados?: TemaAplicacaoAdicionado[];
+};
+
 export type Empresa = {
   id?: string;
 
@@ -109,6 +126,13 @@ export type Empresa = {
    * valor: o dia marcado. Ver `utils/aplicacaoTemas.ts`.
    */
   aplicacaoTemasDias?: Record<string, number>;
+
+  /**
+   * Ajustes manuais da tabela "Aplicação dos temas": temas renomeados, retirados (não
+   * dá para medir a aplicação) e incluídos à mão. Só afetam a tabela e o gráfico; a
+   * esteira e as ocorrências continuam como estão. Ver `utils/aplicacaoTemas.ts`.
+   */
+  aplicacaoTemasAjustes?: AjustesAplicacaoTemas;
 
   currentPhase: number;
 

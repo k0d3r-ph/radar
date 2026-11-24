@@ -12,7 +12,7 @@ import {
 } from "firebase/firestore";
 
 import { auth, db } from "./firebase";
-import type { Empresa } from "../types";
+import type { AjustesAplicacaoTemas, Empresa } from "../types";
 import { normalizarTelefoneWhatsApp } from "../utils/telefone";
 import { sincronizarColecao } from "./sincronizacaoIncremental";
 import { descreverQuedaParaSafetyPorReducao, obterTipoEfetivo } from "../utils/score";
@@ -102,6 +102,30 @@ export async function registrarAplicacaoTema(
       else aplicacaoTemasDias[diaTreinamento] = diaAplicacao;
       return { ...e, aplicacaoTemasDias, updatedAt };
     });
+  }
+}
+
+/**
+ * Renomeia, retira ou inclui temas na tabela "Aplicação dos temas". Lê o valor atual
+ * dentro da transação e aplica `alterar` sobre ele, para não perder um ajuste feito em
+ * paralelo por outra pessoa no mesmo cliente.
+ */
+export async function atualizarAjustesAplicacaoTemas(
+  empresaId: string,
+  alterar: (atual: AjustesAplicacaoTemas | undefined) => Required<AjustesAplicacaoTemas>,
+): Promise<void> {
+  const ref = doc(db, COLLECTION, empresaId);
+  const dados = await runTransaction(db, async (transaction) => {
+    const documento = await transaction.get(ref);
+    if (!documento.exists()) throw new Error("Cliente não encontrado.");
+    const atual = (documento.data() as Empresa).aplicacaoTemasAjustes;
+    const novo = { aplicacaoTemasAjustes: alterar(atual), updatedAt: Date.now() };
+    transaction.update(ref, novo);
+    return novo;
+  });
+
+  if (cachedEmpresas) {
+    cachedEmpresas = cachedEmpresas.map((e) => (e.id === empresaId ? { ...e, ...dados } : e));
   }
 }
 

@@ -7,6 +7,7 @@ import {
   listarEmpresas,
   removerEmpresa,
   registrarAplicacaoTema,
+  atualizarAjustesAplicacaoTemas,
 } from "../../services/empresas";
 import { listarOcorrencias } from "../../services/ocorrencias";
 import { calcularStatusEsteiraCliente } from "../../utils/monitoramento";
@@ -34,7 +35,19 @@ import { avancarDiasUteisComFeriados } from "../../utils/prazoTreinamento";
 import { TemasEsteiraEditor } from "./TemasEsteiraEditor";
 import { TabelaAplicacaoTemas } from "./TabelaAplicacaoTemas";
 import { GraficoAplicacaoTemas } from "./GraficoAplicacaoTemas";
-import { montarLinhasAplicacaoTemas } from "../../utils/aplicacaoTemas";
+import { AjustesTemasAplicacao } from "./AjustesTemasAplicacao";
+import {
+  montarLinhasAplicacaoTemas,
+  adicionarTemaAplicacao,
+  chaveTemaAplicacao,
+  listarTemasRemovidosAplicacao,
+  removerTemaAplicacao,
+  renomearTemaAplicacao,
+  restaurarTemaAplicacao,
+  validarNomeTemaAplicacao,
+} from "../../utils/aplicacaoTemas";
+import type { ItemTemaAplicacao, LinhaAplicacaoTema } from "../../utils/aplicacaoTemas";
+import type { AjustesAplicacaoTemas } from "../../types";
 
 function normalizarNome(nome: string) {
   return nome
@@ -203,8 +216,90 @@ function Esteira() {
       dataText: empresaSelecionada.dataText,
       blocoText: empresaSelecionada.blocoText,
       marcacoes: empresaSelecionada.aplicacaoTemasDias,
+      ajustes: empresaSelecionada.aplicacaoTemasAjustes,
     });
   }, [empresaSelecionada, ocorrencias]);
+
+  const temasRemovidosAplicacao = useMemo(
+    () => listarTemasRemovidosAplicacao(empresaSelecionada?.aplicacaoTemasAjustes),
+    [empresaSelecionada],
+  );
+
+  // Temas da esteira salva que ainda não estão na tabela nem foram retirados.
+  const sugestoesInclusaoTema = useMemo(() => {
+    const naTabela = new Set(
+      linhasAplicacaoTemas.flatMap((l) => l.itens.flatMap((i) => [i.chave, chaveTemaAplicacao(i.nome)])),
+    );
+    const retirados = new Set(temasRemovidosAplicacao.map((r) => r.chave));
+    return Array.from(
+      new Set(
+        (empresaSelecionada?.temaText ?? "")
+          .split("\n")
+          .map((t) => t.trim())
+          .filter((t) => t && !naTabela.has(chaveTemaAplicacao(t)) && !retirados.has(chaveTemaAplicacao(t))),
+      ),
+    );
+  }, [empresaSelecionada, linhasAplicacaoTemas, temasRemovidosAplicacao]);
+
+  const [salvandoAjusteAplicacao, setSalvandoAjusteAplicacao] = useState(false);
+
+  /** Grava um ajuste da tabela de aplicação; resolve `true` quando deu certo. */
+  const ajustarAplicacaoTemas = async (
+    alterar: (atual: AjustesAplicacaoTemas | undefined) => Required<AjustesAplicacaoTemas>,
+    mensagemSucesso: string,
+    desfazer?: (atual: AjustesAplicacaoTemas | undefined) => Required<AjustesAplicacaoTemas>,
+  ): Promise<boolean> => {
+    const empresaAlvoId = empresaSelecionada?.id;
+    if (!empresaAlvoId || !isTreinador || salvandoAjusteAplicacao) return false;
+    setSalvandoAjusteAplicacao(true);
+    try {
+      await atualizarAjustesAplicacaoTemas(empresaAlvoId, alterar);
+      setEmpresas(await listarEmpresas());
+      toast.success(mensagemSucesso, {
+        ...(desfazer && {
+          action: {
+            label: "Desfazer",
+            onClick: () => {
+              atualizarAjustesAplicacaoTemas(empresaAlvoId, desfazer)
+                .then(async () => setEmpresas(await listarEmpresas()))
+                .catch(() => toast.error("Não foi possível desfazer. Tente novamente."));
+            },
+          },
+        }),
+      });
+      return true;
+    } catch (error) {
+      console.error("[aplicação dos temas] Falha ao salvar ajuste:", error);
+      toast.error("Não foi possível salvar o ajuste do tema. Verifique a conexão e tente novamente.");
+      return false;
+    } finally {
+      setSalvandoAjusteAplicacao(false);
+    }
+  };
+
+  const renomearTemaNaTabela = (item: ItemTemaAplicacao, novoNome: string) =>
+    ajustarAplicacaoTemas(
+      (atual) => renomearTemaAplicacao(atual, item, novoNome),
+      `Tema renomeado para “${novoNome.trim()}”.`,
+      (atual) => renomearTemaAplicacao(atual, item, item.nome),
+    );
+
+  const removerTemaDaTabela = (linha: LinhaAplicacaoTema, item: ItemTemaAplicacao) => {
+    const adicionadoId = item.adicionadoId;
+    void ajustarAplicacaoTemas(
+      (atual) => removerTemaAplicacao(atual, item),
+      adicionadoId ? `Tema incluído “${item.nome}” excluído.` : `“${item.nome}” saiu da tabela e do gráfico.`,
+      adicionadoId
+        ? (atual) => adicionarTemaAplicacao(atual, { id: adicionadoId, tema: item.nome, dia: linha.chave })
+        : (atual) => restaurarTemaAplicacao(atual, item.chave),
+    );
+  };
+
+  const incluirTemaNaTabela = (tema: string, dia: string) =>
+    ajustarAplicacaoTemas(
+      (atual) => adicionarTemaAplicacao(atual, { id: crypto.randomUUID(), tema, dia }),
+      `Tema “${tema.trim()}” incluído na tabela.`,
+    );
   const [salvandoAplicacaoChave, setSalvandoAplicacaoChave] = useState<
     string | null
   >(null);
@@ -1152,13 +1247,39 @@ function Esteira() {
           <p className="aplicacao-temas-ajuda">
             Marque com ✕ depois de quantos dias do treinamento o cliente aplicou
             na base os temas daquele dia. Só é possível marcar dias com
-            ocorrência de Treinamento registrada; a marcação é salva na hora.
+            ocorrência de Treinamento registrada ou com tema incluído; a
+            marcação é salva na hora.
+            {isTreinador &&
+              " Use o lápis para renomear um tema e o ✕ ao lado do nome para retirar da tabela o que não dá para medir. Esses ajustes valem só para esta tabela e o gráfico — a esteira e as ocorrências não mudam."}
           </p>
+          {isTreinador && (
+            <AjustesTemasAplicacao
+              sugestoes={sugestoesInclusaoTema}
+              removidos={temasRemovidosAplicacao}
+              salvando={salvandoAjusteAplicacao}
+              validarNome={(nome) =>
+                validarNomeTemaAplicacao(nome, linhasAplicacaoTemas, empresaSelecionada.aplicacaoTemasAjustes)
+              }
+              onIncluir={incluirTemaNaTabela}
+              onRestaurar={(chave, nome) =>
+                void ajustarAplicacaoTemas(
+                  (atual) => restaurarTemaAplicacao(atual, chave),
+                  `“${nome}” voltou para a tabela.`,
+                )
+              }
+            />
+          )}
           <TabelaAplicacaoTemas
             linhas={linhasAplicacaoTemas}
             salvandoChave={salvandoAplicacaoChave}
+            salvandoAjuste={salvandoAjusteAplicacao}
             disabled={!isTreinador}
             onMarcar={marcarAplicacaoTema}
+            validarNome={(nome, item) =>
+              validarNomeTemaAplicacao(nome, linhasAplicacaoTemas, empresaSelecionada.aplicacaoTemasAjustes, item)
+            }
+            onRenomear={renomearTemaNaTabela}
+            onRemover={removerTemaDaTabela}
           />
 
           <h3 className="aplicacao-grafico-titulo">

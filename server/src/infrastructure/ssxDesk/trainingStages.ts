@@ -23,6 +23,10 @@ export interface TrainingStagesEmbutido {
   items: EtapaTreinamentoDesk[];
 }
 
+/** Status de treinamento da empresa no Desk (substituiu `isInTraining` em 19/11/2026).
+ * `null` = sem status; conta como "saiu de em treinamento" para a planilha de CS. */
+export type StatusTreinamentoDesk = "em_treinamento" | "treinamento_concluido" | null;
+
 export interface CompanyDesk {
   id: string;
   name: string;
@@ -30,6 +34,8 @@ export interface CompanyDesk {
   /** Confirmado pela resposta real do Desk; não validamos nem usamos os campos abaixo
    * além de id/name/idCentral, para não quebrar se o formato ganhar novos campos. */
   trainingStages?: TrainingStagesEmbutido;
+  /** Lido só para decidir se precisa marcar a conclusão (ver TrainingStagesSyncService). */
+  trainingStatus?: StatusTreinamentoDesk;
 }
 
 const BASE_URL = "https://desk.systemsat.com.br/api/integrations/v1";
@@ -133,6 +139,34 @@ export async function listarEmpresasDesk(
     );
   }
   return body.data as CompanyDesk[];
+}
+
+/**
+ * Atualização parcial da empresa no Desk — aqui só o `trainingStatus` (escopo
+ * `companies:write`). O id vai na query string, como em `/training-stages`. Nunca enviar
+ * `isInTraining` (removido; o Desk responde 400) nem `idCentral` (só leitura).
+ */
+export async function atualizarStatusTreinamentoEmpresa(
+  apiKey: string,
+  companyId: string,
+  trainingStatus: StatusTreinamentoDesk,
+  fetchApi: typeof fetch = fetch,
+): Promise<CompanyDesk> {
+  const response = await fetchApi(
+    `${BASE_URL}/companies?id=${encodeURIComponent(companyId)}`,
+    {
+      method: "PUT",
+      headers: { ...cabecalhos(apiKey), "Content-Type": "application/json" },
+      body: JSON.stringify({ trainingStatus }),
+      signal: AbortSignal.timeout(20_000),
+      redirect: "error",
+    },
+  );
+  const corpo = await tratarResposta<{ data: CompanyDesk }>(
+    response,
+    "atualizar status de treinamento",
+  );
+  return corpo.data;
 }
 
 export interface CriarEtapaTreinamentoDados {

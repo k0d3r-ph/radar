@@ -1,7 +1,7 @@
 import type { BancoDocumentos } from '../../domain/interfaces/BancoDocumentos.js';
 import {
-  atualizarEtapaTreinamento, criarEtapaTreinamento, excluirEtapaTreinamento, listarEmpresasDesk,
-  SsxDeskHttpError, type CompanyDesk, type EtapaTreinamentoDesk, type StatusEtapaDesk,
+  atualizarEtapaTreinamento, atualizarStatusTreinamentoEmpresa, criarEtapaTreinamento, excluirEtapaTreinamento,
+  listarEmpresasDesk, SsxDeskHttpError, type CompanyDesk, type EtapaTreinamentoDesk, type StatusEtapaDesk,
 } from './trainingStages.js';
 import { normalizarNome } from './trainingConversations.js';
 
@@ -34,6 +34,16 @@ interface EmpresaRadar {
   updatedAt: number;
   ssxDeskTrainingStageIds?: string[];
   ssxDeskTrainingStagesSyncedAt?: number;
+  /** Preenchida pelo Follow up final no Histórico: o cliente concluiu a esteira. */
+  dataFollowUpFinal?: string;
+}
+
+/** Cliente com Follow up final registrado no Radar, mas ainda "em treinamento" no Desk.
+ * Só corrige esse caso: `null` (sem status) e `treinamento_concluido` ficam como estão —
+ * `null` é uma decisão de quem cuida do cadastro no Desk e já tira a empresa de
+ * "em treinamento". */
+export function precisaMarcarConclusaoDesk(empresa: EmpresaRadar, company: CompanyDesk): boolean {
+  return !!empresa.dataFollowUpFinal?.trim() && company.trainingStatus === 'em_treinamento';
 }
 
 interface LinhaEtapa {
@@ -194,10 +204,12 @@ export interface TrainingStagesClienteFns {
   criarEtapaTreinamento: typeof criarEtapaTreinamento;
   atualizarEtapaTreinamento: typeof atualizarEtapaTreinamento;
   excluirEtapaTreinamento: typeof excluirEtapaTreinamento;
+  atualizarStatusTreinamentoEmpresa: typeof atualizarStatusTreinamentoEmpresa;
 }
 
 const CLIENTE_PADRAO: TrainingStagesClienteFns = {
   listarEmpresasDesk, criarEtapaTreinamento, atualizarEtapaTreinamento, excluirEtapaTreinamento,
+  atualizarStatusTreinamentoEmpresa,
 };
 
 export class TrainingStagesSyncService {
@@ -234,7 +246,7 @@ export class TrainingStagesSyncService {
       console.log('[SSX Desk Training Stages] Ciclo iniciado.');
       const estado = await this.carregarEstado();
       console.log('[SSX Desk Training Stages] Estado carregado.');
-      const companiesDesk = await this.carregarEmpresasDesk();
+      const { companies: companiesDesk, recarregada } = await this.carregarEmpresasDesk();
       console.log(`[SSX Desk Training Stages] ${companiesDesk.length} empresa(s) do Desk carregadas.`);
 
       const desde = this.forcarBackfill ? 0 : Math.max(0, estado.lastPushedAt - MARGEM_SEGURANCA_MS);
@@ -260,6 +272,8 @@ export class TrainingStagesSyncService {
         }
       }
 
+      const status = await this.sincronizarStatusTreinamento(empresas, companiesDesk, recarregada);
+
       await comTimeout(this.db.doc('integracoes/ssxDeskTrainingStages').set({
         lastSuccessAt: Date.now(),
         lastError: falhasRestantes.size ? `${falhasRestantes.size} empresa(s) não foram sincronizadas com o SSX Desk.` : null,
@@ -267,8 +281,11 @@ export class TrainingStagesSyncService {
         empresasComFalha: [...falhasRestantes],
         nomesSemVinculo,
         ...stats,
+        statusConcluidoAtualizadas: status.atualizadas,
+        ...(status.nomes.length ? { nomesStatusConcluido: status.nomes } : {}),
+        lastStatusError: status.erro,
       }, { merge: true }), 'gravar estado final');
-      return stats;
+      return { ...stats, statusConcluidoAtualizadas: status.atualizadas };
     } finally {
       this.executando = false;
     }
@@ -285,14 +302,71 @@ export class TrainingStagesSyncService {
     };
   }
 
-  private async carregarEmpresasDesk(): Promise<CompanyDesk[]> {
+  private async carregarEmpresasDesk(): Promise<{ companies: CompanyDesk[]; recarregada: boolean }> {
     // Lista de empresas do Desk muda raramente — mesma estratégia de cache de uma hora
     // já usada para `usuarios` no SSX Desk de entrada.
     const agora = Date.now();
-    if (this.companiesDesk && agora - this.companiesDeskLidasEm < 60 * 60 * 1000) return this.companiesDesk;
+    if (this.companiesDesk && agora - this.companiesDeskLidasEm < 60 * 60 * 1000) {
+      return { companies: this.companiesDesk, recarregada: false };
+    }
     this.companiesDesk = await this.cliente.listarEmpresasDesk(this.apiKey);
     this.companiesDeskLidasEm = agora;
-    return this.companiesDesk;
+    return { companies: this.companiesDesk, recarregada: true };
+  }
+
+  /**
+   * Marca no Desk como `treinamento_concluido` o cliente que já tem Follow up final no
+   * Radar mas continua `em_treinamento` lá (ver precisaMarcarConclusaoDesk).
+   *
+   * Candidatas: as empresas alteradas neste ciclo (pega o Follow up final recém-registrado)
+   * e, quando a lista do Desk acabou de ser relida (no máximo 1x por hora, e no primeiro
+   * ciclo após subir a API), todas as empresas com Follow up final — cobre os clientes
+   * concluídos antes desta integração e quem voltar a ser marcado "em treinamento" no Desk.
+   * Essa consulta é filtrada (`dataFollowUpFinal > ''`), não a coleção inteira.
+   *
+   * Nunca lança: uma falha aqui não pode impedir o cursor das etapas de avançar.
+   */
+  private async sincronizarStatusTreinamento(
+    alteradas: EmpresaRadar[], companiesDesk: CompanyDesk[], listaDeskRecarregada: boolean,
+  ): Promise<{ atualizadas: number; nomes: string[]; erro: string | null }> {
+    const resultado = { atualizadas: 0, nomes: [] as string[], erro: null as string | null };
+    try {
+      const candidatas = new Map(alteradas.map(e => [e.id, e]));
+      if (listaDeskRecarregada || this.forcarBackfill) {
+        const comFollowUp = await comTimeout(
+          this.db.collection(COLECAO).where('dataFollowUpFinal', '>', '').get(),
+          'carregar empresas com follow up final',
+        );
+        for (const d of comFollowUp.docs) candidatas.set(d.id, { id: d.id, ...(d.data() as Omit<EmpresaRadar, 'id'>) });
+      }
+
+      const marcadas = new Set<string>();
+      for (const empresa of candidatas.values()) {
+        const company = resolverCompanyDesk(empresa, companiesDesk);
+        if (!company || marcadas.has(company.id) || !precisaMarcarConclusaoDesk(empresa, company)) continue;
+        marcadas.add(company.id);
+        await this.esperar(PAUSA_ENTRE_CHAMADAS_MS);
+        try {
+          await this.cliente.atualizarStatusTreinamentoEmpresa(this.apiKey, company.id, 'treinamento_concluido');
+        } catch (erro) {
+          const mensagem = erro instanceof Error ? erro.message : 'erro desconhecido';
+          console.error(`[SSX Desk Training Stages] Falha ao marcar "${empresa.nomeEmpresa}" como treinamento concluído:`, mensagem);
+          resultado.erro = mensagem;
+          // 401/403: a chave não tem o escopo companies:write — as demais falhariam igual.
+          if (erro instanceof SsxDeskHttpError && (erro.status === 401 || erro.status === 403)) break;
+          continue;
+        }
+        // Atualiza o cache da lista do Desk: sem isso, a mesma empresa seria reenviada a
+        // cada ciclo até a próxima releitura (1h).
+        company.trainingStatus = 'treinamento_concluido';
+        resultado.atualizadas++;
+        if (resultado.nomes.length < 50) resultado.nomes.push(empresa.nomeEmpresa);
+      }
+    } catch (erro) {
+      resultado.erro = erro instanceof Error ? erro.message : 'Falha ao sincronizar o status de treinamento';
+      console.error('[SSX Desk Training Stages]', resultado.erro);
+    }
+    return resultado;
   }
 
   private async carregarEmpresasParaEnviar(desde: number, idsComFalhaConhecida: string[]): Promise<EmpresaRadar[]> {

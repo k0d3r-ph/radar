@@ -4,7 +4,7 @@ import {
   TrainingStagesSyncService, linhasEtapaTreinamento, reconciliarEtapasEmpresa, resolverCompanyIdDesk,
 } from '../dist/infrastructure/ssxDesk/TrainingStagesSyncService.js';
 import {
-  atualizarEtapaTreinamento, excluirEtapaTreinamento, listarEmpresasDesk, SsxDeskHttpError,
+  atualizarEtapaTreinamento, atualizarStatusTreinamentoEmpresa, excluirEtapaTreinamento, listarEmpresasDesk, SsxDeskHttpError,
 } from '../dist/infrastructure/ssxDesk/trainingStages.js';
 
 // Formato real confirmado de GET /companies (ver PLANO_BACKEND_PENDENTE.md): "data" +
@@ -247,10 +247,11 @@ function database() {
       return {
         where: (campo, operador, valor) => ({
           get: async () => {
-            assert.equal(campo, 'updatedAt');
+            assert.ok(['updatedAt', 'dataFollowUpFinal'].includes(campo));
             assert.equal(operador, '>');
+            // Como no PostgreSQL: comparação só entre valores do mesmo tipo.
             const docs = [...empresas.entries()]
-              .filter(([, dados]) => dados.updatedAt > valor)
+              .filter(([, dados]) => typeof dados[campo] === typeof valor && dados[campo] > valor)
               .map(([id, dados]) => snap(id, dados));
             return { docs };
           },
@@ -270,7 +271,7 @@ function empresa(sobrescritas = {}) {
 }
 
 function cliente(sobrescritas = {}) {
-  const chamadas = { criar: [], atualizar: [], excluir: [] };
+  const chamadas = { criar: [], atualizar: [], excluir: [], status: [] };
   const companies = sobrescritas.companies || [{ id: 'company-1', name: 'Cliente Teste', idCentral: '100' }];
   return {
     chamadas,
@@ -285,6 +286,10 @@ function cliente(sobrescritas = {}) {
         return { id, ...dados };
       }),
       excluirEtapaTreinamento: sobrescritas.excluirEtapaTreinamento || (async (_apiKey, id) => { chamadas.excluir.push(id); }),
+      atualizarStatusTreinamentoEmpresa: sobrescritas.atualizarStatusTreinamentoEmpresa || (async (_apiKey, companyId, trainingStatus) => {
+        chamadas.status.push({ companyId, trainingStatus });
+        return { id: companyId, name: '', idCentral: null, trainingStatus };
+      }),
     },
   };
 }
@@ -576,4 +581,86 @@ test('empresa sem temaText fica em semTemas, sem chamar o Desk', async () => {
   const stats = await service.sincronizar();
   assert.equal(stats.semTemas, 1);
   assert.equal(c.chamadas.criar.length, 0);
+});
+
+test('atualizarStatusTreinamentoEmpresa: PUT /companies com id na query e só o trainingStatus no corpo', async () => {
+  let chamada;
+  await atualizarStatusTreinamentoEmpresa('chave', 'abc 123', 'treinamento_concluido', async (url, options) => {
+    chamada = { url: url.toString(), method: options.method, body: JSON.parse(options.body), redirect: options.redirect };
+    return Response.json({ data: { id: 'abc 123', name: 'X', idCentral: '1', trainingStatus: 'treinamento_concluido' } });
+  });
+  assert.equal(chamada.url, 'https://desk.systemsat.com.br/api/integrations/v1/companies?id=abc%20123');
+  assert.equal(chamada.method, 'PUT');
+  assert.equal(chamada.redirect, 'error');
+  assert.deepEqual(chamada.body, { trainingStatus: 'treinamento_concluido' }, 'nunca envia isInTraining nem idCentral');
+  await assert.rejects(
+    atualizarStatusTreinamentoEmpresa('segredo', 'id', 'treinamento_concluido', async () => new Response('segredo', { status: 403 })),
+    error => error instanceof SsxDeskHttpError && error.status === 403 && !error.message.includes('segredo'),
+  );
+});
+
+test('status: cliente com follow up final e "em_treinamento" no Desk vira "treinamento_concluido"; os demais ficam como estão', async () => {
+  const db = database();
+  const antigo = Date.now() - 10 * 24 * 60 * 60 * 1000; // fora da janela do cursor
+  db._empresas().set('concluida', empresa({ nomeEmpresa: 'Concluída', idCentral: '1', dataFollowUpFinal: '2026-10-01', updatedAt: antigo }));
+  db._empresas().set('ja-concluida', empresa({ nomeEmpresa: 'Já concluída', idCentral: '2', dataFollowUpFinal: '2026-10-01', updatedAt: antigo }));
+  db._empresas().set('sem-status', empresa({ nomeEmpresa: 'Sem status', idCentral: '3', dataFollowUpFinal: '2026-10-01', updatedAt: antigo }));
+  db._empresas().set('em-curso', empresa({ nomeEmpresa: 'Em curso', idCentral: '4', dataFollowUpFinal: '', updatedAt: antigo }));
+  const companies = [
+    { id: 'd1', name: 'Concluída', idCentral: '1', trainingStatus: 'em_treinamento' },
+    { id: 'd2', name: 'Já concluída', idCentral: '2', trainingStatus: 'treinamento_concluido' },
+    { id: 'd3', name: 'Sem status', idCentral: '3', trainingStatus: null },
+    { id: 'd4', name: 'Em curso', idCentral: '4', trainingStatus: 'em_treinamento' },
+  ];
+  const c = cliente({ companies });
+  const service = new TrainingStagesSyncService(db, 'chave', c.fns, semEspera);
+  // Grava o cursor como se a API já estivesse rodando: as empresas acima são antigas.
+  await db.doc('integracoes/ssxDeskTrainingStages').set({ lastPushedAt: Date.now() });
+
+  const stats = await service.sincronizar();
+  assert.deepEqual(c.chamadas.status, [{ companyId: 'd1', trainingStatus: 'treinamento_concluido' }]);
+  assert.equal(stats.statusConcluidoAtualizadas, 1);
+  const estado = (await db.doc('integracoes/ssxDeskTrainingStages').get()).data();
+  assert.deepEqual(estado.nomesStatusConcluido, ['Concluída']);
+  assert.equal(estado.lastStatusError, null);
+
+  // Próximo ciclo (lista do Desk em cache): não reenvia a mesma empresa.
+  await service.sincronizar();
+  assert.equal(c.chamadas.status.length, 1);
+});
+
+test('status: follow up final registrado agora entra pelo cursor, sem esperar a releitura horária do Desk', async () => {
+  const db = database();
+  db._empresas().set('e1', empresa({ temaText: 'Tema 1' }));
+  const companies = [{ id: 'company-1', name: 'Cliente Teste', idCentral: '100', trainingStatus: 'em_treinamento' }];
+  const c = cliente({ companies });
+  const service = new TrainingStagesSyncService(db, 'chave', c.fns, semEspera);
+  await service.sincronizar();
+  assert.equal(c.chamadas.status.length, 0, 'sem follow up final, continua em treinamento');
+
+  db._empresas().set('e1', { ...db._empresas().get('e1'), dataFollowUpFinal: '2026-11-25', updatedAt: Date.now() + 10_000 });
+  await service.sincronizar();
+  assert.deepEqual(c.chamadas.status, [{ companyId: 'company-1', trainingStatus: 'treinamento_concluido' }]);
+});
+
+test('status: chave sem escopo companies:write (403) para no primeiro erro e não impede as etapas nem o cursor', async () => {
+  const db = database();
+  db._empresas().set('a', empresa({ nomeEmpresa: 'A', idCentral: '1', dataFollowUpFinal: '2026-10-01' }));
+  db._empresas().set('b', empresa({ nomeEmpresa: 'B', idCentral: '2', dataFollowUpFinal: '2026-10-01' }));
+  const companies = [
+    { id: 'd1', name: 'A', idCentral: '1', trainingStatus: 'em_treinamento' },
+    { id: 'd2', name: 'B', idCentral: '2', trainingStatus: 'em_treinamento' },
+  ];
+  let tentativas = 0;
+  const c = cliente({
+    companies,
+    atualizarStatusTreinamentoEmpresa: async () => { tentativas++; throw new SsxDeskHttpError('SSX Desk respondeu HTTP 403.', 403); },
+  });
+  const service = new TrainingStagesSyncService(db, 'chave', c.fns, semEspera);
+  const stats = await service.sincronizar();
+  assert.equal(tentativas, 1, 'não insiste nas demais empresas com a mesma chave');
+  assert.equal(stats.processadas, 2, 'as etapas continuam sendo enviadas');
+  const estado = (await db.doc('integracoes/ssxDeskTrainingStages').get()).data();
+  assert.ok(estado.lastPushedAt > 0);
+  assert.match(estado.lastStatusError, /403/);
 });

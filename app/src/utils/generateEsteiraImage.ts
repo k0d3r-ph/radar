@@ -23,20 +23,41 @@ function quebrarTexto(texto: string, maxChars = 15): string[] {
   return linhas;
 }
 
+/** O texto vai dentro de um SVG montado como string: "&" ou "<" no nome de um tema ou
+ * da empresa quebraria o XML e a imagem inteira deixaria de ser gerada. */
+function escaparXml(texto: string): string {
+  return texto
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+type TemaImagem = { tema: string; data?: string; reagendamentos: number };
+
+/** Mesmo desenho da prévia em pages/Esteira/Esteira.tsx — ao mudar algo lá (posições,
+ * textos exibidos), replique aqui, senão a imagem enviada pelo WhatsApp diverge da tela. */
 export async function generateEsteiraImage(empresa: Empresa): Promise<string> {
   const temasArray = (empresa.temaText || "").split("\n").map((linha) => linha.trim());
   const datasArray = (empresa.dataText || "").split("\n").map((linha) => linha.trim());
+  // Alinhado por índice com temaText, igual a Esteira.tsx.
+  const reagendamentosArray = (empresa.reagendamentosText || "")
+    .split("\n")
+    .map((valor) => Number(valor) || 0);
 
   const temas = temasArray
     .map((tema, index) => {
       if (!tema) return null;
-      const item: { tema: string; data?: string } = { tema };
+      const item: TemaImagem = {
+        tema,
+        reagendamentos: reagendamentosArray[index] ?? 0,
+      };
       if (datasArray[index]) {
         item.data = datasArray[index];
       }
       return item;
     })
-    .filter((x): x is { tema: string; data?: string } => x !== null);
+    .filter((x): x is TemaImagem => x !== null);
 
   const maxPorLinha = 5;
   const espacamentoX = 200;
@@ -155,7 +176,7 @@ export async function generateEsteiraImage(empresa: Empresa): Promise<string> {
         <g class="active-marker">
           <text
             x="${ponto.x}"
-            y="${item.data ? ponto.y - 80 : ponto.y - 40}"
+            y="${item.data || item.reagendamentos > 0 ? ponto.y - 94 : ponto.y - 54}"
             text-anchor="middle"
             class="active-badge"
           >
@@ -180,14 +201,28 @@ export async function generateEsteiraImage(empresa: Empresa): Promise<string> {
           text-anchor="middle"
           class="tema-data"
         >
-          ${item.data}
+          ${escaparXml(item.data)}
+        </text>
+      `;
+    }
+
+    let reagendamentosHtml = "";
+    if (item.reagendamentos > 0) {
+      reagendamentosHtml = `
+        <text
+          x="${ponto.x}"
+          y="${ponto.y - (item.data ? 64 : 44)}"
+          text-anchor="middle"
+          class="tema-reagendamentos"
+        >
+          (Reagendado ${item.reagendamentos} ${item.reagendamentos === 1 ? "vez" : "vezes"})
         </text>
       `;
     }
 
     const textLines = quebrarTexto(item.tema || "");
     const tspans = textLines.map((linha, idx) => `
-      <tspan x="${ponto.x}" dy="${idx === 0 ? 0 : 24}">${linha}</tspan>
+      <tspan x="${ponto.x}" dy="${idx === 0 ? 0 : 24}">${escaparXml(linha)}</tspan>
     `).join("");
 
     return `
@@ -203,6 +238,7 @@ export async function generateEsteiraImage(empresa: Empresa): Promise<string> {
         />
         ${golBadgeHtml}
         ${dateHtml}
+        ${reagendamentosHtml}
         <text
           x="${ponto.x}"
           y="${ponto.y + 50}"
@@ -261,6 +297,11 @@ export async function generateEsteiraImage(empresa: Empresa): Promise<string> {
           font-size: 18px;
           font-weight: bold;
         }
+        .tema-reagendamentos {
+          fill: #ffecb3;
+          font-size: 14px;
+          font-weight: 700;
+        }
         .gol-ring {
           fill: none;
           stroke: #22c55e;
@@ -277,7 +318,7 @@ export async function generateEsteiraImage(empresa: Empresa): Promise<string> {
         dominant-baseline="hanging"
         class="empresa"
       >
-        ${empresa.nomeEmpresa || "Nome da Empresa"}
+        ${escaparXml(empresa.nomeEmpresa || "Nome da Empresa")}
       </text>
       <path d="${pathD}" fill="none" stroke="white" stroke-width="4" />
       ${circlesHtml}

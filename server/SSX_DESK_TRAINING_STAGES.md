@@ -108,6 +108,30 @@ rota, então nenhuma atualização nem exclusão chegava ao Desk, e cada PUT com
 tratado como "etapa excluída, recriar" — origem das etapas duplicadas e dos status presos
 (ex.: Altotrak em "Em andamento", Numpe com três cópias de cada etapa).
 
+### Status de treinamento da empresa (`trainingStatus`)
+
+No mesmo ciclo, o serviço marca como `treinamento_concluido` no Desk os clientes que já
+têm **Follow up final** no Radar (`Empresa.dataFollowUpFinal` preenchida) mas continuam
+`em_treinamento` lá — `PUT /companies?id={companyId}` com corpo `{ "trainingStatus":
+"treinamento_concluido" }` (escopo `companies:write`). Só esse caso é corrigido: empresas
+com status `null` ou já concluídas no Desk não são tocadas, e o Radar nunca volta uma
+empresa para `em_treinamento`.
+
+- **Quem é verificado:** as empresas alteradas no ciclo (o Follow up final recém-registrado
+  entra no próximo ciclo, ~5 min) e, sempre que a lista do Desk é relida (1x por hora e no
+  primeiro ciclo após subir a API), todas as empresas com Follow up final — consulta
+  filtrada `dataFollowUpFinal > ''`, não a coleção inteira. Isso cobre os clientes que
+  concluíram antes desta integração e quem for remarcado "em treinamento" no Desk.
+- **Vínculo:** o mesmo `resolverCompanyDesk` das etapas (idCentral único, depois nome).
+- **Falhas:** não interrompem as etapas nem o cursor. A mensagem fica em
+  `integracoes/ssxDeskTrainingStages.lastStatusError`; um 401/403 (chave sem
+  `companies:write`) encerra a tentativa do ciclo na primeira empresa. Uma empresa que
+  falhou é tentada de novo na próxima releitura da lista do Desk.
+- **Acompanhamento:** `statusConcluidoAtualizadas` (contagem do último ciclo) e
+  `nomesStatusConcluido` (últimos nomes atualizados, até 50).
+- **Nunca enviar** `isInTraining` (removido do Desk em 19/11/2026 — responde 400) nem
+  `idCentral` (só leitura, vem da planilha de CS).
+
 ### Rate limit
 
 A API do Desk permite até 120 req/min por chave. O serviço aguarda ~600 ms entre cada
@@ -116,7 +140,8 @@ mesmo padrão de `trainingConversations.listarConversas`.
 
 ## Configuração
 
-- `server/.env`: `SSX_DESK_TRAINING_STAGES_API_KEY` (escopo `training-stages:write`) e,
+- `server/.env`: `SSX_DESK_TRAINING_STAGES_API_KEY` (escopos `training-stages:write` e
+  `companies:write` — o segundo para o status de treinamento) e,
   opcionalmente, `SSX_DESK_TRAINING_STAGES_SYNC_INTERVAL_MS` (padrão 300000 = 5 min,
   mínimo 60000).
 - **Chave separada** da leitura de conversas (`SSX_DESK_API_KEY`) — nunca reaproveitar a

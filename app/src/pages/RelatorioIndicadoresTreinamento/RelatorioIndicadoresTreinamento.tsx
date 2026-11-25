@@ -20,7 +20,11 @@ import type { Empresa, Ocorrencia, LancamentoPonto } from "../../types";
 import type { TentativaValidacao } from "../../../../server/src/domain/validacaoConhecimento";
 import "./RelatorioIndicadoresTreinamento.css";
 
-const INTERVALO_ATUALIZACAO_MS = 20 * 60_000;
+/** Cada atualização baixa as coleções inteiras do PostgreSQL (sem custo por leitura): o
+ * limite é o tráfego por tela aberta, não cota. */
+const INTERVALO_ATUALIZACAO_MS = 3 * 60_000;
+/** Folga para um disparo do timer um pouco adiantado não pular uma atualização inteira. */
+const INTERVALO_MINIMO_ENTRE_ATUALIZACOES_MS = INTERVALO_ATUALIZACAO_MS - 10_000;
 
 interface Props {
   /** Tela dedicada de TV/monitor (/indicadores-treinamento-tv) — ver App.tsx. */
@@ -45,14 +49,12 @@ export const RelatorioIndicadoresTreinamento: React.FC<Props> = ({ modoTv = fals
     let falhaNotificada = false;
 
     const atualizar = async (inicial = false) => {
-      if (sincronizando || (!inicial && Date.now() - ultimaTentativa < INTERVALO_ATUALIZACAO_MS)) return;
+      if (sincronizando || (!inicial && Date.now() - ultimaTentativa < INTERVALO_MINIMO_ENTRE_ATUALIZACOES_MS)) return;
       sincronizando = true;
       ultimaTentativa = Date.now();
 
       try {
-        // Lê direto do índice em memória do backend (ver IndiceSincronizacao),
-        // não do Firestore: evita que cada tela aberta do painel multiplique
-        // as leituras a cada atualização (ver server/SINCRONIZACAO.md).
+        // Coleções completas via /api/dados (ver server/SINCRONIZACAO.md).
         const [empresasLista, ocorrenciasLista, lancamentosLista, tentativasLista] = await Promise.all([
           obterColecaoCompleta<Empresa>("empresas"),
           obterColecaoCompleta<Ocorrencia>("ocorrencias"),
@@ -62,7 +64,7 @@ export const RelatorioIndicadoresTreinamento: React.FC<Props> = ({ modoTv = fals
           obterColecaoCompleta<TentativaValidacao>("validacao_tentativas").catch(() => []),
         ]);
         const usuariosLista = inicial ? await listarUsuarios(true) : null;
-        // Uma leitura por atualização (a cada 20 min), para as TVs receberem metas novas
+        // Relidas a cada atualização, para as TVs receberem metas novas
         // sem recarregar. Se falhar, mantém as metas já exibidas em vez de travar o painel.
         const metasSalvas = await listarMetasIndicadores(DOC_METAS_PAINEL_TREINAMENTO).catch((error) => {
           console.error("Erro ao carregar as metas do painel de treinamento:", error);
@@ -162,6 +164,7 @@ export const RelatorioIndicadoresTreinamento: React.FC<Props> = ({ modoTv = fals
           tentativasValidacao={tentativasValidacao}
           treinador={null}
           atualizadoEm={atualizadoEm}
+          intervaloAtualizacaoMs={INTERVALO_ATUALIZACAO_MS}
           modoTv={modoTv}
           metas={metas}
           onSalvarMetas={role === "master" ? salvarMetas : undefined}

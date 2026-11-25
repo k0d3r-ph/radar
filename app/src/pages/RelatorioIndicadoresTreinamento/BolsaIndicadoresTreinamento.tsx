@@ -160,8 +160,9 @@ function filtrarValidacaoNoPeriodo(
   );
 }
 
-/** O Gol é apurado no mês inteiro em que o cliente completa 30 dias: assim que esse mês
- * começa, ele já conta — sem esperar o dia exato do vencimento. Por isso o fim do período
+/** O Gol é apurado por mês inteiro (ver `dataReferencia` em utils/golTreinamento.ts): Gol no
+ * prazo no mês em que foi batido; fora do prazo ou não batido, no mês do vencimento dos 30
+ * dias — este já conta desde o dia 1, sem esperar o dia exato. Por isso o fim do período
  * (que no mês corrente é "agora") é estendido até o último instante do mês. */
 function naApuracaoDoGol(dataReferencia: Date, inicio: Date, fim: Date): boolean {
   const fimDoMes = new Date(fim.getFullYear(), fim.getMonth() + 1, 0, 23, 59, 59, 999);
@@ -594,6 +595,8 @@ interface Props {
   tentativasValidacao: TentativaValidacao[];
   treinador: string | null;
   atualizadoEm: number;
+  /** De quanto em quanto tempo a página-mãe recarrega os dados — mostrado no subtítulo. */
+  intervaloAtualizacaoMs: number;
   /** Tela dedicada de TV/monitor (/indicadores-treinamento-tv): sempre preenche a
    * tela inteira, como o modo foco, mas sem depender da Fullscreen API (a própria
    * aba, maximizada, já cumpre esse papel — ver App.tsx). */
@@ -608,7 +611,7 @@ interface Props {
  * Painel "ao vivo" estilo bolsa de valores: cada card mostra o valor do dia, a meta (quando
  * existe uma oficial) e as três comparações (dia/semana/mês anterior) com mini-gráfico de
  * tendência. Todo o cálculo roda em cima de `eventos`/`empresas`/`ocorrencias` já carregados
- * pela página-mãe — não dispara nenhuma leitura adicional no Firestore.
+ * pela página-mãe — não dispara nenhuma requisição própria.
  */
 export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
   eventos,
@@ -617,6 +620,7 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
   tentativasValidacao,
   treinador,
   atualizadoEm,
+  intervaloAtualizacaoMs,
   modoTv = false,
   metas,
   onSalvarMetas,
@@ -781,10 +785,9 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
     ];
   }, [golNoPrazoResultados, naoRealizadosGolNoPrazo, periodosPorGranularidade]);
 
-  // Comparação com o mês anterior inteiro. Como o Gol é apurado pelo mês em que o cliente
-  // completa 30 dias (e não pelo dia exato), recortar o mês anterior "no mesmo dia" não faz
-  // mais sentido: os Gols já batidos de quem vence no fim do mês atual já entram desde o
-  // dia 1. O selo "Parcial" continua avisando que o mês corrente ainda pode mudar.
+  // Comparação com o mês anterior inteiro. Como o Gol é apurado por mês inteiro (e não pelo
+  // dia exato), recortar o mês anterior "no mesmo dia" não faz sentido: quem vence no fim do
+  // mês atual já entra desde o dia 1. O selo "Parcial" avisa que o mês corrente ainda muda.
   const snapshotGolNoPrazoComparacao = useMemo(() => {
     const ref = new Date(minutoAtual * 60000);
     const inicioMesAtual = new Date(ref.getFullYear(), ref.getMonth(), 1);
@@ -847,7 +850,8 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
   );
   const tickerDuplicado = [...ticker, ...ticker, ...ticker];
 
-  const sinceUpdate = Math.max(0, Math.round((agora.getTime() - atualizadoEm) / 1000));
+  const intervaloAtualizacaoMin = Math.max(1, Math.round(intervaloAtualizacaoMs / 60_000));
+  const sinceUpdate =Math.max(0, Math.round((agora.getTime() - atualizadoEm) / 1000));
   const diaSemana = agora.toLocaleDateString("pt-BR", { weekday: "long" });
   const diaSemanaCapitalizado = diaSemana.charAt(0).toUpperCase() + diaSemana.slice(1);
   const dataCurta = agora.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
@@ -865,7 +869,7 @@ export const BolsaIndicadoresTreinamento: React.FC<Props> = ({
           </div>
           <h1 className="bolsa-indicadores-titulo-pagina">Indicadores de Treinamento</h1>
           <p className="bolsa-indicadores-subtitulo">
-            Painel ao vivo — atualiza sozinho, sem consumir leituras do Firebase.
+            Painel ao vivo — atualiza sozinho a cada {intervaloAtualizacaoMin} minutos.
           </p>
         </div>
         <div className="bolsa-indicadores-header-direita">

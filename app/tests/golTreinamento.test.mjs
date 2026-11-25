@@ -70,18 +70,29 @@ test('mês de referência é o do fim do prazo de 30 dias, não o mês em que o 
   assert.equal(resultado[0].dataReferencia.getFullYear(), 2026);
 });
 
-test('Gol batido dentro do prazo conta no mês em que o cliente completa 30 dias, não no mês do Gol', () => {
-  // Exemplo validado com o supervisor (TC Tracker): entrou 07/10, bateu o Gol 28/10,
-  // completa 30 dias em 06/11 — conta em novembro, não em outubro.
-  const entrada = new Date(2026, 9, 7);
-  const golDentroDoPrazo = new Date(2026, 9, 28);
+test('Gol batido dentro do prazo conta no mês do Gol, sem esperar os 30 dias', () => {
+  // Rastrotrack: entrou 09/11, bateu o Gol 25/11, completaria 30 dias só em 09/12 —
+  // conta em novembro.
+  const entrada = new Date(2026, 10, 9);
+  const golDentroDoPrazo = new Date(2026, 10, 25, 10, 0);
   const resultado = calcular(
-    [empresa({ nomeEmpresa: 'TC Tracker', dataEntrada: dataISO(entrada) })],
-    [ocorrenciaGol('TC Tracker', golDentroDoPrazo.getTime())],
+    [empresa({ nomeEmpresa: 'Rastrotrack', dataEntrada: dataISO(entrada) })],
+    [ocorrenciaGol('Rastrotrack', golDentroDoPrazo.getTime())],
   );
   assert.equal(resultado[0].noPrazo, true);
   assert.equal(resultado[0].dataReferencia.getMonth(), 10); // novembro
   assert.equal(resultado[0].dataReferencia.getFullYear(), 2026);
+});
+
+test('Gol dentro do prazo que vira o mês conta no mês do Gol, não no do vencimento', () => {
+  // Entrou 07/10, bateu o Gol 28/10, completaria 30 dias em 06/11 — conta em outubro.
+  const entrada = new Date(2026, 9, 7);
+  const resultado = calcular(
+    [empresa({ nomeEmpresa: 'TC Tracker', dataEntrada: dataISO(entrada) })],
+    [ocorrenciaGol('TC Tracker', new Date(2026, 9, 28).getTime())],
+  );
+  assert.equal(resultado[0].noPrazo, true);
+  assert.equal(resultado[0].dataReferencia.getMonth(), 9); // outubro
 });
 
 test('cliente ainda dentro da janela de 30 dias, sem Gol, fica fora do cálculo', () => {

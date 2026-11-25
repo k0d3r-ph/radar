@@ -5,7 +5,7 @@ import {
   deleteField,
   doc,
   updateDoc,
-} from "firebase/firestore";
+} from "./dados";
 import { auth, db } from "./firebase";
 import { RADAR_API_URL } from './apiConfig';
 import type { TarefaChecklist } from "../types";

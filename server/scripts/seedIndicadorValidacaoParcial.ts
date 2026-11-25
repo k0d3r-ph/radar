@@ -1,5 +1,4 @@
-import { initializeApp } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
+import { abrirBancoLocal } from './bancoLocal.js';
 import { GerenciarValidacaoConhecimento } from '../src/application/use-cases/GerenciarValidacaoConhecimento.js';
 import type { QuestaoValidacao, RespostaValidacao, TentativaValidacao } from '../src/domain/validacaoConhecimento.js';
 import { calcularValidacaoPorCliente, minimoPreviaParcial } from '../../app/src/utils/validacaoConhecimentoIndicadores.js';
@@ -18,8 +17,7 @@ import { calcularValidacaoPorCliente, minimoPreviaParcial } from '../../app/src/
  * Requer `npm run seed:emulador` antes (usa os treinadores seed).
  */
 
-// Hosts literais locais: este script não carrega .env nem credenciais de produção.
-process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8080';
+// Banco local fixo (scripts/bancoLocal.ts): nunca grava em produção.
 process.env.METADATA_SERVER_DETECTION = 'none';
 
 const ESTEIRA = ['Início', 'Tela Operacional', 'Relatório', 'Performance', 'Validação do conhecimento'];
@@ -37,11 +35,9 @@ const CENARIOS: Cenario[] = [
   { letra: 'i', descricao: 'Só 3 perguntas com parcial', treinador: 'seed-treinador-3' },
 ];
 
-const app = initializeApp({ projectId: 'automatiza-esteira' });
-const db = getFirestore(app);
+const db = await abrirBancoLocal();
 const repo = new GerenciarValidacaoConhecimento(db);
 
-await fetch('http://127.0.0.1:8080/', { signal: AbortSignal.timeout(3_000) });
 const usuarios = new Map<string, { uid: string; nome: string; role: string }>();
 for (const uid of new Set(CENARIOS.map(c => c.treinador))) {
   const doc = await db.doc(`usuarios/${uid}`).get();
@@ -115,6 +111,6 @@ console.log('Clientes "[Demo Indicador]" criados (filtre por "Demo Indicador" no
 console.log(`Regra antiga (só concluídas): ${finais.filter(l => l.aprovada).length}/${finais.length} = ${pct(finais.filter(l => l.aprovada).length, finais.length)}`);
 console.log(`Mínimo de perguntas com parcial para a prévia: ${minimo}`);
 console.log(`Regra nova (com prévias):     ${linhas.filter(l => l.aprovada).length}/${linhas.length} = ${pct(linhas.filter(l => l.aprovada).length, linhas.length)}, ${linhas.filter(l => l.previa).length} pela validação parcial`);
-console.log('O card soma também os demais clientes do emulador avaliados neste mês (ex.: seed:validacao-parcial).');
+console.log('O card soma também os demais clientes do banco local avaliados neste mês (ex.: seed:validacao-parcial).');
 console.log('Painel: Relatórios › Indicadores de Treinamento (login master@local.test / senha123).');
 process.exit(0);

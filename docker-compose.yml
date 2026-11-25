@@ -4,7 +4,12 @@ services:
   api:
     build: ./server
     command: ["npm", "run", "start:api"]
-    env_file: ./server/.env
+    # Credencial do PostgreSQL fica fora do repositório (root, 600) — ver server/MIGRACAO_POSTGRES.md.
+    env_file:
+      - ./server/.env
+      - /etc/radar/postgres.env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       API_PORT: "5001"
       FIREBASE_SERVICE_ACCOUNT_PATH: /app/secrets/serviceAccountKey.json
@@ -24,7 +29,12 @@ services:
 
   bot:
     build: ./server
-    env_file: ./server/.env
+    # Credencial do PostgreSQL fica fora do repositório (root, 600) — ver server/MIGRACAO_POSTGRES.md.
+    env_file:
+      - ./server/.env
+      - /etc/radar/postgres.env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       PORT: "5000"
       FIREBASE_SERVICE_ACCOUNT_PATH: /app/secrets/serviceAccountKey.json
@@ -45,3 +55,10 @@ services:
 volumes:
   fotos:
   whatsapp:
+
+# Sub-rede fixa: o pg_hba.conf da VPS libera o usuário radar só a partir desta faixa.
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

@@ -7,40 +7,49 @@ import ts from 'typescript';
 function ambiente(registros) {
   return {
     servidor: new Map(registros.map(d => [d.id, { ...d }])),
-    cache: new Map(), storage: new Map(), versoes: new Map(registros.map(d => [d.id, '1'])),
+    // Cópia local (IndexedDB em produção): registros por id; cacheGravado = já houve uma gravação.
+    cache: new Map(), cacheGravado: false, storage: new Map(), versoes: new Map(registros.map(d => [d.id, '1'])),
     consultas: [], documentos: new Map(), documentosLidos: 0, chamadasApi: 0,
     usuario: { uid: 'u1', getIdToken: async () => 'token' },
   };
 }
 
 async function criarPagina(estado) {
-  const snapshot = registros => ({ docs: registros.map(({ id, ...dados }) => ({ id, data: () => dados })) });
+  const resposta = (ok, corpo) => ({ ok, json: async () => corpo });
   const context = createContext({
-    Date: class extends Date { static now() { return estado.agora ?? Date.now(); } }, console, AbortSignal,
+    Date: class extends Date { static now() { return estado.agora ?? Date.now(); } }, console, AbortSignal, JSON,
     localStorage: {
       getItem: chave => estado.storage.get(chave) ?? null,
       setItem: (chave, valor) => estado.storage.set(chave, valor),
       removeItem: chave => estado.storage.delete(chave),
     },
-    fetch: async () => {
+    fetch: async (url, opcoes = {}) => {
+      if (String(url).endsWith('/documentos')) {
+        // Conteúdo servido pela memória do backend (POST /api/sincronizacao/:colecao/documentos).
+        if (estado.erroDocumentos) return resposta(false, { error: estado.erroDocumentos });
+        const ids = JSON.parse(opcoes.body || '{}').ids;
+        estado.consultas.push(ids ? Array.from(ids) : 'completa');
+        const registros = [...estado.servidor.values()].filter(d => !ids || ids.includes(d.id));
+        estado.documentosLidos += registros.length;
+        return resposta(true, { documentos: registros.map(d => ({ ...d })) });
+      }
       estado.chamadasApi++;
-      if (estado.erroApi) return { ok: false, json: async () => ({ error: estado.erroApi }) };
-      return { ok: true, json: async () => ({ documentos: [...estado.servidor.keys()].map(id => ({ id, versao: estado.versoes.get(id) || '1' })) }) };
+      if (estado.erroApi) return resposta(false, { error: estado.erroApi });
+      return resposta(true, { documentos: [...estado.servidor.keys()].map(id => ({ id, versao: estado.versoes.get(id) || '1' })) });
     },
   });
-  const firestore = new SyntheticModule([
+  const dados = new SyntheticModule([
     'collection', 'addDoc', 'deleteDoc', 'runTransaction', 'doc',
-    'getDocsFromServer', 'getDocFromServer', 'getDocsFromCache', 'documentId', 'query', 'where', 'orderBy', 'limit',
+    'getDocsFromServer', 'getDocFromServer', 'query', 'where', 'orderBy', 'limit',
   ], function () {
     this.setExport('collection', (_db, nome) => ({ colecao: nome }));
-    this.setExport('documentId', () => '__name__');
     this.setExport('doc', (...args) => {
       const segmentos = args.length === 1 && args[0]?.colecao
         ? [args[0].colecao, 'novo-documento']
         : args.slice(1);
       return { id: segmentos.at(-1), path: segmentos.join('/') };
     });
-    this.setExport('where', (campo, operador, ids) => ({ campo, operador, ids }));
+    this.setExport('where', (campo, operador, valor) => ({ campo, operador, valor }));
     this.setExport('query', (colecao, ...filtros) => ({ ...colecao, filtros }));
     for (const nome of ['orderBy', 'limit']) this.setExport(nome, (...args) => args);
     for (const nome of ['addDoc', 'deleteDoc']) this.setExport(nome, async () => {});
@@ -58,17 +67,15 @@ async function criarPagina(estado) {
       },
     }));
     this.setExport('getDocFromServer', () => { throw new Error('A sincronização não deve consultar o cadastro de treinamento.'); });
-    this.setExport('getDocsFromCache', async () => snapshot([...estado.cache.values()]));
-    this.setExport('getDocsFromServer', async consulta => {
-      if (estado.erroFirestore) throw new Error(estado.erroFirestore);
-      const ids = consulta.filtros?.find(f => f.campo === '__name__')?.ids;
-      estado.consultas.push(ids ? Array.from(ids) : 'completa');
-      const registros = [...estado.servidor.values()].filter(d => !ids || ids.includes(d.id));
-      estado.documentosLidos += registros.length;
-      for (const d of registros) estado.cache.set(d.id, { ...d });
-      if (ids) ids.filter(id => !estado.servidor.has(id)).forEach(id => estado.cache.delete(id));
-      return snapshot(registros);
+    this.setExport('getDocsFromServer', () => { throw new Error('A sincronização não deve consultar a API de dados.'); });
+  }, { context });
+  const cacheDocumentos = new SyntheticModule(['lerCache', 'gravarCache', 'apagarCache'], function () {
+    this.setExport('lerCache', async () => (estado.cacheGravado ? [...estado.cache.values()].map(d => ({ ...d })) : null));
+    this.setExport('gravarCache', async (_chave, registros) => {
+      estado.cache = new Map(registros.map(d => [d.id, { ...d }]));
+      estado.cacheGravado = true;
     });
+    this.setExport('apagarCache', async () => { estado.cache.clear(); estado.cacheGravado = false; });
   }, { context });
   const firebase = new SyntheticModule(['auth', 'db'], function () {
     this.setExport('auth', { get currentUser() { return estado.usuario; } });
@@ -82,7 +89,8 @@ async function criarPagina(estado) {
   }, { context });
   const modules = new Map();
   async function carregar(nome) {
-    if (nome === 'firebase/firestore') return firestore;
+    if (nome === './dados') return dados;
+    if (nome === './cacheDocumentos') return cacheDocumentos;
     if (nome === './firebase') return firebase;
     if (nome === './gamificacao') return gamificacao;
     if (nome === './empresas') return empresas;
@@ -106,7 +114,7 @@ test('recarregar a página elimina exclusão de outro usuário sem reler documen
   const primeiraPagina = await criarPagina(estado);
   assert.equal((await primeiraPagina.servico.listarOcorrencias()).length, 2);
   estado.servidor.delete('2060');
-  assert.equal(estado.cache.has('2060'), true); // Fantasma permanece no SDK.
+  assert.equal(estado.cache.has('2060'), true); // Fantasma permanece na cópia local.
   const paginaRecarregada = await criarPagina(estado);
   assert.equal((await paginaRecarregada.servico.listarOcorrencias()).length, 1);
   assert.equal((await paginaRecarregada.servico.listarOcorrencias())[0].id, '2059');
@@ -320,16 +328,16 @@ test('reconcilia exclusão e criação simultâneas, mesmo com contagem igual', 
   assert.equal(estado.documentosLidos, 3);
 });
 
-test('alterações são divididas em lotes de até 30 IDs', async () => {
-  const estado = ambiente(Array.from({ length: 65 }, (_, i) => ({ id: `oc${i}` })));
+test('alterações são divididas em lotes de até 500 IDs', async () => {
+  const estado = ambiente(Array.from({ length: 1100 }, (_, i) => ({ id: `oc${i}` })));
   const { servico } = await criarPagina(estado);
   await servico.listarOcorrencias();
   for (const id of estado.servidor.keys()) estado.versoes.set(id, '2');
   await servico.listarOcorrencias(true);
-  assert.deepEqual(estado.consultas.slice(1).map(ids => ids.length), [30, 30, 5]);
+  assert.deepEqual(estado.consultas.slice(1).map(ids => ids.length), [500, 500, 100]);
 });
 
-test('SDK pode remover documentos do cache: repõe somente os que faltam', async () => {
+test('cópia local incompleta: repõe somente os documentos que faltam', async () => {
   const estado = ambiente([{ id: 'a' }, { id: 'b' }]);
   const { servico } = await criarPagina(estado);
   await servico.listarOcorrencias();
@@ -358,21 +366,21 @@ test('API indisponível não dispara releitura completa nem afirma que cache est
   assert.equal(estado.documentosLidos, 1);
 });
 
-test('falha do Firestore mantém versões anteriores para tentar novamente', async () => {
+test('falha ao buscar documentos mantém versões anteriores para tentar novamente', async () => {
   const estado = ambiente([{ id: 'a' }]);
   const { servico } = await criarPagina(estado);
   await servico.listarOcorrencias();
   const marcadorAnterior = estado.storage.values().next().value;
   estado.versoes.set('a', '2');
-  estado.erroFirestore = 'Sem permissão';
+  estado.erroDocumentos = 'Sem permissão';
   await assert.rejects(servico.listarOcorrencias(true), /Sem permissão/);
   assert.equal(estado.storage.values().next().value, marcadorAnterior);
-  delete estado.erroFirestore;
+  delete estado.erroDocumentos;
   await servico.listarOcorrencias(true);
   assert.equal(estado.documentosLidos, 2);
 });
 
-test('índice vazio elimina toda a coleção local sem leituras do Firestore', async () => {
+test('índice vazio elimina toda a coleção local sem buscar documentos', async () => {
   const estado = ambiente([{ id: 'a' }]);
   const { servico } = await criarPagina(estado);
   await servico.listarOcorrencias();
@@ -403,7 +411,7 @@ test('renovação após cinco minutos reconcilia exclusões sem reler a coleçã
   assert.equal(estado.chamadasApi, 2);
 });
 
-test('sem sessão autenticada não faz chamadas à API ou ao Firestore', async () => {
+test('sem sessão autenticada não faz chamadas à API', async () => {
   const estado = ambiente([{ id: 'a' }]);
   estado.usuario = null;
   const { servico } = await criarPagina(estado);

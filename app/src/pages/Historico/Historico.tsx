@@ -1989,7 +1989,7 @@ export function Historico() {
       ocorrenciaOriginal?.conclusaoUnilateralCapacitacao !== true;
     // Cancelar o cliente pela Informativa (antes era o checkbox do cadastro na Home).
     // Mesmos perfis que editavam o cadastro. O cancelamento é definitivo: não há
-    // reativação (ver também firestore.rules.producao e salvarEmpresas).
+    // reativação (ver também server/src/domain/regrasAcessoDados.ts e salvarEmpresas).
     const podeCancelarCliente =
       !reservaEditando && (role === "master" || role === "treinador");
     const podeAlterarCancelamento =

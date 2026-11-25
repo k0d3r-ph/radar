@@ -22,14 +22,6 @@ Clientes suspensos não podem gerar novas reservas nem concluir reservas de trei
 
 Atualize o frontend **e** o backend. O endereço público `/csat/:token` precisa usar o mesmo fallback para `index.html` das outras rotas React. `VITE_RADAR_API_URL` deve apontar para a API HTTPS acessível aos clientes, e o domínio do frontend precisa estar autorizado em `CORS_ORIGIN`. O endereço do bot é configurado separadamente em `VITE_WHATSAPP_API_URL`. Publicações antigas com um domínio único mantêm essa variável antiga como fallback quando `VITE_RADAR_API_URL` não está definida.
 
-As coleções `csatReservas`, `csatLinks` e `csatControle` são acessadas exclusivamente pelo Firebase Admin no backend. Nas regras Firestore publicadas, negue acesso de clientes a essas coleções e subcoleções. Exemplo para incorporar às regras existentes:
-
-```text
-match /csatReservas/{document=**} { allow read, write: if false; }
-match /csatLinks/{document=**} { allow read, write: if false; }
-match /csatControle/{document=**} { allow read, write: if false; }
-```
-
-Regras permissivas com `match /{document=**}` também precisam excluir essas coleções: permissões Firestore são combinadas por OR, então um deny específico não anula um allow abrangente. A cópia de referência das regras de produção fica em `firestore.rules.producao` (ver [AUTENTICACAO.md](AUTENTICACAO.md)); confira que a versão publicada no console é a mesma antes de cada publicação, para garantir a privacidade das reservas e dos tokens.
+As coleções `csatReservas` (com a subcoleção `respostas`), `csatLinks` e `csatControle` ficam no PostgreSQL e são acessadas exclusivamente pelas rotas de CSAT do backend. A API de dados do navegador (`/api/dados`) não as expõe: o acesso é negado por `src/domain/regrasAcessoDados.ts`, o que preserva a privacidade das reservas e dos tokens.
 
 Validação: `node node_modules/typescript/bin/tsc` seguido de `node --test tests/csat.test.mjs` no diretório `server`. Para a cópia automática no frontend, em `app/`: `node --experimental-vm-modules --test tests/csatClipboard.test.mjs`. Cobre os dois fluxos, ordem da cópia, bloqueio/ausência da área de transferência e falhas de geração sem copiar links.

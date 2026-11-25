@@ -10,7 +10,7 @@ import {
   writeBatch,
   where,
   limit,
-} from "firebase/firestore";
+} from "./dados";
 import { auth, db } from "./firebase";
 import type { LancamentoPonto } from "../types";
 import { sincronizarColecao } from "./sincronizacaoIncremental";

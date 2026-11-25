@@ -1,47 +1,40 @@
-# Redução de leituras do Firestore
+# Sincronização das listas
 
-As [tarefas automáticas](VALIDACAO_CONHECIMENTO.md) compartilham o mesmo índice/listeners da API. O índice mantém os dados em memória para o processamento interno, mas as rotas públicas autenticadas continuam retornando somente IDs e versões.
+As listas de ocorrências, empresas, pontos, tarefas do checklist e tentativas de validação do conhecimento não são relidas inteiras a cada abertura de tela. O navegador busca só o que mudou desde a última vez.
 
-As listas de ocorrências, empresas, pontos, tarefas do checklist e tentativas de validação do conhecimento usam `GET /api/sincronizacao/:colecao` no backend existente do Radar. A rota exige token Firebase válido, usuário cadastrado com perfil do Radar e senha já definida. Retorna somente IDs e versões; os documentos continuam sendo consultados diretamente pelo navegador, com as regras atuais do Firestore. O cadastro do usuário usado nessa validação fica em memória por 60 segundos, então uma revogação de acesso pode levar até esse prazo para valer.
+Desde a migração para o PostgreSQL ([MIGRACAO_POSTGRES.md](MIGRACAO_POSTGRES.md)), o mecanismo é este:
 
-O sincronizador do SSX Desk relê a coleção `usuarios` no máximo uma vez por hora, não a cada ciclo de 5 minutos.
+1. **Índice no backend.** `IndiceSincronizacao` (`src/infrastructure/postgres/`) mantém em memória, por processo, os documentos e versões dessas cinco coleções. Cada consulta lê no banco só as linhas e exclusões gravadas desde a anterior. Ela usa a coluna `transacao` e o `xmin` do snapshot, então gravações confirmadas fora de ordem não se perdem. Chamadas dentro de 1 segundo reutilizam a memória, e chamadas simultâneas compartilham a mesma consulta. As [tarefas automáticas](VALIDACAO_CONHECIMENTO.md) usam o mesmo índice.
+2. **`GET /api/sincronizacao/:colecao`** devolve só ids e versões. A versão é um número que muda a cada gravação.
+3. **`POST /api/sincronizacao/:colecao/documentos`** devolve o conteúdo direto da memória do índice. O corpo opcional `{ "ids": [...] }` filtra o retorno; sem `ids`, vem a coleção inteira.
+4. **No navegador**, `sincronizarColecao` (`app/src/services/sincronizacaoIncremental.ts`):
+   - compara o índice com as versões guardadas em `localStorage`;
+   - pede só os documentos novos ou alterados, em lotes de até 500 ids;
+   - mantém uma cópia local em IndexedDB (`app/src/services/cacheDocumentos.ts`), separada por usuário e coleção, que substituiu o cache persistente do SDK do Firestore;
+   - descarta documentos que não estão mais no índice, mesmo sem nenhuma alteração.
 
-Publique o backend antes do frontend: a lista do checklist passa a chamar a rota com `checklist_tarefas`, que o backend antigo recusa com 400.
+   Na primeira carga, ou quando a cópia local se perdeu, faz uma única requisição com a coleção inteira. `obterColecaoCompleta` (usada pelo painel ao vivo) busca a coleção inteira sem cópia local.
 
-O índice de pontos é restrito aos perfis master e treinador, os mesmos que acessam a gamificação no Radar. O índice de tentativas de validação do conhecimento (`validacao_tentativas`) segue a mesma restrição: só master e treinador, igual ao `ValidacaoConhecimentoController` — as tentativas trazem as perguntas e respostas de cada cliente, não só um indicador agregado.
+## Acesso
 
-O backend mantém um listener compartilhado por coleção e processo, criado na primeira solicitação autorizada. O listener faz uma leitura inicial da coleção e acompanha mudanças. Consultar o índice reutiliza a memória do processo; cada solicitação ainda lê o cadastro do usuário para validar acesso. Reinícios, reconexões e múltiplas instâncias podem causar novas leituras iniciais.
+As duas rotas exigem:
+- token Firebase válido;
+- usuário cadastrado, **ativo**, com perfil do Radar e senha já definida.
 
-O navegador mantém as versões em localStorage, separadas por usuário, e os documentos no cache persistente do SDK. Na primeira carga ou após perder o cache, lê a coleção. Nas seguintes, consulta somente IDs novos, alterados ou ausentes do cache, em lotes de até 30. Documentos excluídos são descartados pela ausência no índice, mesmo com cache antigo e sem nenhuma edição. A versão usa `updateTime` do Firestore, inclusive para alterações sem `updatedAt`.
+Os índices de pontos (`gamificacao_pontos`) e de tentativas de validação (`validacao_tentativas`) são restritos a master e treinador. As tentativas trazem as perguntas e respostas de cada cliente, não só um indicador agregado.
 
-O cache em memória dos serviços dura cinco minutos. Atualização forçada consulta novamente o índice e os documentos alterados; não causa leitura completa. Requisições simultâneas compartilham uma sincronização. Falhas do índice são apresentadas como erro, sem uma consulta completa automática que elevaria o consumo.
+O cadastro usado nessa validação fica em memória por 60 segundos, então uma revogação pode levar até esse prazo para valer aqui. Na API de dados (`/api/dados`), ela vale na hora.
 
-## Publicação
+## Comportamento
 
-1. Publique e reinicie primeiro o backend atualizado, com as credenciais Firebase Admin já usadas pelo Radar.
-2. Confira que `VITE_RADAR_API_URL` aponta para a API do Radar e que `CORS_ORIGIN` inclui a origem do frontend. `VITE_WHATSAPP_API_URL` aponta separadamente para o bot. No desenvolvimento, os padrões são as portas 5001 (API, `npm run dev:api`) e 5000 (bot, `npm run dev`), ambos executados em `server/`.
-3. Publique o frontend atualizado.
-4. Em uma sessão autenticada, abra o Radar, recarregue a página e exclua uma ocorrência de teste em outro navegador. Ao recarregar o primeiro, ela deve desaparecer. A aba Network deve mostrar chamadas ao índice; em listas sem mudanças, nenhuma consulta de documentos ao Firestore é necessária para esses três serviços.
-5. Compare a evolução de leituras em Firestore > Uso em um dia de uso semelhante. Primeiros acessos após a atualização ainda fazem uma carga completa para iniciar o marcador v2; leituras já consumidas no dia não são recuperadas.
-
-Não exige uma nova coleção, novos índices compostos nem alteração das regras do Firestore. O carregamento dessas listas passa a depender da disponibilidade do backend. Os demais serviços e a integração SSX ainda podem gerar leituras; esta mudança não garante ficar abaixo da cota em qualquer volume de usuários ou alterações.
-
-## Conteúdo dos documentos pelo backend (`/api/sincronizacao/:colecao/documentos`)
-
-O índice acima resolve só IDs/versões — o navegador ainda lê o conteúdo dos documentos alterados diretamente no Firestore. Para quem já pede a coleção inteira com frequência (hoje: o painel ao vivo de indicadores de treinamento, a cada 60s), isso multiplica as leituras por tela aberta: N telas custam N× mais que uma só.
-
-`POST /api/sincronizacao/:colecao/documentos` (mesma autenticação/autorização do índice) serve o conteúdo direto do `IndiceSincronizacao`, que já mantém a coleção inteira em memória por um único listener compartilhado no processo. Não dispara nenhuma leitura adicional do Firestore — custa o mesmo com 1 ou 100 chamadas simultâneas. Corpo opcional `{ "ids": ["..."] }` filtra o retorno; sem `ids`, devolve a coleção inteira.
-
-No frontend, `obterColecaoCompleta<T>(nomeColecao)` (`app/src/services/sincronizacaoIncremental.ts`) consome essa rota. Hoje só o painel ao vivo (`RelatorioIndicadoresTreinamento.tsx`) usa esse caminho, como piloto. As demais telas continuam no fluxo de índice + leitura direta do Firestore (`sincronizarColecao`), que já é incremental e barato para quem abre a página ocasionalmente — a amplificação por N telas só é um problema real para consumidores de alta frequência como o painel. Generalizar esse caminho para `sincronizarColecao` exigiria repensar o cache local (hoje `getDocsFromCache` reaproveita a persistência do próprio SDK do Firestore entre recarregamentos; o conteúdo servido pelo backend não alimenta esse cache).
-
-Em ambientes antigos com um domínio único e proxy para os dois processos, a ausência de `VITE_RADAR_API_URL` mantém o uso de `VITE_WHATSAPP_API_URL` para compatibilidade. Ao usar endereços separados, configure as duas variáveis explicitamente. Alterações em `app/.env` exigem reiniciar o Vite; em produção, gerar e publicar uma nova build do frontend.
+- O cache em memória dos serviços do frontend dura cinco minutos. Uma atualização forçada consulta o índice de novo e busca só o que mudou.
+- Falhas do índice ou dos documentos aparecem como erro. Não há recarga completa automática, e as versões anteriores são mantidas para a próxima tentativa.
+- Reinícios do backend fazem uma nova leitura inicial de cada coleção no banco, sem impacto para os navegadores.
+- O sincronizador do SSX Desk relê a coleção `usuarios` no máximo uma vez por hora, não a cada ciclo de 5 minutos.
+- Com o PostgreSQL não há cobrança por leitura. O custo que importa é o tamanho das respostas: a primeira carga de uma coleção grande trafega a coleção inteira.
 
 ## Validação
 
-Em `app/`, execute `npm run test:sincronizacao` e `npm run build`. Em `server/`, execute `npm run test:sincronizacao`.
-
-Os testes simulam persistência após recarregar, exclusão e criação simultâneas, edições sem `updatedAt`, cache incompleto, falhas, lotes e concorrência. Com mil documentos carregados, uma atualização sem mudanças não relê os documentos; com três edições, lê somente os três documentos alterados. Esse resultado não inclui a leitura de autorização do backend, a carga inicial do listener ou leituras dependentes das regras do Firestore.
-
-A checagem completa de tipos do frontend apresenta 49 diagnósticos preexistentes. A comparação com os arquivos de HEAD, usando o mesmo compilador/configuração, confirmou os mesmos 49 diagnósticos após a alteração, sem erros novos. O build Vite e a compilação TypeScript do backend passam.
-
-Referências: [cobrança e cota gratuita](https://firebase.google.com/docs/firestore/pricing), [limites de consultas](https://firebase.google.com/docs/firestore/query-data/queries).
+- Em `app/`: `npm run test:sincronizacao` (sincronização e cliente da API de dados).
+- Em `server/`: `npm run test:postgres` (índice, rotas, permissões e integração com o PostgreSQL real).
+- Os testes do app importam `.ts` diretamente: use Node 22.18 ou mais novo, ou acrescente `--experimental-strip-types`.

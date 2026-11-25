@@ -1,11 +1,6 @@
 import { initializeApp } from "firebase/app";
-import {
-  initializeFirestore,
-  persistentLocalCache,
-  persistentMultipleTabManager,
-  connectFirestoreEmulator,
-} from "firebase/firestore";
 import { getAuth, connectAuthEmulator } from "firebase/auth";
+import type { BancoRadar } from "./dados";
 
 export const firebaseConfig = {
   apiKey: "AIzaSyBrHOHIZE8zre7wpGOb8qYCgcSlmUuZu4c",
@@ -19,23 +14,24 @@ export const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
-/** Ver server/EMULADOR.md — liga o app ao Firebase Emulator Suite local em vez de produção. */
-const usarEmulador = import.meta.env?.VITE_USE_FIREBASE_EMULATOR === "true";
-
-// O cache persistente (IndexedDB) guarda documentos entre sessões do navegador; misturar
-// dados reais com dados do emulador no mesmo cache confundiria um ao alternar entre os
-// dois, então o modo emulador usa só o cache padrão em memória.
-export const db = usarEmulador
-  ? initializeFirestore(app, {})
-  : initializeFirestore(app, {
-      localCache: persistentLocalCache({
-        tabManager: persistentMultipleTabManager(),
-      }),
-    });
+/**
+ * O Firebase fica só com a autenticação. Os dados são lidos e gravados pela API do Radar
+ * (PostgreSQL) — ver services/dados.ts. `db` só identifica esse banco nas chamadas `doc(db, ...)`.
+ */
+export const db: BancoRadar = Object.freeze({ tipo: "radar" });
 export const auth = getAuth(app);
 
+/** Ver server/EMULADOR.md — usa o Auth Emulator local em vez do Firebase Auth de produção. */
+const usarEmulador = import.meta.env?.VITE_USE_FIREBASE_EMULATOR === "true";
 if (usarEmulador) {
-  connectFirestoreEmulator(db, "127.0.0.1", 8080);
   connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
-  console.info("[Firebase] Emulator Suite local ativo (Firestore :8080, Auth :9099) — dados do Firebase não acessam produção.");
+  console.info("[Firebase] Auth Emulator local ativo (:9099).");
+}
+
+// O SDK do Firestore guardava uma cópia dos dados no navegador (IndexedDB). Sem uso desde a
+// migração para o PostgreSQL, ela é apagada para não deixar dados de clientes no computador.
+try {
+  globalThis.indexedDB?.deleteDatabase(`firestore/[DEFAULT]/${firebaseConfig.projectId}/main`);
+} catch {
+  /* IndexedDB indisponível: nada a apagar. */
 }

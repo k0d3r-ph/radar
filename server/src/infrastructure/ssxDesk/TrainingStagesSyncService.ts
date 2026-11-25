@@ -1,4 +1,4 @@
-import type { Firestore } from 'firebase-admin/firestore';
+import type { BancoDocumentos } from '../../domain/interfaces/BancoDocumentos.js';
 import {
   atualizarEtapaTreinamento, criarEtapaTreinamento, excluirEtapaTreinamento, listarEmpresasDesk,
   SsxDeskHttpError, type CompanyDesk, type EtapaTreinamentoDesk, type StatusEtapaDesk,
@@ -207,7 +207,7 @@ export class TrainingStagesSyncService {
   private companiesDeskLidasEm = 0;
 
   constructor(
-    private readonly db: Firestore,
+    private readonly db: BancoDocumentos,
     private readonly apiKey: string,
     private readonly cliente: TrainingStagesClienteFns = CLIENTE_PADRAO,
     private readonly esperar: (ms: number) => Promise<void> = ms => new Promise(resolve => setTimeout(resolve, ms)),
@@ -418,10 +418,10 @@ export class TrainingStagesSyncService {
 }
 
 export function iniciarSincronizacaoSsxDeskTrainingStages(
-  db: Firestore | null, apiKey: string, intervaloMs: number, forcarBackfill = false,
+  db: BancoDocumentos | null, apiKey: string, intervaloMs: number, forcarBackfill = false,
 ) {
   if (!apiKey) { console.log('[SSX Desk Training Stages] Sincronização desativada: configure SSX_DESK_TRAINING_STAGES_API_KEY.'); return; }
-  if (!db) { console.error('[SSX Desk Training Stages] Sincronização indisponível: Firebase Admin não inicializado.'); return; }
+  if (!db) { console.error('[SSX Desk Training Stages] Sincronização indisponível: banco PostgreSQL não configurado.'); return; }
   const service = new TrainingStagesSyncService(db, apiKey, undefined, undefined, forcarBackfill);
   const executar = async () => {
     try {

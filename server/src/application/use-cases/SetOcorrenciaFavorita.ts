@@ -1,4 +1,4 @@
-import type { Firestore } from 'firebase-admin/firestore';
+import type { BancoDocumentos } from '../../domain/interfaces/BancoDocumentos.js';
 
 export class FavoritoError extends Error {
   constructor(public readonly status: number, message: string) { super(message); }
@@ -13,7 +13,7 @@ export function podeFavoritar(role: string): boolean {
 }
 
 export class SetOcorrenciaFavorita {
-  constructor(private readonly db: Firestore) {}
+  constructor(private readonly db: BancoDocumentos) {}
 
   async execute(id: string, favorita: boolean, uid: string, role: string) {
     if (!podeFavoritar(role)) throw new FavoritoError(403, 'Apenas treinadores e masters podem alterar as estrelas.');

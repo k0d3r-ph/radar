@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import type { User } from "firebase/auth";
 import { auth, db } from "../services/firebase";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "../services/dados";
 import { deslogarUsuario } from "../services/auth";
 import { formatarNome } from "../utils/formatarNome";
 import { toast } from "sonner";

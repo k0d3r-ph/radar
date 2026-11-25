@@ -7,7 +7,7 @@ import {
   doc,
   query,
   where,
-} from "firebase/firestore";
+} from "./dados";
 import { db } from "./firebase";
 
 import { TIPOS_PADRAO_SISTEMA, perfisPadraoTema } from "../utils/tabulacoes";

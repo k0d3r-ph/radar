@@ -19,7 +19,7 @@ async function ambiente() {
   const config = definir({ RADAR_API_URL: 'http://api.test' });
   const code = ts.transpileModule(readFileSync(new URL('../src/services/checklist.ts', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
   const modulo = new SourceTextModule(code, { context });
-  await modulo.link(nome => { const dependency = { 'firebase/firestore': firestore, './firebase': firebase, './sincronizacaoIncremental': sincronizacao, './apiConfig': config }[nome]; if (!dependency) throw Error(`Import inesperado: ${nome}`); return dependency; });
+  await modulo.link(nome => { const dependency = { './dados': firestore, './firebase': firebase, './sincronizacaoIncremental': sincronizacao, './apiConfig': config }[nome]; if (!dependency) throw Error(`Import inesperado: ${nome}`); return dependency; });
   await modulo.evaluate();
   return { estado, service: modulo.namespace };
 }

@@ -1,5 +1,5 @@
 import { initializeApp, deleteApp } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
+import { abrirBancoLocal } from './bancoLocal.js';
 
 /**
  * Cliente de exemplo para a tabela e o gráfico "Aplicação dos temas na base" da
@@ -9,8 +9,7 @@ import { getFirestore } from 'firebase-admin/firestore';
  * Repetir o comando regrava só estes registros, com datas relativas ao dia atual.
  */
 
-// Hosts literais locais: este script não carrega .env nem credenciais de produção.
-process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8080';
+// Hosts literais locais (Postgres local e Auth Emulator): nunca grava em produção.
 process.env.METADATA_SERVER_DETECTION = 'none';
 
 const PREFIXO = 'demo-aplicacao-';
@@ -48,7 +47,7 @@ const ESTEIRA = [
 ];
 
 const app = initializeApp({ projectId: 'automatiza-esteira' });
-const db = getFirestore(app);
+const db = await abrirBancoLocal();
 
 function diaRelativo(dias: number): Date {
   const data = new Date();
@@ -61,7 +60,6 @@ const iso = (d: Date) =>
 const ddmm = (d: Date) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
 
 try {
-  await fetch('http://127.0.0.1:8080/', { signal: AbortSignal.timeout(3_000) });
   const usuarios = await db.collection('usuarios').where('role', '==', 'treinador').limit(1).get();
   const treinador = (usuarios.docs[0]?.data().nome as string | undefined) ?? 'Treinador Demo';
   const agora = Date.now();
@@ -126,12 +124,12 @@ try {
   });
 
   await batch.commit();
-  console.log(`Exemplo gravado somente no emulador: 1 cliente e ${TREINAMENTOS.length + 1} ocorrências.`);
+  console.log(`Exemplo gravado somente no banco local: 1 cliente e ${TREINAMENTOS.length + 1} ocorrências.`);
   console.log(`Na Esteira, selecione "${NOME}" em Empresas salvas e role até "Aplicação dos temas na base".`);
 } catch (erro) {
   console.error('Não foi possível criar o exemplo local:', erro instanceof Error ? erro.message : 'Falha desconhecida');
   process.exitCode = 1;
 } finally {
-  await db.terminate();
+  await db.encerrar();
   await deleteApp(app);
 }

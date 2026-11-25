@@ -10,24 +10,26 @@ Responda em português do Brasil, com clareza e objetividade. Explique decisões
 
 O Radar CRM acompanha empresas na esteira de implantação e treinamento, ocorrências de atendimento, relacionamento com CS, pendências, score, gamificação, checklist e relatórios. Possui CSAT público por link, notificações WhatsApp e importação de atendimentos do SSX Desk.
 
-- `app/`: React, TypeScript, Vite e React Router; estilização em CSS; Firebase Auth e Firestore no navegador.
+- `app/`: React, TypeScript, Vite e React Router; estilização em CSS; Firebase Auth no navegador. Os dados são lidos e gravados pela API (`app/src/services/dados.ts` → `/api/dados`).
 - `app/src/pages/`: telas e seus estilos. Home e Histórico concentram muitos fluxos; investigue os trechos relacionados antes de alterar.
 - `app/src/components/`, `hooks/` e `context/`: elementos reutilizáveis, comportamento compartilhado, autenticação e temas.
 - `app/src/services/`: acesso a dados e integrações do frontend.
 - `app/src/types.ts`, `utils/score.ts`, `utils/pendencias.ts` e `utils/monitoramento/`: modelos e cálculos de negócio que devem ser reutilizados.
 - `server/`: Node.js, TypeScript, Express, Firebase Admin, Socket.IO, WhatsApp Web e integração com Gemini para resumos.
 - `server/src/domain/`, `application/use-cases/`, `adapters/controllers/` e `infrastructure/`: organização em camadas. Respeite as separações existentes ao estender o backend.
+- `server/src/infrastructure/postgres/`: banco PostgreSQL (adaptador `BancoDocumentos`, migrações de esquema, índice de sincronização). Os casos de uso dependem de `server/src/domain/interfaces/BancoDocumentos.ts`.
 - `server/src/infrastructure/web/apiIndex.ts`: processo da API e sincronização SSX Desk; `index.ts`: processo do bot WhatsApp. Preserve essa separação ao adicionar rotas ou dependências.
 - `app/tests/` e `server/tests/`: testes existentes com o runner do Node.
 
 Leia a documentação correspondente quando a tarefa envolver essas funcionalidades:
 
 - `app/PENDENCIAS_E_ESTRELAS.md`: semáforo, pendências e favoritos.
-- `server/SINCRONIZACAO.md`: índice de versões, caches e consumo do Firestore.
-- `server/AUTENTICACAO.md`: perfis exigidos por rota, gestão de usuários pela API e regras de produção do Firestore (`firestore.rules.producao`).
+- `server/SINCRONIZACAO.md`: índice de versões e caches da sincronização das listas.
+- `server/AUTENTICACAO.md`: perfis exigidos por rota, gestão de usuários pela API e permissões dos dados (`server/src/domain/regrasAcessoDados.ts`).
+- `server/MIGRACAO_POSTGRES.md`: dados no PostgreSQL (Firebase só na autenticação), API `/api/dados`, banco local, cópia do Firestore e virada.
 - `server/CSAT.md`: reservas, sequências, respostas e acesso público.
 - `server/SSX_DESK.md`: importação, vínculos e deduplicação.
-- `server/EMULADOR.md`: Firebase Emulator Suite local, para desenvolver sem consumir a cota do Firestore de produção.
+- `server/EMULADOR.md`: ambiente local (PostgreSQL local e Auth Emulator), sem tocar em produção.
 - `app/TEMA_CLARO.md`: modo claro gerado a partir do CSS escuro; rode `npm run tema:claro` em `app/` após alterar cores.
 
 Confirme o comportamento no código e nos testes. Se houver divergência com a documentação, identifique-a e resolva conforme o objetivo solicitado; não trate um comportamento acidental como requisito.
@@ -55,7 +57,7 @@ Confirme o comportamento no código e nos testes. Se houver divergência com a d
 - Preserve as regras de suspensão, cancelamento, ongoing, progresso, TME, score e ajustes temporários, salvo quando a tarefa solicitar sua alteração. Para datas de negócio, use o horário de Brasília (`America/Sao_Paulo`) e os utilitários existentes; evite deslocar datas sem horário ao convertê-las para UTC.
 - Considere concorrência, idempotência e falhas parciais em reservas CSAT, favoritos, importações e notificações. Use transações quando uma invariável depender de múltiplas leituras e escritas.
 - Preserve controles de deduplicação do SSX Desk e o tratamento de exclusões. Uma nova sincronização não deve recriar registros excluídos nem sobrescrever classificações manuais indevidamente.
-- Considere custo e disponibilidade: reutilize a sincronização incremental, mantenha `updatedAt` nas gravações pertinentes e preserve o isolamento de cache por usuário. Evite leituras completas recorrentes ou fallback silencioso que aumente o consumo do Firestore.
+- Considere custo e disponibilidade: reutilize a sincronização incremental, mantenha `updatedAt` nas gravações pertinentes e preserve o isolamento de cache por usuário. Evite leituras completas recorrentes ou fallback silencioso que aumente a carga do banco e da rede.
 - Trate erros e estados intermediários; impeça submissões duplicadas e limpe listeners, timers e conexões quando aplicável.
 - Adicione dependências apenas quando houver benefício claro frente às soluções já disponíveis.
 
@@ -73,7 +75,7 @@ Confirme o comportamento no código e nos testes. Se houver divergência com a d
 
 ## Autorização e integrações
 
-- Respeite os perfis existentes, incluindo `master`, `treinador`, `cs`, `suporte` e `painel`. Use os helpers de perfil aplicáveis. Ocultar um botão não substitui autorização na API e nas regras do Firestore.
+- Respeite os perfis existentes, incluindo `master`, `treinador`, `cs`, `suporte` e `painel`. Use os helpers de perfil aplicáveis. Ocultar um botão não substitui autorização na API (`regrasAcessoDados.ts` para `/api/dados`).
 - Em operações protegidas do backend, valide a identidade e a permissão para a ação e o recurso. Firebase Admin tem acesso privilegiado; não dependa das regras do SDK cliente para protegê-lo.
 - Preserve a rota pública de CSAT e os limites de acesso definidos para reservas e respostas. Não exponha coleções administrativas ou dados de outros usuários.
 - Não leia nem reproduza o conteúdo de `serviceAccountKey.json`, arquivos `.env`, tokens ou sessões WhatsApp para tarefas que não precisem disso. Nunca inclua segredos em código, documentação, logs ou respostas. Variáveis `VITE_*` ficam acessíveis no frontend e não podem guardar credenciais privadas.
@@ -92,5 +94,6 @@ Use npm a partir do pacote correspondente; confira os scripts em cada `package.j
 - Backend: em `server/`, `npm run build`; desenvolvimento da API com `npm run dev:api` e do bot com `npm run dev`. Iniciar esses processos pode ativar integrações reais; não os use como simples teste de compilação.
 - Testes específicos do backend: em `server/`, `npm run test:favoritos`, `npm run test:sincronizacao`, `npm run test:ssx-desk`, `npm run test:whatsapp-media` e `npm run test:centrais`, conforme a área alterada. Esses scripts já executam o build.
 - CSAT: em `server/`, execute `npm run build` e depois `node --test tests/csat.test.mjs`.
+- Banco e API de dados: em `server/`, `npm run test:postgres` (sobe um PostgreSQL descartável; inclui permissões de `/api/dados` e o cliente `app/src/services/dados.ts` ponta a ponta).
 
 Execute as verificações proporcionais à alteração. Para correções em regras de negócio, permissões, concorrência ou persistência, acrescente testes de regressão quando necessário. Mudanças apenas documentais não exigem compilar a aplicação. Se houver falhas, diferencie problemas preexistentes de regressões com evidências; não remova verificações para obter uma execução verde.

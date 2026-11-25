@@ -1,4 +1,4 @@
-import type { Firestore } from 'firebase-admin/firestore';
+import type { BancoDocumentos } from '../../domain/interfaces/BancoDocumentos.js';
 import { duracaoAgendaValida } from '../../domain/duracaoAgenda.js';
 import { isSolicitanteTreinamento } from '../../domain/validacaoConhecimento.js';
 import { AtualizacaoValidacaoError } from './AdicionarAtualizacaoValidacao.js';
@@ -114,7 +114,7 @@ const iguais = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.st
  * vínculo com a esteira e com a tentativa.
  */
 export class EditarOcorrenciaValidacao {
-  constructor(private readonly db: Firestore) {}
+  constructor(private readonly db: BancoDocumentos) {}
 
   async execute(id: string, pedido: PedidoEdicaoOcorrenciaValidacao, editor: string) {
     const ref = this.db.collection('ocorrencias').doc(id);

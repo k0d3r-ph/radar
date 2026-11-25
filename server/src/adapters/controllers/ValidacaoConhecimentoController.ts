@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import type { Auth } from 'firebase-admin/auth';
-import type { Firestore } from 'firebase-admin/firestore';
+import type { BancoDocumentos } from '../../domain/interfaces/BancoDocumentos.js';
 import { GerenciarValidacaoConhecimento } from '../../application/use-cases/GerenciarValidacaoConhecimento.js';
 import type { UsuarioValidacao } from '../../application/use-cases/GerenciarValidacaoConhecimento.js';
 import { CsatError } from '../../infrastructure/web/csat.js';
@@ -18,7 +18,7 @@ async function gerarTextoIa(prompt: string): Promise<string> {
 
 export class ValidacaoConhecimentoController {
   private readonly repo: GerenciarValidacaoConhecimento | null;
-  constructor(private readonly db: Firestore | null, private readonly auth: Auth | null, private readonly gerarTexto: (prompt: string) => Promise<string> = gerarTextoIa) { this.repo = db ? new GerenciarValidacaoConhecimento(db) : null; }
+  constructor(private readonly db: BancoDocumentos | null, private readonly auth: Auth | null, private readonly gerarTexto: (prompt: string) => Promise<string> = gerarTextoIa) { this.repo = db ? new GerenciarValidacaoConhecimento(db) : null; }
   executar = (acao: 'perguntas' | 'adicionar' | 'atualizarPergunta' | 'indicadores' | 'listar' | 'iniciar' | 'salvar' | 'concluir' | 'cancelar' | 'assumir' | 'analisar') => async (req: Request, res: Response) => {
     res.set('Cache-Control', 'no-store');
     try {

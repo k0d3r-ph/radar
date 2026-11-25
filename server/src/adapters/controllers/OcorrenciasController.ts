@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import type { Auth } from 'firebase-admin/auth';
-import type { Firestore } from 'firebase-admin/firestore';
+import type { BancoDocumentos } from '../../domain/interfaces/BancoDocumentos.js';
 import { FavoritoError, SetOcorrenciaFavorita } from '../../application/use-cases/SetOcorrenciaFavorita.js';
 import { AdicionarAtualizacaoValidacao, AtualizacaoValidacaoError } from '../../application/use-cases/AdicionarAtualizacaoValidacao.js';
 import { EditarOcorrenciaValidacao, lerPedidoEdicaoOcorrenciaValidacao } from '../../application/use-cases/EditarOcorrenciaValidacao.js';
@@ -8,7 +8,7 @@ import type { IUsuariosRepository } from '../../domain/interfaces/IUsuariosRepos
 
 export class OcorrenciasController {
   constructor(
-    private readonly db: Firestore | null,
+    private readonly db: BancoDocumentos | null,
     private readonly auth: Auth | null,
     private readonly usuariosRepo: IUsuariosRepository | null,
   ) {}

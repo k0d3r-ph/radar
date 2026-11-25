@@ -1,11 +1,11 @@
-import type { Firestore } from 'firebase-admin/firestore';
+import type { BancoDocumentos } from '../../domain/interfaces/BancoDocumentos.js';
 
 export class ExclusaoTarefaError extends Error {
   constructor(public readonly status: number, message: string) { super(message); }
 }
 
 export class ExcluirTarefaConcluida {
-  constructor(private readonly db: Firestore) {}
+  constructor(private readonly db: BancoDocumentos) {}
 
   async execute(id: string, uid: string, master: boolean) {
     if (!id || id.includes('/') || id.length > 1500) throw new ExclusaoTarefaError(400, 'Informe uma tarefa válida.');

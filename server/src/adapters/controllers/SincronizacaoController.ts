@@ -1,7 +1,6 @@
 import type { Request, Response } from 'express';
 import type { Auth } from 'firebase-admin/auth';
-import type { Firestore } from 'firebase-admin/firestore';
-import { COLECOES_SINCRONIZADAS, IndiceSincronizacao, type ColecaoSincronizada } from '../../infrastructure/firebase/IndiceSincronizacao.js';
+import { COLECOES_SINCRONIZADAS, type IndiceSincronizacao, type ColecaoSincronizada } from '../../infrastructure/postgres/IndiceSincronizacao.js';
 import type { IUsuariosRepository } from '../../domain/interfaces/IUsuariosRepository.js';
 
 // Cadastro do usuário por UID: evita uma leitura do Firestore a cada consulta de
@@ -13,12 +12,11 @@ export class SincronizacaoController {
   private readonly usuarios = new Map<string, { dados: Record<string, any> | undefined; expiraEm: number }>();
 
   constructor(
-    db: Firestore | null,
     private readonly auth: Auth | null,
     private readonly usuariosRepo: IUsuariosRepository | null,
     indice?: IndiceSincronizacao | null,
   ) {
-    this.indice = indice ?? (db ? new IndiceSincronizacao(db) : null);
+    this.indice = indice ?? null;
   }
 
   private async lerUsuario(uid: string): Promise<Record<string, any> | undefined> {
@@ -38,7 +36,7 @@ export class SincronizacaoController {
     try { uid = (await this.auth!.verifyIdToken(token, true)).uid; }
     catch { res.status(401).json({ error: 'Entre novamente no Radar.' }); return null; }
     const usuario = await this.lerUsuario(uid);
-    if (!usuario || usuario.needsPasswordChange
+    if (!usuario || usuario.inativo || usuario.needsPasswordChange
       || !['master', 'treinador', 'suporte', 'hardware', 'comercial', 'financeiro', 'cs', 'crc', 'painel'].includes(usuario.role)) {
       res.status(403).json({ error: 'Usuário sem acesso ao Radar.' }); return null;
     }
@@ -83,7 +81,7 @@ export class SincronizacaoController {
    * (ver IndiceSincronizacao) — sem nenhuma leitura adicional do Firestore.
    * Pensado para consumidores que pedem a coleção inteira com frequência (ex.:
    * painel ao vivo): hoje cada navegador lê os documentos diretamente do
-   * Firestore, então N telas abertas multiplicam as leituras por N; aqui o
+   * BancoDocumentos, então N telas abertas multiplicam as leituras por N; aqui o
    * custo fica fixo, pago uma vez pelo listener do backend.
    */
   async documentos(req: Request, res: Response): Promise<void> {

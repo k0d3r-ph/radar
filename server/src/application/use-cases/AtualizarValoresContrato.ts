@@ -1,4 +1,4 @@
-import type { Firestore } from 'firebase-admin/firestore';
+import type { BancoDocumentos } from '../../domain/interfaces/BancoDocumentos.js';
 import { normalizarNomeCentral, resolverCentral, type LinhaCentral } from '../../domain/entities/CentralPlanilha.js';
 
 type ClienteContrato = {
@@ -34,7 +34,7 @@ function valorParaAtualizar(cliente: ClienteContrato, linhas: LinhaCentral[], so
 
 /** Executado sob demanda pelo script administrativo; não roda na inicialização. */
 export class AtualizarValoresContrato {
-  constructor(private readonly db: Firestore) {}
+  constructor(private readonly db: BancoDocumentos) {}
 
   async execute(linhas: LinhaCentral[], opcoes: { aplicar?: boolean; sobrescrever?: boolean } = {}): Promise<Resultado> {
     if (!linhas.length || !linhas.some(linha => linha.valorContrato !== undefined)) {

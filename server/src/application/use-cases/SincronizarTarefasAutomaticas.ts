@@ -1,8 +1,8 @@
-import type { Firestore } from 'firebase-admin/firestore';
+import type { BancoDocumentos } from '../../domain/interfaces/BancoDocumentos.js';
 import { createHash } from 'node:crypto';
 import { calcularSituacaoAcompanhamento, encontrarResponsavel, normalizarCliente } from '../../domain/acompanhamentoEsteira.js';
 import type { ClienteAcompanhamento, ContatoAcompanhamento } from '../../domain/acompanhamentoEsteira.js';
-import type { IndiceSincronizacao } from '../../infrastructure/firebase/IndiceSincronizacao.js';
+import type { IndiceSincronizacao } from '../../infrastructure/postgres/IndiceSincronizacao.js';
 
 /** Usa o mesmo cache/listener do índice incremental. O relógio também pode abrir tarefas sem novas gravações. */
 export class SincronizarTarefasAutomaticas {
@@ -11,7 +11,7 @@ export class SincronizarTarefasAutomaticas {
   private usuariosExpiram = 0;
   /** Evita repetir o mesmo aviso a cada minuto; volta a avisar se o vínculo mudar. */
   private avisosVinculo = new Map<string, string>();
-  constructor(private readonly db: Firestore, private readonly indice: IndiceSincronizacao) {}
+  constructor(private readonly db: BancoDocumentos, private readonly indice: IndiceSincronizacao) {}
   async execute(agora = Date.now()) {
     if (this.executando) return;
     this.executando = true;

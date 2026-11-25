@@ -16,7 +16,7 @@
  *     Publicar na web → escolher a aba → formato CSV).
  */
 
-import { adminDb, isFirebaseInitialized } from '../src/infrastructure/firebase/firebaseAdmin.js';
+import { banco as adminDb, prepararBanco } from '../src/infrastructure/postgres/bancoDados.js';
 import {
   listarCentraisDaPlanilha,
   normalizarNomeCentral,
@@ -25,12 +25,11 @@ import {
 const dryRun = process.argv.includes('--dry-run');
 
 async function main() {
-  if (!isFirebaseInitialized || !adminDb) {
-    console.error(
-      'Firebase Admin não inicializado — confira se server/../serviceAccountKey.json existe.',
-    );
+  if (!adminDb) {
+    console.error('Banco PostgreSQL não configurado — confira POSTGRES_HOST (ou DATABASE_URL) no .env.');
     process.exit(1);
   }
+  await prepararBanco();
 
   console.log('Lendo planilha de centrais...');
   const centrais = await listarCentraisDaPlanilha(true);

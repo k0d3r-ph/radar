@@ -12,7 +12,7 @@ import {
   type Transaction,
   type DocumentSnapshot,
   type DocumentReference,
-} from "firebase/firestore";
+} from "./dados";
 
 import { auth, db } from "./firebase";
 import type { Empresa, LancamentoPonto, MotivoEsperaTreinamento, Ocorrencia } from "../types";

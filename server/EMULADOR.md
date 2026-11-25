@@ -1,104 +1,51 @@
-# Firebase Emulator Suite local
+# Ambiente local
 
-Por que existe: rodar o Radar localmente (app + `dev:api`) sempre leu e gravou direto no
-Firestore de produção. Cada reinício do `npm run dev:api` (o `tsx watch` reinicia o
-processo inteiro a cada arquivo salvo) refaz as leituras iniciais do índice de
-sincronização e, se `SSX_DESK_API_KEY` estiver preenchida, também as leituras e
-gravações da importação do SSX Desk — isso soma rápido contra a cota diária gratuita
-(50 mil leituras/dia no plano Spark). O Emulator Suite resolve isso: Firestore e Auth
-rodando só na sua máquina, com dados de exemplo, sem tocar em produção.
+Para desenvolver sem tocar em produção, rode na sua máquina:
+- um **PostgreSQL local**, para os dados;
+- o **Firebase Auth Emulator**, para os logins.
+
+Dados e autenticação ficam isolados de produção.
 
 ## Uso do dia a dia
 
-1. Instale as dependências do `server/` uma vez (`npm install`) — já inclui
-   `firebase-tools` como devDependency.
-2. Em um terminal, suba o emulador (a partir de `server/`):
+1. Instale as dependências do `server/` e do `app/` uma vez (`npm install` em cada um). O `server/` já inclui `firebase-tools` e `embedded-postgres` como devDependencies.
+2. Em um terminal, a partir de `server/`, suba o banco local e deixe-o aberto:
+   ```
+   npm run db:local
+   ```
+   É um PostgreSQL 18 sem instalação, com dados em `server/.postgres-local/` (persistem entre execuções; apague a pasta para recomeçar do zero).
+3. Em outro terminal, também em `server/`, suba o Auth Emulator (precisa de Java 11+):
    ```
    npm run emulators
    ```
-   Abre o Firestore (porta 8080), o Auth (porta 9099), o Storage (porta 9199) e uma UI
-   de inspeção em http://localhost:4000. Deixe esse terminal aberto enquanto desenvolve.
-3. Na primeira vez (ou sempre que quiser resetar os dados), em outro terminal, também a
-   partir de `server/`:
+   A UI de inspeção fica em http://localhost:4000.
+4. Na primeira vez (ou para resetar os dados), em `server/`:
    ```
    npm run seed:emulador
    ```
-   Apaga e recria `usuarios`, `empresas`, `ocorrencias` e `gamificacao_pontos` com dados
-   sintéticos (8 empresas em estados variados, ocorrências, treinamentos com CSAT).
-   Imprime os e-mails de login ao final — a senha de todos é `senha123`.
-4. Ligue o modo emulador nos dois `.env` locais:
-   - `server/.env`: `USE_FIREBASE_EMULATOR=true`
+   Recria `usuarios`, `empresas`, `ocorrencias` e `gamificacao_pontos` no banco local com dados sintéticos e cria os logins no Auth Emulator. A senha de todos é `senha123`, e os e-mails são impressos no final.
+5. Configure os `.env` locais:
+   - `server/.env`: `USE_FIREBASE_EMULATOR=true` e `DATABASE_URL=postgres://postgres:radar-local@127.0.0.1:54329/radar`
    - `app/.env.local`: `VITE_USE_FIREBASE_EMULATOR=true`
-5. Rode o app e o backend normalmente (`npm run dev` no `app/`, `npm run dev:api` no
-   `server/`). Reinicie os dois processos depois de mudar os `.env` — variáveis de
-   ambiente só são lidas na inicialização.
-6. Para voltar a apontar para produção, mude as duas flags para `false` (ou apague as
-   linhas) e reinicie os processos de novo.
+6. Rode o backend (`npm run dev:api` em `server/`) e o app (`npm run dev` em `app/`). Reinicie os processos depois de mudar os `.env`.
 
-Com `USE_FIREBASE_EMULATOR=true`, o backend ignora `serviceAccountKey.json` — não
-precisa dele para rodar contra o emulador.
+Os scripts de exemplo (`seed:*`) gravam **sempre** no banco local (`scripts/bancoLocal.ts`), ignorando o `.env`. Assim não alcançam o banco de produção, mesmo que o `server/.env` aponte para ele.
 
-## Exemplos para a jornada do cliente
+## Exemplos adicionais
 
-Com o Firestore local já rodando, execute em `server/`:
+Todos exigem o banco local rodando e regravam só os próprios registros, com datas relativas ao dia atual.
 
-```powershell
-npm run seed:jornada
-```
+- **Jornada do cliente** (`npm run seed:jornada`): 8 clientes `[Demo Jornada]` e 95 ocorrências (ids `demo-jornada-`). Em Relatórios > Jornada do cliente, busque `Demo Jornada`. Detalhes em `app/JORNADA_CLIENTE.md`.
+- **Aplicação dos temas** (`npm run seed:aplicacao`): cliente `[Demo Aplicação] Central Exemplo`, com treinamentos passados e D-N já marcados (inclui um dia com dois temas em que só um foi aplicado e um dia ainda no formato antigo de marcação por dia). Na Esteira, role até "Aplicação dos temas na base". Repetir o comando também apaga os ajustes de temas feitos na tabela (renomeados, retirados e incluídos).
+- **Validação parcial do conhecimento** (`npm run seed:validacao-parcial`, depois do `seed:emulador`): cria `[Demo Validação] Concluída` e `[Demo Validação] Em andamento` pelo fluxo real. Entre como `treinador2@local.test`.
+- **Indicador de Validação do Conhecimento** (`npm run seed:indicador-validacao`, depois do `seed:emulador`): oito clientes `[Demo Indicador]` pelo fluxo real da API, cobrindo avaliações concluídas, prévias pela validação parcial (inclusive no limite de 80%) e uma tentativa abaixo do mínimo de perguntas marcadas. O script imprime o resultado pela regra antiga e pela nova. Abra Relatórios › Indicadores de Treinamento.
+- **Certificados de treinamento** (`npm run seed:certificado`, depois do `seed:emulador`): `[Demo Certificado] Central Exemplo`, com treinamentos com duração de agenda (inclui uma revisão e uma ausência, que não soma), dois contatos fictícios e uma validação aprovada com três participantes no CSAT. Entre como `treinador2@local.test`, abra Validação do conhecimento e use "Gerar certificados". O script imprime a carga horária e o período esperados.
 
-Acrescenta 8 clientes e 95 ocorrências sintéticas, identificados por `[Demo Jornada]`, sem apagar os dados ou usuários existentes. Os IDs começam com `demo-jornada-`; repetir o comando atualiza apenas esses exemplos com datas relativas ao dia atual. O script fixa o destino em `127.0.0.1:8080`, ignora `.env` e não lê credenciais de produção.
+## O que não fica isolado
 
-No Radar, abra Relatórios > Jornada do cliente e busque `Demo Jornada`. Use Todos para incluir a jornada concluída. Há exemplos de queda por suporte, recuperação após 15 dias, mudança pelas respostas do questionário, Fast estável e ausência de score. O comando não cria logins; use os usuários locais já cadastrados. Detalhes das regras em `app/JORNADA_CLIENTE.md`.
-
-## Exemplo para a aplicação dos temas (Esteira)
-
-Com o Firestore local rodando, execute em `server/` `npm run seed:aplicacao`. Cria o cliente `[Demo Aplicação] Central Exemplo` (IDs `demo-aplicacao-`) com treinamentos passados e D-N já marcados (um dia com dois temas em que só um foi aplicado e um dia ainda no formato antigo de marcação por dia), um treinamento recente sem marcação, um agendamento futuro e o tema "Início" (que não entra na tabela). Na Esteira, selecione o cliente e role até "Aplicação dos temas na base". Repetir o comando regrava só esses registros, com datas relativas ao dia atual (e apaga os ajustes de temas feitos na tabela — renomeados, retirados e incluídos); o destino é fixo em `127.0.0.1:8080`.
-
-## Exemplo para a validação parcial do conhecimento
-
-Com o Firestore local rodando e o `npm run seed:emulador` já executado, rode em `server/` `npm run seed:validacao-parcial`. Pelo fluxo real da API, cria `[Demo Validação] Concluída` (validação parcial e final marcadas, avaliação concluída e ocorrência de Treinamento no Histórico) e `[Demo Validação] Em andamento` (parcial marcada em parte das perguntas, final sem resposta). Entre como `treinador2@local.test` e abra Validação do conhecimento. O script imprime o texto da ocorrência gerada. Repetir o comando recria só esses registros (IDs `demo-validacao-`).
-
-## Exemplo para o indicador de Validação do Conhecimento (painel)
-
-Com o Firestore local rodando e o `npm run seed:emulador` já executado, rode em `server/` `npm run seed:indicador-validacao`. Pelo fluxo real da API, cria oito clientes `[Demo Indicador]` (IDs `demo-indicador-validacao-`): três avaliações concluídas (duas aprovadas, uma reprovada), um cliente reprovado que refaz com validação parcial aprovada, duas avaliações abertas com parcial ≥ 80% (uma no limite exato), uma com parcial abaixo de 80%, uma aberta sem parcial e uma com só 3 perguntas marcadas (fora da prévia com o mínimo padrão de 5; altere o mínimo na tela de Validação como Master para vê-la entrar). O script imprime o resultado desses clientes pela regra antiga (só concluídas: 2/4 = 50%) e pela nova (com prévias: 5/7 ≈ 71%, 4 pela validação parcial). Abra Relatórios › Indicadores de Treinamento; o card também soma os demais clientes do emulador avaliados no mês. Repetir o comando recria só esses registros.
-
-## Exemplo para os certificados de treinamento
-
-Com o Firestore local rodando e o `npm run seed:emulador` já executado, rode em `server/` `npm run seed:certificado`. Cria `[Demo Certificado] Central Exemplo` (IDs `demo-certificado-`) com treinamentos anteriores com duração de agenda (inclui uma revisão e uma ausência, que não soma), dois contatos de WhatsApp fictícios e uma validação aprovada com 90% pelo fluxo real da API, com três participantes no CSAT. Entre como `treinador2@local.test`, abra Validação do conhecimento, selecione o cliente e use "Gerar certificados". O script imprime a carga horária e o período esperados. Repetir o comando recria só esses registros.
-
-## O que NÃO depende do emulador
-
-A sincronização do SSX Desk ainda faz chamadas HTTP reais ao vendor (`SSX_DESK_API_KEY`)
-mesmo em modo emulador — só as leituras/gravações no Firestore é que vão para o
-emulador em vez de produção. Se não estiver testando a importação do SSX Desk de
-propósito, deixe `SSX_DESK_API_KEY` em branco no `server/.env` independentemente do
-modo emulador estar ligado.
-
-## Arquivos envolvidos
-
-- `firebase.json`, `.firebaserc`, `firestore.rules`, `storage.rules`, `firestore.indexes.json` (raiz do
-  repo) — configuração do Emulator Suite. `firestore.rules` é deliberadamente aberto
-  (`allow read, write: if true`) e só vale para o emulador; nunca existe produção atrás
-  dele, e nunca deve ser publicado com `firebase deploy`.
-- `storage.rules` também é carregado pelo emulador e restringe fotos de perfil a
-  usuários autenticados, permitindo que cada usuário altere somente a própria imagem
-  (JPEG, PNG ou WebP, até 2 MB). Em produção, confirme que o bucket do Firebase Storage
-  está habilitado e publique uma regra equivalente pelo fluxo de administração usado
-  pelo projeto; o arquivo local não altera as regras de produção automaticamente.
-- `server/scripts/seedEmulador.ts` — popula o emulador. Força os hosts do emulador
-  independentemente do que estiver no `.env`, então é seguro rodar mesmo sem
-  `USE_FIREBASE_EMULATOR=true` — mas só funciona com o emulador já rodando.
-- `app/src/services/firebase.ts` e
-  `server/src/infrastructure/firebase/firebaseAdmin.ts` — leem as flags
-  `VITE_USE_FIREBASE_EMULATOR`/`USE_FIREBASE_EMULATOR` e decidem para onde apontar.
-- `.emulator-data/` (raiz do repo, criada no primeiro `npm run emulators`) — snapshot dos
-  dados do emulador entre sessões (`--import`/`--export-on-exit`); git-ignorada.
+A sincronização do SSX Desk faz chamadas HTTP reais ao fornecedor (`SSX_DESK_API_KEY`). Se não estiver testando a importação, deixe essa chave em branco no `server/.env`.
 
 ## Limitações
 
-- O seed cobre `usuarios`, `empresas`, `ocorrencias` e `gamificacao_pontos` — não
-  popula `checklist_tarefas`, reservas de CSAT nem a importação do SSX Desk. Para testar
-  essas áreas específicas, ainda é preciso ambiente real (ou estender o seed).
-- `firestore.indexes.json` está vazio; se uma consulta precisar de índice composto que
-  só existe em produção, ela falha no emulador até o índice equivalente ser adicionado
-  ali.
+- O seed não popula `checklist_tarefas`, reservas de CSAT nem a importação do SSX Desk.
+- Sem Java, o Auth Emulator não sobe e não há login local. Os testes automatizados (`npm run test:postgres`) não precisam dele.

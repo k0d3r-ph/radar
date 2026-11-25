@@ -20,7 +20,7 @@
  *     (opcional — sem ela, mostra só o que o Radar sabe).
  */
 
-import { adminDb, isFirebaseInitialized } from '../src/infrastructure/firebase/firebaseAdmin.js';
+import { banco as adminDb, prepararBanco } from '../src/infrastructure/postgres/bancoDados.js';
 import { config } from '../src/infrastructure/config/env.js';
 import { linhasEtapaTreinamento, resolverCompanyDesk } from '../src/infrastructure/ssxDesk/TrainingStagesSyncService.js';
 import { listarEmpresasDesk } from '../src/infrastructure/ssxDesk/trainingStages.js';
@@ -32,10 +32,11 @@ async function main() {
     console.error('Uso: npx tsx scripts/diagnosticarTrainingStages.ts "Nome da empresa"');
     process.exit(1);
   }
-  if (!isFirebaseInitialized || !adminDb) {
-    console.error('Firebase Admin não inicializado — confira serviceAccountKey.json e USE_FIREBASE_EMULATOR no .env.');
+  if (!adminDb) {
+    console.error('Banco PostgreSQL não configurado — confira POSTGRES_HOST (ou DATABASE_URL) no .env.');
     process.exit(1);
   }
+  await prepararBanco();
 
   const snapshot = await adminDb.collection('empresas').get();
   const termo = termoBusca.trim().toLowerCase();

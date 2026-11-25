@@ -6,3 +6,4 @@ dist/
 .private-backups/
 serviceAccountKey.json
 tsconfig.tsbuildinfo
+.postgres-local/

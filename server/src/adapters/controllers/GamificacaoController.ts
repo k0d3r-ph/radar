@@ -1,12 +1,12 @@
 import type { Request, Response } from 'express';
 import type { Auth } from 'firebase-admin/auth';
-import type { Firestore } from 'firebase-admin/firestore';
+import type { BancoDocumentos } from '../../domain/interfaces/BancoDocumentos.js';
 import type { IUsuariosRepository } from '../../domain/interfaces/IUsuariosRepository.js';
 import { PontoExcedenteError, RemoverPontoTreinamentoExcedente } from '../../application/use-cases/RemoverPontoTreinamentoExcedente.js';
 
 export class GamificacaoController {
   constructor(
-    private readonly db: Firestore | null,
+    private readonly db: BancoDocumentos | null,
     private readonly auth: Auth | null,
     private readonly usuariosRepo: IUsuariosRepository | null,
   ) {}

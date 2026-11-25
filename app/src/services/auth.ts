@@ -5,7 +5,7 @@ import {
   sendPasswordResetEmail,
 } from "firebase/auth";
 import type { User } from "firebase/auth";
-import { doc, getDoc, setDoc, deleteDoc, collection, getDocs, query, orderBy } from "firebase/firestore";
+import { doc, getDoc, setDoc, deleteDoc, collection, getDocs, query, orderBy } from "./dados";
 import { auth, db } from "./firebase";
 import { RADAR_API_URL } from "./apiConfig.ts";
 

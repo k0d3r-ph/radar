@@ -33,10 +33,16 @@ async function ambiente(env = {}) {
   const firestore = new SyntheticModule(nomesFirestore, function () {
     for (const nome of nomesFirestore) this.setExport(nome, () => ({ docs: [] }));
   }, { context });
+  const cacheDocumentos = new SyntheticModule(['lerCache', 'gravarCache', 'apagarCache'], function () {
+    this.setExport('lerCache', async () => null);
+    this.setExport('gravarCache', async () => {});
+    this.setExport('apagarCache', async () => {});
+  }, { context });
   const modules = new Map();
   async function carregar(specifier) {
     if (specifier === './firebase') return firebase;
-    if (specifier === 'firebase/firestore') return firestore;
+    if (specifier === './cacheDocumentos') return cacheDocumentos;
+    if (specifier === './dados') return firestore;
     const nome = specifier.replace(/\.ts$/, '');
     if (!['./apiConfig', './sincronizacaoIncremental', './ocorrencias', './csat', './centrais', './ia', './whatsapp'].includes(nome)) {
       throw new Error(`Import inesperado: ${specifier}`);
@@ -113,7 +119,9 @@ test('índices, estrelas, CSAT, Centrais e IA usam a API; WhatsApp e Socket.IO u
   assert.equal(whatsapp.obterWhatsAppSocketUrl(), 'http://localhost:5000');
   assert.deepEqual(chamadas.map(c => [c.url, c.method ?? 'GET']), [
     ['http://localhost:5001/api/sincronizacao/empresas', 'GET'],
+    ['http://localhost:5001/api/sincronizacao/empresas/documentos', 'POST'],
     ['http://localhost:5001/api/sincronizacao/ocorrencias', 'GET'],
+    ['http://localhost:5001/api/sincronizacao/ocorrencias/documentos', 'POST'],
     ['http://localhost:5001/api/ocorrencias/oc-1/favorito', 'PATCH'],
     ['http://localhost:5001/api/csat/reservas', 'GET'],
     ['http://localhost:5001/api/csat/publico/token-teste', 'GET'],
@@ -123,9 +131,9 @@ test('índices, estrelas, CSAT, Centrais e IA usam a API; WhatsApp e Socket.IO u
     ['http://localhost:5000/api/whatsapp/send', 'POST'],
     ['http://localhost:5000/api/whatsapp/disconnect', 'POST'],
   ]);
-  for (const chamada of chamadas.slice(0, 4)) assert.equal(chamada.headers.Authorization, 'Bearer token-de-teste');
-  assert.equal(chamadas[4].headers.Authorization, undefined);
-  assert.equal(chamadas[2].body, JSON.stringify({ favorita: true }));
+  for (const chamada of chamadas.slice(0, 6)) assert.equal(chamada.headers.Authorization, 'Bearer token-de-teste');
+  assert.equal(chamadas[6].headers.Authorization, undefined);
+  assert.equal(chamadas[4].body, JSON.stringify({ favorita: true }));
 });
 
 test('rotas protegidas mantêm a exigência de sessão antes de enviar qualquer requisição', async () => {

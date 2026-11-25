@@ -1,12 +1,12 @@
 /**
- * Gera dados sintéticos extras, só no Firebase Emulator Suite local, para popular o painel
+ * Gera dados sintéticos extras, só no banco PostgreSQL local, para popular o painel
  * "ao vivo" (bolsa de valores) de Relatórios > Indicadores de Treinamento: Gol no prazo,
  * Clientes suspensos, Tempo até o 1º treinamento, Contatos com Suporte (treinamento) e CSAT
  * do treinamento. Não apaga nada existente — só adiciona registros com prefixo
  * `demo-bolsa-`, espalhados nos últimos ~6 meses para preencher as visões de dia, semana
  * e mês do ticker.
  *
- * Pré-requisito: emulador rodando (`npm run emulators`) e `npm run seed:emulador` já
+ * Pré-requisito: banco local (`npm run db:local`) rodando e `npm run seed:emulador` já
  * executado pelo menos uma vez (para existirem treinadores cadastrados).
  *
  * Uso (a partir de server/):
@@ -14,14 +14,13 @@
  */
 
 import { initializeApp, deleteApp } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
+import { abrirBancoLocal } from './bancoLocal.js';
 
-process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8080';
 process.env.FIREBASE_AUTH_EMULATOR_HOST = '127.0.0.1:9099';
 process.env.METADATA_SERVER_DETECTION = 'none';
 
 const app = initializeApp({ projectId: 'automatiza-esteira' });
-const db = getFirestore(app);
+const db = await abrirBancoLocal();
 
 const DIA_MS = 24 * 60 * 60 * 1000;
 const hoje = new Date();
@@ -69,7 +68,6 @@ function escolherAleatorio<T>(lista: T[], indice: number): T {
 }
 
 try {
-  await fetch('http://127.0.0.1:8080/', { signal: AbortSignal.timeout(3_000) });
 
   const usuariosSnap = await db.collection('usuarios').where('role', 'in', ['treinador', 'master']).get();
   const treinadores = usuariosSnap.docs
@@ -173,12 +171,12 @@ try {
   });
 
   await batch.commit();
-  console.log(`Dados sintéticos do painel ao vivo gravados somente no emulador: ${empresasCriadas} clientes e ${ocorrenciasCriadas} ocorrências.`);
+  console.log(`Dados sintéticos do painel ao vivo gravados somente no banco local: ${empresasCriadas} clientes e ${ocorrenciasCriadas} ocorrências.`);
   console.log('Recarregue o Radar (Relatórios > Indicadores de Treinamento) para ver o painel populado.');
 } catch (erro) {
   console.error('Não foi possível gerar os dados do painel ao vivo:', erro instanceof Error ? erro.message : 'Falha desconhecida');
   process.exitCode = 1;
 } finally {
-  await db.terminate();
+  await db.encerrar();
   await deleteApp(app);
 }

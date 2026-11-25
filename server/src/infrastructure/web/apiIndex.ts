@@ -1,7 +1,7 @@
 import { createServer } from 'http';
 import { createApiApp } from './apiExpress.js';
 import { config } from '../config/env.js';
-import { adminDb } from '../firebase/firebaseAdmin.js';
+import { banco, prepararBanco } from '../postgres/bancoDados.js';
 import { iniciarSincronizacaoSsxDesk } from '../ssxDesk/SsxDeskSyncService.js';
 import { iniciarSincronizacaoSsxDeskTrainingStages } from '../ssxDesk/TrainingStagesSyncService.js';
 
@@ -12,6 +12,7 @@ import { iniciarSincronizacaoSsxDeskTrainingStages } from '../ssxDesk/TrainingSt
  */
 async function bootstrap() {
   console.log('Iniciando Radar API Server...');
+  await prepararBanco();
 
   const app = createApiApp({ tarefasAutomaticas: true });
   const httpServer = createServer(app);
@@ -23,9 +24,9 @@ async function bootstrap() {
     console.log(`--------------------------------------------------`);
   });
 
-  iniciarSincronizacaoSsxDesk(adminDb, config.ssxDeskApiKey, config.ssxDeskSyncIntervalMs);
+  iniciarSincronizacaoSsxDesk(banco, config.ssxDeskApiKey, config.ssxDeskSyncIntervalMs);
   iniciarSincronizacaoSsxDeskTrainingStages(
-    adminDb, config.ssxDeskTrainingStagesApiKey, config.ssxDeskTrainingStagesSyncIntervalMs,
+    banco, config.ssxDeskTrainingStagesApiKey, config.ssxDeskTrainingStagesSyncIntervalMs,
     config.ssxDeskTrainingStagesForcarBackfill,
   );
 }

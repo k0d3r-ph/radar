@@ -24,7 +24,7 @@ async function criarServico(empresa) {
   });
   const fake = (nomes, valores) => new SyntheticModule(nomes, function () { nomes.forEach((n, i) => this.setExport(n, valores[i])); });
   const dependencias = {
-    'firebase/firestore': firestore,
+    './dados': firestore,
     './firebase': fake(['auth', 'db'], [{ currentUser: { uid: 'fixture' } }, {}]),
     './sincronizacaoIncremental': fake(['sincronizarColecao'], [async () => []]),
     '../utils/telefone': fake(['normalizarTelefoneWhatsApp'], [v => v]),

@@ -1,4 +1,4 @@
-import type { Firestore } from 'firebase-admin/firestore';
+import type { BancoDocumentos, ReferenciaDocumento } from '../../domain/interfaces/BancoDocumentos.js';
 import {
   agruparConversas, chaveSessao, conversaElegivel, conversaSomenteAbandono, criarOcorrencia, idOcorrencia, listarConversas, resolverEmpresa,
   RESUMO_PENDENTE, tipoDaConversa, type RadarEmpresa, type TrainingConversation,
@@ -20,7 +20,7 @@ export class SsxDeskSyncService {
   private usuariosLidosEm = 0;
 
   constructor(
-    private readonly db: Firestore,
+    private readonly db: BancoDocumentos,
     private readonly apiKey: string,
     private readonly consultar = listarConversas,
   ) {}
@@ -34,7 +34,7 @@ export class SsxDeskSyncService {
       const usuarios = await this.carregarUsuarios();
       if (!this.importacoes) {
         // Só marca como carregado quando as três leituras terminam. Se uma falhar
-        // (por exemplo, cota do Firestore), o próximo ciclo refaz tudo: um mapa
+        // (por exemplo, cota do BancoDocumentos), o próximo ciclo refaz tudo: um mapa
         // parcial recriaria sessões já importadas.
         try {
           const registros = await this.db.collection('ssxDeskImportacoes').get();
@@ -250,7 +250,7 @@ export class SsxDeskSyncService {
       // treinador responsável por contato de Suporte — mesma regra do bloco
       // "gamificacaoDeducaoSuporte" de Historico.tsx.
       let descontoPontoId: string | undefined;
-      let lancamentoRef: FirebaseFirestore.DocumentReference | undefined;
+      let lancamentoRef: ReferenciaDocumento | undefined;
       let lancamentoPonto: Record<string, unknown> | undefined;
       const deducao = pontosDeducaoTreinador(atual.gamificacaoDeducaoSuporte, nova.tipo, nova.dataOcorrencia);
       if (deducao && atual.responsavel) {
@@ -291,9 +291,9 @@ export class SsxDeskSyncService {
   }
 }
 
-export function iniciarSincronizacaoSsxDesk(db: Firestore | null, apiKey: string, intervaloMs: number) {
+export function iniciarSincronizacaoSsxDesk(db: BancoDocumentos | null, apiKey: string, intervaloMs: number) {
   if (!apiKey) { console.log('[SSX Desk] Sincronização desativada: configure SSX_DESK_API_KEY.'); return; }
-  if (!db) { console.error('[SSX Desk] Sincronização indisponível: Firebase Admin não inicializado.'); return; }
+  if (!db) { console.error('[SSX Desk] Sincronização indisponível: banco PostgreSQL não configurado.'); return; }
   const service = new SsxDeskSyncService(db, apiKey);
   const executar = async () => {
     try {

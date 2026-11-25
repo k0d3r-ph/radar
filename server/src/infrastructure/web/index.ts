@@ -8,8 +8,9 @@ import { GetConnectionStatus } from '../../application/use-cases/GetConnectionSt
 import { DisconnectClient } from '../../application/use-cases/DisconnectClient.js';
 import { SendMediaMessage } from '../../application/use-cases/SendMediaMessage.js';
 import { AutenticadorRadar } from '../../adapters/middlewares/autenticacaoRadar.js';
-import { adminAuth, adminDb } from '../firebase/firebaseAdmin.js';
-import { FirestoreUsuariosRepository } from '../firebase/UsuariosRepository.js';
+import { adminAuth } from '../firebase/firebaseAdmin.js';
+import { banco, prepararBanco } from '../postgres/bancoDados.js';
+import { UsuariosRepository } from '../postgres/UsuariosRepository.js';
 import { config } from '../config/env.js';
 
 /**
@@ -18,6 +19,7 @@ import { config } from '../config/env.js';
  */
 async function bootstrap() {
   console.log('Iniciando Radar WhatsApp Server...');
+  await prepararBanco();
 
   // 1. Instancia o cliente da infraestrutura
   const whatsappWebClient = new WhatsAppWebClient();
@@ -36,7 +38,7 @@ async function bootstrap() {
   );
 
   // 4. Cria o servidor Express e HTTP; todas as rotas e o socket exigem login no Radar
-  const autenticador = new AutenticadorRadar(adminAuth, adminDb ? new FirestoreUsuariosRepository(adminDb) : null);
+  const autenticador = new AutenticadorRadar(adminAuth, banco ? new UsuariosRepository(banco) : null);
   const app = createExpressApp(controller, whatsappWebClient, autenticador);
   const httpServer = createServer(app);
 

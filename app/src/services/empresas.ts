@@ -10,7 +10,7 @@ import {
   getDocs,
   query,
   limit,
-} from "firebase/firestore";
+} from "./dados";
 
 import { auth, db } from "./firebase";
 import type { AjustesAplicacaoTemas, Empresa } from "../types";

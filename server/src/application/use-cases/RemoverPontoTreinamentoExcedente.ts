@@ -1,11 +1,11 @@
-import type { Firestore } from 'firebase-admin/firestore';
+import type { BancoDocumentos } from '../../domain/interfaces/BancoDocumentos.js';
 
 export class PontoExcedenteError extends Error {
   constructor(public readonly status: number, message: string) { super(message); }
 }
 
 export class RemoverPontoTreinamentoExcedente {
-  constructor(private readonly db: Firestore) {}
+  constructor(private readonly db: BancoDocumentos) {}
 
   async execute(id: string, role: string): Promise<void> {
     if (role !== 'master') throw new PontoExcedenteError(403, 'Somente masters podem remover pontos excedentes de treinamento.');

@@ -1,5 +1,5 @@
 import type { Express, Request } from 'express';
-import type { Firestore, DocumentData, Transaction, DocumentReference } from 'firebase-admin/firestore';
+import type { BancoDocumentos, DadosDocumento as DocumentData, Transacao as Transaction, ReferenciaDocumento as DocumentReference } from '../../domain/interfaces/BancoDocumentos.js';
 import type { Auth } from 'firebase-admin/auth';
 import { randomBytes, createHash } from 'crypto';
 
@@ -29,7 +29,7 @@ function mediaNotas(notas: number[]): number | null {
 }
 
 /** Prepara todas as leituras antes das escritas; reutilizado na conclusão atômica de validações. */
-export async function prepararReservaCsat(db: Firestore, tx: Transaction, user: { uid: string; nome: string }, empresaId: string, ref: DocumentReference, token: string) {
+export async function prepararReservaCsat(db: BancoDocumentos, tx: Transaction, user: { uid: string; nome: string }, empresaId: string, ref: DocumentReference, token: string) {
   const empresaRef = db.collection('empresas').doc(empresaId);
   const counter = db.doc('csatControle/sequencia');
   const tokenRef = (valor: string) => db.collection('csatLinks').doc(createHash('sha256').update(valor).digest('hex'));
@@ -86,7 +86,7 @@ export async function prepararReservaCsat(db: Firestore, tx: Transaction, user: 
   return { reserva, aplicar };
 }
 
-export function registrarCsat(app: Express, db: Firestore | null, auth: Auth | null) {
+export function registrarCsat(app: Express, db: BancoDocumentos | null, auth: Auth | null) {
   const wrap = (fn: (req: Request) => Promise<unknown>) => async (req: Request, res: any) => {
     res.set('Cache-Control', 'no-store');
     try {

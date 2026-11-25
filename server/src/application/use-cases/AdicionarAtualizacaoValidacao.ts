@@ -1,11 +1,11 @@
-import type { Firestore } from 'firebase-admin/firestore';
+import type { BancoDocumentos } from '../../domain/interfaces/BancoDocumentos.js';
 
 export class AtualizacaoValidacaoError extends Error {
   constructor(public readonly status: number, message: string) { super(message); }
 }
 
 export class AdicionarAtualizacaoValidacao {
-  constructor(private readonly db: Firestore) {}
+  constructor(private readonly db: BancoDocumentos) {}
 
   async execute(id: string, descricao: string, responsavel: string) {
     const ref = this.db.collection('ocorrencias').doc(id);

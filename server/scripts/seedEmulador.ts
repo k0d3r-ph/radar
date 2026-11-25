@@ -1,31 +1,30 @@
 /**
- * Popula o Firebase Emulator Suite local com dados sintéticos (nenhum dado real) para
- * desenvolver sem consumir a cota do Firestore de produção. Ver server/EMULADOR.md.
+ * Popula o ambiente local (PostgreSQL local + Firebase Auth Emulator) com dados sintéticos
+ * (nenhum dado real). Ver server/EMULADOR.md.
  *
- * Pré-requisito: o emulador precisa estar rodando (`npm run emulators`, em outro
- * terminal) antes de executar este script — ele não inicia o emulador sozinho.
+ * Pré-requisito: `npm run db:local` e `npm run emulators` rodando, cada um em outro
+ * terminal — este script não inicia nenhum dos dois.
  *
  * Uso (a partir de server/):
  *   npx tsx scripts/seedEmulador.ts
  *
  * Apaga e recria as coleções usadas pelo Radar (usuarios, empresas, ocorrencias,
  * gamificacao_pontos) e os usuários de autenticação no Auth emulator. Seguro rodar
- * quantas vezes quiser — nunca toca no Firestore real (força os hosts do emulador
+ * quantas vezes quiser — nunca toca em produção (força o banco local e o Auth Emulator
  * independentemente do que estiver em server/.env).
  */
 
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
-import { getFirestore } from 'firebase-admin/firestore';
+import { abrirBancoLocal } from './bancoLocal.js';
 
-process.env.FIRESTORE_EMULATOR_HOST = process.env.FIRESTORE_EMULATOR_HOST || '127.0.0.1:8080';
 process.env.FIREBASE_AUTH_EMULATOR_HOST = process.env.FIREBASE_AUTH_EMULATOR_HOST || '127.0.0.1:9099';
 
 const PROJECT_ID = 'automatiza-esteira';
 const SENHA_PADRAO = 'senha123';
 
 const app = initializeApp({ projectId: PROJECT_ID });
-const db = getFirestore(app);
+const db = await abrirBancoLocal();
 const auth = getAuth(app);
 
 const DIA_MS = 24 * 60 * 60 * 1000;
@@ -292,8 +291,8 @@ async function seedLancamentos() {
 }
 
 async function main() {
-  console.log(`Conectando ao emulador (Firestore ${process.env.FIRESTORE_EMULATOR_HOST}, Auth ${process.env.FIREBASE_AUTH_EMULATOR_HOST})...`);
-  console.log('Limpando coleções existentes no emulador...');
+  console.log(`Conectando ao banco local e ao Auth Emulator (${process.env.FIREBASE_AUTH_EMULATOR_HOST})...`);
+  console.log('Limpando coleções existentes no banco local...');
   await Promise.all(['usuarios', 'empresas', 'ocorrencias', 'gamificacao_pontos'].map(limparColecao));
 
   console.log('Semeando dados sintéticos...');
@@ -308,7 +307,7 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error('Falha ao semear o emulador:', err);
-  console.error('Confira se o emulador está rodando (npm run emulators, em outro terminal).');
+  console.error('Falha ao semear o ambiente local:', err);
+  console.error('Confira se o banco local (npm run db:local) e o Auth Emulator (npm run emulators) estão rodando.');
   process.exit(1);
 });

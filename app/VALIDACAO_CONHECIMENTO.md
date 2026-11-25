@@ -68,7 +68,7 @@ Na avaliação, Correto, Parcial e Incorreto aparecem como opções clicáveis c
 - Interface: `src/pages/ValidacaoConhecimento/`, `src/services/validacaoConhecimento.ts`, navegação em `App.tsx` e checklist existente.
 - Regras compartilhadas, sem infraestrutura: `server/src/domain/validacaoConhecimento.ts`, `perguntasConhecimento.ts` e `acompanhamentoEsteira.ts` (também importadas pelo frontend).
 - Backend: `GerenciarValidacaoConhecimento`, `SincronizarTarefasAutomaticas`, controller, rotas da API e integração CSAT existentes.
-- Publicação, regras Firestore e testes: [documentação do backend](../server/VALIDACAO_CONHECIMENTO.md).
+- Publicação, permissões e testes: [documentação do backend](../server/VALIDACAO_CONHECIMENTO.md).
 
 ## Atalhos, avisos e indicadores
 

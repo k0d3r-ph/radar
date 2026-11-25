@@ -8,3 +8,5 @@ Dockerfile
 .env
 .env.*
 serviceAccountKey.json
+.private-backups
+.postgres-local

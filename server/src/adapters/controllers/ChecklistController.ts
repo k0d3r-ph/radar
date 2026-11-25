@@ -1,11 +1,11 @@
 import type { Request, Response } from 'express';
 import type { Auth } from 'firebase-admin/auth';
-import type { Firestore } from 'firebase-admin/firestore';
+import type { BancoDocumentos } from '../../domain/interfaces/BancoDocumentos.js';
 import type { IUsuariosRepository } from '../../domain/interfaces/IUsuariosRepository.js';
 import { ExcluirTarefaConcluida, ExclusaoTarefaError } from '../../application/use-cases/ExcluirTarefaConcluida.js';
 
 export class ChecklistController {
-  constructor(private readonly db: Firestore | null, private readonly auth: Auth | null, private readonly usuarios: IUsuariosRepository | null) {}
+  constructor(private readonly db: BancoDocumentos | null, private readonly auth: Auth | null, private readonly usuarios: IUsuariosRepository | null) {}
 
   async excluirConcluida(req: Request, res: Response): Promise<void> {
     res.set('Cache-Control', 'no-store');

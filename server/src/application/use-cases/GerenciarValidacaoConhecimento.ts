@@ -1,4 +1,4 @@
-import type { Firestore } from 'firebase-admin/firestore';
+import type { BancoDocumentos } from '../../domain/interfaces/BancoDocumentos.js';
 import { createHash, randomBytes } from 'node:crypto';
 import { PERGUNTAS_INICIAIS } from '../../domain/perguntasConhecimento.js';
 import { calcularIndicadoresValidacao, calcularResultadoValidacao, identificarConteudoAvaliacao, isSolicitanteTreinamento, montarQuestoes, normalizarConhecimento, SECOES, TEMA_VALIDACAO } from '../../domain/validacaoConhecimento.js';
@@ -38,7 +38,7 @@ export function validarQuestoes(dados: unknown, secoes: Secao[]): QuestaoValidac
 export class GerenciarValidacaoConhecimento {
   private bancoCache: { perguntas: PerguntaConhecimento[]; expiraEm: number } | null = null;
   private indicadoresCache = new Map<string, { dados: unknown; expiraEm: number }>();
-  constructor(private readonly db: Firestore) {}
+  constructor(private readonly db: BancoDocumentos) {}
   async perguntas(): Promise<PerguntaConhecimento[]> {
     if (this.bancoCache && this.bancoCache.expiraEm > Date.now()) return this.bancoCache.perguntas;
     const controle = this.db.doc('validacao_controle/banco-v1');

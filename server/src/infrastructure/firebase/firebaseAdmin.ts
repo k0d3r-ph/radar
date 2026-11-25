@@ -1,9 +1,7 @@
 import '../config/env.js';
 import { initializeApp, cert } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
-import { getFirestore } from 'firebase-admin/firestore';
 import type { Auth } from 'firebase-admin/auth';
-import type { Firestore } from 'firebase-admin/firestore';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -12,26 +10,21 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 let adminAuth: Auth | null = null;
-let adminDb: Firestore | null = null;
 let isFirebaseInitialized = false;
 
 try {
-  // Ver server/EMULADOR.md — com USE_FIREBASE_EMULATOR=true o backend conversa só com o
-  // Firebase Emulator Suite local, sem precisar de serviceAccountKey.json nem tocar em
-  // produção (nenhuma leitura ou gravação real acontece rodando nesse modo).
+  // Só o Firebase Auth é usado aqui: os dados ficam no PostgreSQL (infrastructure/postgres/bancoDados.ts).
+  // Ver server/EMULADOR.md — com USE_FIREBASE_EMULATOR=true os tokens são validados no Auth
+  // Emulator local, sem precisar de serviceAccountKey.json.
   const usarEmulador = process.env.USE_FIREBASE_EMULATOR === 'true';
 
   if (usarEmulador) {
-    process.env.FIRESTORE_EMULATOR_HOST = process.env.FIRESTORE_EMULATOR_HOST || '127.0.0.1:8080';
     process.env.FIREBASE_AUTH_EMULATOR_HOST = process.env.FIREBASE_AUTH_EMULATOR_HOST || '127.0.0.1:9099';
 
     const app = initializeApp({ projectId: 'automatiza-esteira' });
     adminAuth = getAuth(app);
-    adminDb = getFirestore(app);
     isFirebaseInitialized = true;
-    console.log(
-      `[FirebaseAdmin] Emulator Suite local ativo (Firestore ${process.env.FIRESTORE_EMULATOR_HOST}, Auth ${process.env.FIREBASE_AUTH_EMULATOR_HOST}) — nenhuma leitura ou gravação vai para produção.`,
-    );
+    console.log(`[FirebaseAdmin] Auth Emulator local ativo (${process.env.FIREBASE_AUTH_EMULATOR_HOST}).`);
   } else {
     const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH || './serviceAccountKey.json';
     const resolvedPath = path.resolve(__dirname, '../../../../', serviceAccountPath);
@@ -45,7 +38,6 @@ try {
       });
 
       adminAuth = getAuth(app);
-      adminDb = getFirestore(app);
       isFirebaseInitialized = true;
       console.log('[FirebaseAdmin] Inicializado com sucesso a partir de', serviceAccountPath);
     } else {
@@ -59,4 +51,4 @@ try {
   console.error('[FirebaseAdmin] Erro ao inicializar o Firebase Admin SDK:', error.message || error);
 }
 
-export { adminAuth, adminDb, isFirebaseInitialized };
+export { adminAuth, isFirebaseInitialized };

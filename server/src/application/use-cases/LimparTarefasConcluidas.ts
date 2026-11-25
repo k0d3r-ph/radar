@@ -1,11 +1,11 @@
-import type { Firestore } from 'firebase-admin/firestore';
+import type { BancoDocumentos } from '../../domain/interfaces/BancoDocumentos.js';
 
 const TAMANHO_LOTE = 450; // Abaixo do limite de 500 operações por lote do Firestore.
 
 /** Soft-delete em massa das tarefas concluídas, mesmo efeito de ExcluirTarefaConcluida por item. */
 export class LimparTarefasConcluidas {
   private executando = false;
-  constructor(private readonly db: Firestore) {}
+  constructor(private readonly db: BancoDocumentos) {}
 
   async execute(agora = Date.now()): Promise<number> {
     if (this.executando) return 0;

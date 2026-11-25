@@ -16,10 +16,10 @@ próprio SSX Desk.
 
 Sincronização por **polling** (a API do SSX Desk para isso não tem webhook, só REST), a
 cada ciclo (padrão 5 min, `SSX_DESK_TRAINING_STAGES_SYNC_INTERVAL_MS`): consulta o
-Firestore por empresas alteradas desde o cursor e publica a trilha de cada uma no Desk.
+banco por empresas alteradas desde o cursor e publica a trilha de cada uma no Desk.
 
 Roda em `apiIndex.ts`, junto da sincronização de leitura do SSX Desk — é só HTTP +
-Firestore, mesmo processo.
+banco, mesmo processo.
 
 ### Cada fase vira uma etapa
 
@@ -124,7 +124,7 @@ mesmo padrão de `trainingConversations.listarConversas`.
 - Sem a chave configurada, a sincronização fica desativada (log no início do processo da
   API) e o resto do Radar funciona normalmente.
 - Estado da sincronização (cursor e estatísticas do último ciclo) fica em
-  `integracoes/ssxDeskTrainingStages` no Firestore.
+  `integracoes/ssxDeskTrainingStages` no banco.
 
 ## Limitações conhecidas
 

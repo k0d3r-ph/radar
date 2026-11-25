@@ -14,7 +14,9 @@
     "atualizar-valores-contrato": "tsx scripts/atualizarValoresContrato.ts",
     "sincronizar-ssx-desk": "tsx scripts/sincronizarSsxDesk.ts",
     "diagnosticar-training-stages": "tsx scripts/diagnosticarTrainingStages.ts",
-    "emulators": "firebase emulators:start --config ../firebase.json --import ../.emulator-data --export-on-exit",
+    "db:local": "tsx scripts/iniciarBancoLocal.ts",
+    "migrar-firestore": "tsx scripts/migrarFirestoreParaPostgres.ts",
+    "emulators": "firebase emulators:start --only auth --config ../firebase.json --import ../.emulator-data --export-on-exit",
     "seed:emulador": "tsx scripts/seedEmulador.ts",
     "seed:jornada": "tsx scripts/seedJornadaEmulador.ts",
     "test:validacao": "npm run build && node --test tests/validacaoConhecimento.test.mjs tests/tarefasAutomaticas.test.mjs tests/excluirTarefaConcluida.test.mjs tests/csat.test.mjs",
@@ -29,7 +31,8 @@
     "seed:aplicacao": "tsx scripts/seedAplicacaoTemasEmulador.ts",
     "seed:validacao-parcial": "tsx scripts/seedValidacaoParcialEmulador.ts",
     "seed:indicador-validacao": "tsx scripts/seedIndicadorValidacaoParcial.ts",
-    "seed:certificado": "tsx scripts/seedCertificadoEmulador.ts"
+    "seed:certificado": "tsx scripts/seedCertificadoEmulador.ts",
+    "test:postgres": "npm run build && node --experimental-vm-modules --test tests/postgres.test.mjs tests/sincronizacao.test.mjs tests/dadosNavegador.test.mjs tests/integracaoNavegador.test.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.13.0",
@@ -37,6 +40,7 @@
     "dotenv": "^16.4.5",
     "express": "^4.21.2",
     "firebase-admin": "^14.2.0",
+    "pg": "^8.23.1",
     "qrcode": "^1.5.4",
     "socket.io": "^4.8.1",
     "whatsapp-web.js": "github:pedroslopez/whatsapp-web.js#main"
@@ -45,7 +49,9 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/node": "^20.11.24",
+    "@types/pg": "^8.23.1",
     "@types/qrcode": "^1.5.5",
+    "embedded-postgres": "^18.6.0-beta.19",
     "firebase-tools": "^13.35.1",
     "ts-node-dev": "^2.0.0",
     "tsx": "^4.23.0",

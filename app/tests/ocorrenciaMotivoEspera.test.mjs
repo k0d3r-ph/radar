@@ -36,7 +36,7 @@ async function criarServico() {
   const regra = new SourceTextModule(ts.transpileModule(readFileSync(new URL('../src/utils/registroTreinamento.ts', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.ESNext } }).outputText);
   await regra.link(() => { throw Error('Import inesperado na regra de suspensão'); });
   await modulo.link(nome => {
-    const dependencias = { 'firebase/firestore': firestore, './firebase': firebase, './sincronizacaoIncremental': sincronizacao, './apiConfig.ts': config, '../utils/registroTreinamento': regra };
+    const dependencias = { './dados': firestore, './firebase': firebase, './sincronizacaoIncremental': sincronizacao, './apiConfig.ts': config, '../utils/registroTreinamento': regra };
     if (!dependencias[nome]) throw Error(`Import inesperado: ${nome}`);
     return dependencias[nome];
   });

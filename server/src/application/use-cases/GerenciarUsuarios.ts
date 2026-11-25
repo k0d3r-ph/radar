@@ -1,5 +1,5 @@
 import type { Auth } from 'firebase-admin/auth';
-import type { Firestore } from 'firebase-admin/firestore';
+import type { BancoDocumentos } from '../../domain/interfaces/BancoDocumentos.js';
 
 export class GestaoUsuariosError extends Error {
   constructor(public readonly status: number, message: string) { super(message); }
@@ -43,7 +43,7 @@ function validarSenha(senha: unknown): string {
 export class GerenciarUsuarios {
   constructor(
     private readonly auth: Auth,
-    private readonly db: Firestore,
+    private readonly db: BancoDocumentos,
     private readonly agora: () => number = Date.now,
   ) {}
 

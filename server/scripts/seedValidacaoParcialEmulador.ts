@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
+import { abrirBancoLocal } from './bancoLocal.js';
 import { GerenciarValidacaoConhecimento } from '../src/application/use-cases/GerenciarValidacaoConhecimento.js';
 import type { RespostaValidacao } from '../src/domain/validacaoConhecimento.js';
 
@@ -14,8 +14,7 @@ import type { RespostaValidacao } from '../src/domain/validacaoConhecimento.js';
  * Requer `npm run seed:emulador` antes (usa o treinador `treinador2@local.test`).
  */
 
-// Hosts literais locais: este script não carrega .env nem credenciais de produção.
-process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8080';
+// Hosts literais locais (Postgres local e Auth Emulator): nunca grava em produção.
 process.env.METADATA_SERVER_DETECTION = 'none';
 
 const TREINADOR_UID = 'seed-treinador-2';
@@ -29,10 +28,8 @@ const PARCIAIS: (RespostaValidacao | null)[] = ['incorreto', 'parcial', 'correto
 const FINAIS: RespostaValidacao[] = ['correto', 'correto', 'correto', 'parcial', 'correto', 'correto', 'parcial', 'correto', 'correto', 'correto'];
 
 const app = initializeApp({ projectId: 'automatiza-esteira' });
-const db = getFirestore(app);
+const db = await abrirBancoLocal();
 const repo = new GerenciarValidacaoConhecimento(db);
-
-await fetch('http://127.0.0.1:8080/', { signal: AbortSignal.timeout(3_000) });
 const treinadorDoc = await db.doc(`usuarios/${TREINADOR_UID}`).get();
 if (!treinadorDoc.exists) throw new Error('Usuário seed-treinador-2 não encontrado. Rode `npm run seed:emulador` antes.');
 const usuario = { uid: TREINADOR_UID, nome: String(treinadorDoc.data()!.nome), role: 'treinador' };

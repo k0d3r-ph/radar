@@ -7,10 +7,12 @@ import { OcorrenciasController } from '../../adapters/controllers/OcorrenciasCon
 import { GamificacaoController } from '../../adapters/controllers/GamificacaoController.js';
 import { ChecklistController } from '../../adapters/controllers/ChecklistController.js';
 import { SincronizacaoController } from '../../adapters/controllers/SincronizacaoController.js';
-import { FirestoreUsuariosRepository } from '../firebase/UsuariosRepository.js';
-import { adminAuth, adminDb } from '../firebase/firebaseAdmin.js';
+import { DadosController } from '../../adapters/controllers/DadosController.js';
+import { UsuariosRepository } from '../postgres/UsuariosRepository.js';
+import { adminAuth } from '../firebase/firebaseAdmin.js';
+import { banco, poolPostgres } from '../postgres/bancoDados.js';
 import { ValidacaoConhecimentoController } from '../../adapters/controllers/ValidacaoConhecimentoController.js';
-import { IndiceSincronizacao } from '../firebase/IndiceSincronizacao.js';
+import { IndiceSincronizacao } from '../postgres/IndiceSincronizacao.js';
 import { SincronizarTarefasAutomaticas } from '../../application/use-cases/SincronizarTarefasAutomaticas.js';
 import { LimparTarefasConcluidas } from '../../application/use-cases/LimparTarefasConcluidas.js';
 import { ProfilePhotosController } from '../../adapters/controllers/ProfilePhotosController.js';
@@ -62,10 +64,10 @@ function diaBrasiliaISO(agora: number): string {
 export function createApiApp({ tarefasAutomaticas = false }: { tarefasAutomaticas?: boolean } = {}): express.Express {
   const app = criarAppBase();
 
-  const usuariosRepo = adminDb ? new FirestoreUsuariosRepository(adminDb) : null;
+  const usuariosRepo = banco ? new UsuariosRepository(banco) : null;
   const autenticador = new AutenticadorRadar(adminAuth, usuariosRepo);
 
-  const usuariosController = new UsuariosController(adminAuth && adminDb ? new GerenciarUsuarios(adminAuth, adminDb) : null);
+  const usuariosController = new UsuariosController(adminAuth && banco ? new GerenciarUsuarios(adminAuth, banco) : null);
   app.post('/api/usuarios', autenticador.exigir(PERFIS_GESTORES), (req, res) => usuariosController.criar(req, res));
   app.post('/api/usuarios/:uid/redefinir-senha', autenticador.exigir(PERFIS_GESTORES), (req, res) => usuariosController.redefinirSenha(req, res));
   app.delete('/api/usuarios/:uid', autenticador.exigir(PERFIS_GESTORES), (req, res) => usuariosController.excluir(req, res));
@@ -80,8 +82,8 @@ export function createApiApp({ tarefasAutomaticas = false }: { tarefasAutomatica
   );
   app.delete('/api/profile-photos/:uid', (req, res) => profilePhotosController.remover(req, res));
 
-  registrarCsat(app, adminDb, adminAuth);
-  const validacao = new ValidacaoConhecimentoController(adminDb, adminAuth);
+  registrarCsat(app, banco, adminAuth);
+  const validacao = new ValidacaoConhecimentoController(banco, adminAuth);
   app.get('/api/validacao/perguntas', validacao.executar('perguntas'));
   app.post('/api/validacao/perguntas', validacao.executar('adicionar'));
   app.post('/api/validacao/perguntas/:id/atualizar', validacao.executar('atualizarPergunta'));
@@ -93,17 +95,17 @@ export function createApiApp({ tarefasAutomaticas = false }: { tarefasAutomatica
   app.post('/api/validacao/tentativas/:id/cancelar', validacao.executar('cancelar'));
   app.post('/api/validacao/tentativas/:id/assumir', validacao.executar('assumir'));
   app.post('/api/validacao/tentativas/:id/analise', validacao.executar('analisar'));
-  const ocorrenciasController = new OcorrenciasController(adminDb, adminAuth, usuariosRepo);
-  const gamificacaoController = new GamificacaoController(adminDb, adminAuth, usuariosRepo);
-  const checklistController = new ChecklistController(adminDb, adminAuth, usuariosRepo);
+  const ocorrenciasController = new OcorrenciasController(banco, adminAuth, usuariosRepo);
+  const gamificacaoController = new GamificacaoController(banco, adminAuth, usuariosRepo);
+  const checklistController = new ChecklistController(banco, adminAuth, usuariosRepo);
   app.delete('/api/checklist/tarefas/:id/concluida', (req, res) => checklistController.excluirConcluida(req, res));
   app.delete('/api/gamificacao/pontos/:id/excedente', (req, res) => gamificacaoController.removerPontoExcedente(req, res));
   app.patch('/api/ocorrencias/:id/favorito', (req, res) => ocorrenciasController.definirFavorita(req, res));
   app.post('/api/ocorrencias/:id/atualizacoes', (req, res) => ocorrenciasController.adicionarAtualizacaoValidacao(req, res));
   app.patch('/api/ocorrencias/:id/validacao', (req, res) => ocorrenciasController.editarOcorrenciaValidacao(req, res));
-  const indice = adminDb ? new IndiceSincronizacao(adminDb) : null;
-  if (tarefasAutomaticas && adminDb && indice) {
-    const tarefas = new SincronizarTarefasAutomaticas(adminDb, indice);
+  const indice = poolPostgres ? new IndiceSincronizacao(poolPostgres) : null;
+  if (tarefasAutomaticas && banco && indice) {
+    const tarefas = new SincronizarTarefasAutomaticas(banco, indice);
     const atualizar = () => tarefas.execute().catch(() => console.error('[Tarefas automáticas] Não foi possível atualizar as tarefas. Nova tentativa em um minuto.'));
     const timer = setInterval(atualizar, 60_000);
     timer.unref();
@@ -112,7 +114,7 @@ export function createApiApp({ tarefasAutomaticas = false }: { tarefasAutomatica
 
     // Toda sexta-feira às 19h (horário de Brasília), limpa as tarefas concluídas em massa.
     // Marcador em `integracoes/limpezaTarefasConcluidas` evita repetir no mesmo dia após reinícios.
-    const dbLimpeza = adminDb;
+    const dbLimpeza = banco;
     const limpeza = new LimparTarefasConcluidas(dbLimpeza);
     const verificarLimpezaSemanal = async () => {
       const agora = Date.now();
@@ -133,9 +135,15 @@ export function createApiApp({ tarefasAutomaticas = false }: { tarefasAutomatica
     const timerLimpeza = setInterval(() => void verificarLimpezaSemanal(), 60_000);
     timerLimpeza.unref();
   }
-  const sincronizacaoController = new SincronizacaoController(adminDb, adminAuth, usuariosRepo, indice);
+  const sincronizacaoController = new SincronizacaoController(adminAuth, usuariosRepo, indice);
   app.get('/api/sincronizacao/:colecao', (req, res) => sincronizacaoController.listar(req, res));
   app.post('/api/sincronizacao/:colecao/documentos', (req, res) => sincronizacaoController.documentos(req, res));
+
+  // Leitura e gravação dos dados das telas (antes feitas direto no Firestore pelo navegador).
+  const dadosController = new DadosController(banco, adminAuth);
+  app.post('/api/dados/gravar', (req, res) => dadosController.gravar(req, res));
+  app.post('/api/dados/:colecao/consultar', (req, res) => dadosController.consultar(req, res));
+  app.get('/api/dados/:colecao/:id', (req, res) => dadosController.ler(req, res));
 
   const iaController = new IaController();
   app.post('/api/ia/resumir', autenticador.exigir(PERFIS_RADAR), (req, res) => iaController.resumir(req, res));

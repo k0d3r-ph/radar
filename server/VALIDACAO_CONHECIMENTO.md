@@ -4,7 +4,7 @@ Regras funcionais e componentes: [documentação do módulo](../app/VALIDACAO_CO
 
 ## Publicação
 
-1. Confirme as regras Firestore descritas abaixo antes de disponibilizar a tela.
+1. Confirme as permissões descritas abaixo antes de disponibilizar a tela.
 2. Publique o backend da API (processo `start:api`, separado do bot). As tarefas automáticas começam no processo da API; o bot não as executa.
 3. Publique o frontend com `VITE_RADAR_API_URL` apontando para a API atualizada. O fallback público `/csat/:token` permanece necessário.
 
@@ -12,7 +12,7 @@ O banco inicial é criado de forma idempotente no primeiro acesso autenticado ao
 
 ## Dados e autorização
 
-Coleções novas: `validacao_perguntas`, `validacao_tentativas`, `validacao_clientes` (trava por cliente) e `validacao_controle` (versão do banco e controle de descartes). Somente a API acessa essas coleções; o SDK do navegador nunca lê `validacao_tentativas` diretamente do Firestore. As rotas autenticam token Firebase revogado, usuário ativo, senha definida e perfil Master/treinador. Cadastro no banco exige Master; alterar/concluir tentativa exige seu responsável atual ou Master; assumir uma tentativa aberta é permitido a qualquer Master/treinador. CSAT público continua limitado ao token e respostas, sem expor banco, tentativa ou dados administrativos.
+Coleções novas: `validacao_perguntas`, `validacao_tentativas`, `validacao_clientes` (trava por cliente) e `validacao_controle` (versão do banco e controle de descartes). Somente as rotas da validação acessam essas coleções; a API de dados do navegador (`/api/dados`) não as expõe. As rotas autenticam token Firebase revogado, usuário ativo, senha definida e perfil Master/treinador. Cadastro no banco exige Master; alterar/concluir tentativa exige seu responsável atual ou Master; assumir uma tentativa aberta é permitido a qualquer Master/treinador. CSAT público continua limitado ao token e respostas, sem expor banco, tentativa ou dados administrativos.
 
 `validacao_tentativas` também está em `COLECOES_SINCRONIZADAS` (ver `server/SINCRONIZACAO.md`), com o mesmo recorte de acesso Master/treinador — usada pelo card "Validação do Conhecimento" do painel ao vivo (`RelatorioIndicadoresTreinamento.tsx`). Isso devolve o documento completo de cada tentativa (inclusive `csatToken` e as respostas) a qualquer Master/treinador autenticado, igual ao que `GET /api/validacao/tentativas?empresaId=` já devolve hoje por empresa — não é uma exposição nova, só deixa de ser por empresa.
 
@@ -39,7 +39,7 @@ Nas permissões de escrita de ocorrências, restrinja também a criação/altera
 
 Alterações nessas ocorrências passam pela API, em transação. `POST /api/ocorrencias/:id/atualizacoes` (Master e treinador) inclui uma atualização no histórico. `PATCH /api/ocorrencias/:id/validacao` (somente Master ativo) edita descrição, departamento, responsável, data da ocorrência, data de criação, data de solicitação, tempo de agenda (HH:MM), quem solicitou, motivo da espera e resultados do CSAT. Empresa, tipo, temas e o resultado da avaliação ficam fixos, porque ligam o registro à tentativa e à esteira. Os campos compartilhados também são gravados em `validacao_tentativas/{validacaoTentativaId}` (solicitação, tempo e solicitante) e em `gamificacao_pontos/{gamificacaoPontoId}` (os mesmos, mais motivo, resultados, data de realização, `dataLancamento`, descrição quando ainda era cópia da ocorrência e, se o responsável mudou para outro treinador ativo, `treinadorId`/`treinadorNome`). A rota recusa a gravação se a ocorrência foi alterada depois de aberta (`updatedAtEsperado`), não grava quando nada mudou e acrescenta a atualização "Ocorrência editada pelo Master: …" com os campos alterados. No Histórico, o Master usa o botão de editar normalmente; o salvamento desses registros ignora score, esteira, alertas e WhatsApp. Teste: em `server/`, `npm run build` e `node --test tests/atualizacaoValidacao.test.mjs`.
 
-A cópia de referência das regras de produção fica em `firestore.rules.producao` (ver [AUTENTICACAO.md](AUTENTICACAO.md)), com esses bloqueios já incorporados; a publicação é feita manualmente no console.
+Esses bloqueios estão em `src/domain/regrasAcessoDados.ts` (ver [AUTENTICACAO.md](AUTENTICACAO.md)): ocorrências com `validacaoTentativaId` não podem ser criadas nem alteradas por `/api/dados`.
 
 ## Tarefas automáticas
 
@@ -53,7 +53,7 @@ Teste de serviço do frontend, em `app/`: `node --experimental-vm-modules --test
 
 ## Desenvolvimento e testes
 
-Use o [emulador local](EMULADOR.md) para validação manual com Firestore/Auth isolados. Não suba `dev:api` apenas para compilar: ele inicia as tarefas e pode iniciar a sincronização SSX conforme a configuração do ambiente.
+Use o [emulador local](EMULADOR.md) para validação manual com banco e Auth isolados. Não suba `dev:api` apenas para compilar: ele inicia as tarefas e pode iniciar a sincronização SSX conforme a configuração do ambiente.
 
 Em `server/`:
 

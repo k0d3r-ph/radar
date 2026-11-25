@@ -44,7 +44,7 @@ async function criarServico(empresas) {
     },
   );
   const modulos = {
-    'firebase/firestore': firestore,
+    './dados': firestore,
     './firebase': new SyntheticModule(['auth', 'db'], function () { this.setExport('auth', {}); this.setExport('db', {}); }),
     './sincronizacaoIncremental': new SyntheticModule(['sincronizarColecao'], function () { this.setExport('sincronizarColecao', async () => []); }),
     './apiConfig.ts': new SyntheticModule(['RADAR_API_URL'], function () { this.setExport('RADAR_API_URL', ''); }),

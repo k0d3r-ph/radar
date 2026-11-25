@@ -3,7 +3,7 @@ import { loginComEmail, deslogarUsuario, enviarEmailRedefinicaoSenha } from "../
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Mail, Lock, Eye, EyeOff, ShieldAlert } from "lucide-react";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc } from "../../services/dados";
 import { db } from "../../services/firebase";
 import "./Login.css";
 

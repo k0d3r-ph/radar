@@ -7,8 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "test:sincronizacao": "node --experimental-vm-modules --test tests/ocorrenciasExclusao.test.mjs",
-    "test:regras-firestore": "node ../server/node_modules/firebase-tools/lib/bin/firebase.js emulators:exec --config ../firebase.json --only firestore --project demo-radar-regras \"node --test tests/regrasFirestoreProducao.test.mjs\"",
+    "test:sincronizacao": "node --experimental-vm-modules --test tests/ocorrenciasExclusao.test.mjs tests/dadosApi.test.mjs",
     "preview": "vite preview",
     "tema:claro": "node scripts/temaClaroInline.mjs && node scripts/gerarTemaClaro.mjs"
   },

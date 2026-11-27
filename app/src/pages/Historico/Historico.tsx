@@ -133,7 +133,18 @@ import {
   obterAjustesAtivos,
   encontrarOcorrenciaDoAjuste,
   descreverMotivosReducaoAtiva,
+  aplicarAjustePercepcao,
+  rascunhoDoAjustePercepcao,
+  registrarAjustePercepcao,
+  AJUSTE_PERCEPCAO_VAZIO,
+  ajustePercepcaoValido,
+  type AjustePercepcaoRascunho,
+  descreverAjustePercepcao,
 } from "../../utils/score";
+import AjustePercepcaoScore, {
+  ResumoAjustePercepcao,
+} from "../../components/AjustePercepcaoScore";
+import { atuaComoTreinador } from "../../utils/perfis";
 import { estaDentroDoExpediente } from "../../utils/expediente";
 import {
   alteracoesEncerrarSuspensao,
@@ -834,7 +845,10 @@ export function Historico() {
     tipo: "Fast" | "Safety" | "";
     isNeutro?: boolean;
     contadores?: ContadorPerdasScore;
+    ajustePercepcao?: Empresa["scoreAjustePercepcao"];
   } | null>(null);
+  const [ajustePercepcaoHistorico, setAjustePercepcaoHistorico] =
+    useState<AjustePercepcaoRascunho>(AJUSTE_PERCEPCAO_VAZIO);
 
   // WhatsApp Integration States
   const [whatsappConfirmModalOpen, setWhatsappConfirmModalOpen] =
@@ -2284,6 +2298,9 @@ export function Historico() {
           ? null
           : respostasScore
         : ocorrenciaOriginal?.scoreAnswers,
+      scoreAjustePercepcao: calculoScoreResult
+        ? (calculoScoreResult.ajustePercepcao ?? null)
+        : ocorrenciaOriginal?.scoreAjustePercepcao,
       temaOcorrencia: temaOcorrenciaFinal,
       isRevisao:
         form.tipo === "Treinamento" ? treinamento.isRevisao : undefined,
@@ -2424,6 +2441,7 @@ export function Historico() {
         scoreContadoresPerda: calculoScoreResult.isNeutro
           ? undefined
           : calculoScoreResult.contadores,
+        scoreAjustePercepcao: calculoScoreResult.ajustePercepcao ?? null,
         duvidasTemasAnteriores: calculoScoreResult.isNeutro
           ? empresaObjeto.duvidasTemasAnteriores
           : duvidasTemasHistorico,
@@ -2437,6 +2455,10 @@ export function Historico() {
         (isPrimeiroCalculo || tipoMudou) && !calculoScoreResult.isNeutro;
 
       if (deveGerarOcorrencia) {
+        const ajusteTexto = descreverAjustePercepcao(
+          calculoScoreResult.ajustePercepcao,
+        );
+        const linhaAjustePercepcao = ajusteTexto ? `\n${ajusteTexto}` : "";
         let descMudanca: string;
         if (isPrimeiroCalculo) {
           const marcadas = descreverRespostas(respostasScore);
@@ -2446,7 +2468,7 @@ export function Historico() {
               : "";
           descMudanca = `Cálculo inicial de score: ${novoTipo || "Neutro"}
 
-Score atual: ${novoScore !== null ? novoScore : "Neutro"}${marcadasTexto}`;
+Score atual: ${novoScore !== null ? novoScore : "Neutro"}${linhaAjustePercepcao}${marcadasTexto}`;
         } else {
           let mudancasTexto = "";
           if (empresaObjeto.scoreAnswers) {
@@ -2463,7 +2485,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${marcadasTexto}`;
           descMudanca = `Mudança de score de ${antigoTipo || "Sem tipo"} para ${novoTipo || "Neutro"}
 
 Score antigo: ${antigoScore !== null && antigoScore !== undefined ? antigoScore : "Sem score"}
-Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
+Score atual: ${novoScore !== null ? novoScore : "Neutro"}${linhaAjustePercepcao}${mudancasTexto}`;
         }
 
         await salvarOcorrencia({
@@ -3578,6 +3600,7 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 scoreContadoresPerda: calculoScoreResult.isNeutro
                   ? undefined
                   : calculoScoreResult.contadores,
+                scoreAjustePercepcao: calculoScoreResult.ajustePercepcao ?? null,
                 duvidasTemasAnteriores: calculoScoreResult.isNeutro
                   ? empresaObjeto.duvidasTemasAnteriores
                   : duvidasTemasHistorico,
@@ -6385,6 +6408,15 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                         selectedEmpresaObj?.duvidasTemasAnteriores || [],
                       );
                       setNovaDuvidaTemaHistorico("");
+                      // Reabre com o ajuste deste registro ou, se ainda não houver, com
+                      // o do último cálculo gravado no cliente.
+                      setAjustePercepcaoHistorico(
+                        rascunhoDoAjustePercepcao(
+                          calculoScoreResult
+                            ? calculoScoreResult.ajustePercepcao
+                            : selectedEmpresaObj?.scoreAjustePercepcao,
+                        ),
+                      );
                       setModalScoreAberto(true);
                     }}
                   >
@@ -7948,12 +7980,27 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 </div>
               )}
 
+            <ResumoAjustePercepcao
+              ajuste={ajustePercepcaoHistorico}
+              onChange={
+                atuaComoTreinador(role) ? setAjustePercepcaoHistorico : undefined
+              }
+              salvo={
+                calculoScoreResult?.ajustePercepcao ??
+                selectedEmpresaObj?.scoreAjustePercepcao
+              }
+            />
+
             <div className="score-modal-footer">
               <div className="score-calculo-previo">
                 {(() => {
-                  const res = calcularPontuacaoScore(
+                  const resBase = calcularPontuacaoScore(
                     respostasScore,
                     selectedEmpresaObj?.scoreContadoresPerda,
+                  );
+                  const res = aplicarAjustePercepcao(
+                    resBase,
+                    ajustePercepcaoHistorico,
                   );
                   const ajustesAtivos = selectedEmpresaObj
                     ? obterAjustesAtivos(selectedEmpresaObj)
@@ -7967,6 +8014,15 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                     <span>
                       Total Parcial:{" "}
                       <strong>{totalComDeducao.toFixed(1)}</strong> ({res.tipo})
+                      {ajustePercepcaoHistorico.valor !== 0 && (
+                        <span className="score-ajuste-percepcao-inline">
+                          {" "}
+                          (questionário {resBase.score.toFixed(1)}{" "}
+                          {ajustePercepcaoHistorico.valor > 0 ? "+" : "−"}{" "}
+                          {Math.abs(ajustePercepcaoHistorico.valor).toFixed(1)}{" "}
+                          por percepção)
+                        </span>
+                      )}
                       {deducaoAtiva > 0 && (
                         <span className="score-deducao-inline">
                           {" "}
@@ -7994,6 +8050,12 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                 >
                   Neutro
                 </button>
+                {atuaComoTreinador(role) && (
+                  <AjustePercepcaoScore
+                    ajuste={ajustePercepcaoHistorico}
+                    onChange={setAjustePercepcaoHistorico}
+                  />
+                )}
                 <button
                   type="button"
                   className="btn-primary"
@@ -8015,11 +8077,26 @@ Score atual: ${novoScore !== null ? novoScore : "Neutro"}${mudancasTexto}`;
                       return;
                     }
 
-                    const res = calcularPontuacaoScore(
-                      respostasScore,
-                      selectedEmpresaObj?.scoreContadoresPerda,
+                    if (!ajustePercepcaoValido(ajustePercepcaoHistorico)) {
+                      toast.error("Informe a justificativa do ajuste de pontos.");
+                      return;
+                    }
+
+                    const res = aplicarAjustePercepcao(
+                      calcularPontuacaoScore(
+                        respostasScore,
+                        selectedEmpresaObj?.scoreContadoresPerda,
+                      ),
+                      ajustePercepcaoHistorico,
                     );
-                    setCalculoScoreResult(res);
+                    setCalculoScoreResult({
+                      ...res,
+                      ajustePercepcao: registrarAjustePercepcao(
+                        ajustePercepcaoHistorico,
+                        selectedEmpresaObj?.scoreAjustePercepcao,
+                        userName || undefined,
+                      ),
+                    });
                     setModalScoreAberto(false);
                     toast.success(
                       `Score calculado: ${res.score.toFixed(1)} (${res.tipo})`,

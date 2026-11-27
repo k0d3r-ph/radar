@@ -180,6 +180,18 @@ export type Empresa = {
    */
   scoreContadoresPerda?: ContadorPerdasScore;
   /**
+   * Pontos somados (positivo) ou descontados (negativo) pelo treinador, por percepção
+   * própria, no último cálculo do questionário. Já está incluído em `score`; fica
+   * registrado para explicar a diferença em relação às respostas. Cada novo cálculo
+   * começa sem ajuste. Ver {@link aplicarAjustePercepcao} em `utils/score.ts`.
+   */
+  scoreAjustePercepcao?: {
+    valor: number;
+    justificativa: string;
+    responsavel?: string;
+    criadoEm: number;
+  } | null;
+  /**
    * Dúvidas do cliente sobre temas anteriores, preenchidas ao marcar "Não" em
    * "Cliente se recorda de temas anteriores?" no questionário de score.
    */
@@ -290,6 +302,8 @@ export type Ocorrencia = {
   atualizacoes?: Atualizacao[];
   scoreCalculado?: number;
   scoreAnswers?: any;
+  /** Ajuste por percepção do treinador já incluído em `scoreCalculado`. */
+  scoreAjustePercepcao?: Empresa["scoreAjustePercepcao"];
   alerta?: boolean;
   retirarAlerta?: boolean;
   alertaResolvidoPorId?: string;

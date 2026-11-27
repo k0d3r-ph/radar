@@ -48,7 +48,16 @@ import {
   obterTipoEfetivo,
   encontrarOcorrenciaDoAjuste,
   descreverMotivosReducaoAtiva,
+  aplicarAjustePercepcao,
+  rascunhoDoAjustePercepcao,
+  registrarAjustePercepcao,
+  AJUSTE_PERCEPCAO_VAZIO,
+  ajustePercepcaoValido,
+  type AjustePercepcaoRascunho,
 } from "../../utils/score";
+import AjustePercepcaoScore, {
+  ResumoAjustePercepcao,
+} from "../../components/AjustePercepcaoScore";
 import { atribuirIdsOcorrencias } from "../../utils/empresaUtils";
 import {
   classificarGolCliente,
@@ -161,6 +170,8 @@ export default function Home() {
     useState<ScoreFormAnswers>(INITIAL_SCORE_ANSWERS);
   const [duvidasTemasHome, setDuvidasTemasHome] = useState<string[]>([]);
   const [novaDuvidaTemaHome, setNovaDuvidaTemaHome] = useState("");
+  const [ajustePercepcaoHome, setAjustePercepcaoHome] =
+    useState<AjustePercepcaoRascunho>(AJUSTE_PERCEPCAO_VAZIO);
 
   function abrirModalScoreHome() {
     if (clienteSelecionado) {
@@ -169,6 +180,10 @@ export default function Home() {
       );
       setDuvidasTemasHome(clienteSelecionado.duvidasTemasAnteriores || []);
       setNovaDuvidaTemaHome("");
+      // Reabre com o ajuste do treinador do último cálculo, para o total bater com o cadastro.
+      setAjustePercepcaoHome(
+        rascunhoDoAjustePercepcao(clienteSelecionado.scoreAjustePercepcao),
+      );
       setModalScoreHomeAberto(true);
     }
   }
@@ -226,6 +241,7 @@ export default function Home() {
         score: null as any,
         scoreAnswers: null,
         scoreContadoresPerda: undefined,
+        scoreAjustePercepcao: null,
         tipo: "",
         updatedAt: Date.now(),
       };
@@ -263,16 +279,29 @@ export default function Home() {
       return;
     }
 
+    if (!ajustePercepcaoValido(ajustePercepcaoHome)) {
+      toast.error("Informe a justificativa do ajuste de pontos.");
+      return;
+    }
+
     try {
-      const res = calcularPontuacaoScore(
-        respostasScoreHome,
-        clienteSelecionado.scoreContadoresPerda,
+      const res = aplicarAjustePercepcao(
+        calcularPontuacaoScore(
+          respostasScoreHome,
+          clienteSelecionado.scoreContadoresPerda,
+        ),
+        ajustePercepcaoHome,
       );
       const empresaAtualizada: Empresa = {
         ...clienteSelecionado,
         score: res.score,
         scoreAnswers: respostasScoreHome,
         scoreContadoresPerda: res.contadores,
+        scoreAjustePercepcao: registrarAjustePercepcao(
+          ajustePercepcaoHome,
+          clienteSelecionado.scoreAjustePercepcao,
+          userName || undefined,
+        ),
         duvidasTemasAnteriores: duvidasTemasHome,
         tipo: res.tipo,
         updatedAt: Date.now(),
@@ -6182,12 +6211,24 @@ export default function Home() {
                 </div>
               )}
 
+            <ResumoAjustePercepcao
+              ajuste={ajustePercepcaoHome}
+              onChange={
+                atuaComoTreinador(role) ? setAjustePercepcaoHome : undefined
+              }
+              salvo={clienteSelecionado?.scoreAjustePercepcao}
+            />
+
             <div className="home-score-modal-footer">
               <div className="home-score-calculo-previo">
                 {(() => {
-                  const res = calcularPontuacaoScore(
+                  const resBase = calcularPontuacaoScore(
                     respostasScoreHome,
                     clienteSelecionado?.scoreContadoresPerda,
+                  );
+                  const res = aplicarAjustePercepcao(
+                    resBase,
+                    ajustePercepcaoHome,
                   );
                   const ajustesAtivos = clienteSelecionado
                     ? obterAjustesAtivos(clienteSelecionado)
@@ -6201,6 +6242,15 @@ export default function Home() {
                     <span>
                       Total Parcial:{" "}
                       <strong>{totalComDeducao.toFixed(1)}</strong> ({res.tipo})
+                      {ajustePercepcaoHome.valor !== 0 && (
+                        <span className="score-ajuste-percepcao-inline">
+                          {" "}
+                          (questionário {resBase.score.toFixed(1)}{" "}
+                          {ajustePercepcaoHome.valor > 0 ? "+" : "−"}{" "}
+                          {Math.abs(ajustePercepcaoHome.valor).toFixed(1)} por
+                          percepção)
+                        </span>
+                      )}
                       {deducaoAtiva > 0 && (
                         <span className="home-score-deducao-inline">
                           {" "}
@@ -6220,6 +6270,12 @@ export default function Home() {
                 >
                   Neutro
                 </button>
+                {atuaComoTreinador(role) && (
+                  <AjustePercepcaoScore
+                    ajuste={ajustePercepcaoHome}
+                    onChange={setAjustePercepcaoHome}
+                  />
+                )}
                 <button
                   type="button"
                   className="btn-primary"

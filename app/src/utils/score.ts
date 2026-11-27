@@ -126,6 +126,90 @@ export function calcularPontuacaoScore(
   return { score, tipo, contadores };
 }
 
+/** Limite (para mais ou para menos) do ajuste manual por percepção do treinador. */
+export const LIMITE_AJUSTE_PERCEPCAO_SCORE = 2;
+
+/** Incremento do ajuste manual por percepção do treinador. */
+export const PASSO_AJUSTE_PERCEPCAO_SCORE = 0.5;
+
+/** Ajuste manual informado pelo treinador ao finalizar o cálculo do score. */
+export type AjustePercepcaoScore = NonNullable<Empresa["scoreAjustePercepcao"]>;
+
+/** Ajuste ainda em edição no questionário (antes de virar registro com responsável e data). */
+export interface AjustePercepcaoRascunho {
+  valor: number;
+  justificativa: string;
+}
+
+export const AJUSTE_PERCEPCAO_VAZIO: AjustePercepcaoRascunho = {
+  valor: 0,
+  justificativa: "",
+};
+
+/** O ajuste só pode ser confirmado com justificativa quando altera o score. */
+export function ajustePercepcaoValido(ajuste: AjustePercepcaoRascunho): boolean {
+  return ajuste.valor === 0 || ajuste.justificativa.trim().length > 0;
+}
+
+/** Rascunho inicial ao abrir o questionário: o ajuste salvo no último cálculo, se houver. */
+export function rascunhoDoAjustePercepcao(
+  salvo?: AjustePercepcaoScore | null,
+): AjustePercepcaoRascunho {
+  if (!salvo || !salvo.valor) return AJUSTE_PERCEPCAO_VAZIO;
+  return { valor: salvo.valor, justificativa: salvo.justificativa || "" };
+}
+
+/**
+ * Converte o rascunho no registro a gravar. Se o treinador manteve o mesmo ajuste
+ * (valor e justificativa), preserva quem o fez e quando; caso contrário, registra o
+ * usuário atual. Sem ajuste, devolve `null` para limpar o campo.
+ */
+export function registrarAjustePercepcao(
+  rascunho: AjustePercepcaoRascunho,
+  anterior: AjustePercepcaoScore | null | undefined,
+  responsavel: string | undefined,
+  agora = Date.now(),
+): AjustePercepcaoScore | null {
+  const valor = normalizarValorAjustePercepcao(rascunho.valor);
+  if (valor === 0) return null;
+  const justificativa = rascunho.justificativa.trim();
+  if (anterior && anterior.valor === valor && anterior.justificativa === justificativa) {
+    return anterior;
+  }
+  return { valor, justificativa, responsavel: responsavel || undefined, criadoEm: agora };
+}
+
+/** Mantém o valor do ajuste dentro do limite e múltiplo do passo (evita 0,30000000000000004). */
+export function normalizarValorAjustePercepcao(valor: number): number {
+  if (!Number.isFinite(valor)) return 0;
+  const limitado = Math.max(
+    -LIMITE_AJUSTE_PERCEPCAO_SCORE,
+    Math.min(LIMITE_AJUSTE_PERCEPCAO_SCORE, valor),
+  );
+  return Math.round(limitado / PASSO_AJUSTE_PERCEPCAO_SCORE) * PASSO_AJUSTE_PERCEPCAO_SCORE;
+}
+
+/**
+ * Aplica o ajuste por percepção do treinador sobre o score calculado pelo questionário
+ * e recalcula o tipo (Fast/Safety). Sem ajuste (ou ajuste 0), devolve o resultado intacto.
+ */
+export function aplicarAjustePercepcao<T extends { score: number; tipo: "Fast" | "Safety" }>(
+  resultado: T,
+  ajuste?: Pick<AjustePercepcaoScore, "valor"> | null,
+): T {
+  const valor = normalizarValorAjustePercepcao(ajuste?.valor ?? 0);
+  if (valor === 0) return resultado;
+  const score = resultado.score + valor;
+  return { ...resultado, score, tipo: score >= 6 ? "Fast" : "Safety" };
+}
+
+/** Linha descritiva do ajuste para o texto das ocorrências de "Mudança de score". */
+export function descreverAjustePercepcao(ajuste?: AjustePercepcaoScore | null): string {
+  if (!ajuste || ajuste.valor === 0) return "";
+  const sinal = ajuste.valor > 0 ? "+" : "−";
+  return `Ajuste por percepção do treinador: ${sinal}${formatarPontos(Math.abs(ajuste.valor))} (${ajuste.justificativa})`;
+}
+
 /** Quantos dias uma redução de score por contato com o Suporte permanece ativa. */
 export const DIAS_REDUCAO_SCORE_SUPORTE = 15;
 

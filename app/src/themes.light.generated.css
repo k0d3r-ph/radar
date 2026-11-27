@@ -53,6 +53,122 @@ body.light-theme {
     --lt-texto-ffffff: #0f172a;
 }
 
+/* ── components/AjustePercepcaoScore.css ── */
+body.light-theme .btn-ajuste-percepcao {
+    background-color: #f1f5f9;
+    border: 1px solid #d5dce5;
+    color: #334155
+}
+body.light-theme .btn-ajuste-percepcao:hover {
+    background-color: #e2e8f0;
+    color: #0f172a
+}
+body.light-theme .btn-ajuste-percepcao--ativo {
+    border-color: #f59e0b;
+    color: #ab630e
+}
+body.light-theme .btn-ajuste-percepcao:focus-visible,
+body.light-theme .ajuste-percepcao-painel button:focus-visible,
+body.light-theme .ajuste-percepcao-textarea:focus-visible {
+    outline: 2px solid #60a5fa
+}
+body.light-theme .ajuste-percepcao-painel {
+    background: #ffffff;
+    border: 1px solid #d5dce5;
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.099)
+}
+body.light-theme .ajuste-percepcao-titulo {
+    color: #0f172a
+}
+body.light-theme .ajuste-percepcao-hint {
+    color: #475569
+}
+body.light-theme .ajuste-percepcao-stepper button {
+    border: 1px solid #d5dce5;
+    background: #f8fafc;
+    color: #0f172a
+}
+body.light-theme .ajuste-percepcao-stepper button:hover:not(:disabled) {
+    background: #e2e8f0
+}
+body.light-theme .ajuste-percepcao-valor {
+    color: #0f172a
+}
+body.light-theme .ajuste-percepcao-valor.positivo {
+    color: #18823e
+}
+body.light-theme .ajuste-percepcao-valor.negativo {
+    color: #e61313
+}
+body.light-theme .ajuste-percepcao-valor-rotulo {
+    color: #475569
+}
+body.light-theme .ajuste-percepcao-label {
+    color: #334155
+}
+body.light-theme .ajuste-percepcao-textarea {
+    border: 1px solid #d5dce5;
+    background: #f8fafc;
+    color: #0f172a
+}
+body.light-theme .ajuste-percepcao-textarea[aria-invalid="true"] {
+    border-color: #f87171
+}
+body.light-theme .ajuste-percepcao-erro {
+    color: #e61313
+}
+body.light-theme .ajuste-percepcao-remover {
+    color: #e61313
+}
+body.light-theme .ajuste-percepcao-cancelar {
+    border: 1px solid #d5dce5;
+    color: #334155
+}
+body.light-theme .ajuste-percepcao-aplicar {
+    background: #2563eb;
+    border: 1px solid #2563eb;
+    color: #ffffff
+}
+body.light-theme .ajuste-percepcao-aplicar:hover {
+    background: #1d4ed8
+}
+body.light-theme .score-ajuste-percepcao-inline {
+    color: #ab630e
+}
+body.light-theme .ajuste-percepcao-resumo {
+    border-left: 3px solid #f59e0b;
+    background: rgba(245, 158, 11, 0.08);
+    color: #334155
+}
+body.light-theme .ajuste-percepcao-resumo.positivo {
+    border-left-color: #4ade80;
+    background: rgba(74, 222, 128, 0.08)
+}
+body.light-theme .ajuste-percepcao-resumo.negativo {
+    border-left-color: #f87171;
+    background: rgba(248, 113, 113, 0.08)
+}
+body.light-theme .ajuste-percepcao-resumo-titulo strong {
+    color: #0f172a
+}
+body.light-theme .ajuste-percepcao-resumo-autor {
+    color: #475569
+}
+body.light-theme .ajuste-percepcao-resumo.removido {
+    border-left-color: #cbd5e1;
+    background: rgba(148, 163, 184, 0.08)
+}
+body.light-theme .ajuste-percepcao-resumo-acao {
+    border: 1px solid #d5dce5;
+    color: #0f172a
+}
+body.light-theme .ajuste-percepcao-resumo-acao:hover {
+    background: #e2e8f0
+}
+body.light-theme .ajuste-percepcao-resumo-acao:focus-visible {
+    outline: 2px solid #60a5fa
+}
+
 /* ── components/AvatarUsuario.css ── */
 body.light-theme .avatar-usuario {
     border: 1px solid #cbd5e1;

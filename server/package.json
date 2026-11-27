@@ -45,7 +45,7 @@
     "pg": "^8.23.1",
     "qrcode": "^1.5.4",
     "socket.io": "^4.8.1",
-    "whatsapp-web.js": "github:pedroslopez/whatsapp-web.js#main"
+    "whatsapp-web.js": "github:pedroslopez/whatsapp-web.js#38eb45b27594"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",

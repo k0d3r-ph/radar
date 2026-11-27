@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import pkg from 'whatsapp-web.js';
 import qrcode from 'qrcode';
+import { userAgentWhatsApp } from './userAgentWhatsApp.js';
 import { IWhatsAppService } from '../../domain/interfaces/IWhatsAppService.js';
 import type { ConversaRecenteWhatsApp, IWhatsAppChat } from '../../domain/interfaces/IWhatsAppChat.js';
 import { WhatsAppSession, ConnectionStatus } from '../../domain/entities/WhatsAppSession.js';
@@ -121,6 +122,9 @@ export class WhatsAppWebClient implements IWhatsAppService, IWhatsAppChat {
 
       try {
         console.log('Iniciando instância do cliente WhatsApp...');
+        // Mesma versão do Chromium real: um Chrome antigo no user agent impede vincular aparelhos novos.
+        const agenteNavegador = userAgentWhatsApp();
+        console.log(`[WhatsApp] User agent: ${agenteNavegador}`);
         this.updateStatus('authenticating');
 
         this.client = new Client({
@@ -128,7 +132,7 @@ export class WhatsAppWebClient implements IWhatsAppService, IWhatsAppChat {
             clientId: 'radar-whatsapp-session',
             dataPath: process.env.WWEBJS_AUTH_PATH || './.wwebjs_auth'
           }),
-          userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          userAgent: agenteNavegador,
           // VM com poucos recursos: o carregamento do WhatsApp Web pode ser lento.
           // 300s (5 min) para dar margem suficiente sem precisar re-escanear o QR.
           authTimeoutMs: 300000,

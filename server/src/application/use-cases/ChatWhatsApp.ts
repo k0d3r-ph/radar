@@ -38,6 +38,9 @@ export interface OpcoesChatWhatsApp {
 
 export const LIMITE_CONVERSAS_LISTA = 300;
 export const LIMITE_MENSAGENS_PAGINA = 50;
+/** Espera antes de cada tentativa de recuperação após conectar (multiplicada pela tentativa). */
+const ESPERA_RECUPERACAO_MS = 20_000;
+const TENTATIVAS_RECUPERACAO = 3;
 
 /**
  * Chat de WhatsApp do Radar: grava o que chega e sai pelo número conectado, lista as
@@ -60,10 +63,20 @@ export class ChatWhatsApp {
         console.error('[Chat WhatsApp] Falha ao gravar mensagem:', erro);
       });
     });
+    // Logo após conectar o WhatsApp Web ainda sincroniza as conversas: espera e tenta de novo se falhar.
     this.whatsapp.onConectado(() => {
-      this.recuperarRecentes().catch((erro) => {
-        console.error('[Chat WhatsApp] Falha ao recuperar mensagens recentes:', erro);
-      });
+      const tentar = (tentativa: number) => {
+        setTimeout(() => {
+          this.recuperarRecentes().catch((erro) => {
+            if (tentativa < TENTATIVAS_RECUPERACAO) {
+              tentar(tentativa + 1);
+            } else {
+              console.error('[Chat WhatsApp] Falha ao recuperar mensagens recentes:', erro);
+            }
+          });
+        }, ESPERA_RECUPERACAO_MS * tentativa);
+      };
+      tentar(1);
     });
   }
 
@@ -88,7 +101,10 @@ export class ChatWhatsApp {
   ): Promise<'ignorada' | 'nova' | 'existente'> {
     if (!ehConversaIndividual(mensagem.conversaId)) return 'ignorada';
     const indice = await this.indice.obter();
-    if (this.opcoes.somenteClientes && indice.vinculos(mensagem.telefone).length === 0) return 'ignorada';
+    if (this.opcoes.somenteClientes && indice.vinculos(mensagem.telefone).length === 0) {
+      console.warn('[DIAGNOSTICO TEMPORARIO] ignorada por não ser de cliente:', mensagem.conversaId.replace(/\d(?=\d{4})/g, '*'), 'telefone:', mensagem.telefone ? mensagem.telefone.replace(/\d(?=\d{4})/g, '*') : 'desconhecido');
+      return 'ignorada';
+    }
 
     const resultado = await this.repositorio.registrarMensagem(mensagem, opcoes);
     // Reenvio já gravado só é avisado quando completa o autor (resposta do envio pelo Radar).

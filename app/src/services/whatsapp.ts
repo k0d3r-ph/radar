@@ -2,7 +2,7 @@ import { WHATSAPP_API_URL } from './apiConfig.ts';
 import { auth } from './firebase';
 
 /** O bot exige login no Radar em todas as rotas. */
-async function cabecalhosAutenticados(extras: Record<string, string> = {}): Promise<Record<string, string>> {
+export async function cabecalhosAutenticados(extras: Record<string, string> = {}): Promise<Record<string, string>> {
   if (!auth.currentUser) throw new Error('Entre novamente no Radar para usar o WhatsApp.');
   return { ...extras, Authorization: `Bearer ${await auth.currentUser.getIdToken()}` };
 }

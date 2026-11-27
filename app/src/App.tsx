@@ -19,6 +19,7 @@ import {
   LogOut,
   Menu,
   MessageCircle,
+  MessagesSquare,
   Moon,
   Sun,
   Tags,
@@ -32,6 +33,7 @@ import { Gamificacao } from "./pages/Gamificacao/Gamificacao";
 import { Relatorios } from "./pages/Relatorios/Relatorios";
 import { useTheme } from "./context/ThemeContext";
 import { WhatsAppSettings } from "./pages/WhatsApp/WhatsAppSettings";
+import { Conversas } from "./pages/Conversas/Conversas";
 import { TiposOcorrencia } from "./pages/TiposOcorrencia/TiposOcorrencia";
 import ChecklistTarefas from "./components/ChecklistTarefas";
 import { useVerificaVersao } from "./utils/useVerificaVersao";
@@ -296,6 +298,16 @@ function AppRoutes() {
                 <span className="nav-link-label">Validação do conhecimento</span>
               </NavLink>
               <NavLink
+                to="/conversas"
+                className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
+                onClick={fecharMenu}
+                aria-label="Conversas"
+                title="Conversas"
+              >
+                <MessagesSquare className="nav-link-icon" size={18} aria-hidden="true" />
+                <span className="nav-link-label">Conversas</span>
+              </NavLink>
+              <NavLink
                 to="/whatsapp"
                 className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
                 onClick={fecharMenu}
@@ -436,6 +448,12 @@ function AppRoutes() {
           <Route path="/gamificacao" element={<Gamificacao />} />
         ) : (
           <Route path="/gamificacao" element={<Navigate to={role === "painel" ? "/relatorios" : "/home"} replace />} />
+        )}
+
+        {role === "treinador" || role === "master" ? (
+          <Route path="/conversas" element={<Conversas />} />
+        ) : (
+          <Route path="/conversas" element={<Navigate to={role === "painel" ? "/relatorios" : "/home"} replace />} />
         )}
 
         {(role === "treinador" || role === "master") && role !== "painel" ? (

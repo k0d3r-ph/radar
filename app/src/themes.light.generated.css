@@ -905,6 +905,211 @@ body.light-theme .alterar-senha-submit-btn:hover:not(:disabled) {
     box-shadow: 0 6px 16px rgba(16, 185, 129, 0.135)
 }
 
+/* ── pages/Conversas/Conversas.css ── */
+body.light-theme .conversas-pagina {
+    background: #f4f6fa;
+    color: #0f172a
+}
+body.light-theme .conversas-painel-lista {
+    border-right: 1px solid #e2e8f0;
+    background: #f8fafc
+}
+body.light-theme .conversas-titulo {
+    color: #0f172a
+}
+body.light-theme .conversas-busca {
+    border: 1px solid #d5dce5;
+    background: #ffffff;
+    color: #475569
+}
+body.light-theme .conversas-busca:focus-within {
+    border-color: #60a5fa
+}
+body.light-theme .conversas-busca input {
+    color: #0f172a
+}
+body.light-theme .conversas-filtros {
+    border-bottom: 1px solid #e2e8f0
+}
+body.light-theme .conversas-filtro {
+    border: 1px solid #d5dce5;
+    color: #334155
+}
+body.light-theme .conversas-filtro:hover {
+    background: #f1f5f9
+}
+body.light-theme .conversas-filtro.ativo {
+    border-color: #2563eb;
+    background: #2563eb;
+    color: #ffffff
+}
+body.light-theme .conversas-item {
+    border-bottom: 1px solid #e8edf3
+}
+body.light-theme .conversas-item:hover {
+    background: #f1f5f9
+}
+body.light-theme .conversas-item.ativa {
+    border-left-color: #2563eb;
+    background: rgba(37, 99, 235, 0.15)
+}
+body.light-theme .conversas-item-titulo {
+    color: #0f172a
+}
+body.light-theme .conversas-item-hora {
+    color: #475569
+}
+body.light-theme .conversas-item.nao-lida .conversas-item-hora {
+    color: #18823e
+}
+body.light-theme .conversas-item-empresa {
+    color: #1271db
+}
+body.light-theme .conversas-selo-sem-vinculo {
+    border: 1px solid rgba(251, 191, 36, 0.5);
+    color: #ab630e
+}
+body.light-theme .conversas-item-previa {
+    color: #475569
+}
+body.light-theme .conversas-item.nao-lida .conversas-item-previa {
+    color: #0f172a
+}
+body.light-theme .conversas-item-badge {
+    background: #16a34a;
+    color: #ffffff
+}
+body.light-theme .conversas-vazio-chat {
+    color: #475569
+}
+body.light-theme .conversas-chat-cabecalho {
+    border-bottom: 1px solid #e2e8f0;
+    background: #f8fafc
+}
+body.light-theme .conversas-chat-identificacao h2 {
+    color: #0f172a
+}
+body.light-theme .conversas-chat-identificacao p {
+    color: #475569
+}
+body.light-theme .conversas-mensagens:focus-visible {
+    outline: 2px solid #60a5fa
+}
+body.light-theme .conversas-separador-dia span {
+    background: #ffffff;
+    color: #475569
+}
+body.light-theme .conversas-mensagem.do-contato {
+    background: #ffffff;
+    color: #0f172a
+}
+body.light-theme .conversas-mensagem.de-mim {
+    background: #eafaf1;
+    color: #0f172a
+}
+body.light-theme .conversas-envio {
+    border-top: 1px solid #e2e8f0;
+    background: #f8fafc
+}
+body.light-theme .conversas-envio-campo {
+    border: 1px solid #d5dce5;
+    background: #ffffff;
+    color: #0f172a
+}
+body.light-theme .conversas-envio-campo:focus-visible {
+    outline: 2px solid #60a5fa
+}
+body.light-theme .conversas-botao-enviar {
+    background: #16a34a;
+    color: #ffffff
+}
+body.light-theme .conversas-botao-enviar:hover:not(:disabled) {
+    background: #15803d
+}
+body.light-theme .conversas-envio-erro {
+    color: #e61313
+}
+body.light-theme .conversas-aviso {
+    border-left: 3px solid #f59e0b;
+    background: rgba(245, 158, 11, 0.1);
+    color: #ac630e
+}
+body.light-theme .conversas-aviso-conexao a {
+    color: #1271db
+}
+body.light-theme .conversas-estado {
+    color: #475569
+}
+body.light-theme .conversas-botao-icone {
+    border: 1px solid #d5dce5;
+    color: #334155
+}
+body.light-theme .conversas-botao-icone:hover:not(:disabled) {
+    background: #f1f5f9
+}
+body.light-theme .conversas-botao-secundario {
+    border: 1px solid #d5dce5;
+    color: #0f172a
+}
+body.light-theme .conversas-botao-secundario:hover:not(:disabled) {
+    background: #f1f5f9
+}
+body.light-theme .conversas-botao-primario {
+    border: 1px solid #2563eb;
+    background: #2563eb;
+    color: #ffffff
+}
+body.light-theme .conversas-botao-primario:hover:not(:disabled) {
+    background: #1d4ed8
+}
+body.light-theme .conversas-pagina button:focus-visible,
+body.light-theme .conversas-modal button:focus-visible,
+body.light-theme .conversas-modal-input:focus-visible {
+    outline: 2px solid #60a5fa
+}
+body.light-theme .conversas-modal {
+    border: 1px solid #d5dce5;
+    background: #ffffff;
+    color: #0f172a
+}
+body.light-theme .conversas-modal::backdrop {
+    background: rgba(15, 23, 42, 0.4)
+}
+body.light-theme .conversas-modal-titulo {
+    color: #0f172a
+}
+body.light-theme .conversas-modal-descricao {
+    color: #334155
+}
+body.light-theme .conversas-modal-label {
+    color: #334155
+}
+body.light-theme .conversas-modal-input {
+    border: 1px solid #d5dce5;
+    background: #f8fafc;
+    color: #0f172a
+}
+body.light-theme .conversas-modal-lista {
+    border: 1px solid #e2e8f0
+}
+body.light-theme .conversas-modal-opcao {
+    border-bottom: 1px solid #e8edf3;
+    color: #0f172a
+}
+body.light-theme .conversas-modal-opcao:hover {
+    background: #f1f5f9
+}
+body.light-theme .conversas-modal-opcao.selecionada {
+    background: rgba(37, 99, 235, 0.25);
+    color: #ffffff
+}
+body.light-theme .conversas-modal-vazio {
+    color: #475569
+}
+body.light-theme .conversas-modal-erro {
+    color: #e61313
+}
+
 /* ── pages/Csat/Csat.css ── */
 body.light-theme .csat-page {
     background: #f1f5f9;

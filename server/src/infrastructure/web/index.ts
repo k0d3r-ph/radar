@@ -12,6 +12,11 @@ import { adminAuth } from '../firebase/firebaseAdmin.js';
 import { banco, prepararBanco } from '../postgres/bancoDados.js';
 import { UsuariosRepository } from '../postgres/UsuariosRepository.js';
 import { config } from '../config/env.js';
+import { ChatWhatsApp } from '../../application/use-cases/ChatWhatsApp.js';
+import { ChatWhatsAppController } from '../../adapters/controllers/ChatWhatsAppController.js';
+import { WhatsAppChatRepository } from '../postgres/WhatsAppChatRepository.js';
+import { IndiceClientesBanco } from '../whatsapp/IndiceClientesBanco.js';
+import { banco as bancoDocumentos, poolPostgres } from '../postgres/bancoDados.js';
 
 /**
  * Processo do bot do WhatsApp. CSAT, ocorrências, sincronização, IA,
@@ -34,16 +39,45 @@ async function bootstrap() {
   const controller = new WhatsAppController(
     sendMediaMessage,
     disconnectClient,
-    getConnectionStatus
+    getConnectionStatus,
+    config.whatsappEnvioAutomaticoBloqueado,
   );
+  if (config.whatsappEnvioAutomaticoBloqueado) {
+    console.warn('[WhatsApp] Envios automáticos bloqueados (WHATSAPP_ENVIO_AUTOMATICO_BLOQUEADO=true): só o chat envia.');
+  }
+
+  // 3b. Chat do WhatsApp (precisa do banco: conversas e mensagens ficam no PostgreSQL)
+  let chat: ChatWhatsApp | null = null;
+  let chatController: ChatWhatsAppController | undefined;
+  if (poolPostgres && bancoDocumentos) {
+    const bancoChat = bancoDocumentos;
+    chat = new ChatWhatsApp(
+      new WhatsAppChatRepository(poolPostgres),
+      whatsappWebClient,
+      new IndiceClientesBanco(bancoChat),
+      { somenteClientes: config.whatsappChatSomenteClientes },
+    );
+    chat.iniciar();
+    chatController = new ChatWhatsAppController(chat, async (uid) => {
+      const usuario = (await bancoChat.doc(`usuarios/${uid}`).get()).data();
+      return typeof usuario?.nome === 'string' && usuario.nome.trim() ? usuario.nome.trim() : null;
+    });
+    if (config.whatsappChatSomenteClientes) {
+      console.warn('[Chat WhatsApp] Gravando só conversas de telefones cadastrados em clientes (WHATSAPP_CHAT_SOMENTE_CLIENTES=true).');
+    }
+  } else {
+    console.warn('[Chat WhatsApp] Banco não configurado: o chat fica desativado.');
+  }
 
   // 4. Cria o servidor Express e HTTP; todas as rotas e o socket exigem login no Radar
   const autenticador = new AutenticadorRadar(adminAuth, banco ? new UsuariosRepository(banco) : null);
-  const app = createExpressApp(controller, whatsappWebClient, autenticador);
+  const app = createExpressApp(controller, whatsappWebClient, autenticador, chatController);
   const httpServer = createServer(app);
 
   // 5. Instancia o servidor Socket.io
   const io = createSocketServer(httpServer, whatsappWebClient, autenticador);
+  // O socket só aceita master e treinador, os mesmos perfis das rotas do chat.
+  chat?.aoMudar((evento) => io.emit('whatsapp-chat', evento));
 
   // 6. Inicia o servidor HTTP
   httpServer.listen(config.port, () => {

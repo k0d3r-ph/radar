@@ -7,10 +7,19 @@ export class WhatsAppController {
   constructor(
     private sendMediaMessageUseCase: SendMediaMessage,
     private disconnectClientUseCase: DisconnectClient,
-    private getConnectionStatusUseCase: GetConnectionStatus
+    private getConnectionStatusUseCase: GetConnectionStatus,
+    /** Ver `whatsappEnvioAutomaticoBloqueado` em infrastructure/config/env.ts. */
+    private readonly envioBloqueado = false,
   ) {}
 
   async send(req: Request, res: Response): Promise<void> {
+    if (this.envioBloqueado) {
+      res.status(403).json({
+        success: false,
+        error: 'Envios automáticos de WhatsApp estão bloqueados neste ambiente de teste. Só o chat envia mensagens.',
+      });
+      return;
+    }
     const { to, message, imageBase64, filename } = req.body;
 
     if (typeof to !== 'string' || !to.trim() || typeof message !== 'string' || !message.trim()) {

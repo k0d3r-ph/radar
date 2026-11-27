@@ -31,4 +31,14 @@ export const config = {
    * de confirmar que o backfill rodou (senão força de novo a cada restart). */
   ssxDeskTrainingStagesForcarBackfill: process.env.SSX_DESK_TRAINING_STAGES_FORCAR_BACKFILL === 'true',
   profilePhotosDir: process.env.PROFILE_PHOTOS_DIR || path.resolve(process.cwd(), 'data/profile-photos'),
+  /**
+   * Bloqueia os envios automáticos e manuais da rota /api/whatsapp/send (avisos de progresso,
+   * gestão, chamados). Usado em testes locais com dados reais: só o chat continua enviando.
+   */
+  whatsappEnvioAutomaticoBloqueado: process.env.WHATSAPP_ENVIO_AUTOMATICO_BLOQUEADO === 'true',
+  /**
+   * O chat grava só conversas com telefones cadastrados em clientes. Usado quando o número
+   * conectado é pessoal (teste local), para não guardar conversas particulares.
+   */
+  whatsappChatSomenteClientes: process.env.WHATSAPP_CHAT_SOMENTE_CLIENTES === 'true',
 };

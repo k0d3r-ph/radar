@@ -1,6 +1,7 @@
 import express from 'express';
 import { criarAppBase } from './expressBase.js';
 import { WhatsAppController } from '../../adapters/controllers/WhatsAppController.js';
+import type { ChatWhatsAppController } from '../../adapters/controllers/ChatWhatsAppController.js';
 import { WhatsAppWebClient } from '../whatsapp/WhatsAppWebClient.js';
 import { AutenticadorRadar, PERFIS_GESTORES, PERFIS_RADAR } from '../../adapters/middlewares/autenticacaoRadar.js';
 
@@ -14,8 +15,18 @@ export function createExpressApp(
   controller: WhatsAppController,
   whatsappService: WhatsAppWebClient,
   autenticador: AutenticadorRadar,
+  chat?: ChatWhatsAppController,
 ): express.Express {
   const app = criarAppBase();
+
+  // Chat (ver server/WHATSAPP_CHAT.md): só master e treinador, os mesmos perfis do socket.
+  if (chat) {
+    const gestores = autenticador.exigir(PERFIS_GESTORES);
+    app.get('/api/whatsapp/conversas', gestores, (req, res) => chat.conversas(req, res));
+    app.get('/api/whatsapp/conversas/:id/mensagens', gestores, (req, res) => chat.mensagens(req, res));
+    app.post('/api/whatsapp/conversas/:id/mensagens', gestores, (req, res) => chat.enviar(req, res));
+    app.post('/api/whatsapp/conversas/:id/lida', gestores, (req, res) => chat.marcarLida(req, res));
+  }
 
   // Status e desconexão: mesmos perfis da tela /whatsapp. O status traz o número conectado e o QR Code.
   app.get('/api/whatsapp/status', autenticador.exigir(PERFIS_GESTORES), (req, res) => controller.status(req, res));

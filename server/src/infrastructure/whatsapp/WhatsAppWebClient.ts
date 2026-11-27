@@ -3,14 +3,25 @@ import path from 'path';
 import pkg from 'whatsapp-web.js';
 import qrcode from 'qrcode';
 import { IWhatsAppService } from '../../domain/interfaces/IWhatsAppService.js';
+import type { ConversaRecenteWhatsApp, IWhatsAppChat } from '../../domain/interfaces/IWhatsAppChat.js';
 import { WhatsAppSession, ConnectionStatus } from '../../domain/entities/WhatsAppSession.js';
+import {
+  classificarTipoMensagem,
+  ehConversaIndividual,
+  telefoneDoIdConversa,
+  type MensagemChatWhatsApp,
+} from '../../domain/whatsappChat.js';
 
 const { Client, LocalAuth, MessageMedia } = pkg;
 
-export class WhatsAppWebClient implements IWhatsAppService {
+export class WhatsAppWebClient implements IWhatsAppService, IWhatsAppChat {
   private client: any = null;
   private session: WhatsAppSession;
-  private statusCallback: ((session: WhatsAppSession) => void) | null = null;
+  private readonly statusCallbacks: ((session: WhatsAppSession) => void)[] = [];
+  private readonly mensagemCallbacks: ((mensagem: MensagemChatWhatsApp) => void)[] = [];
+  private readonly conectadoCallbacks: (() => void)[] = [];
+  /** Telefone de cada conversa `@lid` já resolvido (o WhatsApp não muda esse vínculo). */
+  private readonly telefonesLid = new Map<string, string | null>();
   private initializingPromise: Promise<void> | null = null;
 
   constructor() {
@@ -18,15 +29,31 @@ export class WhatsAppWebClient implements IWhatsAppService {
   }
 
   onStatusChange(callback: (session: WhatsAppSession) => void): void {
-    this.statusCallback = callback;
+    this.statusCallbacks.push(callback);
     // Dispara imediatamente o status atual para o novo listener
     callback(this.session);
   }
 
+  onMensagem(callback: (mensagem: MensagemChatWhatsApp) => void): void {
+    this.mensagemCallbacks.push(callback);
+  }
+
+  onConectado(callback: () => void): void {
+    this.conectadoCallbacks.push(callback);
+  }
+
+  estaConectado(): boolean {
+    return this.session.status === 'connected' && !!this.client;
+  }
+
   private updateStatus(status: ConnectionStatus, qrCode?: string, userInfo?: { name: string; number: string }) {
     this.session = new WhatsAppSession(status, qrCode, userInfo);
-    if (this.statusCallback) {
-      this.statusCallback(this.session);
+    for (const callback of this.statusCallbacks) {
+      try {
+        callback(this.session);
+      } catch (erro) {
+        console.error('[WhatsApp] Erro ao avisar mudança de status:', erro);
+      }
     }
   }
 
@@ -183,6 +210,28 @@ export class WhatsAppWebClient implements IWhatsAppService {
           const name = this.client.info?.pushname || 'Radar CRM';
           const number = this.client.info?.wid?.user || '';
           this.updateStatus('connected', undefined, { name, number });
+          for (const callback of this.conectadoCallbacks) {
+            try {
+              callback();
+            } catch (erro) {
+              console.error('[WhatsApp] Erro ao avisar conexão pronta:', erro);
+            }
+          }
+        });
+
+        // Toda mensagem criada numa conversa (recebida ou enviada de qualquer aparelho do número).
+        this.client.on('message_create', (msg: any) => {
+          if (this.mensagemCallbacks.length === 0) return;
+          this.converterMensagem(msg).then((mensagem) => {
+            if (!mensagem) return;
+            for (const callback of this.mensagemCallbacks) {
+              try {
+                callback(mensagem);
+              } catch (erro) {
+                console.error('[WhatsApp] Erro ao repassar mensagem recebida:', erro);
+              }
+            }
+          }).catch((erro) => console.error('[WhatsApp] Falha ao converter mensagem:', erro));
         });
 
         this.client.on('disconnected', async (reason: any) => {
@@ -317,6 +366,75 @@ export class WhatsAppWebClient implements IWhatsAppService {
       console.error('Erro ao enviar mensagem pelo WhatsApp:', error);
       throw error;
     }
+  }
+
+  /** Telefone (só dígitos) de uma conversa; para `@lid` pergunta ao WhatsApp e guarda em memória. */
+  private async resolverTelefone(conversaId: string): Promise<string | null> {
+    const direto = telefoneDoIdConversa(conversaId);
+    if (direto || !conversaId.endsWith('@lid')) return direto;
+    if (this.telefonesLid.has(conversaId)) return this.telefonesLid.get(conversaId) ?? null;
+    let telefone: string | null = null;
+    try {
+      const [resultado] = await this.client.getContactLidAndPhone([conversaId]);
+      telefone = resultado?.pn ? telefoneDoIdConversa(resultado.pn) : null;
+    } catch (erro) {
+      console.warn(`[WhatsApp] Não foi possível descobrir o telefone de ${conversaId}:`, erro);
+      return null; // não guarda: tenta de novo na próxima mensagem
+    }
+    this.telefonesLid.set(conversaId, telefone);
+    return telefone;
+  }
+
+  /** Converte a mensagem do whatsapp-web.js; `null` para grupos, status e avisos de sistema. */
+  private async converterMensagem(msg: any): Promise<MensagemChatWhatsApp | null> {
+    if (!msg?.id?._serialized || msg.isStatus) return null;
+    const conversaId: string | undefined = msg.fromMe ? msg.to : msg.from;
+    if (!ehConversaIndividual(conversaId)) return null;
+    const tipo = classificarTipoMensagem(msg.type);
+    if (!tipo) return null;
+    return {
+      id: msg.id._serialized,
+      conversaId,
+      telefone: await this.resolverTelefone(conversaId),
+      nomeContato: msg.fromMe ? null : (msg._data?.notifyName || null),
+      deMim: !!msg.fromMe,
+      tipo,
+      texto: typeof msg.body === 'string' ? msg.body : '',
+      enviadaEm: (Number(msg.timestamp) || Math.floor(Date.now() / 1000)) * 1000,
+    };
+  }
+
+  async enviarTexto(conversaId: string, texto: string): Promise<MensagemChatWhatsApp> {
+    if (!this.estaConectado()) {
+      throw new Error('Não há uma sessão conectada ativa no WhatsApp.');
+    }
+    const enviada = await this.client.sendMessage(conversaId, texto, { waitUntilMsgSent: true });
+    if (!enviada) throw new Error('O WhatsApp não confirmou o envio da mensagem.');
+    const mensagem = await this.converterMensagem(enviada);
+    if (!mensagem) throw new Error('O WhatsApp enviou a mensagem, mas não foi possível registrá-la no Radar.');
+    return mensagem;
+  }
+
+  async listarConversasRecentes(limite: number): Promise<ConversaRecenteWhatsApp[]> {
+    if (!this.estaConectado()) return [];
+    const chats: any[] = await this.client.getChats();
+    return chats
+      .filter((chat) => !chat.isGroup && ehConversaIndividual(chat.id?._serialized))
+      .sort((a, b) => (Number(b.timestamp) || 0) - (Number(a.timestamp) || 0))
+      .slice(0, limite)
+      .map((chat) => ({ conversaId: chat.id._serialized, naoLidas: Number(chat.unreadCount) || 0 }));
+  }
+
+  async buscarMensagens(conversaId: string, limite: number): Promise<MensagemChatWhatsApp[]> {
+    if (!this.estaConectado()) return [];
+    const chat = await this.client.getChatById(conversaId);
+    const mensagens: any[] = await chat.fetchMessages({ limit: limite });
+    const convertidas: MensagemChatWhatsApp[] = [];
+    for (const msg of mensagens) {
+      const mensagem = await this.converterMensagem(msg);
+      if (mensagem) convertidas.push(mensagem);
+    }
+    return convertidas;
   }
 
   async takeScreenshot(): Promise<string | null> {

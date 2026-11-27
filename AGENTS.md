@@ -30,6 +30,7 @@ Leia a documentação correspondente quando a tarefa envolver essas funcionalida
 - `server/CSAT.md`: reservas, sequências, respostas e acesso público.
 - `server/SSX_DESK.md`: importação, vínculos e deduplicação.
 - `server/EMULADOR.md`: ambiente local (PostgreSQL local e Auth Emulator), sem tocar em produção.
+- `server/WHATSAPP_CHAT.md`: tela Conversas (chat do WhatsApp), rotas do bot e teste local com dados reais.
 - `app/TEMA_CLARO.md`: modo claro gerado a partir do CSS escuro; rode `npm run tema:claro` em `app/` após alterar cores.
 
 Confirme o comportamento no código e nos testes. Se houver divergência com a documentação, identifique-a e resolva conforme o objetivo solicitado; não trate um comportamento acidental como requisito.

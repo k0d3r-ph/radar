@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { iniciarPostgresTeste } from './helpers/postgresTeste.mjs';
 import { CAMPO_REMOVIDO } from '../dist/infrastructure/postgres/BancoDocumentosPostgres.js';
 import { migrarEsquema } from '../dist/infrastructure/postgres/migrador.js';
+import { MIGRACOES } from '../dist/infrastructure/postgres/migracoes.js';
 import { GerenciarValidacaoConhecimento } from '../dist/application/use-cases/GerenciarValidacaoConhecimento.js';
 import { SetOcorrenciaFavorita } from '../dist/application/use-cases/SetOcorrenciaFavorita.js';
 import { registrarCsat } from '../dist/infrastructure/web/csat.js';
@@ -20,7 +21,7 @@ beforeEach(async () => { await pg.limpar(); });
 test('migrações são idempotentes e o banco usa o fuso de Brasília só se configurado no banco', async () => {
   assert.deepEqual(await migrarEsquema(pg.pool), []);
   const { rows } = await pg.pool.query('select count(*)::int as n from radar_migracoes');
-  assert.equal(rows[0].n, 1);
+  assert.equal(rows[0].n, MIGRACOES.length);
 });
 
 test('coleções e caminhos fora do registro são recusados', async () => {

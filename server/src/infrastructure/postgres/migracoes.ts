@@ -97,4 +97,36 @@ create index empresas_updated_at on empresas (radar_numero(dados -> 'updatedAt')
 create index validacao_tentativas_concluida_em on validacao_tentativas (radar_numero(dados -> 'concluidaEm'));
 `,
   },
+  {
+    versao: 2,
+    nome: 'chat do WhatsApp (conversas e mensagens)',
+    // Tabelas relacionais, fora de /api/dados: só o processo do bot as lê e grava (ver server/WHATSAPP_CHAT.md).
+    sql: `
+create table whatsapp_conversas (
+  id text primary key check (id <> ''),
+  telefone text,
+  nome_contato text,
+  ultima_mensagem_em timestamptz,
+  ultima_mensagem_previa text,
+  ultima_mensagem_de_mim boolean,
+  nao_lidas integer not null default 0 check (nao_lidas >= 0),
+  criado_em timestamptz not null default now(),
+  atualizado_em timestamptz not null default now()
+);
+create index whatsapp_conversas_ultima on whatsapp_conversas (ultima_mensagem_em desc nulls last);
+
+create table whatsapp_mensagens (
+  id text primary key check (id <> ''),
+  conversa_id text not null references whatsapp_conversas (id) on delete cascade,
+  de_mim boolean not null,
+  tipo text not null,
+  texto text not null default '',
+  enviada_em timestamptz not null,
+  enviado_por_uid text,
+  enviado_por_nome text,
+  criado_em timestamptz not null default now()
+);
+create index whatsapp_mensagens_conversa on whatsapp_mensagens (conversa_id, enviada_em desc, id desc);
+`,
+  },
 ];
